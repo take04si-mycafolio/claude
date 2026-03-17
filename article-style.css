@@ -207,6 +207,30 @@
   color: #fff;
 }
 
+/* 🎨 デザイン受賞（ゴールド）掃除機・インテリア家電など */
+.badge-design {
+  background: #B8860B;
+  color: #fff;
+}
+
+/* ⚡ 軽量・コンパクト（シアン） */
+.badge-light {
+  background: #00838F;
+  color: #fff;
+}
+
+/* 🌬️ 多機能搭載（ティール） */
+.badge-multi {
+  background: #00695C;
+  color: #fff;
+}
+
+/* 🔇 静音設計（スレートブルー） */
+.badge-quiet {
+  background: #455A64;
+  color: #fff;
+}
+
 
 /* ============================================================
    商品スペックボックス（.blank-box.bb-memo）
