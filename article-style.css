@@ -395,3 +395,165 @@
   line-height: 1.9;
   margin-bottom: 1em;
 }
+
+
+/* ============================================================
+   CHECK BOX スタイリッシュ上書き
+   （「自動切り替え機能とは？」などの補足カード）
+   ============================================================ */
+.article .check-box,
+.entry-content .check-box {
+  background: #fff;
+  border: none;
+  border-radius: var(--radius);
+  box-shadow: 0 4px 16px rgba(21, 101, 192, 0.12);
+  padding: 0;
+  overflow: hidden;
+  position: relative;
+  margin: 1.5em 0;
+}
+
+/* Cocoon デフォルトのアイコン非表示 */
+.article .check-box::before,
+.entry-content .check-box::before {
+  display: none;
+}
+
+/* カード上部にカラーバー */
+.article .check-box::after,
+.entry-content .check-box::after {
+  content: '';
+  display: block;
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 4px;
+  background: linear-gradient(90deg, #00897B, #26C6DA);
+  border-radius: var(--radius) var(--radius) 0 0;
+}
+
+.article .check-box p,
+.entry-content .check-box p {
+  margin: 0;
+  padding: 22px 20px 18px;
+  font-size: 0.93em;
+  line-height: 1.85;
+  color: #444;
+}
+
+/* タイトル部分（<strong>）をカード見出しっぽく */
+.article .check-box p strong:first-child,
+.entry-content .check-box p strong:first-child {
+  display: block;
+  color: #00695C;
+  font-size: 1em;
+  margin-bottom: 6px;
+  padding-bottom: 6px;
+  border-bottom: 1px solid #E0F2F1;
+}
+
+
+/* ============================================================
+   メリット・デメリット 2カラムグリッド
+   ============================================================ */
+.merit-demerit-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  margin: 1em 0 1.8em;
+  align-items: start;
+}
+
+@media (max-width: 640px) {
+  .merit-demerit-grid {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+}
+
+/* ---- メリットカード（緑） ---- */
+.merit-card,
+.demerit-card {
+  border-radius: var(--radius);
+  overflow: hidden;
+  box-shadow: 0 3px 12px rgba(0, 0, 0, 0.09);
+  background: #fff;
+}
+
+.merit-card__head {
+  background: linear-gradient(135deg, #2E7D32, #43A047);
+  color: #fff;
+  font-weight: bold;
+  font-size: 0.92em;
+  letter-spacing: 0.06em;
+  padding: 10px 16px;
+}
+
+.merit-card ul {
+  list-style: none;
+  margin: 0;
+  padding: 12px 16px 14px;
+}
+
+.merit-card ul li {
+  padding: 5px 0 5px 22px;
+  position: relative;
+  font-size: 0.91em;
+  line-height: 1.7;
+  color: #333;
+  border-bottom: 1px solid #F1F8F1;
+}
+
+.merit-card ul li:last-child {
+  border-bottom: none;
+}
+
+.merit-card ul li::before {
+  content: '✓';
+  position: absolute;
+  left: 0;
+  top: 5px;
+  color: #2E7D32;
+  font-weight: bold;
+  font-size: 0.95em;
+}
+
+/* ---- デメリットカード（赤） ---- */
+.demerit-card__head {
+  background: linear-gradient(135deg, #C62828, #E53935);
+  color: #fff;
+  font-weight: bold;
+  font-size: 0.92em;
+  letter-spacing: 0.06em;
+  padding: 10px 16px;
+}
+
+.demerit-card ul {
+  list-style: none;
+  margin: 0;
+  padding: 12px 16px 14px;
+}
+
+.demerit-card ul li {
+  padding: 5px 0 5px 22px;
+  position: relative;
+  font-size: 0.91em;
+  line-height: 1.7;
+  color: #333;
+  border-bottom: 1px solid #FFF5F5;
+}
+
+.demerit-card ul li:last-child {
+  border-bottom: none;
+}
+
+.demerit-card ul li::before {
+  content: '✗';
+  position: absolute;
+  left: 0;
+  top: 5px;
+  color: #C62828;
+  font-weight: bold;
+  font-size: 0.95em;
+}
