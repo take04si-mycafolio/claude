@@ -1,0 +1,159 @@
+{% extends "base.html" %}
+{% block title %}シグナル詳細 - FXシグナルツール{% endblock %}
+
+{% block content %}
+<h5 class="mb-3"><i class="bi bi-lightning-charge-fill text-warning me-2"></i>シグナル詳細</h5>
+
+<!-- フィルター -->
+<div class="card bg-secondary-subtle border-secondary mb-3">
+  <div class="card-body py-2">
+    <div class="row g-2 align-items-center">
+      <div class="col-auto">
+        <select class="form-select form-select-sm bg-dark text-light border-secondary" id="f-pair">
+          <option value="">全ペア</option>
+          {% for pair in pairs %}
+          <option value="{{ pair }}">{{ pair[:3] }}/{{ pair[3:] }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="col-auto">
+        <select class="form-select form-select-sm bg-dark text-light border-secondary" id="f-tf">
+          <option value="">全TF</option>
+          <option value="5min">5分足</option>
+          <option value="15min">15分足</option>
+          <option value="30min">30分足</option>
+          <option value="1hr">1時間足</option>
+          <option value="4hr">4時間足</option>
+          <option value="daily">日足</option>
+        </select>
+      </div>
+      <div class="col-auto">
+        <select class="form-select form-select-sm bg-dark text-light border-secondary" id="f-type">
+          <option value="">BUY/SELL</option>
+          <option value="BUY">BUY</option>
+          <option value="SELL">SELL</option>
+        </select>
+      </div>
+      <div class="col-auto">
+        <select class="form-select form-select-sm bg-dark text-light border-secondary" id="f-cat">
+          <option value="">全カテゴリ</option>
+          <option value="oscillator">オシレーター</option>
+          <option value="trend">トレンド</option>
+          <option value="line">ライン</option>
+          <option value="volatility">ボラティリティ</option>
+          <option value="pattern">パターン</option>
+        </select>
+      </div>
+      <div class="col-auto">
+        <button class="btn btn-sm btn-primary" onclick="loadSignals()">
+          <i class="bi bi-funnel me-1"></i>フィルター
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- シグナルテーブル -->
+<div class="card bg-secondary-subtle border-secondary">
+  <div class="card-body p-0">
+    <div class="table-responsive">
+      <table class="table table-dark table-hover mb-0">
+        <thead class="table-secondary">
+          <tr>
+            <th>通貨ペア</th>
+            <th>タイムフレーム</th>
+            <th>シグナル</th>
+            <th>指標名</th>
+            <th>カテゴリ</th>
+            <th>勝率</th>
+            <th>信頼度</th>
+            <th>エントリー価格</th>
+            <th>SL価格</th>
+            <th>TP価格</th>
+            <th>SL(pips)</th>
+            <th>TP(pips)</th>
+            <th>シグナル時刻</th>
+          </tr>
+        </thead>
+        <tbody id="signals-tbody">
+          <tr><td colspan="13" class="text-center py-4 text-secondary">読み込み中...</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+async function loadSignals() {
+  const pair = document.getElementById('f-pair').value;
+  const tf = document.getElementById('f-tf').value;
+  const type = document.getElementById('f-type').value;
+  const cat = document.getElementById('f-cat').value;
+
+  let url = '/api/signals?';
+  if (pair) url += `pair=${pair}&`;
+  if (tf) url += `timeframe=${tf}&`;
+
+  const tbody = document.getElementById('signals-tbody');
+  tbody.innerHTML = '<tr><td colspan="13" class="text-center py-4 text-secondary">読み込み中...</td></tr>';
+
+  try {
+    const res = await fetch(url);
+    let signals = await res.json();
+
+    if (type) signals = signals.filter(s => s.signal_type === type);
+    if (cat) signals = signals.filter(s => s.indicator_category === cat);
+
+    const catLabels = {
+      oscillator: '<span class="badge bg-purple">オシレーター</span>',
+      trend: '<span class="badge bg-info text-dark">トレンド</span>',
+      line: '<span class="badge bg-warning text-dark">ライン</span>',
+      volatility: '<span class="badge bg-secondary">ボラティリティ</span>',
+      pattern: '<span class="badge bg-primary">パターン</span>',
+    };
+
+    if (!signals.length) {
+      tbody.innerHTML = '<tr><td colspan="13" class="text-center py-4 text-secondary">シグナルなし</td></tr>';
+      return;
+    }
+
+    tbody.innerHTML = signals.map(s => {
+      const badgeClass = s.signal_type === 'BUY' ? 'bg-success' : 'bg-danger';
+      const ts = s.signal_time ? new Date(s.signal_time).toLocaleString('ja-JP', {timeZone:'UTC'}) : '--';
+      const catBadge = catLabels[s.indicator_category] || s.indicator_category;
+      return `<tr>
+        <td class="fw-bold">${s.currency_pair.slice(0,3)}/${s.currency_pair.slice(3)}</td>
+        <td>${s.timeframe}</td>
+        <td><span class="badge ${badgeClass} fs-6">${s.signal_type}</span></td>
+        <td class="small">${s.indicator_name}</td>
+        <td>${catBadge}</td>
+        <td class="fw-bold">${s.win_rate?.toFixed(1) ?? '--'}%</td>
+        <td>
+          <div class="progress" style="height:6px;min-width:60px;">
+            <div class="progress-bar ${s.signal_type==='BUY'?'bg-success':'bg-danger'}"
+                 style="width:${s.confidence_score ?? 0}%"></div>
+          </div>
+          <small>${s.confidence_score?.toFixed(0) ?? '--'}/100</small>
+        </td>
+        <td>${s.entry_price?.toFixed(3) ?? '--'}</td>
+        <td class="text-danger">${s.sl_price?.toFixed(3) ?? '--'}</td>
+        <td class="text-success">${s.tp_price?.toFixed(3) ?? '--'}</td>
+        <td>${s.sl_pips?.toFixed(1) ?? '--'}</td>
+        <td>${s.tp_pips?.toFixed(1) ?? '--'}</td>
+        <td class="small text-secondary">${ts} UTC</td>
+      </tr>`;
+    }).join('');
+  } catch (e) {
+    tbody.innerHTML = `<tr><td colspan="13" class="text-danger text-center">${e}</td></tr>`;
+  }
+}
+
+loadSignals();
+setInterval(loadSignals, 30000);
+</script>
+<style>
+.bg-purple { background-color: #7c3aed !important; }
+</style>
+{% endblock %}

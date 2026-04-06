@@ -1,0 +1,90 @@
+/* FX Signal Tool - カスタムスタイル */
+
+body {
+  font-size: 0.9rem;
+}
+
+/* ナビゲーション */
+.navbar-brand {
+  font-size: 1.1rem;
+  letter-spacing: 0.03em;
+}
+
+/* カード */
+.card {
+  border-radius: 8px;
+}
+
+/* テーブル */
+.table > :not(caption) > * > * {
+  padding: 0.4rem 0.6rem;
+}
+
+/* バッジ */
+.badge {
+  font-size: 0.75rem;
+}
+
+/* ProgressBar アニメーション */
+.progress-bar {
+  transition: width 0.5s ease;
+}
+
+/* シグナルカード */
+.card .fs-3 {
+  font-variant-numeric: tabular-nums;
+}
+
+/* リストグループ (レポート) */
+.list-group-item.active {
+  background-color: #1e3a5f !important;
+  border-color: #1a56db !important;
+}
+
+/* スクロールバー */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: #1a1a1a;
+}
+::-webkit-scrollbar-thumb {
+  background: #444;
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #666;
+}
+
+/* レポート本文 */
+#report-body h3, #report-body h4, #report-body h5 {
+  margin-top: 1rem;
+}
+#report-body ul {
+  padding-left: 1.5rem;
+}
+#report-body p {
+  margin-bottom: 0.4rem;
+  line-height: 1.6;
+}
+
+/* ローディングアニメーション */
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+.loading {
+  animation: pulse 1.5s ease-in-out infinite;
+}
+
+/* シグナル強度表示 */
+.signal-strong {
+  color: #00d084;
+}
+.signal-medium {
+  color: #fbbf24;
+}
+.signal-weak {
+  color: #94a3b8;
+}

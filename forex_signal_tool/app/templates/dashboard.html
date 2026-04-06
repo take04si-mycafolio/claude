@@ -1,0 +1,330 @@
+{% extends "base.html" %}
+{% block title %}ダッシュボード - FXシグナルツール{% endblock %}
+
+{% block content %}
+<div class="row g-3 mb-3">
+  {% for pair in pairs %}
+  <div class="col-md-4">
+    <div class="card bg-secondary-subtle border-secondary h-100" id="card-{{ pair }}">
+      <div class="card-header d-flex justify-content-between align-items-center py-2">
+        <span class="fw-bold fs-5">{{ pair[:3] }}/{{ pair[3:] }}</span>
+        <span class="badge bg-secondary signal-badge-{{ pair }}" id="badge-{{ pair }}">--</span>
+      </div>
+      <div class="card-body py-2">
+        <div class="d-flex justify-content-between align-items-end mb-2">
+          <span class="fs-3 fw-bold" id="price-{{ pair }}">--.---</span>
+          <span class="text-secondary small" id="price-time-{{ pair }}">--:--</span>
+        </div>
+        <div class="row text-center g-1">
+          <div class="col-6">
+            <div class="bg-success bg-opacity-25 rounded p-1">
+              <div class="text-success fw-bold" id="buy-count-{{ pair }}">-</div>
+              <div class="text-secondary" style="font-size:0.7rem">買いシグナル</div>
+            </div>
+          </div>
+          <div class="col-6">
+            <div class="bg-danger bg-opacity-25 rounded p-1">
+              <div class="text-danger fw-bold" id="sell-count-{{ pair }}">-</div>
+              <div class="text-secondary" style="font-size:0.7rem">売りシグナル</div>
+            </div>
+          </div>
+        </div>
+        <div class="mt-2">
+          <div class="progress" style="height:6px;">
+            <div class="progress-bar bg-success" id="strength-{{ pair }}" style="width:50%"></div>
+          </div>
+          <div class="d-flex justify-content-between text-secondary mt-1" style="font-size:0.7rem">
+            <span>SELL</span>
+            <span id="strength-label-{{ pair }}">--</span>
+            <span>BUY</span>
+          </div>
+        </div>
+      </div>
+      <div class="card-footer py-1 text-secondary small">
+        <div id="top-signal-{{ pair }}">シグナル取得中...</div>
+      </div>
+    </div>
+  </div>
+  {% endfor %}
+</div>
+
+<!-- 最新シグナル一覧 -->
+<div class="row g-3">
+  <div class="col-lg-8">
+    <div class="card bg-secondary-subtle border-secondary">
+      <div class="card-header d-flex justify-content-between align-items-center">
+        <span><i class="bi bi-lightning-charge-fill text-warning me-2"></i>アクティブシグナル一覧</span>
+        <div class="d-flex gap-2">
+          <select class="form-select form-select-sm bg-dark text-light border-secondary" id="filter-pair" style="width:auto">
+            <option value="">全ペア</option>
+            {% for pair in pairs %}
+            <option value="{{ pair }}">{{ pair[:3] }}/{{ pair[3:] }}</option>
+            {% endfor %}
+          </select>
+          <select class="form-select form-select-sm bg-dark text-light border-secondary" id="filter-tf" style="width:auto">
+            <option value="">全TF</option>
+            <option value="5min">5分</option>
+            <option value="15min">15分</option>
+            <option value="30min">30分</option>
+            <option value="1hr">1時間</option>
+            <option value="4hr">4時間</option>
+            <option value="daily">日足</option>
+          </select>
+          <button class="btn btn-sm btn-outline-primary" onclick="loadSignals()">
+            <i class="bi bi-arrow-clockwise"></i>
+          </button>
+        </div>
+      </div>
+      <div class="card-body p-0">
+        <div class="table-responsive">
+          <table class="table table-dark table-hover mb-0 small">
+            <thead class="table-secondary">
+              <tr>
+                <th>通貨ペア</th>
+                <th>TF</th>
+                <th>シグナル</th>
+                <th>指標</th>
+                <th>勝率</th>
+                <th>信頼度</th>
+                <th>エントリー</th>
+                <th>SL</th>
+                <th>TP</th>
+              </tr>
+            </thead>
+            <tbody id="signals-table">
+              <tr><td colspan="9" class="text-center text-secondary py-3">読み込み中...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-lg-4">
+    <!-- 最新レポート -->
+    <div class="card bg-secondary-subtle border-secondary mb-3">
+      <div class="card-header">
+        <i class="bi bi-file-earmark-text-fill text-info me-2"></i>最新AIレポート
+      </div>
+      <div class="card-body p-2" id="latest-report-area">
+        <div class="text-secondary small">レポートを取得中...</div>
+      </div>
+      <div class="card-footer py-1">
+        <a href="/reports" class="btn btn-sm btn-outline-info w-100">レポート一覧を見る</a>
+      </div>
+    </div>
+
+    <!-- 操作パネル -->
+    <div class="card bg-secondary-subtle border-secondary">
+      <div class="card-header"><i class="bi bi-terminal me-2"></i>手動実行</div>
+      <div class="card-body d-grid gap-2">
+        <button class="btn btn-outline-primary btn-sm" onclick="fetchData()">
+          <i class="bi bi-cloud-download me-1"></i>データ取得
+        </button>
+        <button class="btn btn-outline-warning btn-sm" onclick="runBacktest()">
+          <i class="bi bi-bar-chart me-1"></i>バックテスト実行
+        </button>
+        <button class="btn btn-outline-success btn-sm" onclick="runSignals()">
+          <i class="bi bi-lightning me-1"></i>シグナル更新
+        </button>
+        <button class="btn btn-outline-info btn-sm" onclick="generateReport()">
+          <i class="bi bi-robot me-1"></i>AIレポート生成
+        </button>
+      </div>
+      <div class="card-footer">
+        <div id="action-status" class="text-secondary small text-center">待機中</div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+const PAIRS = {{ pairs | tojson }};
+
+async function loadSummary() {
+  try {
+    const res = await fetch('/api/signals/summary');
+    const data = await res.json();
+    for (const [pair, summary] of Object.entries(data)) {
+      const badge = document.getElementById(`badge-${pair}`);
+      const card = document.getElementById(`card-${pair}`);
+      if (!badge) continue;
+
+      badge.textContent = summary.overall_signal;
+      badge.className = 'badge signal-badge-' + pair;
+      if (summary.overall_signal === 'BUY') badge.classList.add('bg-success');
+      else if (summary.overall_signal === 'SELL') badge.classList.add('bg-danger');
+      else badge.classList.add('bg-secondary');
+
+      document.getElementById(`buy-count-${pair}`).textContent = summary.buy_count;
+      document.getElementById(`sell-count-${pair}`).textContent = summary.sell_count;
+
+      const strengthBar = document.getElementById(`strength-${pair}`);
+      const strengthLabel = document.getElementById(`strength-label-${pair}`);
+      if (summary.overall_signal === 'BUY') {
+        strengthBar.style.width = summary.signal_strength + '%';
+        strengthBar.className = 'progress-bar bg-success';
+      } else if (summary.overall_signal === 'SELL') {
+        strengthBar.style.width = (100 - summary.signal_strength) + '%';
+        strengthBar.className = 'progress-bar bg-danger';
+      }
+      strengthLabel.textContent = summary.signal_strength.toFixed(0) + '%';
+
+      const topSig = summary.top_signals[0];
+      if (topSig) {
+        document.getElementById(`top-signal-${pair}`).textContent =
+          `最強: ${topSig.indicator_name} (${topSig.timeframe}) 勝率${topSig.win_rate?.toFixed(1)}%`;
+      }
+    }
+  } catch (e) { console.error(e); }
+}
+
+async function loadLatestPrice() {
+  try {
+    const res = await fetch('/api/prices/latest');
+    const data = await res.json();
+    for (const [pair, price] of Object.entries(data)) {
+      if (price) {
+        document.getElementById(`price-${pair}`).textContent =
+          parseFloat(price.close).toFixed(3);
+        const ts = new Date(price.timestamp);
+        document.getElementById(`price-time-${pair}`).textContent =
+          ts.toUTCString().slice(17, 22) + ' UTC';
+      }
+    }
+  } catch (e) { console.error(e); }
+}
+
+async function loadSignals() {
+  const pair = document.getElementById('filter-pair').value;
+  const tf = document.getElementById('filter-tf').value;
+  let url = '/api/signals?';
+  if (pair) url += `pair=${pair}&`;
+  if (tf) url += `timeframe=${tf}`;
+
+  const tbody = document.getElementById('signals-table');
+  tbody.innerHTML = '<tr><td colspan="9" class="text-center text-secondary">読み込み中...</td></tr>';
+
+  try {
+    const res = await fetch(url);
+    const signals = await res.json();
+    if (!signals.length) {
+      tbody.innerHTML = '<tr><td colspan="9" class="text-center text-secondary py-3">アクティブシグナルなし</td></tr>';
+      return;
+    }
+    tbody.innerHTML = signals.slice(0, 50).map(s => {
+      const badgeClass = s.signal_type === 'BUY' ? 'bg-success' : 'bg-danger';
+      const conf = s.confidence_score?.toFixed(0) || '--';
+      const wr = s.win_rate?.toFixed(1) || '--';
+      return `<tr>
+        <td>${s.currency_pair.slice(0,3)}/${s.currency_pair.slice(3)}</td>
+        <td>${s.timeframe}</td>
+        <td><span class="badge ${badgeClass}">${s.signal_type}</span></td>
+        <td class="text-truncate" style="max-width:120px;" title="${s.indicator_name}">${s.indicator_name}</td>
+        <td>${wr}%</td>
+        <td>
+          <div class="progress" style="height:4px;width:60px;">
+            <div class="progress-bar ${s.signal_type==='BUY'?'bg-success':'bg-danger'}"
+                 style="width:${conf}%"></div>
+          </div>
+          <small>${conf}</small>
+        </td>
+        <td>${s.entry_price?.toFixed(3) || '--'}</td>
+        <td class="text-danger">${s.sl_price?.toFixed(3) || '--'}</td>
+        <td class="text-success">${s.tp_price?.toFixed(3) || '--'}</td>
+      </tr>`;
+    }).join('');
+  } catch (e) {
+    tbody.innerHTML = `<tr><td colspan="9" class="text-danger text-center">${e}</td></tr>`;
+  }
+}
+
+async function loadLatestReport() {
+  try {
+    const res = await fetch('/api/reports?limit=1');
+    const reports = await res.json();
+    const area = document.getElementById('latest-report-area');
+    if (!reports.length) {
+      area.innerHTML = '<div class="text-secondary small">レポートがありません</div>';
+      return;
+    }
+    const r = reports[0];
+    const ts = new Date(r.created_at).toLocaleString('ja-JP', {timeZone:'UTC'});
+    const preview = r.content.slice(0, 200).replace(/[#*]/g, '') + '...';
+    area.innerHTML = `<div class="text-secondary small mb-1">${ts} UTC</div>
+      <div class="small">${preview}</div>
+      <a href="/reports" class="btn btn-sm btn-link p-0 mt-1">全文を読む</a>`;
+  } catch (e) { console.error(e); }
+}
+
+function setStatus(msg, color='text-info') {
+  const el = document.getElementById('action-status');
+  el.className = 'small text-center ' + color;
+  el.textContent = msg;
+}
+
+async function fetchData() {
+  setStatus('データ取得中...', 'text-warning');
+  try {
+    const res = await fetch('/api/fetch/data', {method:'POST'});
+    const data = await res.json();
+    setStatus('データ取得完了', 'text-success');
+    await loadLatestPrice();
+  } catch (e) { setStatus('エラー: ' + e, 'text-danger'); }
+}
+
+async function runBacktest() {
+  setStatus('バックテスト実行中... (時間がかかります)', 'text-warning');
+  try {
+    const res = await fetch('/api/backtest/run', {method:'POST'});
+    const data = await res.json();
+    setStatus(`バックテスト完了: ${data.saved}件保存`, 'text-success');
+  } catch (e) { setStatus('エラー: ' + e, 'text-danger'); }
+}
+
+async function runSignals() {
+  setStatus('シグナル更新中...', 'text-warning');
+  try {
+    const res = await fetch('/api/signals/run', {method:'POST'});
+    await res.json();
+    setStatus('シグナル更新完了', 'text-success');
+    await loadSummary();
+    await loadSignals();
+  } catch (e) { setStatus('エラー: ' + e, 'text-danger'); }
+}
+
+async function generateReport() {
+  setStatus('AIレポート生成中...', 'text-warning');
+  try {
+    const res = await fetch('/api/reports/generate', {
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({send_email: true})
+    });
+    const data = await res.json();
+    if (data.report_id) {
+      setStatus(`レポート生成完了 (ID:${data.report_id})`, 'text-success');
+      await loadLatestReport();
+    } else {
+      setStatus('レポート生成失敗', 'text-danger');
+    }
+  } catch (e) { setStatus('エラー: ' + e, 'text-danger'); }
+}
+
+// イベントリスナー
+document.getElementById('filter-pair').addEventListener('change', loadSignals);
+document.getElementById('filter-tf').addEventListener('change', loadSignals);
+
+// 初期ロード
+(async () => {
+  await Promise.all([loadSummary(), loadLatestPrice(), loadSignals(), loadLatestReport()]);
+})();
+
+// 自動更新 (30秒ごと)
+setInterval(async () => {
+  await Promise.all([loadSummary(), loadLatestPrice(), loadSignals()]);
+}, 30000);
+</script>
+{% endblock %}
