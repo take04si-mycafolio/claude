@@ -1,90 +1,371 @@
-/* FX Signal Tool - カスタムスタイル */
+/* ===== リセット・ベース ===== */
+*, *::before, *::after { box-sizing: border-box; }
 
 body {
-  font-size: 0.9rem;
+  font-family: -apple-system, BlinkMacSystemFont, 'Hiragino Sans', 'Yu Gothic', sans-serif;
+  background: #f0f2f5;
+  color: #1a1a2e;
+  margin: 0;
+  padding: 0;
+  -webkit-font-smoothing: antialiased;
 }
 
-/* ナビゲーション */
-.navbar-brand {
+/* ===== ヘッダー ===== */
+.app-header {
+  position: fixed;
+  top: 0; left: 0; right: 0;
+  background: #1a1a2e;
+  z-index: 100;
+  height: 56px;
+}
+.header-inner {
+  max-width: 480px;
+  margin: 0 auto;
+  padding: 0 16px;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.header-logo {
+  color: #fff;
   font-size: 1.1rem;
-  letter-spacing: 0.03em;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
-
-/* カード */
-.card {
-  border-radius: 8px;
-}
-
-/* テーブル */
-.table > :not(caption) > * > * {
-  padding: 0.4rem 0.6rem;
-}
-
-/* バッジ */
-.badge {
+.header-logo i { color: #4ade80; font-size: 1.3rem; }
+.header-time {
+  color: #94a3b8;
   font-size: 0.75rem;
-}
-
-/* ProgressBar アニメーション */
-.progress-bar {
-  transition: width 0.5s ease;
-}
-
-/* シグナルカード */
-.card .fs-3 {
   font-variant-numeric: tabular-nums;
 }
 
-/* リストグループ (レポート) */
-.list-group-item.active {
-  background-color: #1e3a5f !important;
-  border-color: #1a56db !important;
+/* ===== メインコンテンツ ===== */
+.app-main {
+  max-width: 480px;
+  margin: 0 auto;
+  padding: 56px 0 70px;
 }
 
-/* スクロールバー */
-::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
+/* ===== ボトムナビ ===== */
+.bottom-nav {
+  position: fixed;
+  bottom: 0; left: 0; right: 0;
+  background: #fff;
+  border-top: 1px solid #e2e8f0;
+  display: flex;
+  z-index: 100;
+  height: 62px;
 }
-::-webkit-scrollbar-track {
-  background: #1a1a1a;
-}
-::-webkit-scrollbar-thumb {
-  background: #444;
-  border-radius: 3px;
-}
-::-webkit-scrollbar-thumb:hover {
-  background: #666;
-}
-
-/* レポート本文 */
-#report-body h3, #report-body h4, #report-body h5 {
-  margin-top: 1rem;
-}
-#report-body ul {
-  padding-left: 1.5rem;
-}
-#report-body p {
-  margin-bottom: 0.4rem;
-  line-height: 1.6;
-}
-
-/* ローディングアニメーション */
-@keyframes pulse {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.5; }
-}
-.loading {
-  animation: pulse 1.5s ease-in-out infinite;
-}
-
-/* シグナル強度表示 */
-.signal-strong {
-  color: #00d084;
-}
-.signal-medium {
-  color: #fbbf24;
-}
-.signal-weak {
+.bottom-nav-item {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-decoration: none;
   color: #94a3b8;
+  font-size: 0.65rem;
+  gap: 3px;
+  transition: color 0.2s;
 }
+.bottom-nav-item i { font-size: 1.3rem; }
+.bottom-nav-item.active { color: #1a1a2e; }
+.bottom-nav-item.active i { color: #3b82f6; }
+
+/* ===== 通貨ペアタブ ===== */
+.pair-tabs {
+  display: flex;
+  background: #fff;
+  border-bottom: 1px solid #e2e8f0;
+  position: sticky;
+  top: 56px;
+  z-index: 50;
+}
+.pair-tab {
+  flex: 1;
+  text-align: center;
+  padding: 12px 4px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #64748b;
+  text-decoration: none;
+  border-bottom: 3px solid transparent;
+  transition: all 0.2s;
+}
+.pair-tab.active {
+  color: #1a1a2e;
+  border-bottom-color: #3b82f6;
+}
+
+/* ===== 価格カード ===== */
+.price-card {
+  background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+  color: #fff;
+  padding: 24px 20px;
+  text-align: center;
+}
+.price-pair-name {
+  font-size: 0.9rem;
+  color: #94a3b8;
+  margin-bottom: 4px;
+  letter-spacing: 0.1em;
+}
+.price-value {
+  font-size: 2.8rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.02em;
+  line-height: 1.1;
+}
+.price-meta {
+  font-size: 0.75rem;
+  color: #64748b;
+  margin-top: 4px;
+}
+
+/* 総合シグナルバッジ */
+.signal-badge-large {
+  display: inline-flex;
+  align-items: center;
+  padding: 8px 20px;
+  border-radius: 50px;
+  font-size: 0.9rem;
+  font-weight: 600;
+  margin-top: 8px;
+}
+.signal-badge-large.buy { background: rgba(74, 222, 128, 0.2); color: #4ade80; }
+.signal-badge-large.sell { background: rgba(248, 113, 113, 0.2); color: #f87171; }
+.signal-badge-large.neutral { background: rgba(148, 163, 184, 0.2); color: #94a3b8; }
+
+/* シグナル集計 */
+.signal-counts {
+  display: flex;
+  gap: 12px;
+  justify-content: center;
+  margin-top: 16px;
+}
+.signal-count-item {
+  flex: 1;
+  max-width: 100px;
+  padding: 12px;
+  border-radius: 12px;
+  text-align: center;
+}
+.buy-bg { background: rgba(74, 222, 128, 0.15); }
+.sell-bg { background: rgba(248, 113, 113, 0.15); }
+.count-num { font-size: 1.8rem; font-weight: 700; color: #fff; }
+.count-label { font-size: 0.7rem; color: #94a3b8; margin-top: 2px; }
+.buy-bg .count-num { color: #4ade80; }
+.sell-bg .count-num { color: #f87171; }
+
+/* ===== セクションカード ===== */
+.section-card {
+  background: #fff;
+  margin: 12px;
+  border-radius: 16px;
+  padding: 16px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+}
+.section-title {
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: #1a1a2e;
+  margin-bottom: 12px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid #f1f5f9;
+}
+
+/* ===== シグナルリスト ===== */
+.signal-list { display: flex; flex-direction: column; gap: 0; }
+.signal-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 0;
+  border-bottom: 1px solid #f8fafc;
+}
+.signal-item:last-child { border-bottom: none; }
+.signal-item-left { display: flex; align-items: center; gap: 10px; }
+.signal-item-right { text-align: right; }
+.signal-type-badge {
+  font-size: 0.7rem;
+  font-weight: 700;
+  padding: 3px 8px;
+  border-radius: 6px;
+  min-width: 40px;
+  text-align: center;
+}
+.signal-type-badge.buy { background: #dcfce7; color: #16a34a; }
+.signal-type-badge.sell { background: #fee2e2; color: #dc2626; }
+.signal-name { font-size: 0.85rem; font-weight: 600; color: #1a1a2e; }
+.signal-tf { font-size: 0.72rem; }
+.signal-price { font-size: 0.9rem; font-weight: 600; color: #1a1a2e; }
+.signal-conf { font-size: 0.7rem; color: #94a3b8; }
+
+/* ===== バックテストリスト ===== */
+.bt-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 0;
+  border-bottom: 1px solid #f8fafc;
+}
+.bt-item:last-child { border-bottom: none; }
+.bt-name { font-size: 0.85rem; font-weight: 600; color: #1a1a2e; }
+.bt-meta { font-size: 0.72rem; }
+.bt-winrate {
+  font-size: 1rem;
+  font-weight: 700;
+  padding: 4px 10px;
+  border-radius: 8px;
+}
+.bt-winrate.high { background: #dcfce7; color: #16a34a; }
+.bt-winrate.mid { background: #fef9c3; color: #ca8a04; }
+.bt-winrate.low { background: #f1f5f9; color: #64748b; }
+
+/* ===== 操作ボタン ===== */
+.action-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+.action-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 14px 8px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  color: #1a1a2e;
+  font-size: 0.78rem;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.action-btn:active { background: #e2e8f0; transform: scale(0.97); }
+.action-btn i { font-size: 1.4rem; color: #3b82f6; }
+.action-status {
+  margin-top: 12px;
+  padding: 8px 12px;
+  border-radius: 8px;
+  font-size: 0.82rem;
+  text-align: center;
+}
+.action-status.loading { background: #fef9c3; color: #92400e; }
+.action-status.success { background: #dcfce7; color: #166534; }
+.action-status.error { background: #fee2e2; color: #991b1b; }
+
+/* ===== リンク ===== */
+.view-all-link {
+  display: block;
+  text-align: center;
+  color: #3b82f6;
+  font-size: 0.82rem;
+  padding-top: 10px;
+  margin-top: 8px;
+  border-top: 1px solid #f1f5f9;
+  text-decoration: none;
+}
+
+/* ===== 空状態 ===== */
+.empty-state {
+  text-align: center;
+  color: #94a3b8;
+  font-size: 0.82rem;
+  padding: 16px 0;
+}
+.empty-state i { margin-right: 6px; }
+.empty-state-page {
+  text-align: center;
+  padding: 60px 20px;
+  color: #64748b;
+}
+
+/* ===== ページタイトル ===== */
+.page-title {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: #1a1a2e;
+  padding: 16px 16px 4px;
+}
+
+/* ===== シグナル詳細 ===== */
+.signal-detail-item {
+  padding: 14px 16px;
+  border-bottom: 1px solid #f1f5f9;
+}
+.signal-detail-item:last-child { border-bottom: none; }
+.sdi-header {
+  display: flex;
+  align-items: center;
+  margin-bottom: 8px;
+}
+.sdi-name { font-size: 0.9rem; font-weight: 600; color: #1a1a2e; }
+.sdi-tf { font-size: 0.75rem; }
+.sdi-body {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 6px;
+}
+.sdi-stat {
+  background: #f8fafc;
+  border-radius: 8px;
+  padding: 6px 8px;
+}
+.sdi-label { font-size: 0.65rem; color: #94a3b8; display: block; }
+.sdi-value { font-size: 0.82rem; font-weight: 600; color: #1a1a2e; }
+
+/* ===== バックテスト詳細 ===== */
+.bt-detail-item {
+  padding: 14px 16px;
+  border-bottom: 1px solid #f1f5f9;
+}
+.btd-header {
+  display: flex;
+  align-items: center;
+  margin-bottom: 8px;
+}
+.btd-name { font-size: 0.9rem; font-weight: 600; color: #1a1a2e; }
+.btd-body {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.btd-stat { background: #f8fafc; border-radius: 6px; padding: 5px 8px; }
+.btd-label { font-size: 0.62rem; color: #94a3b8; display: block; }
+.btd-value { font-size: 0.8rem; font-weight: 600; color: #1a1a2e; }
+
+/* ===== レポートカード ===== */
+.report-card { cursor: pointer; margin-bottom: 8px; }
+.report-header { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 6px; }
+.report-date { font-size: 0.82rem; font-weight: 600; color: #1a1a2e; }
+.report-preview { font-size: 0.78rem; color: #64748b; line-height: 1.5; }
+.report-content {
+  font-size: 0.83rem;
+  line-height: 1.7;
+  color: #1a1a2e;
+  white-space: pre-wrap;
+  margin-top: 12px;
+}
+.report-chevron { color: #94a3b8; font-size: 0.9rem; margin-top: 3px; }
+
+/* ===== 設定 ===== */
+.setting-item { padding: 12px 0; border-bottom: 1px solid #f8fafc; }
+.setting-item:last-child { border-bottom: none; }
+.setting-label { display: block; font-size: 0.82rem; font-weight: 600; color: #374151; margin-bottom: 6px; }
+.setting-input {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  font-size: 0.9rem;
+  background: #f8fafc;
+  color: #1a1a2e;
+  outline: none;
+}
+.setting-input:focus { border-color: #3b82f6; background: #fff; }
+.setting-hint { font-size: 0.72rem; color: #94a3b8; margin-top: 4px; }

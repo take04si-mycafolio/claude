@@ -1,107 +1,71 @@
 {% extends "base.html" %}
-{% block title %}設定 - FXシグナルツール{% endblock %}
+{% block title %}設定 - FXシグナル{% endblock %}
 
 {% block content %}
-<h5 class="mb-3"><i class="bi bi-gear-fill me-2"></i>システム設定</h5>
+<div class="page-title">
+  <i class="bi bi-gear-fill me-2"></i>設定
+</div>
 
-<div id="save-status" class="alert d-none py-2 mb-3 small"></div>
+<div id="save-status" class="action-status mb-3" style="display:none"></div>
 
-<div class="row g-3">
-  <!-- バックテスト設定 -->
-  <div class="col-lg-6">
-    <div class="card bg-secondary-subtle border-secondary">
-      <div class="card-header"><i class="bi bi-bar-chart me-2"></i>バックテスト設定</div>
-      <div class="card-body">
-        <div class="mb-3">
-          <label class="form-label small">初期資金（円）</label>
-          <input type="number" class="form-control bg-dark text-light border-secondary"
-                 id="s-initial-capital" value="1000000" min="10000" step="10000">
-          <div class="form-text text-secondary">バックテストで使用するシミュレーション資金</div>
-        </div>
-        <div class="mb-3">
-          <label class="form-label small">ストップロス（pips）</label>
-          <input type="number" class="form-control bg-dark text-light border-secondary"
-                 id="s-sl-pips" value="20" min="5" max="200" step="5">
-          <div class="form-text text-secondary">JPYペア: 1pip = 0.01円</div>
-        </div>
-        <div class="mb-3">
-          <label class="form-label small">テイクプロフィット（pips）</label>
-          <input type="number" class="form-control bg-dark text-light border-secondary"
-                 id="s-tp-pips" value="40" min="5" max="500" step="5">
-        </div>
-        <div class="mb-3">
-          <label class="form-label small">バックテスト期間（時間）</label>
-          <input type="number" class="form-control bg-dark text-light border-secondary"
-                 id="s-bt-hours" value="12" min="1" max="168" step="1">
-          <div class="form-text text-secondary">直近N時間のデータでバックテストを実施</div>
-        </div>
-      </div>
-    </div>
+<div class="section-card">
+  <div class="section-title">バックテスト設定</div>
+  <div class="setting-item">
+    <label class="setting-label">初期資金（円）</label>
+    <input type="number" class="setting-input" id="s-initial-capital" value="1000000" min="10000" step="10000">
+    <div class="setting-hint">シミュレーション資金</div>
   </div>
-
-  <!-- シグナル設定 -->
-  <div class="col-lg-6">
-    <div class="card bg-secondary-subtle border-secondary">
-      <div class="card-header"><i class="bi bi-lightning me-2"></i>シグナル設定</div>
-      <div class="card-body">
-        <div class="mb-3">
-          <label class="form-label small">最小勝率（%）</label>
-          <input type="number" class="form-control bg-dark text-light border-secondary"
-                 id="s-min-wr" value="55" min="50" max="100" step="1">
-          <div class="form-text text-secondary">この勝率以上の指標のみシグナルを表示</div>
-        </div>
-        <div class="mb-3">
-          <label class="form-label small">最小取引数</label>
-          <input type="number" class="form-control bg-dark text-light border-secondary"
-                 id="s-min-trades" value="3" min="1" max="50" step="1">
-          <div class="form-text text-secondary">バックテストで最低この回数以上のトレードが必要</div>
-        </div>
-        <div class="mb-3">
-          <label class="form-label small">Geminiモデル</label>
-          <select class="form-select bg-dark text-light border-secondary" id="s-gemini-model">
-            <option value="gemini-1.5-flash">gemini-1.5-flash（高速・無料枠大）</option>
-            <option value="gemini-1.5-pro">gemini-1.5-pro（高精度）</option>
-            <option value="gemini-2.0-flash">gemini-2.0-flash（最新）</option>
-          </select>
-        </div>
-      </div>
-    </div>
+  <div class="setting-item">
+    <label class="setting-label">ストップロス（pips）</label>
+    <input type="number" class="setting-input" id="s-sl-pips" value="20" min="5" max="200">
+    <div class="setting-hint">JPYペア: 1pip = 0.01円</div>
   </div>
-
-  <!-- レポート配信設定 -->
-  <div class="col-12">
-    <div class="card bg-secondary-subtle border-secondary">
-      <div class="card-header"><i class="bi bi-send me-2"></i>レポート自動配信設定</div>
-      <div class="card-body">
-        <div class="mb-3">
-          <label class="form-label small">配信時刻（UTC、カンマ区切り）</label>
-          <input type="text" class="form-control bg-dark text-light border-secondary"
-                 id="s-report-times" value="06:00,12:00,18:00"
-                 placeholder="例: 06:00,12:00,18:00">
-          <div class="form-text text-secondary">
-            UTC時刻で指定。日本時間 = UTC+9（例: 06:00 UTC = 15:00 JST）<br>
-            この設定はXサーバーのCronジョブと組み合わせて使用します。
-          </div>
-        </div>
-
-        <div class="alert alert-secondary small py-2">
-          <i class="bi bi-info-circle me-1"></i>
-          <strong>Cronジョブ設定例（Xサーバー管理画面）:</strong><br>
-          <code>0 6,12,18 * * * cd /home/user/public_html && /usr/local/bin/python3 tasks/send_report.py >> logs/cron.log 2>&1</code>
-        </div>
-      </div>
-    </div>
+  <div class="setting-item">
+    <label class="setting-label">テイクプロフィット（pips）</label>
+    <input type="number" class="setting-input" id="s-tp-pips" value="40" min="5" max="500">
   </div>
-
-  <div class="col-12">
-    <button class="btn btn-success" onclick="saveSettings()">
-      <i class="bi bi-check-lg me-1"></i>設定を保存
-    </button>
-    <button class="btn btn-outline-secondary ms-2" onclick="loadSettings()">
-      <i class="bi bi-arrow-counterclockwise me-1"></i>リセット
-    </button>
+  <div class="setting-item">
+    <label class="setting-label">バックテスト期間（時間）</label>
+    <input type="number" class="setting-input" id="s-bt-hours" value="12" min="1" max="168">
   </div>
 </div>
+
+<div class="section-card">
+  <div class="section-title">シグナル設定</div>
+  <div class="setting-item">
+    <label class="setting-label">最小勝率（%）</label>
+    <input type="number" class="setting-input" id="s-min-wr" value="55" min="50" max="100">
+    <div class="setting-hint">この勝率以上の指標のみ表示</div>
+  </div>
+  <div class="setting-item">
+    <label class="setting-label">最小取引数</label>
+    <input type="number" class="setting-input" id="s-min-trades" value="3" min="1" max="50">
+  </div>
+  <div class="setting-item">
+    <label class="setting-label">Geminiモデル</label>
+    <select class="setting-input" id="s-gemini-model">
+      <option value="gemini-1.5-flash">gemini-1.5-flash（高速）</option>
+      <option value="gemini-2.0-flash">gemini-2.0-flash（最新）</option>
+      <option value="gemini-1.5-pro">gemini-1.5-pro（高精度）</option>
+    </select>
+  </div>
+</div>
+
+<div class="section-card">
+  <div class="section-title">レポート配信</div>
+  <div class="setting-item">
+    <label class="setting-label">配信時刻（UTC）</label>
+    <input type="text" class="setting-input" id="s-report-times" value="06:00,12:00,18:00">
+    <div class="setting-hint">カンマ区切り例: 06:00,12:00,18:00</div>
+  </div>
+</div>
+
+<div class="px-3 pb-3">
+  <button class="btn btn-primary w-100 py-3" onclick="saveSettings()">
+    <i class="bi bi-check-lg me-2"></i>設定を保存
+  </button>
+</div>
+<div style="height:20px"></div>
 {% endblock %}
 
 {% block extra_js %}
@@ -118,39 +82,35 @@ async function loadSettings() {
     if (data.min_trades) document.getElementById('s-min-trades').value = data.min_trades;
     if (data.report_times) document.getElementById('s-report-times').value = data.report_times;
     if (data.gemini_model) document.getElementById('s-gemini-model').value = data.gemini_model;
-  } catch (e) { console.error(e); }
+  } catch(e) { console.error(e); }
 }
 
 async function saveSettings() {
-  const statusEl = document.getElementById('save-status');
-  const payload = {
-    initial_capital: document.getElementById('s-initial-capital').value,
-    sl_pips: document.getElementById('s-sl-pips').value,
-    tp_pips: document.getElementById('s-tp-pips').value,
-    backtest_hours: document.getElementById('s-bt-hours').value,
-    min_win_rate: document.getElementById('s-min-wr').value,
-    min_trades: document.getElementById('s-min-trades').value,
-    report_times: document.getElementById('s-report-times').value,
-    gemini_model: document.getElementById('s-gemini-model').value,
-  };
+  const el = document.getElementById('save-status');
+  el.style.display = 'block';
+  el.className = 'action-status loading';
+  el.textContent = '保存中...';
   try {
-    const res = await fetch('/api/settings', {
-      method: 'POST',
-      headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify(payload)
+    await fetch('/api/settings', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({
+        initial_capital: document.getElementById('s-initial-capital').value,
+        sl_pips: document.getElementById('s-sl-pips').value,
+        tp_pips: document.getElementById('s-tp-pips').value,
+        backtest_hours: document.getElementById('s-bt-hours').value,
+        min_win_rate: document.getElementById('s-min-wr').value,
+        min_trades: document.getElementById('s-min-trades').value,
+        report_times: document.getElementById('s-report-times').value,
+        gemini_model: document.getElementById('s-gemini-model').value,
+      })
     });
-    const data = await res.json();
-    statusEl.classList.remove('d-none', 'alert-danger');
-    statusEl.classList.add('alert-success');
-    statusEl.textContent = '設定を保存しました';
-  } catch (e) {
-    statusEl.classList.remove('d-none', 'alert-success');
-    statusEl.classList.add('alert-danger');
-    statusEl.textContent = 'エラー: ' + e;
+    el.className = 'action-status success';
+    el.textContent = '保存しました';
+  } catch(e) {
+    el.className = 'action-status error';
+    el.textContent = 'エラー: ' + e;
   }
-  statusEl.classList.remove('d-none');
 }
-
 loadSettings();
 </script>
 {% endblock %}

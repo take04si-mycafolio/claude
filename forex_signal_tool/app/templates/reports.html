@@ -1,131 +1,55 @@
 {% extends "base.html" %}
-{% block title %}AIレポート - FXシグナルツール{% endblock %}
+{% block title %}レポート - FXシグナル{% endblock %}
 
 {% block content %}
-<div class="d-flex justify-content-between align-items-center mb-3">
-  <h5 class="mb-0"><i class="bi bi-file-earmark-text-fill text-info me-2"></i>AIレポート一覧</h5>
-  <button class="btn btn-sm btn-info" onclick="generateReport()">
-    <i class="bi bi-robot me-1"></i>今すぐ生成
-  </button>
+<div class="page-title">
+  <i class="bi bi-file-earmark-text-fill text-primary me-2"></i>AIレポート
 </div>
 
-<div id="gen-status" class="alert d-none py-2 small mb-3"></div>
-
-<div class="row g-3">
-  <div class="col-lg-4">
-    <!-- レポート一覧 -->
-    <div class="list-group list-group-flush" id="report-list">
-      {% for report in reports %}
-      <a href="#" class="list-group-item list-group-item-action bg-dark text-light border-secondary"
-         onclick="showReport({{ report.id }}); return false;"
-         id="report-item-{{ report.id }}">
-        <div class="d-flex justify-content-between">
-          <small class="text-secondary">{{ report.created_at.strftime('%m/%d %H:%M') }} UTC</small>
-          {% if report.email_sent %}
-          <span class="badge bg-success ms-1" title="メール送信済">
-            <i class="bi bi-envelope-check"></i>
-          </span>
-          {% endif %}
-        </div>
-        <div class="small mt-1 text-truncate">
-          {{ report.content[:80] | replace('#', '') | replace('*', '') }}...
-        </div>
-      </a>
-      {% else %}
-      <div class="text-center text-secondary py-4">
-        レポートがありません<br>
-        <button class="btn btn-sm btn-info mt-2" onclick="generateReport()">
-          最初のレポートを生成する
-        </button>
-      </div>
-      {% endfor %}
+{% if reports %}
+{% for report in reports %}
+<div class="section-card report-card" onclick="toggleReport({{ report.id }})">
+  <div class="report-header">
+    <div>
+      <div class="report-date">{{ report.created_at.strftime('%Y/%m/%d %H:%M') }} UTC</div>
+      <div class="report-model text-muted small">{{ report.model_used or 'Gemini' }}</div>
+    </div>
+    <div class="d-flex align-items-center gap-2">
+      {% if report.email_sent %}
+      <span class="badge bg-success"><i class="bi bi-envelope-check"></i></span>
+      {% endif %}
+      <i class="bi bi-chevron-down report-chevron" id="chevron-{{ report.id }}"></i>
     </div>
   </div>
-
-  <div class="col-lg-8">
-    <!-- レポート本文 -->
-    <div class="card bg-secondary-subtle border-secondary">
-      <div class="card-header d-flex justify-content-between" id="report-header">
-        <span><i class="bi bi-file-text me-2"></i>レポートを選択してください</span>
-      </div>
-      <div class="card-body" id="report-body" style="max-height:75vh; overflow-y:auto;">
-        <div class="text-secondary text-center py-4">左のリストからレポートを選択してください</div>
-      </div>
-    </div>
+  <div class="report-preview">{{ report.content[:80]|replace('#','')|replace('*','') }}...</div>
+  <div class="report-body" id="report-body-{{ report.id }}" style="display:none">
+    <hr>
+    <div class="report-content">{{ report.content }}</div>
   </div>
 </div>
+{% endfor %}
+{% else %}
+<div class="empty-state-page">
+  <i class="bi bi-file-earmark-text fs-1 text-muted"></i>
+  <p class="mt-3">レポートがありません</p>
+  <a href="/" class="btn btn-primary mt-2">ホームで生成する</a>
+</div>
+{% endif %}
+<div style="height:20px"></div>
 {% endblock %}
 
 {% block extra_js %}
 <script>
-// 簡易Markdown → HTML変換
-function md2html(text) {
-  return text
-    .replace(/^### (.+)$/gm, '<h5 class="text-info mt-3">$1</h5>')
-    .replace(/^## (.+)$/gm, '<h4 class="text-warning mt-4">$1</h4>')
-    .replace(/^# (.+)$/gm, '<h3 class="mt-4">$1</h3>')
-    .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
-    .replace(/^- (.+)$/gm, '<li>$1</li>')
-    .replace(/(<li>.*<\/li>\n?)+/g, '<ul class="mb-2">$&</ul>')
-    .replace(/^(?!<[h|u|l])(.*\S.*)$/gm, '<p class="mb-1">$1</p>')
-    .replace(/\n{2,}/g, '');
-}
-
-async function showReport(id) {
-  document.querySelectorAll('.list-group-item').forEach(el =>
-    el.classList.remove('active'));
-  const item = document.getElementById(`report-item-${id}`);
-  if (item) item.classList.add('active');
-
-  const body = document.getElementById('report-body');
-  body.innerHTML = '<div class="text-center py-3 text-secondary">読み込み中...</div>';
-
-  try {
-    const res = await fetch(`/api/reports/${id}`);
-    const r = await res.json();
-    const ts = new Date(r.created_at).toLocaleString('ja-JP', {timeZone:'UTC'});
-    document.getElementById('report-header').innerHTML =
-      `<span><i class="bi bi-file-text me-2"></i>${ts} UTC</span>
-       <small class="text-secondary">${r.model_used || ''} / ${r.tokens_used || '--'} tokens</small>`;
-    body.innerHTML = md2html(r.content);
-  } catch (e) {
-    body.innerHTML = `<div class="text-danger">${e}</div>`;
+function toggleReport(id) {
+  const body = document.getElementById('report-body-' + id);
+  const chevron = document.getElementById('chevron-' + id);
+  if (body.style.display === 'none') {
+    body.style.display = 'block';
+    chevron.className = 'bi bi-chevron-up report-chevron';
+  } else {
+    body.style.display = 'none';
+    chevron.className = 'bi bi-chevron-down report-chevron';
   }
 }
-
-async function generateReport() {
-  const statusEl = document.getElementById('gen-status');
-  statusEl.classList.remove('d-none', 'alert-danger', 'alert-success');
-  statusEl.classList.add('alert-warning');
-  statusEl.textContent = 'AIレポートを生成中です（10〜30秒かかります）...';
-
-  try {
-    const res = await fetch('/api/reports/generate', {
-      method: 'POST',
-      headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({send_email: true})
-    });
-    const data = await res.json();
-    if (data.report_id) {
-      statusEl.classList.remove('alert-warning');
-      statusEl.classList.add('alert-success');
-      const emailMsg = data.email_sent ? ' / メール送信済' : '';
-      statusEl.textContent = `レポート生成完了 (ID: ${data.report_id})${emailMsg}`;
-      // 1秒後にリロード
-      setTimeout(() => location.reload(), 1500);
-    } else {
-      throw new Error(data.error || '生成失敗');
-    }
-  } catch (e) {
-    statusEl.classList.remove('alert-warning');
-    statusEl.classList.add('alert-danger');
-    statusEl.textContent = 'エラー: ' + e;
-  }
-}
-
-// 初期表示: 最新レポートを表示
-{% if reports %}
-showReport({{ reports[0].id }});
-{% endif %}
 </script>
 {% endblock %}

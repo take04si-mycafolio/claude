@@ -1,158 +1,67 @@
 {% extends "base.html" %}
-{% block title %}バックテスト結果 - FXシグナルツール{% endblock %}
+{% block title %}分析 - {{ current_pair[:3] }}/{{ current_pair[3:] }}{% endblock %}
 
 {% block content %}
-<h5 class="mb-3"><i class="bi bi-bar-chart-line-fill text-warning me-2"></i>バックテスト結果</h5>
+<div class="pair-tabs">
+  {% for pair in pairs %}
+  <a href="/backtest?pair={{ pair }}"
+     class="pair-tab {% if pair == current_pair %}active{% endif %}">
+    {{ pair[:3] }}/{{ pair[3:] }}
+  </a>
+  {% endfor %}
+</div>
 
-<!-- フィルター -->
-<div class="card bg-secondary-subtle border-secondary mb-3">
-  <div class="card-body py-2">
-    <div class="row g-2 align-items-center">
-      <div class="col-auto">
-        <select class="form-select form-select-sm bg-dark text-light border-secondary" id="f-pair">
-          <option value="">全ペア</option>
-          {% for pair in pairs %}
-          <option value="{{ pair }}">{{ pair[:3] }}/{{ pair[3:] }}</option>
-          {% endfor %}
-        </select>
+<div class="page-title">
+  <i class="bi bi-bar-chart-line-fill text-warning me-2"></i>バックテスト結果
+  <span class="text-muted small ms-2">{{ current_pair[:3] }}/{{ current_pair[3:] }}</span>
+</div>
+
+{% if results %}
+<div class="section-card p-0">
+  {% for r in results %}
+  <div class="bt-detail-item">
+    <div class="btd-header">
+      <span class="btd-name">{{ r.indicator_name }}</span>
+      <span class="bt-winrate ms-auto {% if r.win_rate >= 70 %}high{% elif r.win_rate >= 60 %}mid{% else %}low{% endif %}">
+        {{ "%.1f"|format(r.win_rate) }}%
+      </span>
+    </div>
+    <div class="btd-body">
+      <div class="btd-stat">
+        <span class="btd-label">TF</span>
+        <span class="btd-value">{{ r.timeframe }}</span>
       </div>
-      <div class="col-auto">
-        <select class="form-select form-select-sm bg-dark text-light border-secondary" id="f-tf">
-          <option value="">全TF</option>
-          <option value="5min">5分足</option>
-          <option value="15min">15分足</option>
-          <option value="30min">30分足</option>
-          <option value="1hr">1時間足</option>
-          <option value="4hr">4時間足</option>
-          <option value="daily">日足</option>
-        </select>
+      <div class="btd-stat">
+        <span class="btd-label">取引数</span>
+        <span class="btd-value">{{ r.total_trades }}</span>
       </div>
-      <div class="col-auto">
-        <label class="small text-secondary me-1">最小勝率:</label>
-        <input type="number" class="form-control form-control-sm bg-dark text-light border-secondary d-inline"
-               id="f-wr" value="55" min="0" max="100" step="5" style="width:70px">%
+      <div class="btd-stat">
+        <span class="btd-label">勝/負</span>
+        <span class="btd-value">
+          <span class="text-success">{{ r.winning_trades }}</span>/
+          <span class="text-danger">{{ r.losing_trades }}</span>
+        </span>
       </div>
-      <div class="col-auto">
-        <button class="btn btn-sm btn-primary" onclick="loadBacktest()">
-          <i class="bi bi-funnel me-1"></i>絞り込み
-        </button>
+      <div class="btd-stat">
+        <span class="btd-label">損益</span>
+        <span class="btd-value {% if r.total_profit >= 0 %}text-success{% else %}text-danger{% endif %}">
+          ¥{{ "{:,.0f}".format(r.total_profit) }}
+        </span>
       </div>
-      <div class="col-auto ms-auto">
-        <button class="btn btn-sm btn-outline-warning" onclick="runBacktest()">
-          <i class="bi bi-play-fill me-1"></i>バックテスト実行
-        </button>
+      <div class="btd-stat">
+        <span class="btd-label">PF</span>
+        <span class="btd-value">{{ "%.2f"|format(r.profit_factor) if r.profit_factor else '--' }}</span>
       </div>
     </div>
   </div>
+  {% endfor %}
 </div>
-
-<div id="run-status" class="alert alert-info d-none py-2 small"></div>
-
-<!-- 結果テーブル -->
-<div class="card bg-secondary-subtle border-secondary">
-  <div class="card-body p-0">
-    <div class="table-responsive">
-      <table class="table table-dark table-hover mb-0 small">
-        <thead class="table-secondary">
-          <tr>
-            <th>通貨ペア</th>
-            <th>TF</th>
-            <th>指標名</th>
-            <th>カテゴリ</th>
-            <th>勝率</th>
-            <th>取引数</th>
-            <th>勝</th>
-            <th>負</th>
-            <th>損益</th>
-            <th>最終資金</th>
-            <th>最大DD</th>
-            <th>PF</th>
-          </tr>
-        </thead>
-        <tbody id="bt-tbody">
-          <tr><td colspan="12" class="text-center py-4 text-secondary">読み込み中...</td></tr>
-        </tbody>
-      </table>
-    </div>
-  </div>
+{% else %}
+<div class="empty-state-page">
+  <i class="bi bi-bar-chart fs-1 text-muted"></i>
+  <p class="mt-3">バックテストデータがありません</p>
+  <a href="/" class="btn btn-primary mt-2">ホームでバックテストを実行</a>
 </div>
-{% endblock %}
-
-{% block extra_js %}
-<script>
-async function loadBacktest() {
-  const pair = document.getElementById('f-pair').value;
-  const tf = document.getElementById('f-tf').value;
-  const wr = document.getElementById('f-wr').value;
-
-  let url = `/api/backtest?min_win_rate=${wr}`;
-  if (pair) url += `&pair=${pair}`;
-  if (tf) url += `&timeframe=${tf}`;
-
-  const tbody = document.getElementById('bt-tbody');
-  tbody.innerHTML = '<tr><td colspan="12" class="text-center py-4 text-secondary">読み込み中...</td></tr>';
-
-  try {
-    const res = await fetch(url);
-    const results = await res.json();
-
-    if (!results.length) {
-      tbody.innerHTML = '<tr><td colspan="12" class="text-center py-4 text-secondary">データなし（バックテストを実行してください）</td></tr>';
-      return;
-    }
-
-    const catLabels = {
-      oscillator: 'オシレーター', trend: 'トレンド',
-      line: 'ライン', volatility: 'ボラティリティ', pattern: 'パターン'
-    };
-
-    tbody.innerHTML = results.map(r => {
-      const wr = parseFloat(r.win_rate);
-      const wrClass = wr >= 70 ? 'text-success fw-bold' : (wr >= 55 ? 'text-warning' : 'text-danger');
-      const profit = parseFloat(r.total_profit);
-      const profitClass = profit >= 0 ? 'text-success' : 'text-danger';
-      const pf = parseFloat(r.profit_factor || 0).toFixed(2);
-      const dd = parseFloat(r.max_drawdown || 0).toLocaleString('ja-JP');
-      return `<tr>
-        <td class="fw-bold">${r.currency_pair.slice(0,3)}/${r.currency_pair.slice(3)}</td>
-        <td>${r.timeframe}</td>
-        <td>${r.indicator_name}</td>
-        <td class="small text-secondary">${catLabels[r.indicator_category] || r.indicator_category || '--'}</td>
-        <td class="${wrClass}">${wr.toFixed(1)}%</td>
-        <td>${r.total_trades}</td>
-        <td class="text-success">${r.winning_trades}</td>
-        <td class="text-danger">${r.losing_trades}</td>
-        <td class="${profitClass}">¥${profit.toLocaleString('ja-JP', {maximumFractionDigits:0})}</td>
-        <td>¥${parseFloat(r.final_capital).toLocaleString('ja-JP', {maximumFractionDigits:0})}</td>
-        <td class="text-warning">¥${dd}</td>
-        <td>${pf}</td>
-      </tr>`;
-    }).join('');
-  } catch (e) {
-    tbody.innerHTML = `<tr><td colspan="12" class="text-danger text-center">${e}</td></tr>`;
-  }
-}
-
-async function runBacktest() {
-  const statusEl = document.getElementById('run-status');
-  statusEl.classList.remove('d-none', 'alert-danger');
-  statusEl.classList.add('alert-warning');
-  statusEl.textContent = 'バックテスト実行中です。しばらくお待ちください...';
-
-  try {
-    const res = await fetch('/api/backtest/run', {method:'POST'});
-    const data = await res.json();
-    statusEl.classList.remove('alert-warning');
-    statusEl.classList.add('alert-success');
-    statusEl.textContent = `バックテスト完了: ${data.saved}件の結果を保存しました`;
-    await loadBacktest();
-  } catch (e) {
-    statusEl.classList.remove('alert-warning');
-    statusEl.classList.add('alert-danger');
-    statusEl.textContent = 'エラー: ' + e;
-  }
-}
-
-loadBacktest();
-</script>
+{% endif %}
+<div style="height:20px"></div>
 {% endblock %}
