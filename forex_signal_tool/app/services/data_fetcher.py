@@ -1,9 +1,7 @@
 """
-Alpha Vantage API を使用した為替データ取得サービス。
-
-制限事項:
-  - 無料プラン: 25リクエスト/日
-  - 取得間隔を適切に設定し、キャッシュを活用すること
+為替データ取得サービス
+- yfinance（Yahoo Finance）を主として使用（無料・APIキー不要）
+- Alpha Vantage はオプション（無料プランはFXデータ非対応のため現在は未使用）
 """
 
 import logging
@@ -13,113 +11,115 @@ from typing import Optional
 
 import requests
 import pandas as pd
+import yfinance as yf
 
 from app.config import Config
 
 logger = logging.getLogger(__name__)
 
-AV_BASE = Config.ALPHA_VANTAGE_BASE_URL
+# yfinance 通貨ペアマッピング
+YF_PAIR_MAP = {
+    "USDJPY": "USDJPY=X",
+    "GBPJPY": "GBPJPY=X",
+    "EURJPY": "EURJPY=X",
+}
+
+# yfinance インターバルマッピング
+YF_INTERVAL_MAP = {
+    "5min":  "5m",
+    "15min": "15m",
+    "30min": "30m",
+    "1hr":   "60m",
+    "4hr":   "1h",   # 1hで取得後リサンプリング
+    "daily": "1d",
+}
+
+# yfinance で取得できる期間の上限
+YF_PERIOD_MAP = {
+    "5min":  "7d",
+    "15min": "60d",
+    "30min": "60d",
+    "1hr":   "730d",
+    "4hr":   "730d",
+    "daily": "2y",
+}
 
 
-def _av_request(params: dict, retries: int = 3) -> Optional[dict]:
-    """Alpha Vantage APIへのリクエスト（リトライ付き）"""
-    params["apikey"] = Config.ALPHA_VANTAGE_API_KEY
-    for attempt in range(retries):
-        try:
-            resp = requests.get(AV_BASE, params=params, timeout=30)
-            resp.raise_for_status()
-            data = resp.json()
-            if "Note" in data:
-                logger.warning("Alpha Vantage rate limit reached: %s", data["Note"])
-                return None
-            if "Information" in data:
-                logger.warning("Alpha Vantage info: %s", data["Information"])
-                return None
-            return data
-        except requests.RequestException as exc:
-            logger.error("AV request failed (attempt %d): %s", attempt + 1, exc)
-            if attempt < retries - 1:
-                time.sleep(2 ** attempt)
-    return None
-
-
-def fetch_intraday(pair: str, interval: str, output_size: str = "compact") -> Optional[pd.DataFrame]:
+def fetch_yfinance(pair: str, timeframe: str) -> Optional[pd.DataFrame]:
     """
-    分足データ取得 (5min/15min/30min/60min)
+    Yahoo Finance からローソク足データを取得する。
 
     Parameters
     ----------
-    pair       : 通貨ペア文字列 ("USDJPY" 等)
-    interval   : Alpha Vantage インターバル ("5min"/"15min"/"30min"/"60min")
-    output_size: "compact"(直近100本) / "full"(直近20年分)
+    pair      : 通貨ペア ("USDJPY" 等)
+    timeframe : タイムフレーム ("5min"/"15min"/"30min"/"1hr"/"4hr"/"daily")
     """
-    from_cur, to_cur = Config.AV_PAIR_MAP.get(pair, (None, None))
-    if not from_cur:
+    ticker_symbol = YF_PAIR_MAP.get(pair)
+    if not ticker_symbol:
         logger.error("Unknown pair: %s", pair)
         return None
 
-    data = _av_request({
-        "function": "FX_INTRADAY",
-        "from_symbol": from_cur,
-        "to_symbol": to_cur,
-        "interval": interval,
-        "outputsize": output_size,
-    })
-    if not data:
+    # 4hrは1hで取得してリサンプリング
+    fetch_tf = "1hr" if timeframe == "4hr" else timeframe
+    interval = YF_INTERVAL_MAP.get(fetch_tf)
+    period = YF_PERIOD_MAP.get(fetch_tf)
+
+    if not interval:
+        logger.error("Unknown timeframe: %s", timeframe)
         return None
 
-    key = f"Time Series FX ({interval})"
-    if key not in data:
-        logger.error("Unexpected AV response keys: %s", list(data.keys()))
+    try:
+        ticker = yf.Ticker(ticker_symbol)
+        df = ticker.history(period=period, interval=interval, auto_adjust=True)
+
+        if df.empty:
+            logger.warning("No data returned for %s %s", pair, timeframe)
+            return None
+
+        df = df.reset_index()
+
+        # カラム名を統一
+        col_map = {}
+        for col in df.columns:
+            col_lower = col.lower()
+            if col_lower in ("datetime", "date", "timestamp"):
+                col_map[col] = "timestamp"
+            elif col_lower == "open":
+                col_map[col] = "open"
+            elif col_lower == "high":
+                col_map[col] = "high"
+            elif col_lower == "low":
+                col_map[col] = "low"
+            elif col_lower == "close":
+                col_map[col] = "close"
+            elif col_lower == "volume":
+                col_map[col] = "volume"
+        df = df.rename(columns=col_map)
+
+        # 必要カラムのみ
+        needed = [c for c in ["timestamp", "open", "high", "low", "close", "volume"] if c in df.columns]
+        df = df[needed]
+
+        if "volume" not in df.columns:
+            df["volume"] = 0
+
+        # タイムスタンプをUTCのdatetimeに変換
+        df["timestamp"] = pd.to_datetime(df["timestamp"], utc=True)
+
+        # タイムゾーン情報を除去してnaiveなdatetimeに変換（MySQL用）
+        df["timestamp"] = df["timestamp"].dt.tz_localize(None)
+
+        df = df.sort_values("timestamp").reset_index(drop=True)
+
+        # 4hrリサンプリング
+        if timeframe == "4hr":
+            df = resample_to_4hr(df)
+
+        return df
+
+    except Exception as exc:
+        logger.error("yfinance error for %s %s: %s", pair, timeframe, exc)
         return None
-
-    rows = []
-    for ts_str, ohlc in data[key].items():
-        rows.append({
-            "timestamp": pd.Timestamp(ts_str, tz="UTC"),
-            "open": float(ohlc["1. open"]),
-            "high": float(ohlc["2. high"]),
-            "low": float(ohlc["3. low"]),
-            "close": float(ohlc["4. close"]),
-            "volume": 0,
-        })
-
-    df = pd.DataFrame(rows).sort_values("timestamp").reset_index(drop=True)
-    return df
-
-
-def fetch_daily(pair: str, output_size: str = "compact") -> Optional[pd.DataFrame]:
-    """日足データ取得"""
-    from_cur, to_cur = Config.AV_PAIR_MAP.get(pair, (None, None))
-    if not from_cur:
-        return None
-
-    data = _av_request({
-        "function": "FX_DAILY",
-        "from_symbol": from_cur,
-        "to_symbol": to_cur,
-        "outputsize": output_size,
-    })
-    if not data:
-        return None
-
-    key = "Time Series FX (Daily)"
-    if key not in data:
-        return None
-
-    rows = []
-    for ts_str, ohlc in data[key].items():
-        rows.append({
-            "timestamp": pd.Timestamp(ts_str + " 00:00:00", tz="UTC"),
-            "open": float(ohlc["1. open"]),
-            "high": float(ohlc["2. high"]),
-            "low": float(ohlc["3. low"]),
-            "close": float(ohlc["4. close"]),
-            "volume": 0,
-        })
-
-    df = pd.DataFrame(rows).sort_values("timestamp").reset_index(drop=True)
-    return df
 
 
 def resample_to_4hr(df_1hr: pd.DataFrame) -> pd.DataFrame:
@@ -146,21 +146,29 @@ def save_price_data(pair: str, timeframe: str, df: pd.DataFrame) -> int:
 
     saved = 0
     for _, row in df.iterrows():
+        ts = row["timestamp"]
+        if hasattr(ts, "to_pydatetime"):
+            ts = ts.to_pydatetime()
+        # tzinfo があれば除去（MySQL DATETIME はtz非対応）
+        if hasattr(ts, "tzinfo") and ts.tzinfo is not None:
+            ts = ts.replace(tzinfo=None)
+
         existing = PriceData.query.filter_by(
             currency_pair=pair,
             timeframe=timeframe,
-            timestamp=row["timestamp"].to_pydatetime(),
+            timestamp=ts,
         ).first()
         if existing:
             continue
+
         record = PriceData(
             currency_pair=pair,
             timeframe=timeframe,
-            timestamp=row["timestamp"].to_pydatetime(),
-            open=row["open"],
-            high=row["high"],
-            low=row["low"],
-            close=row["close"],
+            timestamp=ts,
+            open=float(row["open"]),
+            high=float(row["high"]),
+            low=float(row["low"]),
+            close=float(row["close"]),
             volume=int(row.get("volume", 0)),
         )
         db.session.add(record)
@@ -174,10 +182,7 @@ def save_price_data(pair: str, timeframe: str, df: pd.DataFrame) -> int:
 def fetch_and_store_all(pairs=None, timeframes=None) -> dict:
     """
     全通貨ペア・タイムフレームのデータを取得してDBに保存する。
-
-    Alpha Vantage 無料プランの25リクエスト/日制限に注意:
-    - 1hr/4hr/dailyは同一APIコールで4hr をリサンプリング
-    - 1リクエストあたり100本のデータを取得
+    yfinance を使用（無料・APIキー不要）
     """
     if pairs is None:
         pairs = Config.CURRENCY_PAIRS
@@ -185,49 +190,21 @@ def fetch_and_store_all(pairs=None, timeframes=None) -> dict:
         timeframes = Config.TIMEFRAMES
 
     results = {}
-    req_count = 0
 
     for pair in pairs:
         results[pair] = {}
-
-        # --- intraday timeframes ---
-        intraday_map = {
-            "5min": "5min",
-            "15min": "15min",
-            "30min": "30min",
-            "1hr": "60min",
-        }
-        df_1hr = None
-        for tf, av_interval in intraday_map.items():
-            if tf not in timeframes:
-                continue
+        for tf in timeframes:
             logger.info("Fetching %s %s ...", pair, tf)
-            df = fetch_intraday(pair, av_interval)
-            req_count += 1
-            if df is not None:
+            df = fetch_yfinance(pair, tf)
+            if df is not None and not df.empty:
                 saved = save_price_data(pair, tf, df)
                 results[pair][tf] = saved
-                if tf == "1hr":
-                    df_1hr = df
-            time.sleep(12)  # 無料プランのレート制限対策
+                logger.info("  %s %s: %d件保存", pair, tf, saved)
+            else:
+                results[pair][tf] = 0
+                logger.warning("  %s %s: データなし", pair, tf)
+            time.sleep(1)  # Yahoo Financeへの負荷軽減
 
-        # --- 4hr (1hrからリサンプリング) ---
-        if "4hr" in timeframes and df_1hr is not None:
-            df_4hr = resample_to_4hr(df_1hr)
-            saved = save_price_data(pair, "4hr", df_4hr)
-            results[pair]["4hr"] = saved
-
-        # --- daily ---
-        if "daily" in timeframes:
-            logger.info("Fetching %s daily ...", pair)
-            df = fetch_daily(pair)
-            req_count += 1
-            if df is not None:
-                saved = save_price_data(pair, "daily", df)
-                results[pair]["daily"] = saved
-            time.sleep(12)
-
-    logger.info("Total AV requests used: %d", req_count)
     return results
 
 
@@ -260,6 +237,6 @@ def get_candles(pair: str, timeframe: str, limit: int = 200) -> pd.DataFrame:
 
     rows = [r.to_dict() for r in records]
     df = pd.DataFrame(rows)
-    df["timestamp"] = pd.to_datetime(df["timestamp"], utc=True)
+    df["timestamp"] = pd.to_datetime(df["timestamp"])
     df = df.sort_values("timestamp").reset_index(drop=True)
     return df
