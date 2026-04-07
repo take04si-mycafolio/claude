@@ -1,0 +1,174 @@
+{% extends "base_static.html" %}
+{% block title %}{{ data.display }} - FXシグナル{% endblock %}
+
+{% block content %}
+<!-- 通貨ペアタブ -->
+<div class="pair-tabs">
+  {% for pair, filename in pair_pages.items() %}
+  <a href="/{{ filename }}"
+     class="pair-tab {% if pair == current_pair %}active{% endif %}">
+    {{ pair[:3] }}/{{ pair[3:] }}
+  </a>
+  {% endfor %}
+</div>
+
+<!-- 価格カード -->
+<div class="price-card">
+  <div class="price-pair-name">{{ data.display }}</div>
+  {% if data.price %}
+  <div class="price-value">{{ "%.3f"|format(data.price.close) }}</div>
+  <div class="price-meta">最終更新: {{ data.price.timestamp[:16] }} UTC</div>
+  {% else %}
+  <div class="price-value">---.---</div>
+  <div class="price-meta">データ未取得</div>
+  {% endif %}
+
+  <!-- 総合シグナル -->
+  <div class="mt-3">
+    {% if data.overall == 'BUY' %}
+    <div class="signal-badge-large buy">
+      <i class="bi bi-arrow-up-circle-fill me-2"></i>買いシグナル優勢
+    </div>
+    {% elif data.overall == 'SELL' %}
+    <div class="signal-badge-large sell">
+      <i class="bi bi-arrow-down-circle-fill me-2"></i>売りシグナル優勢
+    </div>
+    {% else %}
+    <div class="signal-badge-large neutral">
+      <i class="bi bi-dash-circle me-2"></i>中立
+    </div>
+    {% endif %}
+  </div>
+
+  <!-- シグナル集計 -->
+  <div class="signal-counts">
+    <div class="signal-count-item buy-bg">
+      <div class="count-num">{{ data.buy_count }}</div>
+      <div class="count-label">買い</div>
+    </div>
+    <div class="signal-count-item sell-bg">
+      <div class="count-num">{{ data.sell_count }}</div>
+      <div class="count-label">売り</div>
+    </div>
+  </div>
+</div>
+
+<!-- シグナル一覧 -->
+<div class="section-card">
+  <div class="section-title">
+    <i class="bi bi-lightning-charge-fill text-warning me-2"></i>アクティブシグナル
+  </div>
+  {% if data.signals %}
+  <div class="signal-list">
+    {% for s in data.signals %}
+    <div class="signal-item">
+      <div class="signal-item-left">
+        <span class="signal-type-badge {% if s.signal_type == 'BUY' %}buy{% else %}sell{% endif %}">
+          {{ s.signal_type }}
+        </span>
+        <div class="signal-item-info">
+          <div class="signal-name">{{ s.indicator_name }}</div>
+          <div class="signal-tf text-muted">{{ s.timeframe }} · 勝率 {{ "%.1f"|format(s.win_rate) if s.win_rate else '--' }}%</div>
+        </div>
+      </div>
+      <div class="signal-item-right">
+        <div class="signal-price">{{ "%.3f"|format(s.entry_price) if s.entry_price else '--' }}</div>
+        <div class="signal-conf">信頼度 {{ s.confidence_score|int if s.confidence_score else '--' }}</div>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+  <a href="/signals.html" class="view-all-link">
+    すべてのシグナルを見る <i class="bi bi-chevron-right"></i>
+  </a>
+  {% else %}
+  <div class="empty-state">
+    <i class="bi bi-info-circle"></i>
+    シグナルなし（バックテスト実行後に表示されます）
+  </div>
+  {% endif %}
+</div>
+
+<!-- バックテスト上位 -->
+{% if data.top_backtest %}
+<div class="section-card">
+  <div class="section-title">
+    <i class="bi bi-trophy-fill text-warning me-2"></i>勝率ランキング
+  </div>
+  {% for r in data.top_backtest %}
+  <div class="bt-item">
+    <div class="bt-item-left">
+      <div class="bt-name">{{ r.indicator_name }}</div>
+      <div class="bt-meta text-muted">{{ r.timeframe }} · {{ r.total_trades }}トレード</div>
+    </div>
+    <div class="bt-item-right">
+      <div class="bt-winrate {% if r.win_rate >= 70 %}high{% elif r.win_rate >= 60 %}mid{% else %}low{% endif %}">
+        {{ "%.1f"|format(r.win_rate) }}%
+      </div>
+    </div>
+  </div>
+  {% endfor %}
+  <a href="/backtest.html" class="view-all-link">
+    詳細を見る <i class="bi bi-chevron-right"></i>
+  </a>
+</div>
+{% endif %}
+
+<!-- 操作パネル -->
+<div class="section-card">
+  <div class="section-title">
+    <i class="bi bi-terminal me-2"></i>データ操作
+  </div>
+  <div class="action-grid">
+    <button class="action-btn" onclick="runAction('fetch_data','データ取得中...','データ取得完了')">
+      <i class="bi bi-cloud-download"></i><span>データ取得</span>
+    </button>
+    <button class="action-btn" onclick="runAction('backtest','バックテスト中...','完了')">
+      <i class="bi bi-bar-chart"></i><span>バックテスト</span>
+    </button>
+    <button class="action-btn" onclick="runAction('signals','シグナル更新中...','更新完了')">
+      <i class="bi bi-lightning"></i><span>シグナル更新</span>
+    </button>
+    <button class="action-btn" onclick="runAction('report','AIレポート生成中...（30秒ほど）','レポート完了')">
+      <i class="bi bi-robot"></i><span>AIレポート</span>
+    </button>
+  </div>
+  <div id="action-status" class="action-status" style="display:none"></div>
+</div>
+
+<div class="section-card" style="font-size:0.72rem; color:#94a3b8; text-align:center; padding:8px 16px;">
+  最終更新: {{ updated_at }}
+</div>
+
+<div style="height: 20px;"></div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+async function runAction(action, loadingMsg, doneMsg) {
+  const el = document.getElementById('action-status');
+  el.style.display = 'block';
+  el.className = 'action-status loading';
+  el.textContent = loadingMsg;
+  try {
+    const res = await fetch('/action.php', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+      body: 'action=' + encodeURIComponent(action)
+    });
+    const data = await res.json();
+    if (data.ok) {
+      el.className = 'action-status success';
+      el.textContent = doneMsg + ' — ページを更新中...';
+      setTimeout(() => location.reload(), 2000);
+    } else {
+      el.className = 'action-status error';
+      el.textContent = 'エラー: ' + (data.error || '不明');
+    }
+  } catch(e) {
+    el.className = 'action-status error';
+    el.textContent = 'エラー: ' + e;
+  }
+}
+</script>
+{% endblock %}

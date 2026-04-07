@@ -1,0 +1,21 @@
+DirectoryIndex index.html
+
+# PHPを有効にする（action.phpはPHPで処理）
+AddHandler application/x-httpd-php .php
+
+# 静的ファイルを直接配信（CGIルーティングは不要）
+Options -Indexes +FollowSymLinks
+
+# キャッシュ設定
+<IfModule mod_expires.c>
+  ExpiresActive On
+  ExpiresByType text/html "access plus 0 seconds"
+  ExpiresByType application/json "access plus 0 seconds"
+  ExpiresByType text/css "access plus 1 week"
+  ExpiresByType application/javascript "access plus 1 week"
+</IfModule>
+
+# セキュリティ
+<FilesMatch "^\.">
+  Require all denied
+</FilesMatch>
