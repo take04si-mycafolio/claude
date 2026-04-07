@@ -6,7 +6,21 @@ bp = Blueprint("dashboard", __name__)
 
 @bp.route("/")
 def index():
-    return render_template("dashboard.html", pairs=Config.CURRENCY_PAIRS)
+    """ダッシュボード（初期データをサーバーサイドで埋め込み）"""
+    from app.services.data_fetcher import get_latest_price
+
+    # 初期価格データをサーバー側で取得してテンプレートに渡す
+    initial_prices = {}
+    for pair in Config.CURRENCY_PAIRS:
+        price = get_latest_price(pair)
+        if price:
+            initial_prices[pair] = price
+
+    return render_template(
+        "dashboard.html",
+        pairs=Config.CURRENCY_PAIRS,
+        initial_prices=initial_prices,
+    )
 
 
 @bp.route("/signals")
