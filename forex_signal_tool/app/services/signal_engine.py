@@ -6,8 +6,16 @@
 """
 
 import logging
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 from typing import Optional
+
+# タイムフレーム別シグナル有効期限（時間）
+TF_EXPIRY_HOURS = {
+    "15min": 2,
+    "1hr":   6,
+    "4hr":  24,
+    "daily": 72,
+}
 
 import pandas as pd
 
@@ -175,6 +183,8 @@ def run_signal_engine() -> dict:
                 continue
 
             signals = generate_signals_for_pair_tf(pair, tf, df)
+            expiry_hours = TF_EXPIRY_HOURS.get(tf, 6)
+            expired_at = datetime.now(timezone.utc) + timedelta(hours=expiry_hours)
 
             for s in signals:
                 record = TradingSignal(
@@ -192,6 +202,7 @@ def run_signal_engine() -> dict:
                     confidence_score=s["confidence_score"],
                     is_active=True,
                     signal_time=s["signal_time"],
+                    expired_at=expired_at,
                 )
                 db.session.add(record)
 

@@ -81,8 +81,16 @@
 
 <!-- シグナル一覧 -->
 <div class="section-card">
-  <div class="section-title">
-    <i class="bi bi-lightning-charge-fill text-warning me-2"></i>アクティブシグナル
+  <div class="section-title section-title-row">
+    <div class="section-title-left">
+      <i class="bi bi-lightning-charge-fill text-warning me-2"></i>アクティブシグナル
+      <span class="info-tip" data-tip="「シグナル更新」実行時点のテクニカル指標の方向性スナップショットです。バックテスト勝率が設定値以上の指標のみ表示されます。15m→2時間、1H→6時間、4H→24時間、日足→72時間で自動消滅します。">
+        <i class="bi bi-info-circle-fill"></i>
+      </span>
+    </div>
+    {% if data.signal_latest_jst %}
+    <span class="signal-updated-badge">更新 {{ data.signal_latest_jst }}</span>
+    {% endif %}
   </div>
   {% if data.signals %}
   <div class="signal-list">

@@ -250,15 +250,24 @@ def get_pair_data(pair: str) -> dict:
     from app.services.data_fetcher import get_latest_price
     from app.models.signal import TradingSignal
     from app.models.backtest import BacktestResult
+    from sqlalchemy import or_
 
     price = get_latest_price(pair)
+    now_utc = datetime.now(timezone.utc)
 
     signals = (
         TradingSignal.query
         .filter_by(currency_pair=pair, is_active=True)
+        .filter(or_(TradingSignal.expired_at.is_(None),
+                    TradingSignal.expired_at > now_utc))
         .order_by(TradingSignal.confidence_score.desc())
         .limit(10).all()
     )
+
+    # 最新シグナル生成日時（JST）
+    signal_latest_jst = ""
+    if signals:
+        signal_latest_jst = utc_str_to_jst(signals[0].signal_time) + " JST"
     top_bt = (
         BacktestResult.query
         .filter_by(currency_pair=pair)
@@ -291,6 +300,7 @@ def get_pair_data(pair: str) -> dict:
         "display": f"{pair[:3]}/{pair[3:]}",
         "price": price_dict,
         "signals": [s.to_dict() for s in signals],
+        "signal_latest_jst": signal_latest_jst,
         "buy_count": buy_count,
         "sell_count": sell_count,
         "overall": overall,
@@ -301,11 +311,15 @@ def get_pair_data(pair: str) -> dict:
 def get_all_signals() -> list:
     from app.models.signal import TradingSignal
     from app.config import Config
+    from sqlalchemy import or_
+    now_utc = datetime.now(timezone.utc)
     result = []
     for pair in Config.CURRENCY_PAIRS:
         sigs = (
             TradingSignal.query
             .filter_by(currency_pair=pair, is_active=True)
+            .filter(or_(TradingSignal.expired_at.is_(None),
+                        TradingSignal.expired_at > now_utc))
             .order_by(TradingSignal.confidence_score.desc())
             .all()
         )
