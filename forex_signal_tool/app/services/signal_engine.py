@@ -91,6 +91,13 @@ def generate_signals_for_pair_tf(pair: str, timeframe: str, df: pd.DataFrame) ->
     if df.empty or len(df) < 30:
         return []
 
+    # シグナル発生時刻 = 最新ローソク足の確定時刻
+    latest_candle_ts = df["timestamp"].iloc[-1]
+    if hasattr(latest_candle_ts, "to_pydatetime"):
+        latest_candle_ts = latest_candle_ts.to_pydatetime()
+    if latest_candle_ts.tzinfo is None:
+        latest_candle_ts = latest_candle_ts.replace(tzinfo=timezone.utc)
+
     # 全テクニカル指標を計算
     try:
         all_indicators = calculate_all(df)
@@ -150,7 +157,7 @@ def generate_signals_for_pair_tf(pair: str, timeframe: str, df: pd.DataFrame) ->
             "tp_pips": tp_pips,
             "win_rate": win_rate,
             "confidence_score": confidence,
-            "signal_time": datetime.now(timezone.utc),
+            "signal_time": latest_candle_ts,  # シグナル発生ローソク足の確定時刻
         })
 
     return signals
