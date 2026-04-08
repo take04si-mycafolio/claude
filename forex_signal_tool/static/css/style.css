@@ -369,3 +369,94 @@ body {
 }
 .setting-input:focus { border-color: #3b82f6; background: #fff; }
 .setting-hint { font-size: 0.72rem; color: #94a3b8; margin-top: 4px; }
+
+/* ===== リアルタイム価格 ===== */
+.price-change-row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  margin-top: 4px;
+  min-height: 20px;
+}
+.price-change {
+  font-size: 0.92rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+.price-change.up   { color: #4ade80; }
+.price-change.down { color: #f87171; }
+.price-update { font-size: 0.7rem; color: #64748b; }
+
+/* ===== チャートセクション ===== */
+.chart-section { padding: 12px 12px 8px; }
+
+/* タイムフレームタブ */
+.tf-tabs {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 8px;
+}
+.tf-tab {
+  padding: 5px 14px;
+  border: 1px solid #e2e8f0;
+  border-radius: 20px;
+  background: #f8fafc;
+  color: #64748b;
+  font-size: 0.78rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.tf-tab.active {
+  background: #1a1a2e;
+  color: #fff;
+  border-color: #1a1a2e;
+}
+
+/* 凡例 */
+.chart-legend {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-bottom: 6px;
+}
+.legend-item {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.68rem;
+  color: #64748b;
+}
+.legend-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  display: inline-block;
+}
+
+/* チャートコンテナ */
+.chart-container {
+  width: 100%;
+  border-radius: 8px;
+  overflow: hidden;
+  border: 1px solid #f1f5f9;
+}
+.rsi-label {
+  font-size: 0.68rem;
+  color: #94a3b8;
+  margin: 6px 0 2px;
+}
+.rsi-container {
+  width: 100%;
+  border-radius: 8px;
+  overflow: hidden;
+  border: 1px solid #f1f5f9;
+}
+.chart-loading {
+  text-align: center;
+  font-size: 0.78rem;
+  color: #94a3b8;
+  padding: 8px 0;
+  display: none;
+}

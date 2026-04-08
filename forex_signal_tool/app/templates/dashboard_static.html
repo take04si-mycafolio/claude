@@ -15,13 +15,15 @@
 <!-- 価格カード -->
 <div class="price-card">
   <div class="price-pair-name">{{ data.display }}</div>
-  {% if data.price %}
-  <div class="price-value">{{ "%.3f"|format(data.price.close) }}</div>
-  <div class="price-meta">最終更新: {{ data.price.timestamp[:16] }} UTC</div>
-  {% else %}
-  <div class="price-value">---.---</div>
-  <div class="price-meta">データ未取得</div>
-  {% endif %}
+  <div class="price-value" id="rt-price">
+    {% if data.price %}{{ "%.3f"|format(data.price.close) }}{% else %}---.---{% endif %}
+  </div>
+  <div class="price-change-row">
+    <span class="price-change" id="rt-change">---</span>
+    <span class="price-update" id="rt-update">
+      {% if data.price %}{{ data.price.timestamp[:16] }} UTC{% else %}データ未取得{% endif %}
+    </span>
+  </div>
 
   <!-- 総合シグナル -->
   <div class="mt-3">
@@ -51,6 +53,30 @@
       <div class="count-label">売り</div>
     </div>
   </div>
+</div>
+
+<!-- チャート -->
+<div class="section-card chart-section">
+  <!-- タイムフレームタブ -->
+  <div class="tf-tabs">
+    <button class="tf-tab" data-tf="15min" onclick="switchTf(this)">15m</button>
+    <button class="tf-tab active" data-tf="1hr"  onclick="switchTf(this)">1H</button>
+    <button class="tf-tab" data-tf="4hr"  onclick="switchTf(this)">4H</button>
+    <button class="tf-tab" data-tf="daily" onclick="switchTf(this)">D</button>
+  </div>
+  <!-- インジケーター凡例 -->
+  <div class="chart-legend">
+    <span class="legend-item"><span class="legend-dot" style="background:#3b82f6"></span>SMA20</span>
+    <span class="legend-item"><span class="legend-dot" style="background:#f97316"></span>SMA50</span>
+    <span class="legend-item"><span class="legend-dot" style="background:#a855f7"></span>EMA21</span>
+    <span class="legend-item"><span class="legend-dot" style="background:#94a3b8;border-radius:0;height:1px;width:14px;display:inline-block"></span>BB</span>
+  </div>
+  <!-- メインチャート -->
+  <div id="main-chart" class="chart-container"></div>
+  <!-- RSI -->
+  <div class="rsi-label">RSI(14)</div>
+  <div id="rsi-chart" class="rsi-container"></div>
+  <div id="chart-loading" class="chart-loading">読込中...</div>
 </div>
 
 <!-- シグナル一覧 -->
@@ -129,7 +155,7 @@
     <button class="action-btn" onclick="runAction('signals','シグナル更新中...','更新完了')">
       <i class="bi bi-lightning"></i><span>シグナル更新</span>
     </button>
-    <button class="action-btn" onclick="runAction('report','AIレポート生成中...（30秒ほど）','レポート完了')">
+    <button class="action-btn" onclick="runAction('report','AIレポート生成中...','レポート完了')">
       <i class="bi bi-robot"></i><span>AIレポート</span>
     </button>
   </div>
@@ -137,14 +163,147 @@
 </div>
 
 <div class="section-card" style="font-size:0.72rem; color:#94a3b8; text-align:center; padding:8px 16px;">
-  最終更新: {{ updated_at }}
+  チャート最終更新: {{ updated_at }} · 価格は30秒ごとに自動更新
 </div>
 
 <div style="height: 20px;"></div>
 {% endblock %}
 
 {% block extra_js %}
+<script src="https://unpkg.com/lightweight-charts@4.1.7/dist/lightweight-charts.standalone.production.js"></script>
 <script>
+// ===== 設定 =====
+const PAIR = '{{ current_pair }}';
+let currentTf = '1hr';
+let mainChart = null, rsiChart = null;
+let candleSeries, sma20s, sma50s, ema21s, bbUpS, bbLowS, rsiSeries;
+
+// ===== チャート初期化 =====
+function initCharts() {
+  const W = document.getElementById('main-chart').clientWidth || 360;
+  const opts = {
+    layout: { background: { color: '#ffffff' }, textColor: '#1a1a2e' },
+    grid:   { vertLines: { color: '#f1f5f9' }, horzLines: { color: '#f1f5f9' } },
+    crosshair: { mode: 1 },
+    rightPriceScale: { borderColor: '#e2e8f0', scaleMargins: { top: 0.08, bottom: 0.08 } },
+    timeScale: { borderColor: '#e2e8f0', timeVisible: true, secondsVisible: false },
+    handleScroll: true,
+    handleScale: true,
+  };
+
+  mainChart = LightweightCharts.createChart(document.getElementById('main-chart'),
+    { ...opts, width: W, height: 260 });
+  rsiChart  = LightweightCharts.createChart(document.getElementById('rsi-chart'),
+    { ...opts, width: W, height: 100,
+      rightPriceScale: { borderColor: '#e2e8f0', scaleMargins: { top: 0.1, bottom: 0.1 } } });
+
+  // ローソク足
+  candleSeries = mainChart.addCandlestickSeries({
+    upColor: '#4ade80', downColor: '#f87171',
+    borderUpColor: '#16a34a', borderDownColor: '#dc2626',
+    wickUpColor:   '#16a34a', wickDownColor:   '#dc2626',
+  });
+  // SMA20
+  sma20s = mainChart.addLineSeries({ color: '#3b82f6', lineWidth: 1, priceLineVisible: false, lastValueVisible: false });
+  // SMA50
+  sma50s = mainChart.addLineSeries({ color: '#f97316', lineWidth: 1, priceLineVisible: false, lastValueVisible: false });
+  // EMA21
+  ema21s = mainChart.addLineSeries({ color: '#a855f7', lineWidth: 1, priceLineVisible: false, lastValueVisible: false });
+  // BB Upper
+  bbUpS  = mainChart.addLineSeries({ color: '#94a3b8', lineWidth: 1, lineStyle: 2, priceLineVisible: false, lastValueVisible: false });
+  // BB Lower
+  bbLowS = mainChart.addLineSeries({ color: '#94a3b8', lineWidth: 1, lineStyle: 2, priceLineVisible: false, lastValueVisible: false });
+  // RSI
+  rsiSeries = rsiChart.addLineSeries({ color: '#8b5cf6', lineWidth: 1.5, priceLineVisible: false });
+  // RSI 70/30 lines
+  rsiChart.addLineSeries({ color: '#f87171', lineWidth: 1, lineStyle: 1, priceLineVisible: false, lastValueVisible: false })
+    .applyOptions({ baseLineVisible: false });
+
+  // タイムスケール同期
+  mainChart.timeScale().subscribeVisibleTimeRangeChange(() => {
+    const r = mainChart.timeScale().getVisibleRange();
+    if (r) rsiChart.timeScale().setVisibleRange(r);
+  });
+
+  // レスポンシブ
+  window.addEventListener('resize', () => {
+    const w = document.getElementById('main-chart').clientWidth || 360;
+    mainChart.applyOptions({ width: w });
+    rsiChart.applyOptions({ width: w });
+  });
+}
+
+// ===== チャートデータ読み込み =====
+async function loadChartData(tf) {
+  const loading = document.getElementById('chart-loading');
+  loading.style.display = 'block';
+  try {
+    const res = await fetch(`/chart_data/${PAIR.toLowerCase()}_${tf}.json?_=${Date.now()}`);
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    const d = await res.json();
+    if (!d.candles || d.candles.length === 0) {
+      loading.textContent = 'データなし（データ取得を実行してください）';
+      return;
+    }
+    candleSeries.setData(d.candles);
+    sma20s.setData(d.sma20 || []);
+    sma50s.setData(d.sma50 || []);
+    ema21s.setData(d.ema21 || []);
+    bbUpS.setData(d.bb_upper || []);
+    bbLowS.setData(d.bb_lower || []);
+    rsiSeries.setData(d.rsi || []);
+    // シグナルマーカー
+    if (d.signals && d.signals.length > 0) {
+      candleSeries.setMarkers(d.signals.sort((a,b) => a.time - b.time));
+    }
+    // RSI 70/30 水平線（最初と最後の時刻で引く）
+    if (d.rsi && d.rsi.length > 1) {
+      const t0 = d.rsi[0].time, t1 = d.rsi[d.rsi.length-1].time;
+      // RSIチャートにプライスライン
+      rsiSeries.createPriceLine({ price: 70, color: '#f87171', lineWidth: 1, lineStyle: 1, axisLabelVisible: true, title: '70' });
+      rsiSeries.createPriceLine({ price: 30, color: '#4ade80', lineWidth: 1, lineStyle: 1, axisLabelVisible: true, title: '30' });
+    }
+    mainChart.timeScale().fitContent();
+    rsiChart.timeScale().fitContent();
+    loading.style.display = 'none';
+  } catch(e) {
+    loading.textContent = 'チャート読込エラー: ' + e.message;
+  }
+}
+
+function switchTf(btn) {
+  document.querySelectorAll('.tf-tab').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  currentTf = btn.dataset.tf;
+  loadChartData(currentTf);
+}
+
+// ===== リアルタイム価格 =====
+async function fetchRealtimePrice() {
+  try {
+    const res = await fetch(`/realtime.php?pair=${PAIR}&_=${Date.now()}`);
+    const d = await res.json();
+    if (!d.ok || !d.price) return;
+
+    document.getElementById('rt-price').textContent = d.price.toFixed(3);
+
+    const changeEl = document.getElementById('rt-change');
+    if (d.change !== null) {
+      const up = d.change >= 0;
+      const sign = up ? '+' : '';
+      const pct  = d.change_pct !== null ? ` (${sign}${d.change_pct.toFixed(3)}%)` : '';
+      changeEl.textContent = `${sign}${d.change.toFixed(3)}${pct}`;
+      changeEl.className   = 'price-change ' + (up ? 'up' : 'down');
+    }
+    const upd = document.getElementById('rt-update');
+    const now = new Date(d.ts * 1000);
+    const hh = String(now.getUTCHours()).padStart(2,'0');
+    const mm = String(now.getUTCMinutes()).padStart(2,'0');
+    upd.textContent = `更新 ${hh}:${mm} UTC`;
+  } catch(e) { /* 失敗しても継続 */ }
+}
+
+// ===== アクション =====
 async function runAction(action, loadingMsg, doneMsg) {
   const el = document.getElementById('action-status');
   el.style.display = 'block';
@@ -170,5 +329,13 @@ async function runAction(action, loadingMsg, doneMsg) {
     el.textContent = 'エラー: ' + e;
   }
 }
+
+// ===== 起動 =====
+document.addEventListener('DOMContentLoaded', () => {
+  initCharts();
+  loadChartData(currentTf);
+  fetchRealtimePrice();
+  setInterval(fetchRealtimePrice, 30000); // 30秒ごとに価格更新
+});
 </script>
 {% endblock %}
