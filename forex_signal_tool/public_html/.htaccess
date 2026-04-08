@@ -28,5 +28,6 @@ AddHandler cgi-script .cgi
   RewriteCond %{REQUEST_FILENAME} -f
   RewriteRule ^ - [L]
   # /admin/* → admin.cgi (PATH_INFO 付き)
-  RewriteRule ^admin(/.*)?$ /admin.cgi/admin$1 [QSA,PT,L]
+  # NOTE: [PT] を外す。Xserver で [PT] は POST ボディを転送しない場合がある
+  RewriteRule ^admin(/.*)?$ /admin.cgi/admin$1 [QSA,L]
 </IfModule>

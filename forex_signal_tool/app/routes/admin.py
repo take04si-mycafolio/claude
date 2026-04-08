@@ -69,10 +69,19 @@ def logout():
 
 @bp.route("/ping")
 def ping():
-    """CGI 疎通確認用"""
+    """CGI 疎通確認用 (GET)"""
     import sys
     return jsonify({"status": "ok", "python": sys.version,
                     "project": Config.CURRENCY_PAIRS})
+
+
+@bp.route("/test-post", methods=["POST"])
+def test_post():
+    """POST 動作確認用 (認証不要) - DB接続なし"""
+    data = request.get_json(force=True, silent=True) or {}
+    return jsonify({"status": "ok", "received": data,
+                    "method": request.method,
+                    "content_type": request.content_type})
 
 
 # ---- ダッシュボード ----

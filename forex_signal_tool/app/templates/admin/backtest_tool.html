@@ -230,6 +230,7 @@ tbody td{padding:9px 12px;color:#cbd5e1;white-space:nowrap}
     <div class="run-row">
       <button class="run-btn" id="run-btn" onclick="runBacktest()">バックテストを実行</button>
       <button class="run-btn" id="reset-btn" onclick="resetJob()" style="background:#6b7280;padding:11px 16px;font-size:13px;display:none">実行フラグをリセット</button>
+      <button class="run-btn" onclick="testPost()" style="background:#374151;padding:11px 16px;font-size:12px">POST疎通テスト</button>
       <span class="run-status" id="run-status"></span>
     </div>
   </div><!-- /form-card -->
@@ -357,6 +358,17 @@ function runBacktest() {
 function showLoading(show) {
   document.getElementById('loading-overlay').classList.toggle('show', show);
   document.getElementById('run-btn').disabled = show;
+}
+
+function testPost() {
+  fetch('/admin/test-post', {
+    method: 'POST',
+    headers: {'Content-Type':'application/json'},
+    body: JSON.stringify({test: 'hello'})
+  })
+  .then(function(r){ return r.text(); })
+  .then(function(t){ alert('POST テスト結果 (HTTP ' + '?):\n' + t.substring(0, 500)); })
+  .catch(function(e){ alert('POST テスト失敗: ' + e.message); });
 }
 
 function resetJob() {
