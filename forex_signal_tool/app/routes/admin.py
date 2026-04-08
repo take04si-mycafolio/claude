@@ -29,6 +29,13 @@ def login_required(f):
     @wraps(f)
     def decorated(*args, **kwargs):
         if not session.get("admin_logged_in"):
+            # AJAX / JSON リクエストには JSON 401 を返す
+            is_ajax = (
+                request.content_type == "application/json"
+                or request.headers.get("X-Requested-With") == "XMLHttpRequest"
+            )
+            if is_ajax:
+                return jsonify({"status": "error", "message": "セッションが切れました。ページを再読み込みしてログインしてください。"}), 401
             return redirect(url_for("admin.login"))
         return f(*args, **kwargs)
     return decorated

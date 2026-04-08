@@ -320,7 +320,7 @@ function runBacktest() {
 
   fetch('/admin/backtest-tool/run', {
     method: 'POST',
-    headers: {'Content-Type':'application/json'},
+    headers: {'Content-Type':'application/json', 'X-Requested-With':'XMLHttpRequest'},
     body: JSON.stringify({
       pair: pair,
       timeframe: tf,
@@ -332,8 +332,14 @@ function runBacktest() {
       indicators: indicators,
     })
   })
-  .then(function(r){ return r.json(); })
-  .then(function(data){ showLoading(false); renderResults(data); })
+  .then(function(r){
+    if (r.status === 401) { window.location.href = '/admin/login'; return null; }
+    if (!r.ok && r.headers.get('content-type') && r.headers.get('content-type').indexOf('json') === -1) {
+      throw new Error('サーバーエラー (HTTP ' + r.status + ')');
+    }
+    return r.json();
+  })
+  .then(function(data){ if (data) { showLoading(false); renderResults(data); } })
   .catch(function(e){ showLoading(false); showError('通信エラー: ' + e.message); });
 }
 

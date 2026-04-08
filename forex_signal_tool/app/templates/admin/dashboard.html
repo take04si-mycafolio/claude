@@ -158,9 +158,12 @@ function runOp(name) {
   msg.textContent = '';
   msg.className = 'result-msg';
 
-  fetch(op.url, { method: 'POST', headers: { 'X-Requested-With': 'XMLHttpRequest' } })
-    .then(function(r){ return r.json(); })
-    .then(function(d){
+  fetch(op.url, { method: 'POST', headers: { 'X-Requested-With': 'XMLHttpRequest', 'Content-Type': 'application/json' } })
+    .then(function(r){
+      if (r.status === 401) { window.location.href = '/admin/login'; return null; }
+      return r.json();
+    })
+    .then(function(d){ if (!d) return;
       msg.textContent = d.message || (d.status === 'ok' ? '完了' : 'エラー');
       msg.className = 'result-msg ' + (d.status === 'ok' ? 'ok' : 'error');
       // 最終実行時刻を更新（サーバーから時刻を取り直す）
