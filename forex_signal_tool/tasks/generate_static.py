@@ -666,8 +666,9 @@ def save(filename: str, html: str):
 
 
 def deploy_static_files():
-    """public_html ディレクトリ内の PHP/.htaccess を本番に同期する"""
+    """public_html ディレクトリ内の PHP/.htaccess/.cgi を本番に同期する"""
     import shutil
+    import stat
     src_dir = Path(__file__).parent.parent / "public_html"
     dst_dir = Path(PUBLIC_HTML)
     if not src_dir.exists():
@@ -677,6 +678,10 @@ def deploy_static_files():
         if src.is_file():
             dst = dst_dir / src.name
             shutil.copy2(src, dst)
+            # .cgi ファイルは実行権限を付与
+            if src.suffix == ".cgi":
+                os.chmod(dst, stat.S_IRWXU | stat.S_IRGRP | stat.S_IXGRP |
+                              stat.S_IROTH | stat.S_IXOTH)  # 755
             logger.info("Deployed: %s", src.name)
 
 

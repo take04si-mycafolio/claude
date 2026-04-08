@@ -1,10 +1,11 @@
 DirectoryIndex index.html
 
-# PHPを有効にする（action.phpはPHPで処理）
+# PHPを有効にする
 AddHandler application/x-httpd-php .php
 
-# 静的ファイルを直接配信（CGIルーティングは不要）
-Options -Indexes +FollowSymLinks
+# Python CGI を有効にする（管理パネル用）
+Options +ExecCGI
+AddHandler cgi-script .cgi
 
 # キャッシュ設定
 <IfModule mod_expires.c>
@@ -19,3 +20,13 @@ Options -Indexes +FollowSymLinks
 <FilesMatch "^\.">
   Require all denied
 </FilesMatch>
+
+# ---- 管理パネル URL ルーティング ----
+<IfModule mod_rewrite.c>
+  RewriteEngine On
+  # 実ファイルはそのまま配信
+  RewriteCond %{REQUEST_FILENAME} -f
+  RewriteRule ^ - [L]
+  # /admin/* → admin.cgi (PATH_INFO 付き)
+  RewriteRule ^admin(/.*)?$ /admin.cgi/admin$1 [QSA,PT,L]
+</IfModule>
