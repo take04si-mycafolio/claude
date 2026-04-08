@@ -313,14 +313,13 @@ def save_backtest_results(results: list) -> int:
         timeframe = r["timeframe"]
         ind_name  = r["indicator_name"]
 
-        # 既存レコードを削除（最新のみ保持）
-        old = BacktestResult.query.filter_by(
+        # 既存レコードをすべて削除（重複していても一括削除）
+        old_records = BacktestResult.query.filter_by(
             currency_pair=pair,
             timeframe=timeframe,
             indicator_name=ind_name,
-        ).first()
-        if old:
-            # 紐づく個別トレードも削除（CASCADE設定があれば自動だが明示的に削除）
+        ).all()
+        for old in old_records:
             SimulationTrade.query.filter_by(backtest_result_id=old.id).delete()
             db.session.delete(old)
 

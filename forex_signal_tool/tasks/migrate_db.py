@@ -47,6 +47,8 @@ def main():
             profit_loss        DECIMAL(15,2) DEFAULT NULL,
             capital_after      DECIMAL(15,2) DEFAULT NULL,
             created_at         DATETIME      DEFAULT CURRENT_TIMESTAMP,
+            -- 同じ指標・ペア・TF・エントリー日時・方向の組み合わせは1件のみ
+            UNIQUE KEY uq_st_trade (currency_pair, timeframe, indicator_name, entry_at, direction),
             INDEX idx_st_pair_tf_ind (currency_pair, timeframe, indicator_name),
             INDEX idx_st_entry_at    (entry_at),
             INDEX idx_st_backtest_id (backtest_result_id),
