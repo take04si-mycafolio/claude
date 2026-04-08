@@ -25,6 +25,8 @@ logger = logging.getLogger(__name__)
 def main():
     from app import create_app
     from app.services.data_fetcher import fetch_and_store_all
+    from app.models.settings import Setting
+    from datetime import datetime, timezone
 
     app = create_app()
     with app.app_context():
@@ -33,6 +35,8 @@ def main():
         for pair, tf_results in results.items():
             for tf, saved in tf_results.items():
                 logger.info("  %s %s: %d件保存", pair, tf, saved)
+        now_str = datetime.now(timezone.utc).strftime("%Y/%m/%d %H:%M UTC")
+        Setting.set("last_data_fetch_at", now_str)
         logger.info("データ取得完了")
 
 

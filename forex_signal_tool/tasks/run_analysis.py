@@ -28,6 +28,7 @@ def main():
     from app.services.data_fetcher import get_candles
     from app.services.backtester import run_all_backtests, save_backtest_results
     from app.services.signal_engine import run_signal_engine
+    from datetime import datetime, timezone
 
     app = create_app()
     with app.app_context():
@@ -57,6 +58,8 @@ def main():
                 logger.info("  %s %s: バックテスト%d件保存", pair, tf, saved)
 
         logger.info("バックテスト完了: 合計%d件", total_saved)
+        now_str = datetime.now(timezone.utc).strftime("%Y/%m/%d %H:%M UTC")
+        Setting.set("last_backtest_at", now_str)
 
         logger.info("シグナル生成開始")
         signal_results = run_signal_engine()
@@ -64,6 +67,8 @@ def main():
             for tf, count in tf_results.items():
                 logger.info("  %s %s: %d個のシグナル", pair, tf, count)
         logger.info("シグナル生成完了")
+        now_str2 = datetime.now(timezone.utc).strftime("%Y/%m/%d %H:%M UTC")
+        Setting.set("last_signal_update_at", now_str2)
 
 
 if __name__ == "__main__":

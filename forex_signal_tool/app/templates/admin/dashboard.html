@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>管理ダッシュボード | FX Trend</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:#0f172a;color:#e2e8f0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;min-height:100vh}
+header{background:#1e293b;border-bottom:1px solid #334155;padding:14px 24px;display:flex;align-items:center;justify-content:space-between}
+header h1{font-size:18px;font-weight:700;color:#f1f5f9}
+header .nav{display:flex;gap:12px;align-items:center}
+header .nav a{color:#94a3b8;text-decoration:none;font-size:13px;padding:6px 12px;border-radius:6px;transition:background .15s}
+header .nav a:hover{background:#334155;color:#f1f5f9}
+header .nav a.active{background:#1e3a5f;color:#60a5fa}
+.logout-btn{color:#ef4444 !important}
+main{max-width:900px;margin:0 auto;padding:28px 20px}
+.section{margin-bottom:32px}
+.section-title{font-size:14px;font-weight:600;color:#64748b;text-transform:uppercase;letter-spacing:.7px;margin-bottom:14px}
+/* Stats */
+.stats-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:32px}
+.stat-card{background:#1e293b;border:1px solid #334155;border-radius:10px;padding:16px 18px}
+.stat-card .label{font-size:12px;color:#64748b;margin-bottom:6px}
+.stat-card .value{font-size:26px;font-weight:700;color:#f1f5f9}
+/* Last run times */
+.run-times{background:#1e293b;border:1px solid #334155;border-radius:10px;overflow:hidden}
+.run-row{display:flex;align-items:center;justify-content:space-between;padding:13px 18px;border-bottom:1px solid #0f172a}
+.run-row:last-child{border-bottom:none}
+.run-label{font-size:13px;color:#94a3b8}
+.run-time{font-size:13px;color:#60a5fa;font-family:'Courier New',monospace}
+/* Ops */
+.ops-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
+.op-card{background:#1e293b;border:1px solid #334155;border-radius:10px;padding:18px}
+.op-card h3{font-size:14px;font-weight:600;color:#f1f5f9;margin-bottom:6px}
+.op-card p{font-size:12px;color:#64748b;margin-bottom:14px;line-height:1.5}
+.run-btn{width:100%;padding:9px;border:none;border-radius:7px;font-size:13px;font-weight:600;cursor:pointer;transition:background .2s}
+.run-btn.fetch-btn{background:#0e7490;color:#fff}
+.run-btn.fetch-btn:hover{background:#0c6276}
+.run-btn.bt-btn{background:#7c3aed;color:#fff}
+.run-btn.bt-btn:hover{background:#6d28d9}
+.run-btn.sig-btn{background:#15803d;color:#fff}
+.run-btn.sig-btn:hover{background:#166534}
+.run-btn:disabled{opacity:.5;cursor:not-allowed}
+.result-msg{margin-top:8px;font-size:12px;min-height:18px;text-align:center}
+.result-msg.ok{color:#4ade80}
+.result-msg.error{color:#f87171}
+/* Backtest tool link */
+.tool-link-card{background:#1e293b;border:1px solid #3b82f6;border-radius:10px;padding:20px 18px;display:flex;align-items:center;justify-content:space-between}
+.tool-link-card .info h3{font-size:15px;font-weight:600;color:#f1f5f9;margin-bottom:4px}
+.tool-link-card .info p{font-size:12px;color:#64748b}
+.tool-link-card a{background:#3b82f6;color:#fff;text-decoration:none;padding:9px 20px;border-radius:8px;font-size:13px;font-weight:600;white-space:nowrap}
+.tool-link-card a:hover{background:#2563eb}
+/* Spinner */
+@keyframes spin{to{transform:rotate(360deg)}}
+.spinner{display:inline-block;width:14px;height:14px;border:2px solid #ffffff44;border-top-color:#fff;border-radius:50%;animation:spin .7s linear infinite;vertical-align:middle;margin-right:6px}
+</style>
+</head>
+<body>
+<header>
+  <h1>FX Trend 管理パネル</h1>
+  <nav class="nav">
+    <a href="/admin/" class="active">ダッシュボード</a>
+    <a href="/admin/backtest-tool">バックテストツール</a>
+    <a href="/" target="_blank">サイトを見る</a>
+    <a href="/admin/logout" class="logout-btn">ログアウト</a>
+  </nav>
+</header>
+
+<main>
+  <!-- Stats -->
+  <div class="stats-grid">
+    <div class="stat-card">
+      <div class="label">価格データ行数</div>
+      <div class="value">{{ stats.price_rows | default(0) | int }}</div>
+    </div>
+    <div class="stat-card">
+      <div class="label">アクティブシグナル</div>
+      <div class="value">{{ stats.signal_count | default(0) | int }}</div>
+    </div>
+    <div class="stat-card">
+      <div class="label">バックテスト件数</div>
+      <div class="value">{{ stats.bt_count | default(0) | int }}</div>
+    </div>
+  </div>
+
+  <!-- 最終実行日時 -->
+  <div class="section">
+    <div class="section-title">最終実行日時</div>
+    <div class="run-times">
+      <div class="run-row">
+        <span class="run-label">データ取得</span>
+        <span class="run-time" id="rt-fetch">{{ last_fetch }}</span>
+      </div>
+      <div class="run-row">
+        <span class="run-label">バックテスト</span>
+        <span class="run-time" id="rt-bt">{{ last_bt }}</span>
+      </div>
+      <div class="run-row">
+        <span class="run-label">シグナル更新</span>
+        <span class="run-time" id="rt-signal">{{ last_signal }}</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- データ操作 -->
+  <div class="section">
+    <div class="section-title">データ操作</div>
+    <div class="ops-grid">
+      <div class="op-card">
+        <h3>データ取得</h3>
+        <p>Yahoo Finance から全ペア・全TFの価格データを取得してDBに保存します。</p>
+        <button class="run-btn fetch-btn" onclick="runOp('fetch')">データ取得を実行</button>
+        <div class="result-msg" id="msg-fetch"></div>
+      </div>
+      <div class="op-card">
+        <h3>バックテスト</h3>
+        <p>全ペア・全TF・全指標のバックテストを実行してDBに保存します（数分かかる場合あり）。</p>
+        <button class="run-btn bt-btn" onclick="runOp('backtest')">バックテストを実行</button>
+        <div class="result-msg" id="msg-backtest"></div>
+      </div>
+      <div class="op-card">
+        <h3>シグナル更新</h3>
+        <p>現在の価格データと指標からアクティブシグナルを再生成します。</p>
+        <button class="run-btn sig-btn" onclick="runOp('signals')">シグナル更新を実行</button>
+        <div class="result-msg" id="msg-signals"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- バックテストツールへのリンク -->
+  <div class="section">
+    <div class="section-title">ユーザー向けツール</div>
+    <div class="tool-link-card">
+      <div class="info">
+        <h3>カスタムバックテストツール</h3>
+        <p>通貨ペア・期間・資金・RR比・指標を自由に設定してバックテストを実行できます</p>
+      </div>
+      <a href="/admin/backtest-tool">ツールを開く →</a>
+    </div>
+  </div>
+</main>
+
+<script>
+const OPS = {
+  fetch:    { url: '/admin/run-fetch',    btnSel: '.fetch-btn', msgId: 'msg-fetch',   rtId: 'rt-fetch' },
+  backtest: { url: '/admin/run-backtest', btnSel: '.bt-btn',    msgId: 'msg-backtest',rtId: 'rt-bt' },
+  signals:  { url: '/admin/run-signals',  btnSel: '.sig-btn',   msgId: 'msg-signals', rtId: 'rt-signal' },
+};
+
+function runOp(name) {
+  var op = OPS[name];
+  var btn = document.querySelector(op.btnSel);
+  var msg = document.getElementById(op.msgId);
+  var origText = btn.textContent;
+
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span>実行中...';
+  msg.textContent = '';
+  msg.className = 'result-msg';
+
+  fetch(op.url, { method: 'POST', headers: { 'X-Requested-With': 'XMLHttpRequest' } })
+    .then(function(r){ return r.json(); })
+    .then(function(d){
+      msg.textContent = d.message || (d.status === 'ok' ? '完了' : 'エラー');
+      msg.className = 'result-msg ' + (d.status === 'ok' ? 'ok' : 'error');
+      // 最終実行時刻を更新（サーバーから時刻を取り直す）
+      location.reload();
+    })
+    .catch(function(e){
+      msg.textContent = '通信エラー: ' + e.message;
+      msg.className = 'result-msg error';
+    })
+    .finally(function(){
+      btn.disabled = false;
+      btn.textContent = origText;
+    });
+}
+</script>
+</body>
+</html>

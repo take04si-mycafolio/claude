@@ -29,9 +29,11 @@ def create_app():
     from app.routes.dashboard import bp as dashboard_bp
     from app.routes.api import bp as api_bp
     from app.routes.settings_routes import bp as settings_bp
+    from app.routes.admin import bp as admin_bp
 
     app.register_blueprint(dashboard_bp)
     app.register_blueprint(api_bp, url_prefix="/api")
     app.register_blueprint(settings_bp, url_prefix="/settings")
+    app.register_blueprint(admin_bp, url_prefix="/admin")
 
     return app

@@ -63,6 +63,9 @@ class Config:
     DEFAULT_TP_PIPS = 40.0
     DEFAULT_BACKTEST_HOURS = 12
 
+    # Admin panel
+    ADMIN_PASSWORD = os.environ.get("ADMIN_PASSWORD", "admin1234")
+
     # Signal thresholds
     MIN_WIN_RATE = 55.0         # 勝率55%以上をアクティブシグナルとする
     MIN_TRADES_COUNT = 3        # 最低取引数
