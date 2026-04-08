@@ -39,7 +39,6 @@ try:
 
     @flask_app.errorhandler(Exception)
     def _handle_exc(e):
-        logger.exception("unhandled flask error")
         return _jsonify({"status": "error", "message": "予期せぬエラー: " + str(e)})
 
     @flask_app.errorhandler(404)
