@@ -433,18 +433,34 @@ def get_chart_data(pair: str, timeframe: str) -> dict:
 
     times = [_to_unix(row["timestamp"]) for _, row in df.iterrows()]
 
-    candles = [
-        {"time": times[i],
-         "open":  round(float(df.iloc[i]["open"]),  3),
-         "high":  round(float(df.iloc[i]["high"]),  3),
-         "low":   round(float(df.iloc[i]["low"]),   3),
-         "close": round(float(df.iloc[i]["close"]), 3)}
-        for i in range(len(df))
-    ]
+    import math as _math
+    candles = []
+    for i in range(len(df)):
+        try:
+            o = float(df.iloc[i]["open"])
+            h = float(df.iloc[i]["high"])
+            lo = float(df.iloc[i]["low"])
+            c = float(df.iloc[i]["close"])
+        except (TypeError, ValueError):
+            continue
+        if not (_math.isfinite(o) and _math.isfinite(h) and _math.isfinite(lo) and _math.isfinite(c)):
+            continue
+        candles.append({"time": times[i],
+                         "open": round(o, 3), "high": round(h, 3),
+                         "low": round(lo, 3), "close": round(c, 3)})
 
-    def to_series(series):
-        return [{"time": times[i], "value": round(float(v), 5)}
-                for i, v in enumerate(series) if not pd.isna(v)]
+    def to_series(series, decimals=5):
+        import math
+        out = []
+        for i, v in enumerate(series):
+            try:
+                fv = float(v)
+            except (TypeError, ValueError):
+                continue
+            if not math.isfinite(fv):  # NaN と Inf を除外（pd.isna では Inf を除外できない）
+                continue
+            out.append({"time": times[i], "value": round(fv, decimals)})
+        return out
 
     # SMA
     sma20 = close.rolling(20).mean()
@@ -465,10 +481,9 @@ def get_chart_data(pair: str, timeframe: str) -> dict:
     rs  = avg_gain / avg_loss.replace(0, float("nan"))
     rsi = 100 - (100 / (1 + rs))
 
-    # バックテスト取引マーカー（上位インジケーターの直近トレード）
+    # バックテスト取引マーカー（SimulationTradeテーブルから取得）
     from app.models.backtest import BacktestResult
-    from app.models.settings import Setting
-    from app.services.backtester import get_recent_trades
+    from app.models.simulation_trade import SimulationTrade
 
     trade_markers = []
     try:
@@ -478,21 +493,17 @@ def get_chart_data(pair: str, timeframe: str) -> dict:
                   .order_by(BacktestResult.win_rate.desc())
                   .first())
         if top_bt:
-            ic = Setting.get_float("initial_capital", 1_000_000)
-            sl = Setting.get_float("sl_pips", 20)
-            tp = Setting.get_float("tp_pips", 40)
-            bh = Setting.get_int("backtest_hours", 12)
-            trades = get_recent_trades(pair, timeframe, df,
-                                       top_bt.indicator_name, ic, sl, tp, bh,
-                                       limit=30)
-            for t in trades:
-                et = _to_unix(t["entry_ts"])
-                xt = _to_unix(t["exit_ts"]) if t.get("exit_ts") else None
-                sig = t["signal"]
-                outcome = t.get("outcome")
-                is_buy = sig == "BUY"
-
-                # エントリーマーカー
+            sim_trades = (
+                SimulationTrade.query
+                .filter_by(currency_pair=pair, timeframe=timeframe,
+                           indicator_name=top_bt.indicator_name)
+                .order_by(SimulationTrade.entry_at.desc())
+                .limit(30).all()
+            )
+            for t in sim_trades:
+                et = _to_unix(t.entry_at)
+                xt = _to_unix(t.exit_at) if t.exit_at else None
+                is_buy = t.direction == "BUY"
                 trade_markers.append({
                     "time": et,
                     "position": "belowBar" if is_buy else "aboveBar",
@@ -501,9 +512,8 @@ def get_chart_data(pair: str, timeframe: str) -> dict:
                     "text": "IN",
                     "size": 1,
                 })
-                # エグジットマーカー
                 if xt:
-                    win = outcome == "WIN"
+                    win = t.outcome == "WIN"
                     trade_markers.append({
                         "time": xt,
                         "position": "aboveBar" if is_buy else "belowBar",
@@ -533,8 +543,7 @@ def get_chart_data(pair: str, timeframe: str) -> dict:
         "ema21":       to_series(ema21),
         "bb_upper":    to_series(bb_upper),
         "bb_lower":    to_series(bb_lower),
-        "rsi":         [{"time": times[i], "value": round(float(v), 2)}
-                        for i, v in enumerate(rsi) if not pd.isna(v)],
+        "rsi":         to_series(rsi, decimals=2),
         "trades":      sorted(trade_markers, key=lambda x: x["time"]),
         "tp_level":    tp_level,
         "sl_level":    sl_level,

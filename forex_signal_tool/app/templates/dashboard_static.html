@@ -331,10 +331,12 @@ function initCharts() {
     });
   });
 
-  // タイムスケール同期
+  // タイムスケール同期（from/to が null の場合は setVisibleRange しない）
   mainChart.timeScale().subscribeVisibleTimeRangeChange(() => {
     const r = mainChart.timeScale().getVisibleRange();
-    if (r) rsiChart.timeScale().setVisibleRange(r);
+    if (r && r.from != null && r.to != null) {
+      try { rsiChart.timeScale().setVisibleRange(r); } catch(e) {}
+    }
   });
 
   // レスポンシブ
@@ -358,12 +360,12 @@ async function loadChartData(tf) {
       return;
     }
     candleSeries.setData(d.candles);
-    sma20s.setData(d.sma20 || []);
-    sma50s.setData(d.sma50 || []);
-    ema21s.setData(d.ema21 || []);
-    bbUpS.setData(d.bb_upper || []);
-    bbLowS.setData(d.bb_lower || []);
-    rsiSeries.setData(d.rsi || []);
+    // 各インジケーターは個別にエラーを吸収（1つ失敗してもチャート全体は表示する）
+    [[sma20s, d.sma20], [sma50s, d.sma50], [ema21s, d.ema21],
+     [bbUpS, d.bb_upper], [bbLowS, d.bb_lower]].forEach(([s, data]) => {
+      try { s.setData(data || []); } catch(e) {}
+    });
+    try { rsiSeries.setData(d.rsi || []); } catch(e) {}
 
     // ===== 価格表示をチャートデータと同期 =====
     if (d.candles.length >= 2) {
