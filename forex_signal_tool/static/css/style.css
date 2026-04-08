@@ -196,9 +196,8 @@ body {
   font-weight: 400;
   white-space: nowrap;
 }
-/* ツールチップ（info-tip） */
+/* ツールチップアイコン */
 .info-tip {
-  position: relative;
   display: inline-flex;
   align-items: center;
   cursor: pointer;
@@ -206,43 +205,24 @@ body {
   font-size: 0.78rem;
   line-height: 1;
 }
-.info-tip::after {
-  content: attr(data-tip);
+/* JS で body 直下に生成されるポップアップ */
+.tooltip-popup {
   position: absolute;
-  left: 50%;
-  transform: translateX(-50%);
-  bottom: calc(100% + 8px);
-  width: 230px;
   background: #1a1a2e;
   color: #e2e8f0;
   font-size: 0.69rem;
   font-weight: 400;
-  line-height: 1.6;
-  padding: 9px 11px;
+  line-height: 1.65;
+  padding: 9px 12px;
   border-radius: 10px;
+  z-index: 9999;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.28);
   pointer-events: none;
-  opacity: 0;
-  transition: opacity 0.15s;
-  z-index: 300;
   text-align: left;
-  box-shadow: 0 4px 16px rgba(0,0,0,0.18);
   white-space: normal;
-}
-.info-tip::before {
-  content: '';
-  position: absolute;
-  left: 50%;
-  transform: translateX(-50%);
-  bottom: calc(100% + 2px);
-  border: 6px solid transparent;
-  border-top-color: #1a1a2e;
-  pointer-events: none;
   opacity: 0;
-  transition: opacity 0.15s;
-  z-index: 300;
+  transition: opacity 0.12s;
 }
-.info-tip:hover::after,
-.info-tip:hover::before { opacity: 1; }
 
 /* ===== シグナルリスト ===== */
 .signal-list { display: flex; flex-direction: column; gap: 0; }
@@ -268,6 +248,7 @@ body {
 .signal-type-badge.sell { background: #fee2e2; color: #dc2626; }
 .signal-name { font-size: 0.85rem; font-weight: 600; color: #1a1a2e; }
 .signal-tf { font-size: 0.72rem; }
+.signal-time-jst { font-size: 0.64rem; color: #94a3b8; margin-top: 1px; font-variant-numeric: tabular-nums; }
 .signal-price { font-size: 0.9rem; font-weight: 600; color: #1a1a2e; }
 .signal-conf { font-size: 0.7rem; color: #94a3b8; }
 

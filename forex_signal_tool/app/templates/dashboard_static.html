@@ -21,7 +21,7 @@
   <div class="price-change-row">
     <span class="price-change" id="rt-change">---</span>
     <span class="price-update" id="rt-update">
-      {% if data.price %}{{ data.price.timestamp_jst }} JST{% else %}データ未取得{% endif %}
+      {% if data.price %}{{ data.price.timestamp_jst }}{% else %}データ未取得{% endif %}
     </span>
   </div>
 
@@ -103,6 +103,9 @@
         <div class="signal-item-info">
           <div class="signal-name">{{ s.indicator_name }}</div>
           <div class="signal-tf text-muted">{{ s.timeframe }} · 勝率 {{ "%.1f"|format(s.win_rate) if s.win_rate else '--' }}%</div>
+          {% if s.signal_time_jst %}
+          <div class="signal-time-jst">{{ s.signal_time_jst }}</div>
+          {% endif %}
         </div>
       </div>
       <div class="signal-item-right">
@@ -327,7 +330,7 @@ async function fetchRealtimePrice() {
     const jst = new Date(d.ts * 1000 + 9 * 3600 * 1000);
     const hh = String(jst.getUTCHours()).padStart(2,'0');
     const mm = String(jst.getUTCMinutes()).padStart(2,'0');
-    upd.textContent = `更新 ${hh}:${mm} JST`;
+    upd.textContent = `更新 ${hh}:${mm}`;
   } catch(e) { /* 失敗しても継続 */ }
 }
 

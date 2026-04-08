@@ -264,10 +264,8 @@ def get_pair_data(pair: str) -> dict:
         .limit(10).all()
     )
 
-    # 最新シグナル生成日時（JST）
-    signal_latest_jst = ""
-    if signals:
-        signal_latest_jst = utc_str_to_jst(signals[0].signal_time) + " JST"
+    # 最新シグナル生成日時
+    signal_latest_jst = utc_str_to_jst(signals[0].signal_time) if signals else ""
     top_bt = (
         BacktestResult.query
         .filter_by(currency_pair=pair)
@@ -295,11 +293,18 @@ def get_pair_data(pair: str) -> dict:
         ts = price_dict.get("timestamp")
         price_dict["timestamp_jst"] = utc_str_to_jst(ts)
 
+    # シグナルに signal_time_jst を付加
+    signal_dicts = []
+    for s in signals:
+        d = s.to_dict()
+        d["signal_time_jst"] = utc_str_to_jst(s.signal_time)
+        signal_dicts.append(d)
+
     return {
         "pair": pair,
         "display": f"{pair[:3]}/{pair[3:]}",
         "price": price_dict,
-        "signals": [s.to_dict() for s in signals],
+        "signals": signal_dicts,
         "signal_latest_jst": signal_latest_jst,
         "buy_count": buy_count,
         "sell_count": sell_count,
@@ -537,7 +542,7 @@ def get_indicator_page_data(indicator_name: str, app) -> dict | None:
         is_win = t.get("outcome") == "WIN"
         pnl = (tp * 1000) if is_win else -(sl * 1000)
         trades.append({
-            "entry_ts_jst": utc_str_to_jst(t.get("entry_ts")) + " JST",
+            "entry_ts_jst": utc_str_to_jst(t.get("entry_ts")),
             "signal":       t.get("signal", ""),
             "entry_price":  t.get("entry_price"),
             "tp_price":     t.get("tp_price"),
@@ -609,7 +614,7 @@ def main():
 
     app = create_app()
     with app.app_context():
-        updated_at = datetime.now(JST).strftime("%Y/%m/%d %H:%M JST")
+        updated_at = datetime.now(JST).strftime("%Y/%m/%d %H:%M")
         pairs = Config.CURRENCY_PAIRS
         pair_pages = {"USDJPY": "index.html", "GBPJPY": "gbpjpy.html", "EURJPY": "eurjpy.html"}
 

@@ -52,13 +52,48 @@
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 <script>
+/* ===== info-tip ツールチップ（JS版・body直下に生成） ===== */
+(function() {
+  var popup = null;
+  function showTip(el) {
+    hideTip();
+    var text = el.getAttribute('data-tip');
+    if (!text) return;
+    popup = document.createElement('div');
+    popup.className = 'tooltip-popup';
+    popup.textContent = text;
+    document.body.appendChild(popup);
+    var rect = el.getBoundingClientRect();
+    var W = 230;
+    var left = rect.left + window.scrollX + rect.width / 2 - W / 2;
+    left = Math.max(8, Math.min(left, window.innerWidth - W - 8));
+    popup.style.width = W + 'px';
+    popup.style.left = left + 'px';
+    popup.style.top = (rect.top + window.scrollY - popup.offsetHeight - 10) + 'px';
+    popup.style.opacity = '1';
+  }
+  function hideTip() {
+    if (popup) { popup.remove(); popup = null; }
+  }
+  document.addEventListener('mouseover', function(e) {
+    var el = e.target.closest('.info-tip');
+    if (el) showTip(el); else hideTip();
+  });
+  document.addEventListener('click', function(e) {
+    var el = e.target.closest('.info-tip');
+    if (el) { e.stopPropagation(); popup ? hideTip() : showTip(el); }
+    else hideTip();
+  });
+})();
+</script>
+<script>
   function updateClock() {
     const now = new Date();
     const jst = new Date(now.getTime() + 9 * 3600 * 1000);
     const h = String(jst.getUTCHours()).padStart(2,'0');
     const m = String(jst.getUTCMinutes()).padStart(2,'0');
     const s = String(jst.getUTCSeconds()).padStart(2,'0');
-    document.getElementById('current-time').textContent = `${h}:${m}:${s} JST`;
+    document.getElementById('current-time').textContent = `${h}:${m}:${s}`;
   }
   setInterval(updateClock, 1000);
   updateClock();
