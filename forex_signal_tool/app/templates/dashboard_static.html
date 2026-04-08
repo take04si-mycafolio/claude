@@ -19,7 +19,7 @@
     {% if data.price %}{{ "%.3f"|format(data.price.close) }}{% else %}---.---{% endif %}
   </div>
   <div class="price-change-row">
-    <span class="price-change" id="rt-change">---</span>
+    <span class="price-change" id="rt-change"></span>
     <span class="price-update" id="rt-update">
       {% if data.price %}{{ data.price.timestamp_jst }}{% else %}データ未取得{% endif %}
     </span>
@@ -268,6 +268,29 @@ async function loadChartData(tf) {
     bbUpS.setData(d.bb_upper || []);
     bbLowS.setData(d.bb_lower || []);
     rsiSeries.setData(d.rsi || []);
+
+    // ===== 価格表示をチャートデータと同期 =====
+    if (d.candles.length >= 2) {
+      const last = d.candles[d.candles.length - 1];
+      const prev = d.candles[d.candles.length - 2];
+      // 価格
+      document.getElementById('rt-price').textContent = last.close.toFixed(3);
+      // 変動額・変動率
+      const diff = last.close - prev.close;
+      const pct  = (diff / prev.close) * 100;
+      const up   = diff >= 0;
+      const sign = up ? '+' : '';
+      const chEl = document.getElementById('rt-change');
+      chEl.textContent = `${sign}${diff.toFixed(3)} (${sign}${pct.toFixed(3)}%)`;
+      chEl.className   = 'price-change ' + (up ? 'up' : 'down');
+      // 最終ローソク足の時刻（JST）
+      const dt = new Date((last.time + 9 * 3600) * 1000);
+      const mo = String(dt.getUTCMonth() + 1).padStart(2, '0');
+      const dd = String(dt.getUTCDate()).padStart(2, '0');
+      const hh = String(dt.getUTCHours()).padStart(2, '0');
+      const mm = String(dt.getUTCMinutes()).padStart(2, '0');
+      document.getElementById('rt-update').textContent = `${mo}/${dd} ${hh}:${mm}`;
+    }
 
     // 取引マーカー（IN/TP/SL）
     if (d.trades && d.trades.length > 0) {
