@@ -352,7 +352,7 @@ async function loadChartData(tf) {
   const loading = document.getElementById('chart-loading');
   loading.style.display = 'block';
   try {
-    const res = await fetch(`/chart_data/${PAIR.toLowerCase()}_${tf}.json?_=${Date.now()}`);
+    const res = await fetch(`/chart_data.php?pair=${PAIR}&tf=${tf}&_=${Date.now()}`);
     if (!res.ok) throw new Error('HTTP ' + res.status);
     const d = await res.json();
     if (!d.candles || d.candles.length === 0) {
