@@ -2,13 +2,36 @@
 /**
  * チャートデータAPI（DBから動的生成）
  * /chart_data.php?pair=USDJPY&tf=15min
- *
- * 静的JSONファイルの代わりにこのエンドポイントを使用することで
- * generate_static.py の実行タイミングに関係なく常に最新データを返す
  */
 
+// エラーは標準出力に出さずJSONエラーとして返す
+set_error_handler(function($errno, $errstr) {
+    header('Content-Type: application/json; charset=utf-8');
+    echo json_encode(['error' => "PHP Error: $errstr", 'candles' => []]);
+    exit;
+});
+
 $_home = getenv('HOME') ?: '/home/xs539690';
-require_once __DIR__ . '/admin/_config.php';
+
+// _config.php が見つからない場合は直接DB接続を試みる
+$_configPath = __DIR__ . '/admin/_config.php';
+if (file_exists($_configPath)) {
+    require_once $_configPath;
+} else {
+    // フォールバック: 環境変数から直接DB接続
+    function get_pdo(): PDO {
+        static $pdo = null;
+        if ($pdo) return $pdo;
+        $url = getenv('DATABASE_URL') ?: 'mysql+pymysql://root:@localhost/forex_signal_db';
+        preg_match('|://([^:]*):([^@]*)@([^/:]+)(?::\d+)?/([^?]+)|', $url, $m);
+        $pdo = new PDO(
+            "mysql:host=" . ($m[3] ?? 'localhost') . ";dbname=" . ($m[4] ?? 'forex_signal_db') . ";charset=utf8mb4",
+            $m[1] ?? 'root', $m[2] ?? '',
+            [PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION, PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC]
+        );
+        return $pdo;
+    }
+}
 
 // ---- パラメータ検証 ----
 $pair  = strtoupper(preg_replace('/[^A-Za-z]/', '', $_GET['pair'] ?? 'USDJPY'));
@@ -114,7 +137,9 @@ function rsi_series(array $closes, array $times): array {
 $sma20 = sma_series($closes, $times, 20);
 $sma50 = sma_series($closes, $times, 50);
 $ema21 = ema_series($closes, $times, 21);
-[$bb_upper, $bb_lower] = bb_series($closes, $times, 20, 2.0);
+$bb_result = bb_series($closes, $times, 20, 2.0);
+$bb_upper  = $bb_result[0];
+$bb_lower  = $bb_result[1];
 $rsi   = rsi_series($closes, $times);
 
 // ---- アクティブシグナルのTP/SLレベル ----
