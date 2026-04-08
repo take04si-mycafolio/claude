@@ -12,7 +12,7 @@
   <div class="signal-detail-item">
     <div class="sdi-header">
       <span class="signal-type-badge {% if s.signal_type == 'BUY' %}buy{% else %}sell{% endif %} me-2">
-        {{ s.signal_type }}
+        {{ '買い' if s.signal_type == 'BUY' else '売り' }}
       </span>
       <span class="sdi-name">{{ s.indicator_name }}</span>
       <span class="sdi-tf ms-auto text-muted small">{{ s.currency_pair[:3] }}/{{ s.currency_pair[3:] }} · {{ s.timeframe }}</span>

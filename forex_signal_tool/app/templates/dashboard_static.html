@@ -104,7 +104,7 @@
     <div class="signal-item">
       <div class="signal-item-left">
         <span class="signal-type-badge {% if s.signal_type == 'BUY' %}buy{% else %}sell{% endif %}">
-          {{ s.signal_type }}
+          {{ '買い' if s.signal_type == 'BUY' else '売り' }}
         </span>
         <div class="signal-item-info">
           <div class="signal-name">{{ s.indicator_name }}</div>
@@ -187,7 +187,7 @@
   {% for t in data.sim_trades %}
   <div class="sim-trade-item">
     <div class="sim-trade-header">
-      <span class="signal-type-badge {% if t.signal == 'BUY' %}buy{% else %}sell{% endif %}">{{ t.signal }}</span>
+      <span class="signal-type-badge {% if t.signal == 'BUY' %}buy{% else %}sell{% endif %}">{{ '買い' if t.signal == 'BUY' else '売り' }}</span>
       <span class="sim-ind-name">{{ t.indicator }}</span>
       <span class="sim-tf-badge">{{ t.timeframe }}</span>
       <span class="sim-outcome {% if t.outcome == 'WIN' %}win{% elif t.outcome == 'LOSS' %}loss{% else %}open{% endif %}">

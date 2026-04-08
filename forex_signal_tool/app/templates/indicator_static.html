@@ -178,7 +178,7 @@
             <td class="ind-trade-time">{{ t.entry_ts_jst }}</td>
             <td>
               <span class="signal-type-badge {% if is_buy %}buy{% else %}sell{% endif %}">
-                {{ t.signal }}
+                {{ '買い' if t.signal == 'BUY' else '売り' }}
               </span>
             </td>
             <td class="font-mono">{{ "%.3f"|format(t.entry_price) if t.entry_price else '-' }}</td>
@@ -242,9 +242,6 @@
   </a>
   <a href="/reports.html" class="bottom-nav-item">
     <i class="bi bi-file-earmark-text"></i><span>レポート</span>
-  </a>
-  <a href="/settings.html" class="bottom-nav-item">
-    <i class="bi bi-gear"></i><span>設定</span>
   </a>
 </nav>
 

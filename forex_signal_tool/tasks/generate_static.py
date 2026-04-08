@@ -247,11 +247,11 @@ INDICATOR_INFO = {
 
 
 def get_pair_data(pair: str) -> dict:
-    from app.services.data_fetcher import get_latest_price, get_candles
+    from app.services.data_fetcher import get_latest_price
     from app.models.signal import TradingSignal
     from app.models.backtest import BacktestResult
+    from app.models.simulation_trade import SimulationTrade
     from app.models.settings import Setting
-    from app.services.backtester import get_recent_trades
     from app.config import Config
     from sqlalchemy import or_
 
@@ -303,52 +303,38 @@ def get_pair_data(pair: str) -> dict:
         d["signal_time_jst"] = utc_str_to_jst(s.signal_time)
         signal_dicts.append(d)
 
-    # ===== 直近シミュレーショントレード =====
+    # ===== 直近シミュレーショントレード（DBから取得） =====
     sl_pips = Setting.get_float("sl_pips", Config.DEFAULT_SL_PIPS)
     tp_pips = Setting.get_float("tp_pips", Config.DEFAULT_TP_PIPS)
     rr_ratio = round(tp_pips / sl_pips, 1) if sl_pips else 2.0
     sim_trades = []
-    sim_no_data = False  # バックテストデータ不足フラグ
+    sim_no_data = False
     try:
-        ic = Setting.get_float("initial_capital", Config.DEFAULT_INITIAL_CAPITAL)
-        # シミュレーション用に広い時間窓（72時間）で取引を探す
-        sim_hours = 72
-
-        # 勝率閾値なしで上位5件を取得（バックテスト未実施でも表示試行）
-        sim_bt_list = (
-            BacktestResult.query
+        raw_st = (
+            SimulationTrade.query
             .filter_by(currency_pair=pair)
-            .order_by(BacktestResult.win_rate.desc())
-            .limit(5).all()
+            .order_by(SimulationTrade.entry_at.desc())
+            .limit(20).all()
         )
-        if not sim_bt_list:
+        if not raw_st:
             sim_no_data = True
         else:
-            for bt in sim_bt_list[:3]:
-                df = get_candles(bt.currency_pair, bt.timeframe, 500)
-                if df is None or df.empty:
-                    continue
-                trades = get_recent_trades(
-                    bt.currency_pair, bt.timeframe, df,
-                    bt.indicator_name, ic, sl_pips, tp_pips, sim_hours, limit=10
-                )
-                for t in trades:
-                    outcome = t.get("outcome", "")
-                    pips = tp_pips if outcome == "WIN" else (-sl_pips if outcome == "LOSS" else 0)
-                    sim_trades.append({
-                        "indicator":    bt.indicator_name,
-                        "timeframe":    bt.timeframe,
-                        "signal":       t.get("signal", ""),
-                        "entry_ts_jst": utc_str_to_jst(t.get("entry_ts")),
-                        "exit_ts_jst":  utc_str_to_jst(t.get("exit_ts")) if t.get("exit_ts") else "—",
-                        "entry_price":  t.get("entry_price"),
-                        "tp_price":     t.get("tp_price"),
-                        "sl_price":     t.get("sl_price"),
-                        "outcome":      outcome,
-                        "pips":         pips,
-                    })
-            sim_trades.sort(key=lambda x: x["entry_ts_jst"], reverse=True)
-            sim_trades = sim_trades[:20]
+            for t in raw_st:
+                sl_v = float(t.sl_pips) if t.sl_pips else sl_pips
+                tp_v = float(t.tp_pips) if t.tp_pips else tp_pips
+                pips = tp_v if t.outcome == "WIN" else (-sl_v if t.outcome == "LOSS" else 0)
+                sim_trades.append({
+                    "indicator":    t.indicator_name,
+                    "timeframe":    t.timeframe,
+                    "signal":       t.direction,
+                    "entry_ts_jst": utc_str_to_jst(t.entry_at),
+                    "exit_ts_jst":  utc_str_to_jst(t.exit_at) if t.exit_at else "—",
+                    "entry_price":  float(t.entry_price) if t.entry_price else None,
+                    "tp_price":     float(t.tp_price) if t.tp_price else None,
+                    "sl_price":     float(t.sl_price) if t.sl_price else None,
+                    "outcome":      t.outcome,
+                    "pips":         pips,
+                })
     except Exception as e:
         logger.warning("Sim trades error %s: %s", pair, e)
 
@@ -560,8 +546,7 @@ def get_chart_data(pair: str, timeframe: str) -> dict:
 def get_indicator_page_data(indicator_name: str, app) -> dict | None:
     """インジケーター個別ページのデータを取得"""
     from app.models.backtest import BacktestResult
-    from app.services.data_fetcher import get_candles
-    from app.services.backtester import get_recent_trades
+    from app.models.simulation_trade import SimulationTrade
     from app.models.settings import Setting
 
     info = INDICATOR_INFO.get(indicator_name)
@@ -576,35 +561,35 @@ def get_indicator_page_data(indicator_name: str, app) -> dict | None:
         return None
 
     best = results[0]
-    ic = Setting.get_float("initial_capital", 1_000_000)
     sl = Setting.get_float("sl_pips", 20)
     tp = Setting.get_float("tp_pips", 40)
-    bh = Setting.get_int("backtest_hours", 12)
 
-    # 直近取引履歴（最良ペア×TFで取得）
-    raw_trades = []
-    try:
-        df = get_candles(best.currency_pair, best.timeframe, 500)
-        if df is not None and not df.empty:
-            raw_trades = get_recent_trades(
-                best.currency_pair, best.timeframe, df,
-                indicator_name, ic, sl, tp, bh, limit=30
-            )
-    except Exception as e:
-        logger.warning("Trade fetch error %s: %s", indicator_name, e)
+    # 直近取引履歴（DBのSimulationTradeから取得）
+    raw_trades = (
+        SimulationTrade.query
+        .filter_by(
+            indicator_name=indicator_name,
+            currency_pair=best.currency_pair,
+            timeframe=best.timeframe,
+        )
+        .order_by(SimulationTrade.entry_at.desc())
+        .limit(30).all()
+    )
 
     # 取引履歴をテンプレート用に整形
     trades = []
     for t in raw_trades:
-        is_win = t.get("outcome") == "WIN"
-        pnl = (tp * 1000) if is_win else -(sl * 1000)
+        sl_v = float(t.sl_pips) if t.sl_pips else sl
+        tp_v = float(t.tp_pips) if t.tp_pips else tp
+        is_win = t.outcome == "WIN"
+        pnl = (tp_v * 1000) if is_win else -(sl_v * 1000)
         trades.append({
-            "entry_ts_jst": utc_str_to_jst(t.get("entry_ts")),
-            "signal":       t.get("signal", ""),
-            "entry_price":  t.get("entry_price"),
-            "tp_price":     t.get("tp_price"),
-            "sl_price":     t.get("sl_price"),
-            "outcome":      t.get("outcome"),
+            "entry_ts_jst": utc_str_to_jst(t.entry_at),
+            "signal":       t.direction,
+            "entry_price":  float(t.entry_price) if t.entry_price else None,
+            "tp_price":     float(t.tp_price) if t.tp_price else None,
+            "sl_price":     float(t.sl_price) if t.sl_price else None,
+            "outcome":      t.outcome,
             "pnl":          pnl,
         })
 
