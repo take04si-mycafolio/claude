@@ -308,34 +308,47 @@ def get_pair_data(pair: str) -> dict:
     tp_pips = Setting.get_float("tp_pips", Config.DEFAULT_TP_PIPS)
     rr_ratio = round(tp_pips / sl_pips, 1) if sl_pips else 2.0
     sim_trades = []
+    sim_no_data = False  # バックテストデータ不足フラグ
     try:
         ic = Setting.get_float("initial_capital", Config.DEFAULT_INITIAL_CAPITAL)
-        bh = Setting.get_int("backtest_hours", Config.DEFAULT_BACKTEST_HOURS)
-        for bt in top_bt[:3]:
-            df = get_candles(bt.currency_pair, bt.timeframe, 500)
-            if df is None or df.empty:
-                continue
-            trades = get_recent_trades(
-                bt.currency_pair, bt.timeframe, df,
-                bt.indicator_name, ic, sl_pips, tp_pips, bh, limit=10
-            )
-            for t in trades:
-                outcome = t.get("outcome", "")
-                pips = tp_pips if outcome == "WIN" else (-sl_pips if outcome == "LOSS" else 0)
-                sim_trades.append({
-                    "indicator":     bt.indicator_name,
-                    "timeframe":     bt.timeframe,
-                    "signal":        t.get("signal", ""),
-                    "entry_ts_jst":  utc_str_to_jst(t.get("entry_ts")),
-                    "exit_ts_jst":   utc_str_to_jst(t.get("exit_ts")) if t.get("exit_ts") else "—",
-                    "entry_price":   t.get("entry_price"),
-                    "tp_price":      t.get("tp_price"),
-                    "sl_price":      t.get("sl_price"),
-                    "outcome":       outcome,
-                    "pips":          pips,
-                })
-        sim_trades.sort(key=lambda x: x["entry_ts_jst"], reverse=True)
-        sim_trades = sim_trades[:20]
+        # シミュレーション用に広い時間窓（72時間）で取引を探す
+        sim_hours = 72
+
+        # 勝率閾値なしで上位5件を取得（バックテスト未実施でも表示試行）
+        sim_bt_list = (
+            BacktestResult.query
+            .filter_by(currency_pair=pair)
+            .order_by(BacktestResult.win_rate.desc())
+            .limit(5).all()
+        )
+        if not sim_bt_list:
+            sim_no_data = True
+        else:
+            for bt in sim_bt_list[:3]:
+                df = get_candles(bt.currency_pair, bt.timeframe, 500)
+                if df is None or df.empty:
+                    continue
+                trades = get_recent_trades(
+                    bt.currency_pair, bt.timeframe, df,
+                    bt.indicator_name, ic, sl_pips, tp_pips, sim_hours, limit=10
+                )
+                for t in trades:
+                    outcome = t.get("outcome", "")
+                    pips = tp_pips if outcome == "WIN" else (-sl_pips if outcome == "LOSS" else 0)
+                    sim_trades.append({
+                        "indicator":    bt.indicator_name,
+                        "timeframe":    bt.timeframe,
+                        "signal":       t.get("signal", ""),
+                        "entry_ts_jst": utc_str_to_jst(t.get("entry_ts")),
+                        "exit_ts_jst":  utc_str_to_jst(t.get("exit_ts")) if t.get("exit_ts") else "—",
+                        "entry_price":  t.get("entry_price"),
+                        "tp_price":     t.get("tp_price"),
+                        "sl_price":     t.get("sl_price"),
+                        "outcome":      outcome,
+                        "pips":         pips,
+                    })
+            sim_trades.sort(key=lambda x: x["entry_ts_jst"], reverse=True)
+            sim_trades = sim_trades[:20]
     except Exception as e:
         logger.warning("Sim trades error %s: %s", pair, e)
 
@@ -349,10 +362,11 @@ def get_pair_data(pair: str) -> dict:
         "sell_count": sell_count,
         "overall": overall,
         "top_backtest": [r.to_dict() for r in top_bt],
-        "sim_trades":  sim_trades,
-        "sl_pips":     sl_pips,
-        "tp_pips":     tp_pips,
-        "rr_ratio":    rr_ratio,
+        "sim_trades":   sim_trades,
+        "sim_no_data":  sim_no_data,
+        "sl_pips":      sl_pips,
+        "tp_pips":      tp_pips,
+        "rr_ratio":     rr_ratio,
     }
 
 
