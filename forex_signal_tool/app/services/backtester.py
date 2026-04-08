@@ -124,6 +124,8 @@ def run_backtest_for_indicator(
 
         # 以降のバーでTP/SL到達を確認
         outcome = None
+        exit_price = None
+        exit_ts = None
         for j in range(i + 1, min(i + 200, len(backtest_df))):
             future_bar = backtest_df.iloc[j]
             fh = float(future_bar["high"])
@@ -132,16 +134,24 @@ def run_backtest_for_indicator(
             if signal == "BUY":
                 if fh >= tp_price:
                     outcome = "WIN"
+                    exit_price = tp_price
+                    exit_ts = future_bar["timestamp"]
                     break
                 if fl <= sl_price:
                     outcome = "LOSS"
+                    exit_price = sl_price
+                    exit_ts = future_bar["timestamp"]
                     break
             else:  # SELL
                 if fl <= tp_price:
                     outcome = "WIN"
+                    exit_price = tp_price
+                    exit_ts = future_bar["timestamp"]
                     break
                 if fh >= sl_price:
                     outcome = "LOSS"
+                    exit_price = sl_price
+                    exit_ts = future_bar["timestamp"]
                     break
 
         if outcome is None:
@@ -162,8 +172,12 @@ def run_backtest_for_indicator(
 
         trades_log.append({
             "entry_ts": entry_ts,
+            "exit_ts": exit_ts,
             "signal": signal,
             "entry_price": entry_price,
+            "exit_price": exit_price,
+            "tp_price": tp_price,
+            "sl_price": sl_price,
             "outcome": outcome,
             "capital_after": capital,
         })
@@ -196,6 +210,7 @@ def run_backtest_for_indicator(
         "max_drawdown": round(max_drawdown, 0),
         "profit_factor": round(profit_factor, 4),
         "calculated_at": datetime.now(timezone.utc),
+        "trades": trades_log,   # チャート表示用
     }
 
 
@@ -246,6 +261,44 @@ def run_all_backtests(pair: str, timeframe: str, df: pd.DataFrame,
                 results.append(result)
 
     return results
+
+
+def get_recent_trades(pair: str, timeframe: str, df: pd.DataFrame,
+                      indicator_name: str, initial_capital: float,
+                      sl_pips: float, tp_pips: float,
+                      backtest_hours: int = 12, limit: int = 30) -> list:
+    """
+    指定インジケーターの直近取引ログを返す（チャート表示用）。
+    """
+    from app.services.indicators.oscillators import calculate_oscillators
+    from app.services.indicators.trend import calculate_trend
+    from app.services.indicators.lines import calculate_lines
+    from app.services.indicators.volatility import calculate_volatility
+    from app.services.indicators.patterns import calculate_patterns
+
+    indicator_map = {}
+    for func in [calculate_oscillators, calculate_trend, calculate_lines,
+                 calculate_volatility, calculate_patterns]:
+        try:
+            sample = func(df.tail(50))
+            for name in sample.keys():
+                indicator_map[name] = func
+        except Exception:
+            pass
+
+    func = indicator_map.get(indicator_name)
+    if func is None:
+        return []
+
+    result = run_backtest_for_indicator(
+        df=df, indicator_name=indicator_name, indicator_func=func,
+        pair=pair, timeframe=timeframe,
+        initial_capital=initial_capital, sl_pips=sl_pips, tp_pips=tp_pips,
+        backtest_hours=backtest_hours,
+    )
+    if not result:
+        return []
+    return result.get("trades", [])[-limit:]
 
 
 def save_backtest_results(results: list) -> int:

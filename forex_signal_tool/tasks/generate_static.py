@@ -200,35 +200,81 @@ def get_chart_data(pair: str, timeframe: str) -> dict:
     rs  = avg_gain / avg_loss.replace(0, float("nan"))
     rsi = 100 - (100 / (1 + rs))
 
-    # シグナルマーカー
+    # バックテスト取引マーカー（上位インジケーターの直近トレード）
+    from app.models.backtest import BacktestResult
+    from app.models.settings import Setting
+    from app.services.backtester import get_recent_trades
+
+    trade_markers = []
+    try:
+        top_bt = (BacktestResult.query
+                  .filter_by(currency_pair=pair, timeframe=timeframe)
+                  .filter(BacktestResult.win_rate >= 50)
+                  .order_by(BacktestResult.win_rate.desc())
+                  .first())
+        if top_bt:
+            ic = Setting.get_float("initial_capital", 1_000_000)
+            sl = Setting.get_float("sl_pips", 20)
+            tp = Setting.get_float("tp_pips", 40)
+            bh = Setting.get_int("backtest_hours", 12)
+            trades = get_recent_trades(pair, timeframe, df,
+                                       top_bt.indicator_name, ic, sl, tp, bh,
+                                       limit=30)
+            for t in trades:
+                et = _to_unix(t["entry_ts"])
+                xt = _to_unix(t["exit_ts"]) if t.get("exit_ts") else None
+                sig = t["signal"]
+                outcome = t.get("outcome")
+                is_buy = sig == "BUY"
+
+                # エントリーマーカー
+                trade_markers.append({
+                    "time": et,
+                    "position": "belowBar" if is_buy else "aboveBar",
+                    "color": "#22c55e" if is_buy else "#ef4444",
+                    "shape": "arrowUp" if is_buy else "arrowDown",
+                    "text": "IN",
+                    "size": 1,
+                })
+                # エグジットマーカー
+                if xt:
+                    win = outcome == "WIN"
+                    trade_markers.append({
+                        "time": xt,
+                        "position": "aboveBar" if is_buy else "belowBar",
+                        "color": "#22c55e" if win else "#ef4444",
+                        "shape": "circle",
+                        "text": "TP✓" if win else "SL✗",
+                        "size": 1,
+                    })
+    except Exception as e:
+        logger.warning("Trade markers error %s %s: %s", pair, timeframe, e)
+
+    # アクティブシグナルのTP/SLレベル
     from app.models.signal import TradingSignal
-    sigs = TradingSignal.query.filter_by(currency_pair=pair, is_active=True).all()
-    markers = []
-    candle_times = set(times)
-    for s in sigs:
-        t = _to_unix(s.created_at)
-        # 最近傍キャンドル時刻を探す
-        nearest = min(times, key=lambda x: abs(x - t), default=None)
-        if nearest is None:
-            continue
-        markers.append({
-            "time": nearest,
-            "position": "belowBar" if s.signal_type == "BUY" else "aboveBar",
-            "color": "#4ade80" if s.signal_type == "BUY" else "#f87171",
-            "shape":  "arrowUp" if s.signal_type == "BUY" else "arrowDown",
-            "text": s.indicator_name[:6] if s.indicator_name else s.signal_type,
-        })
+    active_sig = (TradingSignal.query
+                  .filter_by(currency_pair=pair, is_active=True)
+                  .order_by(TradingSignal.confidence_score.desc())
+                  .first())
+    tp_level = float(active_sig.tp_price) if active_sig and active_sig.tp_price else None
+    sl_level = float(active_sig.sl_price) if active_sig and active_sig.sl_price else None
+    entry_level = float(active_sig.entry_price) if active_sig and active_sig.entry_price else None
+    active_signal_type = active_sig.signal_type if active_sig else None
 
     return {
-        "candles":  candles,
-        "sma20":    to_series(sma20),
-        "sma50":    to_series(sma50),
-        "ema21":    to_series(ema21),
-        "bb_upper": to_series(bb_upper),
-        "bb_lower": to_series(bb_lower),
-        "rsi":      [{"time": times[i], "value": round(float(v), 2)}
-                     for i, v in enumerate(rsi) if not pd.isna(v)],
-        "signals":  markers,
+        "candles":     candles,
+        "sma20":       to_series(sma20),
+        "sma50":       to_series(sma50),
+        "ema21":       to_series(ema21),
+        "bb_upper":    to_series(bb_upper),
+        "bb_lower":    to_series(bb_lower),
+        "rsi":         [{"time": times[i], "value": round(float(v), 2)}
+                        for i, v in enumerate(rsi) if not pd.isna(v)],
+        "trades":      sorted(trade_markers, key=lambda x: x["time"]),
+        "tp_level":    tp_level,
+        "sl_level":    sl_level,
+        "entry_level": entry_level,
+        "signal_type": active_signal_type,
     }
 
 
