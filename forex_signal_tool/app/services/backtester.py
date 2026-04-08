@@ -301,85 +301,110 @@ def get_recent_trades(pair: str, timeframe: str, df: pd.DataFrame,
     return result.get("trades", [])[-limit:]
 
 
+def _parse_trade_dt(val):
+    """entry_ts / exit_ts を datetime に変換（str / datetime 両対応）"""
+    if val is None:
+        return None
+    if isinstance(val, str):
+        for fmt in ("%Y/%m/%d %H:%M", "%Y-%m-%d %H:%M:%S", "%Y-%m-%d %H:%M"):
+            try:
+                return datetime.strptime(val[:16], fmt[:len(val[:16])])
+            except ValueError:
+                continue
+        return None
+    return val  # すでに datetime
+
+
 def save_backtest_results(results: list) -> int:
-    """バックテスト結果をDBに保存（同一指標の古い結果は上書き）。個別トレードも保存する。"""
+    """
+    バックテスト結果をDBに保存。
+
+    - BacktestResult（集計）: 既存レコードがあれば在籍更新（ID保持）。なければ新規作成。
+    - SimulationTrade（個別）: 既存トレードは保持。新規分のみ追記。重複はスキップ。
+    """
     from app import db
     from app.models.backtest import BacktestResult
     from app.models.simulation_trade import SimulationTrade
 
     saved = 0
     for r in results:
-        pair     = r["currency_pair"]
+        pair      = r["currency_pair"]
         timeframe = r["timeframe"]
         ind_name  = r["indicator_name"]
 
-        # 既存レコードをすべて削除（重複していても一括削除）
-        old_records = BacktestResult.query.filter_by(
+        # ---- BacktestResult: 在籍更新（ID を変えない → FK が切れない） ----
+        existing = BacktestResult.query.filter_by(
             currency_pair=pair,
             timeframe=timeframe,
             indicator_name=ind_name,
         ).all()
-        for old in old_records:
-            SimulationTrade.query.filter_by(backtest_result_id=old.id).delete()
-            db.session.delete(old)
 
-        record = BacktestResult(
-            currency_pair=pair,
-            timeframe=timeframe,
-            indicator_name=ind_name,
-            indicator_category=r.get("indicator_category"),
-            signal_direction="BOTH",
-            win_rate=r["win_rate"],
-            total_trades=r["total_trades"],
-            winning_trades=r["winning_trades"],
-            losing_trades=r["losing_trades"],
-            total_profit=r["total_profit"],
-            initial_capital=r["initial_capital"],
-            final_capital=r["final_capital"],
-            sl_pips=r["sl_pips"],
-            tp_pips=r["tp_pips"],
-            backtest_hours=r["backtest_hours"],
-            max_drawdown=r.get("max_drawdown"),
-            profit_factor=r.get("profit_factor"),
-            calculated_at=r["calculated_at"],
-        )
-        db.session.add(record)
+        if existing:
+            record = existing[0]
+            # 万が一重複があれば余分を削除
+            for dup in existing[1:]:
+                SimulationTrade.query.filter_by(backtest_result_id=dup.id).delete()
+                db.session.delete(dup)
+        else:
+            record = BacktestResult(
+                currency_pair=pair,
+                timeframe=timeframe,
+                indicator_name=ind_name,
+            )
+            db.session.add(record)
+
+        # 集計値を最新に更新
+        record.indicator_category = r.get("indicator_category")
+        record.signal_direction   = "BOTH"
+        record.win_rate           = r["win_rate"]
+        record.total_trades       = r["total_trades"]
+        record.winning_trades     = r["winning_trades"]
+        record.losing_trades      = r["losing_trades"]
+        record.total_profit       = r["total_profit"]
+        record.initial_capital    = r["initial_capital"]
+        record.final_capital      = r["final_capital"]
+        record.sl_pips            = r["sl_pips"]
+        record.tp_pips            = r["tp_pips"]
+        record.backtest_hours     = r["backtest_hours"]
+        record.max_drawdown       = r.get("max_drawdown")
+        record.profit_factor      = r.get("profit_factor")
+        record.calculated_at      = r["calculated_at"]
+
         db.session.flush()  # record.id を確定させる
 
-        # 個別トレードを保存
-        sl_pips_val = r["sl_pips"]
-        tp_pips_val = r["tp_pips"]
-        initial_cap = r["initial_capital"]
-        prev_capital = initial_cap
+        # ---- SimulationTrade: 既存キーを取得して新規分のみ挿入 ----
+        existing_keys = set(
+            db.session.query(SimulationTrade.entry_at, SimulationTrade.direction)
+            .filter_by(currency_pair=pair, timeframe=timeframe, indicator_name=ind_name)
+            .all()
+        )
+
+        sl_pips_val  = r["sl_pips"]
+        tp_pips_val  = r["tp_pips"]
+        prev_capital = float(r["initial_capital"])
 
         for t in r.get("trades", []):
-            entry_ts = t.get("entry_ts")
-            exit_ts  = t.get("exit_ts")
+            entry_ts = _parse_trade_dt(t.get("entry_ts"))
+            exit_ts  = _parse_trade_dt(t.get("exit_ts"))
+            direction = t.get("signal", "")
 
-            # datetime でない場合は変換
-            if isinstance(entry_ts, str):
-                try:
-                    entry_ts = datetime.strptime(entry_ts[:16], "%Y/%m/%d %H:%M")
-                except ValueError:
-                    entry_ts = None
-            if isinstance(exit_ts, str):
-                try:
-                    exit_ts = datetime.strptime(exit_ts[:16], "%Y/%m/%d %H:%M")
-                except ValueError:
-                    exit_ts = None
+            # 既存トレードはスキップ（重複排除）
+            if (entry_ts, direction) in existing_keys:
+                prev_capital = float(t.get("capital_after", prev_capital))
+                continue
 
             capital_after = float(t.get("capital_after", prev_capital))
             profit_loss   = round(capital_after - prev_capital, 2)
             prev_capital  = capital_after
 
-            trade = SimulationTrade(
+            db.session.add(SimulationTrade(
                 backtest_result_id=record.id,
                 currency_pair=pair,
                 timeframe=timeframe,
                 indicator_name=ind_name,
                 entry_at=entry_ts,
                 exit_at=exit_ts,
-                direction=t.get("signal", ""),
+                direction=direction,
                 entry_price=t.get("entry_price"),
                 exit_price=t.get("exit_price"),
                 tp_price=t.get("tp_price"),
@@ -389,8 +414,8 @@ def save_backtest_results(results: list) -> int:
                 outcome=t.get("outcome"),
                 profit_loss=profit_loss,
                 capital_after=capital_after,
-            )
-            db.session.add(trade)
+            ))
+            existing_keys.add((entry_ts, direction))  # ループ内の重複も防ぐ
 
         saved += 1
 
