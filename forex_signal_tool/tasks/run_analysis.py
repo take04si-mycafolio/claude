@@ -60,6 +60,7 @@ def main():
         logger.info("バックテスト完了: 合計%d件", total_saved)
         now_str = datetime.now(timezone.utc).strftime("%Y/%m/%d %H:%M UTC")
         Setting.set("last_backtest_at", now_str)
+        Setting.set("backtest_status", "done")
 
         logger.info("シグナル生成開始")
         signal_results = run_signal_engine()
@@ -69,6 +70,7 @@ def main():
         logger.info("シグナル生成完了")
         now_str2 = datetime.now(timezone.utc).strftime("%Y/%m/%d %H:%M UTC")
         Setting.set("last_signal_update_at", now_str2)
+        Setting.set("signal_status", "done")
 
 
 if __name__ == "__main__":

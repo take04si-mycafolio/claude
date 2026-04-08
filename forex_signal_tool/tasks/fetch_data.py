@@ -37,6 +37,7 @@ def main():
                 logger.info("  %s %s: %d件保存", pair, tf, saved)
         now_str = datetime.now(timezone.utc).strftime("%Y/%m/%d %H:%M UTC")
         Setting.set("last_data_fetch_at", now_str)
+        Setting.set("fetch_status", "done")
         logger.info("データ取得完了")
 
 

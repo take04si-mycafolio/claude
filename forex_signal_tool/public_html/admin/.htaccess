@@ -1,0 +1,4 @@
+# アンダースコア始まりのファイル (_config.php 等) への直接アクセスを禁止
+<FilesMatch "^_">
+  Require all denied
+</FilesMatch>

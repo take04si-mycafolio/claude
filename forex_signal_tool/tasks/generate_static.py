@@ -666,7 +666,7 @@ def save(filename: str, html: str):
 
 
 def deploy_static_files():
-    """public_html ディレクトリ内の PHP/.htaccess/.cgi を本番に同期する"""
+    """public_html ディレクトリ内の PHP/.htaccess/.cgi を本番に同期する（サブディレクトリも含む）"""
     import shutil
     import stat
     src_dir = Path(__file__).parent.parent / "public_html"
@@ -674,15 +674,20 @@ def deploy_static_files():
     if not src_dir.exists():
         logger.warning("public_html source dir not found: %s", src_dir)
         return
-    for src in src_dir.iterdir():
-        if src.is_file():
-            dst = dst_dir / src.name
-            shutil.copy2(src, dst)
-            # .cgi ファイルは実行権限を付与
-            if src.suffix == ".cgi":
-                os.chmod(dst, stat.S_IRWXU | stat.S_IRGRP | stat.S_IXGRP |
-                              stat.S_IROTH | stat.S_IXOTH)  # 755
-            logger.info("Deployed: %s", src.name)
+
+    for src in src_dir.rglob("*"):
+        if not src.is_file():
+            continue
+        rel = src.relative_to(src_dir)
+        dst = dst_dir / rel
+        # 親ディレクトリを作成
+        dst.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(src, dst)
+        # .cgi ファイルは実行権限を付与
+        if src.suffix == ".cgi":
+            os.chmod(dst, stat.S_IRWXU | stat.S_IRGRP | stat.S_IXGRP |
+                          stat.S_IROTH | stat.S_IXOTH)  # 755
+        logger.info("Deployed: %s", rel)
 
 
 def main():
