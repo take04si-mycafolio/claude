@@ -608,9 +608,27 @@ def save(filename: str, html: str):
     logger.info("Generated: %s", filename)
 
 
+def deploy_static_files():
+    """public_html ディレクトリ内の PHP/.htaccess を本番に同期する"""
+    import shutil
+    src_dir = Path(__file__).parent.parent / "public_html"
+    dst_dir = Path(PUBLIC_HTML)
+    if not src_dir.exists():
+        logger.warning("public_html source dir not found: %s", src_dir)
+        return
+    for src in src_dir.iterdir():
+        if src.is_file():
+            dst = dst_dir / src.name
+            shutil.copy2(src, dst)
+            logger.info("Deployed: %s", src.name)
+
+
 def main():
     from app import create_app
     from app.config import Config
+
+    # PHP/.htaccess を public_html に同期
+    deploy_static_files()
 
     app = create_app()
     with app.app_context():
