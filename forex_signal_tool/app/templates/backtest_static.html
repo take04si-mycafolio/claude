@@ -9,9 +9,14 @@
 {% if results %}
 <div class="section-card p-0">
   {% for r in results %}
+  {% set slug = slug_map.get(r.indicator_name) %}
   <div class="bt-detail-item">
     <div class="btd-header">
+      {% if slug %}
+      <a href="/indicators/{{ slug }}.html" class="btd-name btd-name-link">{{ r.indicator_name }}</a>
+      {% else %}
       <span class="btd-name">{{ r.indicator_name }}</span>
+      {% endif %}
       <span class="text-muted small ms-2">{{ r.currency_pair[:3] }}/{{ r.currency_pair[3:] }}</span>
       <span class="bt-winrate ms-auto {% if r.win_rate >= 70 %}high{% elif r.win_rate >= 60 %}mid{% else %}low{% endif %}">
         {{ "%.1f"|format(r.win_rate) }}%

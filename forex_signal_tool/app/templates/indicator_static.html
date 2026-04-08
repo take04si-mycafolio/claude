@@ -1,0 +1,265 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+  <title>{{ info.display }} バックテスト結果 - USD/JPY・GBP/JPY・EUR/JPY | FXシグナル</title>
+  <meta name="description" content="{{ info.display }}のFXバックテスト結果を公開。USD/JPY・GBP/JPY・EUR/JPYの勝率・損益・取引履歴を詳しく解説。{{ info.description[:80] }}">
+  <meta name="keywords" content="{{ info.display }},{{ info.category }},FX,バックテスト,USD/JPY,GBP/JPY,EUR/JPY,テクニカル分析,為替,勝率">
+  <meta name="robots" content="index, follow">
+  <link rel="canonical" href="https://fx-trend.net/indicators/{{ info.slug }}.html">
+  <!-- OGP -->
+  <meta property="og:type" content="article">
+  <meta property="og:title" content="{{ info.display }} バックテスト結果 | FXシグナル">
+  <meta property="og:description" content="{{ info.description[:120] }}">
+  <meta property="og:url" content="https://fx-trend.net/indicators/{{ info.slug }}.html">
+  <meta property="og:site_name" content="FXシグナル">
+  <meta name="twitter:card" content="summary">
+  <meta name="twitter:title" content="{{ info.display }} バックテスト | FXシグナル">
+  <meta name="twitter:description" content="{{ info.description[:120] }}">
+  <!-- JSON-LD -->
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "Article",
+    "headline": "{{ info.display }} FXバックテスト結果",
+    "description": "{{ info.description }}",
+    "author": {"@type": "Organization", "name": "FXシグナル", "url": "https://fx-trend.net"},
+    "publisher": {"@type": "Organization", "name": "FXシグナル"},
+    "dateModified": "{{ updated_at }}",
+    "inLanguage": "ja"
+  }
+  </script>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+  <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body>
+
+<header class="app-header">
+  <div class="header-inner">
+    <div class="header-logo">
+      <i class="bi bi-graph-up-arrow"></i>
+      <span>FXシグナル</span>
+    </div>
+    <div class="header-time" id="current-time">--:--:-- JST</div>
+  </div>
+</header>
+
+<main class="app-main">
+
+  <!-- パンくずリスト -->
+  <nav class="ind-breadcrumb" aria-label="breadcrumb">
+    <a href="/index.html">ホーム</a>
+    <i class="bi bi-chevron-right"></i>
+    <a href="/backtest.html">バックテスト</a>
+    <i class="bi bi-chevron-right"></i>
+    <span>{{ info.display }}</span>
+  </nav>
+
+  <!-- ヒーローヘッダー -->
+  <div class="ind-hero">
+    <div class="ind-category-badge">{{ info.category }}</div>
+    <h1 class="ind-title">{{ info.display }}</h1>
+    {% if best %}
+    <div class="ind-best-stats">
+      <div class="ind-stat-pill {% if best.win_rate >= 70 %}win-high{% elif best.win_rate >= 60 %}win-mid{% else %}win-low{% endif %}">
+        最高勝率 {{ "%.1f"|format(best.win_rate) }}%
+      </div>
+      <div class="ind-stat-pill neutral">
+        {{ best.currency_pair[:3] }}/{{ best.currency_pair[3:] }} {{ best.timeframe }}
+      </div>
+      <div class="ind-stat-pill {% if best.total_profit >= 0 %}win-high{% else %}win-low{% endif %}">
+        損益 ¥{{ "{:,.0f}".format(best.total_profit) }}
+      </div>
+    </div>
+    {% endif %}
+  </div>
+
+  <!-- 指標の説明 -->
+  <div class="section-card">
+    <h2 class="ind-section-title"><i class="bi bi-info-circle-fill text-primary me-2"></i>指標の概要</h2>
+    <p class="ind-text">{{ info.description }}</p>
+    <div class="ind-feature-box">
+      <div class="ind-feature-label">シグナルの仕組み</div>
+      <p class="ind-text mb-0">{{ info.feature }}</p>
+    </div>
+  </div>
+
+  <!-- 得意・苦手な相場 -->
+  <div class="ind-market-grid">
+    <div class="section-card ind-market-card good">
+      <h2 class="ind-section-title"><i class="bi bi-check-circle-fill text-success me-2"></i>得意な相場</h2>
+      <ul class="ind-market-list">
+        {% for item in info.good %}
+        <li><i class="bi bi-check2 text-success me-1"></i>{{ item }}</li>
+        {% endfor %}
+      </ul>
+    </div>
+    <div class="section-card ind-market-card bad">
+      <h2 class="ind-section-title"><i class="bi bi-x-circle-fill text-danger me-2"></i>苦手な相場</h2>
+      <ul class="ind-market-list">
+        {% for item in info.bad %}
+        <li><i class="bi bi-x text-danger me-1"></i>{{ item }}</li>
+        {% endfor %}
+      </ul>
+    </div>
+  </div>
+
+  <!-- バックテスト結果サマリー -->
+  <div class="section-card">
+    <h2 class="ind-section-title"><i class="bi bi-bar-chart-fill text-warning me-2"></i>バックテスト結果サマリー</h2>
+    {% if results %}
+    <div class="ind-results-table-wrap">
+      <table class="ind-results-table">
+        <thead>
+          <tr>
+            <th>通貨ペア</th>
+            <th>TF</th>
+            <th>勝率</th>
+            <th>取引数</th>
+            <th>勝/負</th>
+            <th>損益</th>
+            <th>PF</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for r in results %}
+          <tr>
+            <td>{{ r.currency_pair[:3] }}/{{ r.currency_pair[3:] }}</td>
+            <td>{{ r.timeframe }}</td>
+            <td class="fw-bold {% if r.win_rate >= 70 %}text-success{% elif r.win_rate >= 60 %}text-warning{% else %}text-muted{% endif %}">
+              {{ "%.1f"|format(r.win_rate) }}%
+            </td>
+            <td>{{ r.total_trades }}</td>
+            <td>
+              <span class="text-success">{{ r.winning_trades }}</span>
+              / <span class="text-danger">{{ r.losing_trades }}</span>
+            </td>
+            <td class="{% if r.total_profit >= 0 %}text-success{% else %}text-danger{% endif %}">
+              ¥{{ "{:,.0f}".format(r.total_profit) }}
+            </td>
+            <td>{{ "%.2f"|format(r.profit_factor) if r.profit_factor else '-' }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+    <div class="empty-state">バックテストデータがありません</div>
+    {% endif %}
+  </div>
+
+  <!-- 直近取引履歴 -->
+  {% if trades %}
+  <div class="section-card">
+    <h2 class="ind-section-title"><i class="bi bi-clock-history text-info me-2"></i>直近取引履歴
+      <span class="text-muted small ms-2">{{ best.currency_pair[:3] }}/{{ best.currency_pair[3:] }} {{ best.timeframe }}（直近{{ trades|length }}件）</span>
+    </h2>
+    <div class="ind-trades-table-wrap">
+      <table class="ind-trades-table">
+        <thead>
+          <tr>
+            <th>エントリー日時 (JST)</th>
+            <th>種別</th>
+            <th>エントリー</th>
+            <th>TP</th>
+            <th>SL</th>
+            <th>結果</th>
+            <th>損益</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for t in trades %}
+          {% set is_buy = t.signal == 'BUY' %}
+          {% set is_win = t.outcome == 'WIN' %}
+          {% set pnl = (t.tp_pips if is_win else -t.sl_pips) * 1000 if t.tp_pips is defined else 0 %}
+          <tr>
+            <td class="ind-trade-time">{{ t.entry_ts_jst }}</td>
+            <td>
+              <span class="signal-type-badge {% if is_buy %}buy{% else %}sell{% endif %}">
+                {{ t.signal }}
+              </span>
+            </td>
+            <td class="font-mono">{{ "%.3f"|format(t.entry_price) if t.entry_price else '-' }}</td>
+            <td class="font-mono text-success">{{ "%.3f"|format(t.tp_price) if t.tp_price else '-' }}</td>
+            <td class="font-mono text-danger">{{ "%.3f"|format(t.sl_price) if t.sl_price else '-' }}</td>
+            <td>
+              {% if t.outcome == 'WIN' %}
+              <span class="ind-outcome win">✓ 利確</span>
+              {% elif t.outcome == 'LOSS' %}
+              <span class="ind-outcome loss">✗ 損切</span>
+              {% else %}
+              <span class="ind-outcome neutral">-</span>
+              {% endif %}
+            </td>
+            <td class="fw-bold {% if is_win %}text-success{% else %}text-danger{% endif %}">
+              {{ '+' if is_win else '-' }}¥{{ "{:,.0f}".format(t.pnl|abs) if t.pnl is defined else '?' }}
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+  {% endif %}
+
+  <!-- 関連指標リンク -->
+  <div class="section-card">
+    <h2 class="ind-section-title"><i class="bi bi-grid me-2"></i>他の指標を見る</h2>
+    <div class="ind-related-grid">
+      {% for ind in related %}
+      <a href="/indicators/{{ ind.slug }}.html" class="ind-related-item">
+        <div class="ind-related-cat">{{ ind.category }}</div>
+        <div class="ind-related-name">{{ ind.display }}</div>
+        {% if ind.win_rate %}
+        <div class="ind-related-wr {% if ind.win_rate >= 70 %}high{% elif ind.win_rate >= 60 %}mid{% else %}low{% endif %}">
+          {{ "%.1f"|format(ind.win_rate) }}%
+        </div>
+        {% endif %}
+      </a>
+      {% endfor %}
+    </div>
+  </div>
+
+  <div class="section-card" style="font-size:0.72rem;color:#94a3b8;text-align:center;padding:8px 16px;">
+    最終更新: {{ updated_at }} ／ バックテスト期間: 直近12時間
+  </div>
+  <div style="height:20px"></div>
+
+</main>
+
+<!-- ボトムナビゲーション -->
+<nav class="bottom-nav">
+  <a href="/index.html" class="bottom-nav-item">
+    <i class="bi bi-speedometer2"></i><span>ホーム</span>
+  </a>
+  <a href="/signals.html" class="bottom-nav-item">
+    <i class="bi bi-lightning-charge"></i><span>シグナル</span>
+  </a>
+  <a href="/backtest.html" class="bottom-nav-item active">
+    <i class="bi bi-bar-chart-line"></i><span>分析</span>
+  </a>
+  <a href="/reports.html" class="bottom-nav-item">
+    <i class="bi bi-file-earmark-text"></i><span>レポート</span>
+  </a>
+  <a href="/settings.html" class="bottom-nav-item">
+    <i class="bi bi-gear"></i><span>設定</span>
+  </a>
+</nav>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+  function updateClock() {
+    const now = new Date();
+    const jst = new Date(now.getTime() + 9 * 3600 * 1000);
+    const h = String(jst.getUTCHours()).padStart(2,'0');
+    const m = String(jst.getUTCMinutes()).padStart(2,'0');
+    const s = String(jst.getUTCSeconds()).padStart(2,'0');
+    document.getElementById('current-time').textContent = `${h}:${m}:${s} JST`;
+  }
+  setInterval(updateClock, 1000);
+  updateClock();
+</script>
+</body>
+</html>
