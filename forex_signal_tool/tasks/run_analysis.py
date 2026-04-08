@@ -10,6 +10,7 @@ Xサーバー Cronジョブ設定例:
 
 import sys
 import os
+import subprocess
 import logging
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -72,6 +73,16 @@ def main():
         Setting.set("last_signal_update_at", now_str2)
         Setting.set("signal_status", "done")
 
+    # 静的HTML再生成・デプロイ
+    logger.info("静的HTML生成開始")
+    script = os.path.join(os.path.dirname(__file__), "generate_static.py")
+    ret = subprocess.call([sys.executable, script])
+    if ret == 0:
+        logger.info("静的HTML生成完了")
+    else:
+        logger.error("静的HTML生成失敗 (exit=%d)", ret)
+
 
 if __name__ == "__main__":
     main()
+
