@@ -23,7 +23,7 @@ def create_app():
     mail.init_app(app)
 
     # Register models so Migrate can detect them
-    from app.models import price_data, signal, backtest, report, settings  # noqa
+    from app.models import price_data, signal, backtest, report, settings, simulation_trade  # noqa
 
     # Register blueprints
     from app.routes.dashboard import bp as dashboard_bp

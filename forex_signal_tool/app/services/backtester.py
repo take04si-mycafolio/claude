@@ -302,23 +302,32 @@ def get_recent_trades(pair: str, timeframe: str, df: pd.DataFrame,
 
 
 def save_backtest_results(results: list) -> int:
-    """バックテスト結果をDBに保存（同一指標の古い結果は上書き）"""
+    """バックテスト結果をDBに保存（同一指標の古い結果は上書き）。個別トレードも保存する。"""
     from app import db
     from app.models.backtest import BacktestResult
+    from app.models.simulation_trade import SimulationTrade
 
     saved = 0
     for r in results:
+        pair     = r["currency_pair"]
+        timeframe = r["timeframe"]
+        ind_name  = r["indicator_name"]
+
         # 既存レコードを削除（最新のみ保持）
-        BacktestResult.query.filter_by(
-            currency_pair=r["currency_pair"],
-            timeframe=r["timeframe"],
-            indicator_name=r["indicator_name"],
-        ).delete()
+        old = BacktestResult.query.filter_by(
+            currency_pair=pair,
+            timeframe=timeframe,
+            indicator_name=ind_name,
+        ).first()
+        if old:
+            # 紐づく個別トレードも削除（CASCADE設定があれば自動だが明示的に削除）
+            SimulationTrade.query.filter_by(backtest_result_id=old.id).delete()
+            db.session.delete(old)
 
         record = BacktestResult(
-            currency_pair=r["currency_pair"],
-            timeframe=r["timeframe"],
-            indicator_name=r["indicator_name"],
+            currency_pair=pair,
+            timeframe=timeframe,
+            indicator_name=ind_name,
             indicator_category=r.get("indicator_category"),
             signal_direction="BOTH",
             win_rate=r["win_rate"],
@@ -336,6 +345,54 @@ def save_backtest_results(results: list) -> int:
             calculated_at=r["calculated_at"],
         )
         db.session.add(record)
+        db.session.flush()  # record.id を確定させる
+
+        # 個別トレードを保存
+        sl_pips_val = r["sl_pips"]
+        tp_pips_val = r["tp_pips"]
+        initial_cap = r["initial_capital"]
+        prev_capital = initial_cap
+
+        for t in r.get("trades", []):
+            entry_ts = t.get("entry_ts")
+            exit_ts  = t.get("exit_ts")
+
+            # datetime でない場合は変換
+            if isinstance(entry_ts, str):
+                try:
+                    entry_ts = datetime.strptime(entry_ts[:16], "%Y/%m/%d %H:%M")
+                except ValueError:
+                    entry_ts = None
+            if isinstance(exit_ts, str):
+                try:
+                    exit_ts = datetime.strptime(exit_ts[:16], "%Y/%m/%d %H:%M")
+                except ValueError:
+                    exit_ts = None
+
+            capital_after = float(t.get("capital_after", prev_capital))
+            profit_loss   = round(capital_after - prev_capital, 2)
+            prev_capital  = capital_after
+
+            trade = SimulationTrade(
+                backtest_result_id=record.id,
+                currency_pair=pair,
+                timeframe=timeframe,
+                indicator_name=ind_name,
+                entry_at=entry_ts,
+                exit_at=exit_ts,
+                direction=t.get("signal", ""),
+                entry_price=t.get("entry_price"),
+                exit_price=t.get("exit_price"),
+                tp_price=t.get("tp_price"),
+                sl_price=t.get("sl_price"),
+                sl_pips=sl_pips_val,
+                tp_pips=tp_pips_val,
+                outcome=t.get("outcome"),
+                profit_loss=profit_loss,
+                capital_after=capital_after,
+            )
+            db.session.add(trade)
+
         saved += 1
 
     db.session.commit()
