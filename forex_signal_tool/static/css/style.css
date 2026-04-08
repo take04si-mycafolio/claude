@@ -435,77 +435,108 @@ body {
 .price-change.down { color: #f87171; }
 .price-update { font-size: 0.7rem; color: #64748b; }
 
-/* ===== チャートセクション ===== */
-.chart-section { padding: 12px 12px 8px; }
+/* ===== チャートカード（ダーク・フルwidth） ===== */
+@keyframes spin { to { transform: rotate(360deg); } }
 
-/* タイムフレームタブ */
+.chart-card {
+  background: #131722;
+  margin: 0;          /* price-card と幅を揃える */
+  padding-bottom: 6px;
+}
+
+/* ヘッダー：OHLCバー + TFタブ */
+.chart-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 12px 0;
+}
+
+/* OHLCバー */
+.chart-ohlc-bar { display: flex; gap: 8px; }
+.ohlc-item { font-size: 0.67rem; font-variant-numeric: tabular-nums; }
+.ohlc-lbl  { color: #475569; margin-right: 2px; }
+.ohlc-item span:last-child { color: #94a3b8; font-weight: 600; }
+
+/* TFタブ */
 .tf-tabs {
   display: flex;
-  gap: 6px;
-  margin-bottom: 8px;
+  gap: 2px;
+  background: #1e2a3a;
+  border-radius: 8px;
+  padding: 3px;
 }
 .tf-tab {
-  padding: 5px 14px;
-  border: 1px solid #e2e8f0;
-  border-radius: 20px;
-  background: #f8fafc;
+  padding: 4px 12px;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
   color: #64748b;
-  font-size: 0.78rem;
+  font-size: 0.72rem;
   font-weight: 600;
   cursor: pointer;
   transition: all 0.15s;
 }
+.tf-tab:hover { color: #94a3b8; }
 .tf-tab.active {
-  background: #1a1a2e;
+  background: #3b82f6;
   color: #fff;
-  border-color: #1a1a2e;
+  box-shadow: 0 2px 6px rgba(59,130,246,0.35);
 }
 
-/* 凡例 */
+/* インジケータートグル凡例 */
 .chart-legend {
   display: flex;
-  gap: 10px;
+  gap: 5px;
   flex-wrap: wrap;
-  margin-bottom: 6px;
+  padding: 8px 12px 4px;
 }
-.legend-item {
-  display: flex;
+.legend-toggle {
+  display: inline-flex;
   align-items: center;
-  gap: 4px;
-  font-size: 0.68rem;
-  color: #64748b;
+  gap: 5px;
+  background: transparent;
+  border: 1px solid #1e2a3a;
+  border-radius: 6px;
+  color: #94a3b8;
+  font-size: 0.65rem;
+  font-weight: 600;
+  padding: 3px 8px;
+  cursor: pointer;
+  transition: all 0.15s;
+  line-height: 1;
 }
-.legend-dot {
-  width: 10px;
-  height: 10px;
-  border-radius: 50%;
+.legend-toggle.active  { border-color: #2d3f55; }
+.legend-toggle:not(.active) { opacity: 0.3; }
+.legend-line {
+  width: 14px; height: 2px;
+  border-radius: 1px;
   display: inline-block;
+  flex-shrink: 0;
 }
 
-/* チャートコンテナ */
-.chart-container {
-  width: 100%;
-  border-radius: 8px;
-  overflow: hidden;
-  border: 1px solid #f1f5f9;
+/* チャート本体・RSI */
+#main-chart, #rsi-chart { width: 100%; }
+.rsi-header {
+  font-size: 0.65rem;
+  font-weight: 600;
+  color: #475569;
+  padding: 5px 12px 2px;
+  letter-spacing: 0.04em;
 }
-.rsi-label {
-  font-size: 0.68rem;
-  color: #94a3b8;
-  margin: 6px 0 2px;
-}
-.rsi-container {
-  width: 100%;
-  border-radius: 8px;
-  overflow: hidden;
-  border: 1px solid #f1f5f9;
+.rsi-cur-val {
+  color: #818cf8;
+  font-variant-numeric: tabular-nums;
+  margin-left: 4px;
 }
 .chart-loading {
-  text-align: center;
-  font-size: 0.78rem;
-  color: #94a3b8;
-  padding: 8px 0;
   display: none;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  font-size: 0.72rem;
+  color: #475569;
+  padding: 10px;
 }
 
 /* ===== 直近シミュレーショントレード ===== */
