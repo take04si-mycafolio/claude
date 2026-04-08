@@ -684,6 +684,9 @@ def deploy_static_files():
             rel = src.relative_to(src_dir)
             dst = dst_root / rel
             dst.parent.mkdir(parents=True, exist_ok=True)
+            # src と dst が同一ファイル（シンボリックリンク等）の場合はスキップ
+            if dst.exists() and os.path.samefile(src, dst):
+                continue
             shutil.copy2(src, dst)
             # .cgi ファイルは実行権限を付与
             if src.suffix == ".cgi":
