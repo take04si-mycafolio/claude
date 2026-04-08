@@ -250,15 +250,29 @@ def backtest_tool():
 @login_required
 def backtest_tool_run():
     """カスタムバックテスト実行 (常に HTTP 200 を返す)"""
-    # CGI では threading.Lock が per-process なので DB フラグで排他制御
     from app.models.settings import Setting
 
+    # 排他制御: 10分以上経過していたら古いロックを自動解除
     if Setting.get("custom_bt_status") == "running":
-        return jsonify({"status": "busy",
-                        "message": "別のバックテストが実行中です。しばらく待ってから再試行してください。"})
+        started_at_str = Setting.get("custom_bt_started_at", "")
+        auto_reset = True
+        if started_at_str:
+            try:
+                started_at = datetime.fromisoformat(started_at_str)
+                elapsed = (datetime.now(timezone.utc) - started_at).total_seconds()
+                if elapsed < 600:  # 10分以内なら本当に実行中
+                    auto_reset = False
+            except Exception:
+                pass
+        if not auto_reset:
+            return jsonify({"status": "busy",
+                            "message": "別のバックテストが実行中です。しばらく待ってから再試行してください。"})
+        # 10分超過 → 自動リセットして続行
+        logger.warning("custom_bt_status stuck 'running' over 10min, auto-reset")
 
     try:
         Setting.set("custom_bt_status", "running")
+        Setting.set("custom_bt_started_at", datetime.now(timezone.utc).isoformat())
 
         data = request.get_json(force=True, silent=True) or {}
         pair            = data.get("pair", "USDJPY")
@@ -303,8 +317,13 @@ def backtest_tool_run():
         df = get_candles(pair, timeframe, limit=5000)
         if df.empty:
             Setting.set("custom_bt_status", "idle")
-            return jsonify({"status": "error", "message": "DBにデータがありません。先にデータ取得を実行してください。"})
+            tf_labels = {"15min":"15分足","1hr":"1時間足","4hr":"4時間足","daily":"日足"}
+            tf_lbl = tf_labels.get(timeframe, timeframe)
+            return jsonify({"status": "error",
+                            "message": f"{pair} の {tf_lbl} データがDBにありません。"
+                                       "ダッシュボードで「データ取得を実行」してから再試行してください。"})
 
+        total_rows = len(df)
         # 日付フィルタ
         if start_date:
             try:
@@ -323,8 +342,14 @@ def backtest_tool_run():
 
         if len(df) < 30:
             Setting.set("custom_bt_status", "idle")
+            db_min = df["timestamp"].min() if not df.empty else "なし"
+            db_max = df["timestamp"].max() if not df.empty else "なし"
             return jsonify({"status": "error",
-                            "message": f"選択期間のデータが {len(df)} 本しかありません（30本以上必要）"})
+                            "message": (
+                                f"選択期間のデータが {len(df)} 本しかありません（30本以上必要）。\n"
+                                f"DBには {total_rows} 本ありますが、期間フィルタ後に減りました。\n"
+                                f"利用可能期間: {db_min} 〜 {db_max}"
+                            )})
 
         results = []
         for ind_name in indicator_names:
@@ -387,3 +412,13 @@ def backtest_tool_run():
 def backtest_tool_status():
     from app.models.settings import Setting
     return jsonify({"status": Setting.get("custom_bt_status", "idle")})
+
+
+@bp.route("/backtest-tool/reset", methods=["POST"])
+@login_required
+def backtest_tool_reset():
+    """stuck した実行フラグを手動リセット"""
+    from app.models.settings import Setting
+    Setting.set("custom_bt_status", "idle")
+    Setting.set("custom_bt_started_at", "")
+    return jsonify({"status": "ok", "message": "実行フラグをリセットしました"})

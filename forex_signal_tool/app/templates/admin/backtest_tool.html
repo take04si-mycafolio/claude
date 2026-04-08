@@ -229,6 +229,7 @@ tbody td{padding:9px 12px;color:#cbd5e1;white-space:nowrap}
 
     <div class="run-row">
       <button class="run-btn" id="run-btn" onclick="runBacktest()">バックテストを実行</button>
+      <button class="run-btn" id="reset-btn" onclick="resetJob()" style="background:#6b7280;padding:11px 16px;font-size:13px;display:none">実行フラグをリセット</button>
       <span class="run-status" id="run-status"></span>
     </div>
   </div><!-- /form-card -->
@@ -349,10 +350,27 @@ function showLoading(show) {
   document.getElementById('run-btn').disabled = show;
 }
 
+function resetJob() {
+  fetch('/admin/backtest-tool/reset', {
+    method: 'POST',
+    headers: {'Content-Type':'application/json','X-Requested-With':'XMLHttpRequest'}
+  }).then(function(r){return r.text();}).then(function(){
+    document.getElementById('reset-btn').style.display = 'none';
+    document.getElementById('error-banner').style.display = 'none';
+    document.getElementById('run-btn').disabled = false;
+    alert('リセット完了。再度バックテストを実行してください。');
+  });
+}
+
 function showError(msg) {
   document.getElementById('results-section').style.display = 'block';
   var b = document.getElementById('error-banner');
-  b.textContent = msg;
+  // \n を <br> に変換して改行を表示
+  b.innerHTML = msg.replace(/\n/g, '<br>');
+  // "別のバックテストが実行中" ならリセットボタンを表示
+  if (msg.indexOf('実行中') !== -1) {
+    document.getElementById('reset-btn').style.display = 'inline-block';
+  }
   b.style.display = 'block';
 }
 
