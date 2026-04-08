@@ -333,12 +333,21 @@ function runBacktest() {
       indicators: indicators,
     })
   })
-  .then(function(r){ return r.text(); })
-  .then(function(text){
+  .then(function(r){
+    return r.text().then(function(text){ return {status: r.status, text: text}; });
+  })
+  .then(function(resp){
     showLoading(false);
+    var text = resp.text;
+    if (!text || text.trim() === '') {
+      showError('サーバーから空のレスポンスが返りました。\nHTTPステータス: ' + resp.status +
+                '\n原因: CGIタイムアウト、またはサーバー起動エラーの可能性があります。\n' +
+                '/admin/ping にアクセスしてCGIの動作確認をしてください。');
+      return;
+    }
     var data;
     try { data = JSON.parse(text); }
-    catch(e) { showError('レスポンス解析エラー: ' + text.substring(0, 200)); return; }
+    catch(e) { showError('レスポンス解析エラー (HTTP ' + resp.status + '):\n' + text.substring(0, 300)); return; }
     if (data.status === 'auth_required') { window.location.href = '/admin/login'; return; }
     renderResults(data);
   })

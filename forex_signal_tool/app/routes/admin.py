@@ -250,25 +250,32 @@ def backtest_tool():
 @login_required
 def backtest_tool_run():
     """カスタムバックテスト実行 (常に HTTP 200 を返す)"""
-    from app.models.settings import Setting
+    # 関数全体を try/except で囲む（Setting.get 含む全行をカバー）
+    try:
+        from app.models.settings import Setting
 
-    # 排他制御: 10分以上経過していたら古いロックを自動解除
-    if Setting.get("custom_bt_status") == "running":
-        started_at_str = Setting.get("custom_bt_started_at", "")
-        auto_reset = True
-        if started_at_str:
-            try:
-                started_at = datetime.fromisoformat(started_at_str)
-                elapsed = (datetime.now(timezone.utc) - started_at).total_seconds()
-                if elapsed < 600:  # 10分以内なら本当に実行中
-                    auto_reset = False
-            except Exception:
-                pass
-        if not auto_reset:
-            return jsonify({"status": "busy",
-                            "message": "別のバックテストが実行中です。しばらく待ってから再試行してください。"})
-        # 10分超過 → 自動リセットして続行
-        logger.warning("custom_bt_status stuck 'running' over 10min, auto-reset")
+        # 排他制御: 10分以上経過していたら古いロックを自動解除
+        if Setting.get("custom_bt_status") == "running":
+            started_at_str = Setting.get("custom_bt_started_at", "")
+            auto_reset = True
+            if started_at_str:
+                try:
+                    started_at = datetime.fromisoformat(started_at_str)
+                    elapsed = (datetime.now(timezone.utc) - started_at).total_seconds()
+                    if elapsed < 600:
+                        auto_reset = False
+                except Exception:
+                    pass
+            if not auto_reset:
+                return jsonify({"status": "busy",
+                                "message": "別のバックテストが実行中です。しばらく待ってから再試行してください。"})
+            logger.warning("custom_bt_status stuck 'running' over 10min, auto-reset")
+
+        Setting.set("custom_bt_status", "running")
+        Setting.set("custom_bt_started_at", datetime.now(timezone.utc).isoformat())
+    except Exception as e:
+        logger.exception("backtest startup error")
+        return jsonify({"status": "error", "message": "起動エラー: " + str(e)})
 
     try:
         Setting.set("custom_bt_status", "running")

@@ -34,6 +34,18 @@ try:
 
     flask_app = create_app()
 
+    # 未補足の例外はすべて HTTP 200 JSON で返す（Xserver が 500 HTML に差し替えないように）
+    from flask import request as _req, jsonify as _jsonify
+
+    @flask_app.errorhandler(Exception)
+    def _handle_exc(e):
+        logger.exception("unhandled flask error")
+        return _jsonify({"status": "error", "message": "予期せぬエラー: " + str(e)})
+
+    @flask_app.errorhandler(404)
+    def _handle_404(e):
+        return _jsonify({"status": "error", "message": "エンドポイントが見つかりません: " + str(e)})
+
     def _fix_script_name(app):
         def _mw(environ, start_response):
             environ["SCRIPT_NAME"] = ""
