@@ -247,9 +247,12 @@ INDICATOR_INFO = {
 
 
 def get_pair_data(pair: str) -> dict:
-    from app.services.data_fetcher import get_latest_price
+    from app.services.data_fetcher import get_latest_price, get_candles
     from app.models.signal import TradingSignal
     from app.models.backtest import BacktestResult
+    from app.models.settings import Setting
+    from app.services.backtester import get_recent_trades
+    from app.config import Config
     from sqlalchemy import or_
 
     price = get_latest_price(pair)
@@ -300,6 +303,42 @@ def get_pair_data(pair: str) -> dict:
         d["signal_time_jst"] = utc_str_to_jst(s.signal_time)
         signal_dicts.append(d)
 
+    # ===== 直近シミュレーショントレード =====
+    sl_pips = Setting.get_float("sl_pips", Config.DEFAULT_SL_PIPS)
+    tp_pips = Setting.get_float("tp_pips", Config.DEFAULT_TP_PIPS)
+    rr_ratio = round(tp_pips / sl_pips, 1) if sl_pips else 2.0
+    sim_trades = []
+    try:
+        ic = Setting.get_float("initial_capital", Config.DEFAULT_INITIAL_CAPITAL)
+        bh = Setting.get_int("backtest_hours", Config.DEFAULT_BACKTEST_HOURS)
+        for bt in top_bt[:3]:
+            df = get_candles(bt.currency_pair, bt.timeframe, 500)
+            if df is None or df.empty:
+                continue
+            trades = get_recent_trades(
+                bt.currency_pair, bt.timeframe, df,
+                bt.indicator_name, ic, sl_pips, tp_pips, bh, limit=10
+            )
+            for t in trades:
+                outcome = t.get("outcome", "")
+                pips = tp_pips if outcome == "WIN" else (-sl_pips if outcome == "LOSS" else 0)
+                sim_trades.append({
+                    "indicator":     bt.indicator_name,
+                    "timeframe":     bt.timeframe,
+                    "signal":        t.get("signal", ""),
+                    "entry_ts_jst":  utc_str_to_jst(t.get("entry_ts")),
+                    "exit_ts_jst":   utc_str_to_jst(t.get("exit_ts")) if t.get("exit_ts") else "—",
+                    "entry_price":   t.get("entry_price"),
+                    "tp_price":      t.get("tp_price"),
+                    "sl_price":      t.get("sl_price"),
+                    "outcome":       outcome,
+                    "pips":          pips,
+                })
+        sim_trades.sort(key=lambda x: x["entry_ts_jst"], reverse=True)
+        sim_trades = sim_trades[:20]
+    except Exception as e:
+        logger.warning("Sim trades error %s: %s", pair, e)
+
     return {
         "pair": pair,
         "display": f"{pair[:3]}/{pair[3:]}",
@@ -310,6 +349,10 @@ def get_pair_data(pair: str) -> dict:
         "sell_count": sell_count,
         "overall": overall,
         "top_backtest": [r.to_dict() for r in top_bt],
+        "sim_trades":  sim_trades,
+        "sl_pips":     sl_pips,
+        "tp_pips":     tp_pips,
+        "rr_ratio":    rr_ratio,
     }
 
 

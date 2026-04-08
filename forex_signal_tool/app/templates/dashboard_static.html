@@ -156,6 +156,48 @@
 </div>
 {% endif %}
 
+<!-- 直近シミュレーショントレード -->
+{% if data.sim_trades %}
+<div class="section-card">
+  <div class="section-title section-title-row">
+    <div class="section-title-left">
+      <i class="bi bi-clock-history text-info me-2"></i>直近シミュレーショントレード
+      <span class="info-tip" data-tip="シグナル発生時点でエントリーしたと仮定した場合の損益シミュレーションです。実際の取引結果ではありません。">
+        <i class="bi bi-info-circle-fill"></i>
+      </span>
+    </div>
+    <span class="sim-rr-badge">SL {{ data.sl_pips|int }}p / TP {{ data.tp_pips|int }}p &nbsp;1:{{ data.rr_ratio }}</span>
+  </div>
+  {% for t in data.sim_trades %}
+  <div class="sim-trade-item">
+    <div class="sim-trade-header">
+      <span class="signal-type-badge {% if t.signal == 'BUY' %}buy{% else %}sell{% endif %}">{{ t.signal }}</span>
+      <span class="sim-ind-name">{{ t.indicator }}</span>
+      <span class="sim-tf-badge">{{ t.timeframe }}</span>
+      <span class="sim-outcome {% if t.outcome == 'WIN' %}win{% elif t.outcome == 'LOSS' %}loss{% else %}open{% endif %}">
+        {% if t.outcome == 'WIN' %}WIN +{{ t.pips|int }}p
+        {% elif t.outcome == 'LOSS' %}LOSS {{ t.pips|int }}p
+        {% else %}OPEN
+        {% endif %}
+      </span>
+    </div>
+    <div class="sim-trade-times">
+      <i class="bi bi-box-arrow-in-right"></i>
+      <span>{{ t.entry_ts_jst }}</span>
+      <span class="sim-arrow">→</span>
+      <i class="bi bi-box-arrow-right"></i>
+      <span>{{ t.exit_ts_jst }}</span>
+    </div>
+    <div class="sim-trade-prices">
+      <span>IN <b>{{ "%.3f"|format(t.entry_price) if t.entry_price else '—' }}</b></span>
+      <span class="text-success">TP {{ "%.3f"|format(t.tp_price) if t.tp_price else '—' }}</span>
+      <span class="text-danger">SL {{ "%.3f"|format(t.sl_price) if t.sl_price else '—' }}</span>
+    </div>
+  </div>
+  {% endfor %}
+</div>
+{% endif %}
+
 <!-- 操作パネル -->
 <div class="section-card">
   <div class="section-title">
