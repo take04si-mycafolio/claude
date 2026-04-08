@@ -37,14 +37,31 @@ def task_fetch_data(app):
 
 def task_backtest(app):
     from app.services.backtester import run_all_backtests, save_backtest_results
+    from app.services.data_fetcher import get_candles
+    from app.models.settings import Setting
     from app.config import Config
     logger.info("=== バックテスト開始 ===")
     with app.app_context():
+        initial_capital = Setting.get_float("initial_capital", Config.DEFAULT_INITIAL_CAPITAL)
+        sl_pips         = Setting.get_float("sl_pips",         Config.DEFAULT_SL_PIPS)
+        tp_pips         = Setting.get_float("tp_pips",         Config.DEFAULT_TP_PIPS)
+        backtest_hours  = Setting.get_int("backtest_hours",    Config.DEFAULT_BACKTEST_HOURS)
+
         for pair in Config.CURRENCY_PAIRS:
             for tf in Config.TIMEFRAMES:
-                results = run_all_backtests(pair, tf)
-                save_backtest_results(results)
-                logger.info("バックテスト完了: %s %s (%d件)", pair, tf, len(results))
+                df = get_candles(pair, tf, limit=500)
+                if df is None or df.empty:
+                    logger.info("データなし: %s %s", pair, tf)
+                    continue
+                results = run_all_backtests(
+                    pair, tf, df,
+                    initial_capital=initial_capital,
+                    sl_pips=sl_pips,
+                    tp_pips=tp_pips,
+                    backtest_hours=backtest_hours,
+                )
+                saved = save_backtest_results(results)
+                logger.info("バックテスト完了: %s %s %d件保存", pair, tf, saved)
     logger.info("=== バックテスト完了 ===")
 
 
