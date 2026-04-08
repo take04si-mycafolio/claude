@@ -47,14 +47,15 @@ $limit  = $limits[$tf];
 
 // ---- DBからローソク足を取得 ----
 $candles = $times = $closes = [];
+$dbError = null;
 try {
     $pdo  = get_pdo();
-    $stmt = $pdo->prepare(
-        'SELECT timestamp, open, high, low, close FROM price_data
-         WHERE currency_pair=? AND timeframe=?
-         ORDER BY timestamp DESC LIMIT ?'
-    );
-    $stmt->execute([$pair, $tf, $limit]);
+    // LIMIT に直接整数を埋め込む（PDO の ? バインドは文字列扱いになり LIMIT が効かない場合がある）
+    $sql  = 'SELECT timestamp, open, high, low, close FROM price_data
+             WHERE currency_pair=? AND timeframe=?
+             ORDER BY timestamp DESC LIMIT ' . (int)$limit;
+    $stmt = $pdo->prepare($sql);
+    $stmt->execute([$pair, $tf]);
     $rows = array_reverse($stmt->fetchAll());
 
     foreach ($rows as $row) {
@@ -70,14 +71,21 @@ try {
                       'open'  => round($o, 3), 'high' => round($h, 3),
                       'low'   => round($l, 3), 'close' => round($c, 3)];
     }
-} catch (Exception $e) {}
+} catch (Exception $e) {
+    $dbError = $e->getMessage();
+}
 
-// データ不足時は空レスポンス
+// データ不足時はエラー理由付きで空レスポンス
 if (empty($candles)) {
     header('Content-Type: application/json; charset=utf-8');
-    echo json_encode(['candles'=>[],'sma20'=>[],'sma50'=>[],'ema21'=>[],
-                      'bb_upper'=>[],'bb_lower'=>[],'rsi'=>[],'trades'=>[],
-                      'tp_level'=>null,'sl_level'=>null,'entry_level'=>null,'signal_type'=>null]);
+    echo json_encode([
+        'candles'=>[],'sma20'=>[],'sma50'=>[],'ema21'=>[],
+        'bb_upper'=>[],'bb_lower'=>[],'rsi'=>[],'trades'=>[],
+        'tp_level'=>null,'sl_level'=>null,'entry_level'=>null,'signal_type'=>null,
+        'debug_error' => $dbError,
+        'debug_pair'  => $pair,
+        'debug_tf'    => $tf,
+    ]);
     exit;
 }
 
