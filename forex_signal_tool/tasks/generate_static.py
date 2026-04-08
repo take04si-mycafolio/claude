@@ -697,6 +697,13 @@ def main():
     # PHP/.htaccess を public_html に同期
     deploy_static_files()
 
+    # 管理パネルに移動した設定ページの古いファイルを削除
+    for obsolete in ["settings.html", "settings_data.json"]:
+        p = Path(PUBLIC_HTML) / obsolete
+        if p.exists():
+            p.unlink()
+            logger.info("Removed obsolete file: %s", obsolete)
+
     app = create_app()
     with app.app_context():
         updated_at = datetime.now(JST).strftime("%Y/%m/%d %H:%M")
@@ -753,9 +760,7 @@ def main():
         })
         save("reports.html", html)
 
-        # 設定ページ（静的テンプレートをそのままコピー）
-        html = render_html(app, "settings_static.html", {})
-        save("settings.html", html)
+        # 設定ページは管理パネルに移動したため生成しない
 
         # チャートデータ JSON（ペア×タイムフレーム）
         chart_dir = Path(PUBLIC_HTML) / "chart_data"
@@ -772,12 +777,6 @@ def main():
                     logger.info("Chart JSON: %s", fname)
                 except Exception as e:
                     logger.warning("Chart JSON error %s %s: %s", pair, tf, e)
-
-        # 設定ページ用JSONも出力
-        settings = get_settings()
-        settings_path = Path(PUBLIC_HTML) / "settings_data.json"
-        settings_path.write_text(json.dumps(settings, ensure_ascii=False), encoding="utf-8")
-        logger.info("Settings JSON saved")
 
         # インジケーター個別ページ生成
         ind_dir = Path(PUBLIC_HTML) / "indicators"
