@@ -332,14 +332,15 @@ function runBacktest() {
       indicators: indicators,
     })
   })
-  .then(function(r){
-    if (r.status === 401) { window.location.href = '/admin/login'; return null; }
-    if (!r.ok && r.headers.get('content-type') && r.headers.get('content-type').indexOf('json') === -1) {
-      throw new Error('サーバーエラー (HTTP ' + r.status + ')');
-    }
-    return r.json();
+  .then(function(r){ return r.text(); })
+  .then(function(text){
+    showLoading(false);
+    var data;
+    try { data = JSON.parse(text); }
+    catch(e) { showError('レスポンス解析エラー: ' + text.substring(0, 200)); return; }
+    if (data.status === 'auth_required') { window.location.href = '/admin/login'; return; }
+    renderResults(data);
   })
-  .then(function(data){ if (data) { showLoading(false); renderResults(data); } })
   .catch(function(e){ showLoading(false); showError('通信エラー: ' + e.message); });
 }
 

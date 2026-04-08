@@ -5,6 +5,9 @@
 ログイン: /admin/login
 ダッシュボード: /admin/
 バックテストツール: /admin/backtest-tool
+
+NOTE: Xserver 共有サーバーは CGI の 4xx/5xx を HTML エラーページに差し替えるため、
+      API エンドポイントはすべて HTTP 200 で返し、JSON の status フィールドでエラーを伝える。
 """
 
 import threading
@@ -13,13 +16,12 @@ from functools import wraps
 from datetime import datetime, timezone
 
 from flask import (Blueprint, render_template, request, session,
-                   redirect, url_for, jsonify, flash)
+                   redirect, url_for, jsonify)
 from app.config import Config
 
 bp = Blueprint("admin", __name__)
 logger = logging.getLogger(__name__)
 
-# ジョブ実行ロック（プロセス内スレッド間共有）
 _job_lock = threading.Lock()
 
 
@@ -29,13 +31,14 @@ def login_required(f):
     @wraps(f)
     def decorated(*args, **kwargs):
         if not session.get("admin_logged_in"):
-            # AJAX / JSON リクエストには JSON 401 を返す
             is_ajax = (
                 request.content_type == "application/json"
                 or request.headers.get("X-Requested-With") == "XMLHttpRequest"
             )
             if is_ajax:
-                return jsonify({"status": "error", "message": "セッションが切れました。ページを再読み込みしてログインしてください。"}), 401
+                # HTTP 200 で返す (Xserver が 401 HTML を差し替えないように)
+                return jsonify({"status": "auth_required",
+                                "message": "セッションが切れました。再ログインしてください。"})
             return redirect(url_for("admin.login"))
         return f(*args, **kwargs)
     return decorated
@@ -62,6 +65,16 @@ def logout():
     return redirect(url_for("admin.login"))
 
 
+# ---- デバッグ ----
+
+@bp.route("/ping")
+def ping():
+    """CGI 疎通確認用"""
+    import sys
+    return jsonify({"status": "ok", "python": sys.version,
+                    "project": Config.CURRENCY_PAIRS})
+
+
 # ---- ダッシュボード ----
 
 @bp.route("/")
@@ -72,16 +85,15 @@ def dashboard():
     from app.models.signal import TradingSignal
     from app.models.backtest import BacktestResult
 
-    last_fetch   = Setting.get("last_data_fetch_at",   "未実行")
-    last_bt      = Setting.get("last_backtest_at",     "未実行")
-    last_signal  = Setting.get("last_signal_update_at","未実行")
+    last_fetch  = Setting.get("last_data_fetch_at",    "未実行")
+    last_bt     = Setting.get("last_backtest_at",      "未実行")
+    last_signal = Setting.get("last_signal_update_at", "未実行")
 
     stats = {
         "price_rows":   PriceData.query.count(),
         "signal_count": TradingSignal.query.filter_by(is_active=True).count(),
         "bt_count":     BacktestResult.query.count(),
     }
-    job_running = Setting.get("custom_bt_status", "idle") == "running"
 
     return render_template(
         "admin/dashboard.html",
@@ -89,11 +101,10 @@ def dashboard():
         last_bt=last_bt,
         last_signal=last_signal,
         stats=stats,
-        job_running=job_running,
     )
 
 
-# ---- データ操作トリガー ----
+# ---- データ操作トリガー (すべて HTTP 200 で返す) ----
 
 @bp.route("/run-fetch", methods=["POST"])
 @login_required
@@ -104,12 +115,12 @@ def run_fetch():
     try:
         results = fetch_and_store_all()
         total = sum(v for tf_r in results.values() for v in tf_r.values())
-        now_str = datetime.now(timezone.utc).strftime("%Y/%m/%d %H:%M UTC")
-        Setting.set("last_data_fetch_at", now_str)
+        Setting.set("last_data_fetch_at",
+                    datetime.now(timezone.utc).strftime("%Y/%m/%d %H:%M UTC"))
         return jsonify({"status": "ok", "message": f"データ取得完了: {total}件保存"})
     except Exception as e:
         logger.exception("fetch error")
-        return jsonify({"status": "error", "message": str(e)}), 500
+        return jsonify({"status": "error", "message": str(e)})
 
 
 @bp.route("/run-backtest", methods=["POST"])
@@ -121,9 +132,9 @@ def run_backtest():
 
     try:
         initial_capital = Setting.get_float("initial_capital", Config.DEFAULT_INITIAL_CAPITAL)
-        sl_pips = Setting.get_float("sl_pips", Config.DEFAULT_SL_PIPS)
-        tp_pips = Setting.get_float("tp_pips", Config.DEFAULT_TP_PIPS)
-        backtest_hours = Setting.get_int("backtest_hours", Config.DEFAULT_BACKTEST_HOURS)
+        sl_pips  = Setting.get_float("sl_pips",  Config.DEFAULT_SL_PIPS)
+        tp_pips  = Setting.get_float("tp_pips",  Config.DEFAULT_TP_PIPS)
+        bt_hours = Setting.get_int("backtest_hours", Config.DEFAULT_BACKTEST_HOURS)
 
         total_saved = 0
         for pair in Config.CURRENCY_PAIRS:
@@ -131,20 +142,18 @@ def run_backtest():
                 df = get_candles(pair, tf, limit=500)
                 if df.empty:
                     continue
-                results = run_all_backtests(
-                    pair=pair, timeframe=tf, df=df,
-                    initial_capital=initial_capital,
-                    sl_pips=sl_pips, tp_pips=tp_pips,
-                    backtest_hours=backtest_hours,
-                )
-                total_saved += save_backtest_results(results)
+                res = run_all_backtests(pair=pair, timeframe=tf, df=df,
+                                        initial_capital=initial_capital,
+                                        sl_pips=sl_pips, tp_pips=tp_pips,
+                                        backtest_hours=bt_hours)
+                total_saved += save_backtest_results(res)
 
-        now_str = datetime.now(timezone.utc).strftime("%Y/%m/%d %H:%M UTC")
-        Setting.set("last_backtest_at", now_str)
+        Setting.set("last_backtest_at",
+                    datetime.now(timezone.utc).strftime("%Y/%m/%d %H:%M UTC"))
         return jsonify({"status": "ok", "message": f"バックテスト完了: {total_saved}件保存"})
     except Exception as e:
         logger.exception("backtest error")
-        return jsonify({"status": "error", "message": str(e)}), 500
+        return jsonify({"status": "error", "message": str(e)})
 
 
 @bp.route("/run-signals", methods=["POST"])
@@ -156,12 +165,12 @@ def run_signals():
     try:
         result = run_signal_engine()
         total = sum(v for tf_r in result.values() for v in tf_r.values())
-        now_str = datetime.now(timezone.utc).strftime("%Y/%m/%d %H:%M UTC")
-        Setting.set("last_signal_update_at", now_str)
+        Setting.set("last_signal_update_at",
+                    datetime.now(timezone.utc).strftime("%Y/%m/%d %H:%M UTC"))
         return jsonify({"status": "ok", "message": f"シグナル更新完了: {total}件"})
     except Exception as e:
         logger.exception("signal error")
-        return jsonify({"status": "error", "message": str(e)}), 500
+        return jsonify({"status": "error", "message": str(e)})
 
 
 # ---- バックテストツール ----
@@ -170,29 +179,26 @@ def run_signals():
 @login_required
 def backtest_tool():
     from app.models.price_data import PriceData
+    import json
 
-    # ペア×TF の利用可能日時範囲をあらかじめ取得
     date_ranges = {}
     for pair in Config.CURRENCY_PAIRS:
         date_ranges[pair] = {}
         for tf in ["15min", "1hr", "4hr", "daily"]:
-            row = (PriceData.query
-                   .filter_by(currency_pair=pair, timeframe=tf)
-                   .order_by(PriceData.timestamp.asc())
-                   .first())
-            row_last = (PriceData.query
-                        .filter_by(currency_pair=pair, timeframe=tf)
-                        .order_by(PriceData.timestamp.desc())
-                        .first())
-            if row and row_last:
+            first = (PriceData.query
+                     .filter_by(currency_pair=pair, timeframe=tf)
+                     .order_by(PriceData.timestamp.asc()).first())
+            last  = (PriceData.query
+                     .filter_by(currency_pair=pair, timeframe=tf)
+                     .order_by(PriceData.timestamp.desc()).first())
+            if first and last:
                 date_ranges[pair][tf] = {
-                    "min": row.timestamp.strftime("%Y-%m-%d"),
-                    "max": row_last.timestamp.strftime("%Y-%m-%d"),
+                    "min": first.timestamp.strftime("%Y-%m-%d"),
+                    "max": last.timestamp.strftime("%Y-%m-%d"),
                 }
             else:
                 date_ranges[pair][tf] = {"min": "", "max": ""}
 
-    import json
     indicators = {
         "オシレーター": [
             ("RSI_14",         "RSI (14)"),
@@ -202,18 +208,18 @@ def backtest_tool():
             ("Williams_R_14",  "Williams %R (14)"),
         ],
         "トレンド": [
-            ("SMA_20",           "SMA (20)"),
-            ("SMA_50",           "SMA (50)"),
-            ("SMA_Cross_20_50",  "SMAクロス (20/50)"),
-            ("EMA_Cross_9_21",   "EMAクロス (9/21)"),
-            ("EMA_21",           "EMA (21)"),
+            ("SMA_20",              "SMA (20)"),
+            ("SMA_50",              "SMA (50)"),
+            ("SMA_Cross_20_50",     "SMAクロス (20/50)"),
+            ("EMA_Cross_9_21",      "EMAクロス (9/21)"),
+            ("EMA_21",              "EMA (21)"),
             ("BollingerBands_20_2", "ボリンジャーバンド (20,2)"),
-            ("BB_Squeeze",       "BBスクイーズ"),
+            ("BB_Squeeze",          "BBスクイーズ"),
         ],
         "ライン": [
-            ("Pivot_Classic",          "ピボット (Classic)"),
-            ("Fibonacci_Retracement",  "フィボナッチ"),
-            ("Support_Resistance",     "サポート/レジスタンス"),
+            ("Pivot_Classic",         "ピボット (Classic)"),
+            ("Fibonacci_Retracement", "フィボナッチ"),
+            ("Support_Resistance",    "サポート/レジスタンス"),
         ],
         "ボラティリティ": [
             ("ATR_14",          "ATR (14)"),
@@ -235,50 +241,42 @@ def backtest_tool():
         "admin/backtest_tool.html",
         date_ranges_json=json.dumps(date_ranges),
         indicators=indicators,
-        timeframes=[
-            ("15min", "15分足"),
-            ("1hr",   "1時間足"),
-            ("4hr",   "4時間足"),
-            ("daily", "日足"),
-        ],
-        pairs=[
-            ("USDJPY", "ドル円"),
-            ("GBPJPY", "ポンド円"),
-            ("EURJPY", "ユーロ円"),
-        ],
+        timeframes=[("15min","15分足"),("1hr","1時間足"),("4hr","4時間足"),("daily","日足")],
+        pairs=[("USDJPY","ドル円"),("GBPJPY","ポンド円"),("EURJPY","ユーロ円")],
     )
 
 
 @bp.route("/backtest-tool/run", methods=["POST"])
 @login_required
 def backtest_tool_run():
-    """カスタムバックテスト実行（同期・排他制御）"""
+    """カスタムバックテスト実行 (常に HTTP 200 を返す)"""
+    # CGI では threading.Lock が per-process なので DB フラグで排他制御
     from app.models.settings import Setting
-    from app import db
 
-    # 排他制御: 既に実行中なら拒否
-    if not _job_lock.acquire(blocking=False):
-        return jsonify({"status": "busy", "message": "別のバックテストが実行中です。しばらく待ってから再試行してください。"}), 429
+    if Setting.get("custom_bt_status") == "running":
+        return jsonify({"status": "busy",
+                        "message": "別のバックテストが実行中です。しばらく待ってから再試行してください。"})
 
     try:
         Setting.set("custom_bt_status", "running")
-        db.session.commit()
 
-        data = request.get_json(force=True)
-        pair       = data.get("pair", "USDJPY")
-        timeframe  = data.get("timeframe", "1hr")
-        start_date = data.get("start_date", "")
-        end_date   = data.get("end_date", "")
-        capital    = float(data.get("initial_capital", 1_000_000))
-        sl_pips    = float(data.get("sl_pips", 20))
-        rr_ratio   = float(data.get("rr_ratio", 1.5))
-        tp_pips    = round(sl_pips * rr_ratio, 1)
+        data = request.get_json(force=True, silent=True) or {}
+        pair            = data.get("pair", "USDJPY")
+        timeframe       = data.get("timeframe", "1hr")
+        start_date      = data.get("start_date", "")
+        end_date        = data.get("end_date", "")
+        capital         = float(data.get("initial_capital", 1_000_000))
+        sl_pips         = float(data.get("sl_pips", 20))
+        rr_ratio        = float(data.get("rr_ratio", 1.5))
+        tp_pips         = round(sl_pips * rr_ratio, 1)
         indicator_names = data.get("indicators", [])
 
         if pair not in Config.CURRENCY_PAIRS:
-            return jsonify({"status": "error", "message": "無効な通貨ペア"}), 400
+            Setting.set("custom_bt_status", "idle")
+            return jsonify({"status": "error", "message": "無効な通貨ペア"})
         if not indicator_names:
-            return jsonify({"status": "error", "message": "指標を1つ以上選択してください"}), 400
+            Setting.set("custom_bt_status", "idle")
+            return jsonify({"status": "error", "message": "指標を1つ以上選択してください"})
 
         from app.services.data_fetcher import get_candles
         from app.services.backtester import run_backtest_for_indicator
@@ -289,97 +287,103 @@ def backtest_tool_run():
         from app.services.indicators.patterns import calculate_patterns
         import pandas as pd
 
+        # 指標名 → 計算関数のマップ
         INDICATOR_FUNC_MAP = {}
-        for func in [calculate_oscillators, calculate_trend,
-                     calculate_lines, calculate_volatility, calculate_patterns]:
+        _FUNCS = [calculate_oscillators, calculate_trend,
+                  calculate_lines, calculate_volatility, calculate_patterns]
+        for func in _FUNCS:
             try:
-                # ダミーdfでキーを取得
-                dummy = pd.DataFrame({"open":[1]*50,"high":[1]*50,"low":[1]*50,
-                                      "close":[1]*50,"volume":[0]*50})
-                keys = func(dummy).keys()
-                for k in keys:
+                dummy = pd.DataFrame({c: [float(i) for i in range(1, 61)]
+                                      for c in ["open", "high", "low", "close", "volume"]})
+                for k in func(dummy).keys():
                     INDICATOR_FUNC_MAP[k] = func
             except Exception:
                 pass
 
         df = get_candles(pair, timeframe, limit=5000)
         if df.empty:
-            return jsonify({"status": "error", "message": "データがありません"}), 400
+            Setting.set("custom_bt_status", "idle")
+            return jsonify({"status": "error", "message": "DBにデータがありません。先にデータ取得を実行してください。"})
 
         # 日付フィルタ
         if start_date:
-            start_dt = datetime.strptime(start_date, "%Y-%m-%d").replace(tzinfo=None)
-            df = df[df["timestamp"] >= start_dt]
+            try:
+                sd = datetime.strptime(start_date, "%Y-%m-%d").replace(tzinfo=None)
+                df = df[df["timestamp"] >= sd]
+            except ValueError:
+                pass
         if end_date:
-            end_dt = datetime.strptime(end_date, "%Y-%m-%d").replace(hour=23, minute=59, tzinfo=None)
-            df = df[df["timestamp"] <= end_dt]
+            try:
+                ed = datetime.strptime(end_date, "%Y-%m-%d").replace(
+                    hour=23, minute=59, second=59, tzinfo=None)
+                df = df[df["timestamp"] <= ed]
+            except ValueError:
+                pass
         df = df.reset_index(drop=True)
 
         if len(df) < 30:
-            return jsonify({"status": "error", "message": "選択期間のデータが不足しています（30本以上必要）"}), 400
+            Setting.set("custom_bt_status", "idle")
+            return jsonify({"status": "error",
+                            "message": f"選択期間のデータが {len(df)} 本しかありません（30本以上必要）"})
 
         results = []
         for ind_name in indicator_names:
             func = INDICATOR_FUNC_MAP.get(ind_name)
             if func is None:
                 continue
-            # 全データ期間でバックテスト（backtest_hours=99999で全期間使用）
-            res = run_backtest_for_indicator(
-                df=df,
-                indicator_name=ind_name,
-                indicator_func=func,
-                pair=pair,
-                timeframe=timeframe,
-                initial_capital=capital,
-                sl_pips=sl_pips,
-                tp_pips=tp_pips,
-                backtest_hours=99999,
-            )
-            if res:
-                res["indicator_name"] = ind_name
-                # トレードログをJSONシリアライズ可能に変換
-                trades_out = []
-                for t in res.get("trades", []):
-                    entry_ts = t.get("entry_ts")
-                    exit_ts  = t.get("exit_ts")
-                    trades_out.append({
-                        "entry_ts": entry_ts.strftime("%Y/%m/%d %H:%M") if hasattr(entry_ts, "strftime") else str(entry_ts),
-                        "exit_ts":  exit_ts.strftime("%Y/%m/%d %H:%M")  if hasattr(exit_ts,  "strftime") else str(exit_ts),
-                        "signal":       t.get("signal"),
-                        "entry_price":  round(t.get("entry_price", 0), 3),
-                        "exit_price":   round(t.get("exit_price", 0), 3),
-                        "outcome":      t.get("outcome"),
-                        "capital_after": round(t.get("capital_after", 0)),
-                    })
-                res["trades"] = trades_out
-                res["tp_pips"] = tp_pips
-                res["rr_ratio"] = rr_ratio
-                # datetimeをstrに変換
-                for k in ["calculated_at"]:
-                    if k in res and hasattr(res[k], "strftime"):
-                        res[k] = res[k].strftime("%Y/%m/%d %H:%M")
-                results.append(res)
+            try:
+                res = run_backtest_for_indicator(
+                    df=df, indicator_name=ind_name, indicator_func=func,
+                    pair=pair, timeframe=timeframe,
+                    initial_capital=capital, sl_pips=sl_pips, tp_pips=tp_pips,
+                    backtest_hours=99999,
+                )
+            except Exception as ex:
+                logger.warning("Indicator %s failed: %s", ind_name, ex)
+                continue
+
+            if not res:
+                continue
+
+            res["indicator_name"] = ind_name
+            res["tp_pips"]  = tp_pips
+            res["rr_ratio"] = rr_ratio
+
+            trades_out = []
+            for t in res.get("trades", []):
+                ets = t.get("entry_ts")
+                xts = t.get("exit_ts")
+                trades_out.append({
+                    "entry_ts":    ets.strftime("%Y/%m/%d %H:%M") if hasattr(ets, "strftime") else str(ets),
+                    "exit_ts":     xts.strftime("%Y/%m/%d %H:%M") if hasattr(xts, "strftime") else str(xts),
+                    "signal":      t.get("signal"),
+                    "entry_price": round(float(t.get("entry_price", 0)), 3),
+                    "exit_price":  round(float(t.get("exit_price", 0)), 3),
+                    "outcome":     t.get("outcome"),
+                    "capital_after": round(float(t.get("capital_after", 0))),
+                })
+            res["trades"] = trades_out
+
+            for k in ["calculated_at"]:
+                if k in res and hasattr(res[k], "strftime"):
+                    res[k] = res[k].strftime("%Y/%m/%d %H:%M")
+
+            results.append(res)
 
         Setting.set("custom_bt_status", "idle")
-        db.session.commit()
-
         return jsonify({"status": "ok", "results": results})
 
     except Exception as e:
         logger.exception("custom backtest error")
         try:
-            from app.models.settings import Setting
             Setting.set("custom_bt_status", "idle")
         except Exception:
             pass
-        return jsonify({"status": "error", "message": str(e)}), 500
-    finally:
-        _job_lock.release()
+        return jsonify({"status": "error", "message": str(e)})
 
 
 @bp.route("/backtest-tool/status")
 @login_required
 def backtest_tool_status():
     from app.models.settings import Setting
-    status = Setting.get("custom_bt_status", "idle")
-    return jsonify({"status": status})
+    return jsonify({"status": Setting.get("custom_bt_status", "idle")})
