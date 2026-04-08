@@ -7,51 +7,82 @@
 </div>
 
 {% if results %}
-<div class="section-card p-0">
-  {% for r in results %}
-  {% set slug = slug_map.get(r.indicator_name) %}
-  <div class="bt-detail-item">
-    <div class="btd-header">
-      {% if slug %}
-      <a href="/indicators/{{ slug }}.html" class="btd-name btd-name-link">{{ r.indicator_name }}</a>
-      {% else %}
-      <span class="btd-name">{{ r.indicator_name }}</span>
-      {% endif %}
-      <span class="text-muted small ms-2">{{ r.currency_pair[:3] }}/{{ r.currency_pair[3:] }}</span>
-      <span class="bt-winrate ms-auto {% if r.win_rate >= 70 %}high{% elif r.win_rate >= 60 %}mid{% else %}low{% endif %}">
-        {{ "%.1f"|format(r.win_rate) }}%
+
+{# ===== マクロ：1件分のカード ===== #}
+{% macro bt_item(r) %}
+{% set slug = slug_map.get(r.indicator_name) %}
+<div class="bt-detail-item">
+  <div class="btd-header">
+    {% if slug %}
+    <a href="/indicators/{{ slug }}.html" class="btd-name btd-name-link">{{ r.indicator_name }}</a>
+    {% else %}
+    <span class="btd-name">{{ r.indicator_name }}</span>
+    {% endif %}
+    <span class="text-muted small ms-2">{{ r.currency_pair[:3] }}/{{ r.currency_pair[3:] }}</span>
+    <span class="bt-winrate ms-auto {% if r.win_rate >= 70 %}high{% elif r.win_rate >= 60 %}mid{% else %}low{% endif %}">
+      {{ "%.1f"|format(r.win_rate) }}%
+    </span>
+  </div>
+  <div class="btd-body">
+    <div class="btd-stat">
+      <span class="btd-label">TF</span>
+      <span class="btd-value">{{ r.timeframe }}</span>
+    </div>
+    <div class="btd-stat">
+      <span class="btd-label">取引数</span>
+      <span class="btd-value">{{ r.total_trades }}</span>
+    </div>
+    <div class="btd-stat">
+      <span class="btd-label">勝/負</span>
+      <span class="btd-value">
+        <span class="text-success">{{ r.winning_trades }}</span>/
+        <span class="text-danger">{{ r.losing_trades }}</span>
       </span>
     </div>
-    <div class="btd-body">
-      <div class="btd-stat">
-        <span class="btd-label">TF</span>
-        <span class="btd-value">{{ r.timeframe }}</span>
-      </div>
-      <div class="btd-stat">
-        <span class="btd-label">取引数</span>
-        <span class="btd-value">{{ r.total_trades }}</span>
-      </div>
-      <div class="btd-stat">
-        <span class="btd-label">勝/負</span>
-        <span class="btd-value">
-          <span class="text-success">{{ r.winning_trades }}</span>/
-          <span class="text-danger">{{ r.losing_trades }}</span>
-        </span>
-      </div>
-      <div class="btd-stat">
-        <span class="btd-label">損益</span>
-        <span class="btd-value {% if r.total_profit >= 0 %}text-success{% else %}text-danger{% endif %}">
-          ¥{{ "{:,.0f}".format(r.total_profit) }}
-        </span>
-      </div>
-      <div class="btd-stat">
-        <span class="btd-label">PF</span>
-        <span class="btd-value">{{ "%.2f"|format(r.profit_factor) if r.profit_factor else '--' }}</span>
-      </div>
+    <div class="btd-stat">
+      <span class="btd-label">損益</span>
+      <span class="btd-value {% if r.total_profit >= 0 %}text-success{% else %}text-danger{% endif %}">
+        ¥{{ "{:,.0f}".format(r.total_profit) }}
+      </span>
+    </div>
+    <div class="btd-stat">
+      <span class="btd-label">PF</span>
+      <span class="btd-value">{{ "%.2f"|format(r.profit_factor) if r.profit_factor else '--' }}</span>
     </div>
   </div>
+</div>
+{% endmacro %}
+
+{# ===== タブバー ===== #}
+<div class="bt-pair-tabs">
+  <button class="bt-pair-tab active" onclick="switchBtTab(this,'ALL')">
+    全て<span class="bt-tab-count">{{ results|length }}</span>
+  </button>
+  {% for pair in pairs %}
+  {% set plist = results | selectattr('currency_pair', 'equalto', pair) | list %}
+  {% if plist %}
+  <button class="bt-pair-tab" onclick="switchBtTab(this,'{{ pair }}')">
+    {{ pair[:3] }}/{{ pair[3:] }}<span class="bt-tab-count">{{ plist|length }}</span>
+  </button>
+  {% endif %}
   {% endfor %}
 </div>
+
+{# ===== 全てパネル ===== #}
+<div id="bt-panel-ALL" class="bt-panel section-card p-0">
+  {% for r in results %}{{ bt_item(r) }}{% endfor %}
+</div>
+
+{# ===== 銘柄別パネル ===== #}
+{% for pair in pairs %}
+{% set plist = results | selectattr('currency_pair', 'equalto', pair) | list %}
+{% if plist %}
+<div id="bt-panel-{{ pair }}" class="bt-panel section-card p-0" style="display:none">
+  {% for r in plist %}{{ bt_item(r) }}{% endfor %}
+</div>
+{% endif %}
+{% endfor %}
+
 {% else %}
 <div class="empty-state-page">
   <i class="bi bi-bar-chart fs-1 text-muted"></i>
@@ -65,4 +96,14 @@
 </div>
 
 <div style="height:20px"></div>
+
+<script>
+function switchBtTab(btn, panelId) {
+  document.querySelectorAll('.bt-pair-tab').forEach(b => b.classList.remove('active'));
+  document.querySelectorAll('.bt-panel').forEach(p => p.style.display = 'none');
+  btn.classList.add('active');
+  var panel = document.getElementById('bt-panel-' + panelId);
+  if (panel) panel.style.display = 'block';
+}
+</script>
 {% endblock %}
