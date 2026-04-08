@@ -1,7 +1,10 @@
 import os
+from pathlib import Path
 from dotenv import load_dotenv
 
-load_dotenv()
+# .envファイルをconfig.pyの2つ上のディレクトリ（プロジェクトルート）から読み込む
+_env_path = Path(__file__).parent.parent / ".env"
+load_dotenv(_env_path)
 
 
 class Config:
