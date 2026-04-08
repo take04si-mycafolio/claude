@@ -13,8 +13,27 @@ import sys
 import os
 import json
 import logging
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 from pathlib import Path
+
+JST = timezone(timedelta(hours=9))
+
+
+def utc_str_to_jst(ts) -> str:
+    """UTC datetime / str を JST文字列（Y/m/d H:M）に変換"""
+    if ts is None:
+        return ""
+    try:
+        if isinstance(ts, str):
+            ts = ts[:19].replace("T", " ")
+            dt = datetime.strptime(ts, "%Y-%m-%d %H:%M:%S").replace(tzinfo=timezone.utc)
+        elif hasattr(ts, "tzinfo"):
+            dt = ts if ts.tzinfo else ts.replace(tzinfo=timezone.utc)
+        else:
+            return str(ts)[:16]
+        return dt.astimezone(JST).strftime("%Y/%m/%d %H:%M")
+    except Exception:
+        return str(ts)[:16]
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
@@ -55,10 +74,19 @@ def get_pair_data(pair: str) -> dict:
     else:
         overall = "NEUTRAL"
 
+    # 価格タイムスタンプをJSTに変換
+    price_dict = None
+    if price:
+        price_dict = price if isinstance(price, dict) else {
+            k: getattr(price, k, None) for k in ("close", "open", "high", "low", "timestamp")
+        }
+        ts = price_dict.get("timestamp")
+        price_dict["timestamp_jst"] = utc_str_to_jst(ts)
+
     return {
         "pair": pair,
         "display": f"{pair[:3]}/{pair[3:]}",
-        "price": price,
+        "price": price_dict,
         "signals": [s.to_dict() for s in signals],
         "buy_count": buy_count,
         "sell_count": sell_count,
@@ -237,7 +265,7 @@ def main():
 
     app = create_app()
     with app.app_context():
-        updated_at = datetime.now(timezone.utc).strftime("%Y/%m/%d %H:%M UTC")
+        updated_at = datetime.now(JST).strftime("%Y/%m/%d %H:%M JST")
         pairs = Config.CURRENCY_PAIRS
         pair_pages = {"USDJPY": "index.html", "GBPJPY": "gbpjpy.html", "EURJPY": "eurjpy.html"}
 
