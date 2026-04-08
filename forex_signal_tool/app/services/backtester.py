@@ -65,12 +65,12 @@ def run_backtest_for_indicator(
     if df.empty or len(df) < 30:
         return None
 
-    # バックテスト期間を計算
+    # バックテスト期間を計算（DBはtz-naiveで保存されているためnaiveで統一）
     latest_ts = df["timestamp"].max()
     if hasattr(latest_ts, "to_pydatetime"):
         latest_ts = latest_ts.to_pydatetime()
-    if latest_ts.tzinfo is None:
-        latest_ts = latest_ts.replace(tzinfo=timezone.utc)
+    if latest_ts.tzinfo is not None:
+        latest_ts = latest_ts.replace(tzinfo=None)
     cutoff_ts = latest_ts - timedelta(hours=backtest_hours)
 
     pip_value = _get_pip_value(pair) * lot_size
