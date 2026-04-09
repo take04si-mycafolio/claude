@@ -650,6 +650,30 @@ def get_chart_data(pair: str, timeframe: str) -> dict:
     }
 
 
+def load_seo_db() -> dict:
+    """page_seo テーブルから SEO 上書きデータを取得する（失敗時は空dict）"""
+    try:
+        import sqlalchemy
+        from app.config import Config
+        engine = sqlalchemy.create_engine(Config.SQLALCHEMY_DATABASE_URI)
+        with engine.connect() as conn:
+            rows = conn.execute(
+                sqlalchemy.text(
+                    "SELECT page_type, page_key, title, meta_description FROM page_seo"
+                )
+            ).fetchall()
+        result = {}
+        for row in rows:
+            result[f"{row[0]}:{row[1]}"] = {
+                "title":            row[2] or "",
+                "meta_description": row[3] or "",
+            }
+        return result
+    except Exception as e:
+        logger.warning("load_seo_db failed: %s", e)
+        return {}
+
+
 def get_indicator_page_data(indicator_name: str, app) -> dict | None:
     """インジケーター個別ページのデータを取得"""
     from app.models.backtest import BacktestResult
@@ -946,12 +970,21 @@ def main():
                 except Exception as e:
                     logger.warning("Chart JSON error %s %s: %s", pair, tf, e)
 
+        # DB から SEO 上書きデータを取得
+        seo_db = load_seo_db()
+
         # カテゴリ個別ページ生成（/<slug>/index.html → /<slug>/）
         for cat_name, cat_info in CATEGORY_INFO.items():
             try:
                 page_data = get_category_page_data(cat_name)
                 if page_data is None:
                     continue
+                # DB の SEO 上書きを適用
+                db_key = f"category:{cat_info['slug']}"
+                if db_key in seo_db and seo_db[db_key]["title"]:
+                    page_data["category"]["seo_title"] = seo_db[db_key]["title"]
+                if db_key in seo_db and seo_db[db_key]["meta_description"]:
+                    page_data["category"]["seo_description"] = seo_db[db_key]["meta_description"]
                 html = render_html(app, "category_static.html", {
                     **page_data,
                     "updated_at": updated_at,
@@ -967,13 +1000,19 @@ def main():
                 page_data = get_indicator_page_data(ind_name, app)
                 if page_data is None:
                     continue
+                # DB の SEO 上書きを適用
+                url_slug = ind_info.get("url_slug", ind_info["slug"])
+                db_key = f"indicator:{url_slug}"
+                if db_key in seo_db and seo_db[db_key]["title"]:
+                    page_data["info"]["seo_title"] = seo_db[db_key]["title"]
+                if db_key in seo_db and seo_db[db_key]["meta_description"]:
+                    page_data["info"]["seo_description"] = seo_db[db_key]["meta_description"]
                 html = render_html(app, "indicator_static.html", {
                     **page_data,
                     "updated_at": updated_at,
                     "active_page": "backtest",
                 })
                 cat_slug = CATEGORY_SLUGS.get(ind_info["category"], "indicators")
-                url_slug = ind_info.get("url_slug", ind_info["slug"])
                 save(f"{cat_slug}/{url_slug}/index.html", html)
             except Exception as e:
                 logger.warning("Indicator page error %s: %s", ind_name, e)

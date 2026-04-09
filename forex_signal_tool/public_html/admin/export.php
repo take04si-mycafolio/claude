@@ -296,6 +296,7 @@ h2{font-size:20px;font-weight:700;color:#f1f5f9;margin-bottom:6px}
     <a href="/admin/">ダッシュボード</a>
     <a href="/admin/backtest.php">バックテスト</a>
     <a href="/admin/export.php" class="active">エクスポート</a>
+    <a href="/admin/seo.php">SEO管理</a>
     <a href="/admin/settings.php">設定</a>
     <a href="#" class="logout-btn" onclick="logout()">ログアウト</a>
   </nav>

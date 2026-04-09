@@ -224,6 +224,68 @@ switch ($action) {
         json_out(['status' => 'ok', 'message' => '実行フラグをリセットしました']);
         break;
 
+    // ---- SEO 管理 ----
+    case 'seo_init':
+        require_login();
+        try {
+            $pdo = get_pdo();
+            $pdo->exec("CREATE TABLE IF NOT EXISTS page_seo (
+                page_type        VARCHAR(20)  NOT NULL,
+                page_key         VARCHAR(100) NOT NULL,
+                title            VARCHAR(200) DEFAULT '',
+                meta_description TEXT,
+                updated_at       DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                PRIMARY KEY (page_type, page_key)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+            $rows = $pdo->query("SELECT page_type, page_key, title, meta_description, updated_at FROM page_seo")->fetchAll();
+            $data = [];
+            foreach ($rows as $r) {
+                $data[$r['page_type'] . ':' . $r['page_key']] = [
+                    'title'            => $r['title'],
+                    'meta_description' => $r['meta_description'],
+                    'updated_at'       => $r['updated_at'],
+                ];
+            }
+            json_out(['status' => 'ok', 'data' => $data]);
+        } catch (Exception $e) {
+            json_out(['status' => 'error', 'message' => $e->getMessage()]);
+        }
+        break;
+
+    case 'seo_save':
+        require_login();
+        $pageType = $body['page_type'] ?? '';
+        $pageKey  = $body['page_key']  ?? '';
+        $title    = trim($body['title']            ?? '');
+        $meta     = trim($body['meta_description'] ?? '');
+        if (!in_array($pageType, ['indicator', 'category'], true) || $pageKey === '') {
+            json_out(['status' => 'error', 'message' => '無効なパラメータ']);
+        }
+        try {
+            $pdo = get_pdo();
+            $pdo->exec("CREATE TABLE IF NOT EXISTS page_seo (
+                page_type        VARCHAR(20)  NOT NULL,
+                page_key         VARCHAR(100) NOT NULL,
+                title            VARCHAR(200) DEFAULT '',
+                meta_description TEXT,
+                updated_at       DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                PRIMARY KEY (page_type, page_key)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+            $stmt = $pdo->prepare(
+                "INSERT INTO page_seo (page_type, page_key, title, meta_description)
+                 VALUES (?, ?, ?, ?)
+                 ON DUPLICATE KEY UPDATE
+                   title=VALUES(title),
+                   meta_description=VALUES(meta_description),
+                   updated_at=NOW()"
+            );
+            $stmt->execute([$pageType, $pageKey, $title, $meta]);
+            json_out(['status' => 'ok', 'message' => '保存しました']);
+        } catch (Exception $e) {
+            json_out(['status' => 'error', 'message' => $e->getMessage()]);
+        }
+        break;
+
     default:
         json_out(['status' => 'error', 'message' => '不明なアクション: ' . htmlspecialchars($action)]);
 }
