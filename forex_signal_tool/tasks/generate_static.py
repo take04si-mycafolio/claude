@@ -589,6 +589,7 @@ def get_indicator_page_data(indicator_name: str, app) -> dict | None:
             "entry_ts_jst":  utc_str_to_jst(t.entry_at),
             "entry_ts_unix": _to_unix(t.entry_at),
             "exit_ts_unix":  _to_unix(t.exit_at),
+            "timeframe":     t.timeframe,
             "signal":        t.direction,
             "entry_price":   float(t.entry_price) if t.entry_price else None,
             "tp_price":      float(t.tp_price) if t.tp_price else None,

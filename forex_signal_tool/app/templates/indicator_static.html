@@ -217,6 +217,7 @@
               {% set is_win = t.outcome == 'WIN' %}
               <tr class="trade-row"
                   data-pair="{{ pair }}"
+                  data-tf="{{ t.timeframe or '15min' }}"
                   data-entry-ts="{{ t.entry_ts_unix or '' }}"
                   data-exit-ts="{{ t.exit_ts_unix or '' }}"
                   data-entry-price="{{ t.entry_price or '' }}"
@@ -357,6 +358,7 @@
 
   async function openTradeModal(row) {
     const pair       = row.dataset.pair;
+    const tf         = row.dataset.tf || '15min';
     const entryTs    = parseInt(row.dataset.entryTs)   || 0;
     const exitTs     = parseInt(row.dataset.exitTs)    || 0;
     const entryPrice = parseFloat(row.dataset.entryPrice) || 0;
@@ -393,12 +395,13 @@
     modal.show();
 
     // チャートデータ取得（エントリー前60本 〜 エグジット後30本）
-    const BAR = 900; // 15min = 900s
+    const TF_SECONDS = { '5min': 300, '15min': 900, '30min': 1800, '1hr': 3600, '4hr': 14400, 'daily': 86400 };
+    const BAR = TF_SECONDS[tf] || 900;
     const from = entryTs - 60 * BAR;
     const to   = (exitTs || entryTs + 100 * BAR) + 30 * BAR;
 
     try {
-      const res = await fetch(`/chart_data.php?pair=${pair}&tf=15min&from=${from}&to=${to}&minimal=1&_=${Date.now()}`);
+      const res = await fetch(`/chart_data.php?pair=${pair}&tf=${tf}&from=${from}&to=${to}&minimal=1&_=${Date.now()}`);
       const d   = await res.json();
       const tradeData = { entryTs, exitTs, entryPrice, tpPrice, slPrice, signal, outcome };
       // モーダルアニメーション完了後に描画（shown.bs.modal 待ち or 既に表示済み）

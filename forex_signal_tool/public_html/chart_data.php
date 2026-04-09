@@ -55,11 +55,11 @@ $to_ts   = isset($_GET['to'])   ? (int)$_GET['to']   : null;
 $minimal = !empty($_GET['minimal']); // trueのとき指標計算をスキップ
 
 $valid_pairs = ['USDJPY', 'GBPJPY', 'EURJPY'];
-$valid_tfs   = ['15min', '1hr', '4hr', 'daily'];
+$valid_tfs   = ['5min', '15min', '30min', '1hr', '4hr', 'daily'];
 if (!in_array($pair, $valid_pairs, true)) $pair = 'USDJPY';
 if (!in_array($tf,   $valid_tfs,   true)) $tf   = '15min';
 
-$limits = ['15min' => 120, '1hr' => 200, '4hr' => 150, 'daily' => 300];
+$limits = ['5min' => 200, '15min' => 120, '30min' => 150, '1hr' => 200, '4hr' => 150, 'daily' => 300];
 $limit  = $limits[$tf];
 
 // ---- DBからローソク足を取得 ----
