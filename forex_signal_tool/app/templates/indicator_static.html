@@ -215,7 +215,18 @@
               {% for t in pair_trades %}
               {% set is_buy = t.signal == 'BUY' %}
               {% set is_win = t.outcome == 'WIN' %}
-              <tr>
+              <tr class="trade-row"
+                  data-pair="{{ pair }}"
+                  data-entry-ts="{{ t.entry_ts_unix or '' }}"
+                  data-exit-ts="{{ t.exit_ts_unix or '' }}"
+                  data-entry-price="{{ t.entry_price or '' }}"
+                  data-tp-price="{{ t.tp_price or '' }}"
+                  data-sl-price="{{ t.sl_price or '' }}"
+                  data-signal="{{ t.signal }}"
+                  data-outcome="{{ t.outcome }}"
+                  data-pnl="{{ t.pnl }}"
+                  data-entry-label="{{ t.entry_ts_jst }}"
+                  style="cursor:pointer">
                 <td class="ind-trade-time" style="white-space:nowrap">{{ t.entry_ts_jst }}</td>
                 <td style="white-space:nowrap">
                   <span class="signal-type-badge {% if is_buy %}buy{% else %}sell{% endif %}">
@@ -290,8 +301,32 @@
   </a>
 </nav>
 
+<!-- トレード詳細モーダル -->
+<div class="modal fade" id="tradeModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-lg modal-dialog-centered">
+    <div class="modal-content" style="background:#1e293b;border:1px solid #334155;">
+      <div class="modal-header" style="border-bottom:1px solid #334155;padding:10px 16px;">
+        <div>
+          <h6 class="modal-title mb-0 text-white" id="tradeModalTitle">トレード詳細</h6>
+          <div id="tradeModalMeta" style="font-size:0.72rem;color:#94a3b8;margin-top:2px;"></div>
+        </div>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body p-0">
+        <div id="tradeChartLoading" style="height:280px;display:flex;align-items:center;justify-content:center;color:#64748b;">
+          <span>チャート読み込み中...</span>
+        </div>
+        <div id="tradeChartContainer" style="height:280px;display:none;"></div>
+      </div>
+      <div class="modal-footer" id="tradeModalFooter" style="border-top:1px solid #334155;padding:8px 16px;flex-wrap:wrap;gap:8px;"></div>
+    </div>
+  </div>
+</div>
+
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+<script src="https://unpkg.com/lightweight-charts@4.1.7/dist/lightweight-charts.standalone.production.js"></script>
 <script>
+  // ---- 時計 ----
   function updateClock() {
     const now = new Date();
     const jst = new Date(now.getTime() + 9 * 3600 * 1000);
@@ -302,6 +337,124 @@
   }
   setInterval(updateClock, 1000);
   updateClock();
+
+  // ---- トレード詳細チャート ----
+  let _tradeChart = null;
+
+  function destroyTradeChart() {
+    if (_tradeChart) { try { _tradeChart.remove(); } catch(e){} _tradeChart = null; }
+  }
+
+  document.getElementById('tradeModal').addEventListener('hidden.bs.modal', destroyTradeChart);
+
+  async function openTradeModal(row) {
+    const pair       = row.dataset.pair;
+    const entryTs    = parseInt(row.dataset.entryTs)   || 0;
+    const exitTs     = parseInt(row.dataset.exitTs)    || 0;
+    const entryPrice = parseFloat(row.dataset.entryPrice) || 0;
+    const tpPrice    = parseFloat(row.dataset.tpPrice)    || 0;
+    const slPrice    = parseFloat(row.dataset.slPrice)    || 0;
+    const signal     = row.dataset.signal;
+    const outcome    = row.dataset.outcome;
+    const pnl        = parseFloat(row.dataset.pnl) || 0;
+    const label      = row.dataset.entryLabel || '';
+
+    // モーダル表示
+    const modal = new bootstrap.Modal(document.getElementById('tradeModal'));
+    const isBuy = signal === 'BUY';
+    const isWin = outcome === 'WIN';
+
+    document.getElementById('tradeModalTitle').textContent =
+      `${pair.slice(0,3)}/${pair.slice(3)} ${isBuy ? '買い' : '売り'} — ${label} (JST)`;
+    document.getElementById('tradeModalMeta').textContent = '';
+
+    // Footer
+    const footer = document.getElementById('tradeModalFooter');
+    footer.innerHTML = `
+      <span style="font-size:0.75rem;color:#94a3b8;">エントリー <b class="text-white">${entryPrice.toFixed(3)}</b></span>
+      <span style="font-size:0.75rem;color:#22c55e;">TP <b>${tpPrice.toFixed(3)}</b></span>
+      <span style="font-size:0.75rem;color:#ef4444;">SL <b>${slPrice.toFixed(3)}</b></span>
+      <span style="font-size:0.75rem;" class="${isWin ? 'text-success' : 'text-danger'}">
+        結果 <b>${isWin ? '✓利確' : '✗損切'}</b> ${pnl >= 0 ? '+' : ''}¥${Math.abs(pnl).toLocaleString()}
+      </span>`;
+
+    document.getElementById('tradeChartLoading').style.display = 'flex';
+    document.getElementById('tradeChartContainer').style.display = 'none';
+    destroyTradeChart();
+    modal.show();
+
+    // チャートデータ取得（エントリー前60本 〜 エグジット後30本）
+    const BAR = 900; // 15min = 900s
+    const from = entryTs - 60 * BAR;
+    const to   = (exitTs || entryTs + 100 * BAR) + 30 * BAR;
+
+    try {
+      const res = await fetch(`/chart_data.php?pair=${pair}&tf=15min&from=${from}&to=${to}&minimal=1&_=${Date.now()}`);
+      const d   = await res.json();
+      renderTradeChart(d.candles || [], { entryTs, exitTs, entryPrice, tpPrice, slPrice, signal, outcome });
+    } catch(e) {
+      document.getElementById('tradeChartLoading').innerHTML = '<span style="color:#ef4444;">データ取得失敗</span>';
+    }
+  }
+
+  function renderTradeChart(candles, trade) {
+    const container = document.getElementById('tradeChartContainer');
+    document.getElementById('tradeChartLoading').style.display = 'none';
+    container.style.display = 'block';
+    destroyTradeChart();
+
+    _tradeChart = LightweightCharts.createChart(container, {
+      width:  container.clientWidth,
+      height: 280,
+      layout: { background: { type: 'solid', color: '#1e293b' }, textColor: '#94a3b8' },
+      grid:   { vertLines: { color: '#334155' }, horzLines: { color: '#334155' } },
+      timeScale: { timeVisible: true, secondsVisible: false, borderColor: '#334155' },
+      rightPriceScale: { borderColor: '#334155' },
+      crosshair: { mode: LightweightCharts.CrosshairMode.Normal },
+    });
+
+    const cs = _tradeChart.addCandlestickSeries({
+      upColor: '#22c55e', downColor: '#ef4444',
+      borderUpColor: '#22c55e', borderDownColor: '#ef4444',
+      wickUpColor: '#22c55e', wickDownColor: '#ef4444',
+    });
+
+    try { cs.setData(candles); } catch(e) {}
+
+    // TP / SL / エントリー価格ライン
+    if (trade.tpPrice)    cs.createPriceLine({ price: trade.tpPrice,    color: '#22c55e', lineWidth: 1, lineStyle: LightweightCharts.LineStyle.Dashed,  axisLabelVisible: true, title: 'TP' });
+    if (trade.slPrice)    cs.createPriceLine({ price: trade.slPrice,    color: '#ef4444', lineWidth: 1, lineStyle: LightweightCharts.LineStyle.Dashed,  axisLabelVisible: true, title: 'SL' });
+    if (trade.entryPrice) cs.createPriceLine({ price: trade.entryPrice, color: '#f59e0b', lineWidth: 1, lineStyle: LightweightCharts.LineStyle.Dotted, axisLabelVisible: true, title: 'IN' });
+
+    // IN / OUT マーカー
+    const markers = [];
+    const isBuy = trade.signal === 'BUY';
+    if (trade.entryTs) markers.push({
+      time: trade.entryTs,
+      position: isBuy ? 'belowBar' : 'aboveBar',
+      color: isBuy ? '#22c55e' : '#ef4444',
+      shape: isBuy ? 'arrowUp' : 'arrowDown',
+      text: 'IN',
+    });
+    if (trade.exitTs) markers.push({
+      time: trade.exitTs,
+      position: trade.outcome === 'WIN' ? 'aboveBar' : 'belowBar',
+      color: trade.outcome === 'WIN' ? '#22c55e' : '#ef4444',
+      shape: 'circle',
+      text: 'OUT',
+    });
+    markers.sort((a, b) => a.time - b.time);
+    try { cs.setMarkers(markers); } catch(e) {}
+
+    _tradeChart.timeScale().fitContent();
+  }
+
+  // ---- クリックハンドラ ----
+  document.addEventListener('click', function(e) {
+    const row = e.target.closest('.trade-row');
+    if (!row) return;
+    openTradeModal(row);
+  });
 </script>
 </body>
 </html>

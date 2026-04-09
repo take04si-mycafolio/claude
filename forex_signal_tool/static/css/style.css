@@ -850,6 +850,8 @@ body {
 }
 .ind-trades-table tr:last-child td { border-bottom: none; }
 .ind-trade-time { font-size: 0.67rem; color: #64748b; white-space: nowrap; }
+.trade-row:hover td { background: #f0f7ff; }
+.trade-row:active td { background: #dbeafe; }
 
 /* 通貨ペアタブ */
 .ind-pair-tabs { border-bottom: 1px solid #e2e8f0; gap: 2px; }

@@ -574,18 +574,27 @@ def get_indicator_page_data(indicator_name: str, app) -> dict | None:
     sl = Setting.get_float("sl_pips", 20)
     tp = Setting.get_float("tp_pips", 40)
 
+    def _to_unix(dt):
+        """naive UTC datetime → Unix timestamp"""
+        if dt is None:
+            return None
+        from datetime import timezone as _tz
+        return int(dt.replace(tzinfo=_tz.utc).timestamp())
+
     def _fmt_trade(t):
         sl_v = float(t.sl_pips) if t.sl_pips else sl
         tp_v = float(t.tp_pips) if t.tp_pips else tp
         is_win = t.outcome == "WIN"
         return {
-            "entry_ts_jst": utc_str_to_jst(t.entry_at),
-            "signal":       t.direction,
-            "entry_price":  float(t.entry_price) if t.entry_price else None,
-            "tp_price":     float(t.tp_price) if t.tp_price else None,
-            "sl_price":     float(t.sl_price) if t.sl_price else None,
-            "outcome":      t.outcome,
-            "pnl":          (tp_v * 1000) if is_win else -(sl_v * 1000),
+            "entry_ts_jst":  utc_str_to_jst(t.entry_at),
+            "entry_ts_unix": _to_unix(t.entry_at),
+            "exit_ts_unix":  _to_unix(t.exit_at),
+            "signal":        t.direction,
+            "entry_price":   float(t.entry_price) if t.entry_price else None,
+            "tp_price":      float(t.tp_price) if t.tp_price else None,
+            "sl_price":      float(t.sl_price) if t.sl_price else None,
+            "outcome":       t.outcome,
+            "pnl":           (tp_v * 1000) if is_win else -(sl_v * 1000),
         }
 
     # 通貨ペアごとのバックテスト結果

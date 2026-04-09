@@ -48,8 +48,11 @@ function get_pdo(): PDO {
 }
 
 // ---- パラメータ検証 ----
-$pair  = strtoupper(preg_replace('/[^A-Za-z]/', '', $_GET['pair'] ?? 'USDJPY'));
-$tf    = preg_replace('/[^a-z0-9]/', '', strtolower($_GET['tf'] ?? '15min'));
+$pair    = strtoupper(preg_replace('/[^A-Za-z]/', '', $_GET['pair'] ?? 'USDJPY'));
+$tf      = preg_replace('/[^a-z0-9]/', '', strtolower($_GET['tf'] ?? '15min'));
+$from_ts = isset($_GET['from']) ? (int)$_GET['from'] : null;
+$to_ts   = isset($_GET['to'])   ? (int)$_GET['to']   : null;
+$minimal = !empty($_GET['minimal']); // trueのとき指標計算をスキップ
 
 $valid_pairs = ['USDJPY', 'GBPJPY', 'EURJPY'];
 $valid_tfs   = ['15min', '1hr', '4hr', 'daily'];
@@ -63,17 +66,29 @@ $limit  = $limits[$tf];
 $candles = $times = $closes = [];
 $dbError = null;
 try {
-    $pdo  = get_pdo();
-    // LIMIT に直接整数を埋め込む（PDO の ? バインドは文字列扱いになり LIMIT が効かない場合がある）
-    $sql  = 'SELECT timestamp, open, high, low, close FROM price_data
-             WHERE currency_pair=? AND timeframe=?
-             ORDER BY timestamp DESC LIMIT ' . (int)$limit;
-    $stmt = $pdo->prepare($sql);
-    $stmt->execute([$pair, $tf]);
-    $rows = array_reverse($stmt->fetchAll());
+    $pdo = get_pdo();
+    if ($from_ts && $to_ts) {
+        // 時刻範囲指定（トレード詳細モーダル用）
+        $from_dt = gmdate('Y-m-d H:i:s', $from_ts);
+        $to_dt   = gmdate('Y-m-d H:i:s', $to_ts);
+        $sql  = 'SELECT timestamp, open, high, low, close FROM price_data
+                 WHERE currency_pair=? AND timeframe=?
+                 AND timestamp >= ? AND timestamp <= ?
+                 ORDER BY timestamp ASC';
+        $stmt = $pdo->prepare($sql);
+        $stmt->execute([$pair, $tf, $from_dt, $to_dt]);
+        $rows = $stmt->fetchAll();
+    } else {
+        $sql  = 'SELECT timestamp, open, high, low, close FROM price_data
+                 WHERE currency_pair=? AND timeframe=?
+                 ORDER BY timestamp DESC LIMIT ' . (int)$limit;
+        $stmt = $pdo->prepare($sql);
+        $stmt->execute([$pair, $tf]);
+        $rows = array_reverse($stmt->fetchAll());
+    }
 
     foreach ($rows as $row) {
-        $ts = strtotime($row['timestamp'] . ' UTC'); // DBはUTC naive
+        $ts = strtotime($row['timestamp'] . ' UTC');
         $o  = (float)$row['open'];
         $h  = (float)$row['high'];
         $l  = (float)$row['low'];
@@ -104,6 +119,14 @@ if (empty($candles)) {
 }
 
 $n = count($closes);
+
+// minimal モード: ローソク足のみ返して終了（トレード詳細モーダル用）
+if ($minimal) {
+    header('Content-Type: application/json; charset=utf-8');
+    header('Cache-Control: no-cache, no-store, must-revalidate');
+    echo json_encode(['candles' => $candles], JSON_UNESCAPED_UNICODE | JSON_NUMERIC_CHECK);
+    exit;
+}
 
 // ---- SMA ----
 function sma_series(array $closes, array $times, int $period): array {
