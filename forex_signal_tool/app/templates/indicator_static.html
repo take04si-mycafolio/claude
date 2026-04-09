@@ -106,103 +106,148 @@
     </div>
   </div>
 
-  <!-- バックテスト結果サマリー -->
+  <!-- バックテスト結果サマリー（通貨ペア別タブ） -->
   <div class="section-card">
     <h2 class="ind-section-title"><i class="bi bi-bar-chart-fill text-warning me-2"></i>バックテスト結果サマリー</h2>
     {% if results %}
-    <div class="ind-results-table-wrap">
-      <table class="ind-results-table">
-        <thead>
-          <tr>
-            <th>通貨ペア</th>
-            <th>TF</th>
-            <th>勝率</th>
-            <th>取引数</th>
-            <th>勝/負</th>
-            <th>損益</th>
-            <th>PF</th>
-          </tr>
-        </thead>
-        <tbody>
-          {% for r in results %}
-          <tr>
-            <td>{{ r.currency_pair[:3] }}/{{ r.currency_pair[3:] }}</td>
-            <td>{{ r.timeframe }}</td>
-            <td class="fw-bold {% if r.win_rate >= 70 %}text-success{% elif r.win_rate >= 60 %}text-warning{% else %}text-muted{% endif %}">
-              {{ "%.1f"|format(r.win_rate) }}%
-            </td>
-            <td>{{ r.total_trades }}</td>
-            <td>
-              <span class="text-success">{{ r.winning_trades }}</span>
-              / <span class="text-danger">{{ r.losing_trades }}</span>
-            </td>
-            <td class="{% if r.total_profit >= 0 %}text-success{% else %}text-danger{% endif %}">
-              ¥{{ "{:,.0f}".format(r.total_profit) }}
-            </td>
-            <td>{{ "%.2f"|format(r.profit_factor) if r.profit_factor else '-' }}</td>
-          </tr>
-          {% endfor %}
-        </tbody>
-      </table>
+    <ul class="nav nav-tabs ind-pair-tabs mb-2" id="btTab" role="tablist">
+      {% for pair in pairs %}
+      <li class="nav-item" role="presentation">
+        <button class="nav-link {% if loop.first %}active{% endif %}"
+                id="bt-{{ pair.lower() }}-tab"
+                data-bs-toggle="tab"
+                data-bs-target="#bt-{{ pair.lower() }}"
+                type="button" role="tab">
+          {{ pair[:3] }}/{{ pair[3:] }}
+        </button>
+      </li>
+      {% endfor %}
+    </ul>
+    <div class="tab-content">
+      {% for pair in pairs %}
+      <div class="tab-pane fade {% if loop.first %}show active{% endif %}"
+           id="bt-{{ pair.lower() }}" role="tabpanel">
+        {% set pair_results = results_by_pair[pair] %}
+        {% if pair_results %}
+        <div class="ind-results-table-wrap">
+          <table class="ind-results-table">
+            <thead>
+              <tr>
+                <th>TF</th>
+                <th>勝率</th>
+                <th>取引数</th>
+                <th style="white-space:nowrap">勝/負</th>
+                <th style="white-space:nowrap">損益</th>
+                <th>PF</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for r in pair_results %}
+              <tr>
+                <td style="white-space:nowrap">{{ r.timeframe }}</td>
+                <td class="fw-bold {% if r.win_rate >= 70 %}text-success{% elif r.win_rate >= 60 %}text-warning{% else %}text-muted{% endif %}">
+                  {{ "%.1f"|format(r.win_rate) }}%
+                </td>
+                <td>{{ r.total_trades }}</td>
+                <td style="white-space:nowrap">
+                  <span class="text-success">{{ r.winning_trades }}</span>/<span class="text-danger">{{ r.losing_trades }}</span>
+                </td>
+                <td style="white-space:nowrap" class="{% if r.total_profit >= 0 %}text-success{% else %}text-danger{% endif %}">
+                  ¥{{ "{:,.0f}".format(r.total_profit) }}
+                </td>
+                <td>{{ "%.2f"|format(r.profit_factor) if r.profit_factor else '-' }}</td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+        {% else %}
+        <div class="empty-state small">{{ pair[:3] }}/{{ pair[3:] }} のデータがありません</div>
+        {% endif %}
+      </div>
+      {% endfor %}
     </div>
     {% else %}
     <div class="empty-state">バックテストデータがありません</div>
     {% endif %}
   </div>
 
-  <!-- 直近取引履歴 -->
-  {% if trades %}
+  <!-- トレードシミュレーション（通貨ペア別タブ・15分足） -->
   <div class="section-card">
-    <h2 class="ind-section-title"><i class="bi bi-clock-history text-info me-2"></i>直近取引履歴
-      <span class="text-muted small ms-2">{{ best.currency_pair[:3] }}/{{ best.currency_pair[3:] }} {{ best.timeframe }}（直近{{ trades|length }}件）</span>
+    <h2 class="ind-section-title">
+      <i class="bi bi-clock-history text-info me-2"></i>トレードシミュレーション
+      <span class="info-tip" data-tip="15分足・SL {{ sl }}pips / TP {{ tp }}pips の条件でシグナル発生時にエントリーしたと仮定した場合の損益シミュレーションです。実際の取引結果ではありません。最大20件表示。">
+        <i class="bi bi-info-circle-fill"></i>
+      </span>
     </h2>
-    <div class="ind-trades-table-wrap">
-      <table class="ind-trades-table">
-        <thead>
-          <tr>
-            <th>エントリー日時 (JST)</th>
-            <th>種別</th>
-            <th>エントリー</th>
-            <th>TP</th>
-            <th>SL</th>
-            <th>結果</th>
-            <th>損益</th>
-          </tr>
-        </thead>
-        <tbody>
-          {% for t in trades %}
-          {% set is_buy = t.signal == 'BUY' %}
-          {% set is_win = t.outcome == 'WIN' %}
-          {% set pnl = (t.tp_pips if is_win else -t.sl_pips) * 1000 if t.tp_pips is defined else 0 %}
-          <tr>
-            <td class="ind-trade-time">{{ t.entry_ts_jst }}</td>
-            <td>
-              <span class="signal-type-badge {% if is_buy %}buy{% else %}sell{% endif %}">
-                {{ '買い' if t.signal == 'BUY' else '売り' }}
-              </span>
-            </td>
-            <td class="font-mono">{{ "%.3f"|format(t.entry_price) if t.entry_price else '-' }}</td>
-            <td class="font-mono text-success">{{ "%.3f"|format(t.tp_price) if t.tp_price else '-' }}</td>
-            <td class="font-mono text-danger">{{ "%.3f"|format(t.sl_price) if t.sl_price else '-' }}</td>
-            <td>
-              {% if t.outcome == 'WIN' %}
-              <span class="ind-outcome win">✓ 利確</span>
-              {% elif t.outcome == 'LOSS' %}
-              <span class="ind-outcome loss">✗ 損切</span>
-              {% else %}
-              <span class="ind-outcome neutral">-</span>
-              {% endif %}
-            </td>
-            <td class="fw-bold {% if is_win %}text-success{% else %}text-danger{% endif %}">
-              {{ '+' if is_win else '-' }}¥{{ "{:,.0f}".format(t.pnl|abs) if t.pnl is defined else '?' }}
-            </td>
-          </tr>
-          {% endfor %}
-        </tbody>
-      </table>
+    <ul class="nav nav-tabs ind-pair-tabs mb-2" id="tradeTab" role="tablist">
+      {% for pair in pairs %}
+      <li class="nav-item" role="presentation">
+        <button class="nav-link {% if loop.first %}active{% endif %}"
+                id="trade-{{ pair.lower() }}-tab"
+                data-bs-toggle="tab"
+                data-bs-target="#trade-{{ pair.lower() }}"
+                type="button" role="tab">
+          {{ pair[:3] }}/{{ pair[3:] }}
+        </button>
+      </li>
+      {% endfor %}
+    </ul>
+    <div class="tab-content">
+      {% for pair in pairs %}
+      <div class="tab-pane fade {% if loop.first %}show active{% endif %}"
+           id="trade-{{ pair.lower() }}" role="tabpanel">
+        {% set pair_trades = trades_by_pair[pair] %}
+        {% if pair_trades %}
+        <div class="ind-trades-table-wrap">
+          <table class="ind-trades-table">
+            <thead>
+              <tr>
+                <th style="white-space:nowrap">エントリー (JST)</th>
+                <th style="white-space:nowrap">種別</th>
+                <th>エントリー</th>
+                <th>TP</th>
+                <th>SL</th>
+                <th style="white-space:nowrap">結果・損益</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for t in pair_trades %}
+              {% set is_buy = t.signal == 'BUY' %}
+              {% set is_win = t.outcome == 'WIN' %}
+              <tr>
+                <td class="ind-trade-time" style="white-space:nowrap">{{ t.entry_ts_jst }}</td>
+                <td style="white-space:nowrap">
+                  <span class="signal-type-badge {% if is_buy %}buy{% else %}sell{% endif %}">
+                    {{ '買い' if is_buy else '売り' }}
+                  </span>
+                </td>
+                <td class="font-mono">{{ "%.3f"|format(t.entry_price) if t.entry_price else '-' }}</td>
+                <td class="font-mono text-success">{{ "%.3f"|format(t.tp_price) if t.tp_price else '-' }}</td>
+                <td class="font-mono text-danger">{{ "%.3f"|format(t.sl_price) if t.sl_price else '-' }}</td>
+                <td style="white-space:nowrap">
+                  {% if t.outcome == 'WIN' %}
+                  <span class="ind-outcome win">✓利確</span>
+                  <span class="fw-bold text-success ms-1">+¥{{ "{:,.0f}".format(t.pnl|abs) }}</span>
+                  {% elif t.outcome == 'LOSS' %}
+                  <span class="ind-outcome loss">✗損切</span>
+                  <span class="fw-bold text-danger ms-1">-¥{{ "{:,.0f}".format(t.pnl|abs) }}</span>
+                  {% else %}
+                  <span class="ind-outcome neutral">-</span>
+                  {% endif %}
+                </td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+        {% else %}
+        <div class="empty-state small">{{ pair[:3] }}/{{ pair[3:] }} の15分足データがありません</div>
+        {% endif %}
+      </div>
+      {% endfor %}
     </div>
   </div>
-  {% endif %}
 
   <!-- 関連指標リンク -->
   <div class="section-card">

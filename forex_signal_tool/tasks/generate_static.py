@@ -557,6 +557,7 @@ def get_indicator_page_data(indicator_name: str, app) -> dict | None:
     from app.models.backtest import BacktestResult
     from app.models.simulation_trade import SimulationTrade
     from app.models.settings import Setting
+    from app.config import Config
 
     info = INDICATOR_INFO.get(indicator_name)
     if not info:
@@ -573,34 +574,34 @@ def get_indicator_page_data(indicator_name: str, app) -> dict | None:
     sl = Setting.get_float("sl_pips", 20)
     tp = Setting.get_float("tp_pips", 40)
 
-    # 直近取引履歴（DBのSimulationTradeから取得）
-    raw_trades = (
-        SimulationTrade.query
-        .filter_by(
-            indicator_name=indicator_name,
-            currency_pair=best.currency_pair,
-            timeframe=best.timeframe,
-        )
-        .order_by(SimulationTrade.entry_at.desc())
-        .limit(30).all()
-    )
-
-    # 取引履歴をテンプレート用に整形
-    trades = []
-    for t in raw_trades:
+    def _fmt_trade(t):
         sl_v = float(t.sl_pips) if t.sl_pips else sl
         tp_v = float(t.tp_pips) if t.tp_pips else tp
         is_win = t.outcome == "WIN"
-        pnl = (tp_v * 1000) if is_win else -(sl_v * 1000)
-        trades.append({
+        return {
             "entry_ts_jst": utc_str_to_jst(t.entry_at),
             "signal":       t.direction,
             "entry_price":  float(t.entry_price) if t.entry_price else None,
             "tp_price":     float(t.tp_price) if t.tp_price else None,
             "sl_price":     float(t.sl_price) if t.sl_price else None,
             "outcome":      t.outcome,
-            "pnl":          pnl,
-        })
+            "pnl":          (tp_v * 1000) if is_win else -(sl_v * 1000),
+        }
+
+    # 通貨ペアごとのバックテスト結果
+    all_pairs = Config.CURRENCY_PAIRS  # ['USDJPY', 'GBPJPY', 'EURJPY']
+    results_by_pair = {}
+    for pair in all_pairs:
+        results_by_pair[pair] = [r.to_dict() for r in results if r.currency_pair == pair]
+
+    # 通貨ペアごとの15分足トレードシミュレーション（最大20件）
+    trades_by_pair = {}
+    for pair in all_pairs:
+        raw = (SimulationTrade.query
+               .filter_by(indicator_name=indicator_name, currency_pair=pair, timeframe="15min")
+               .order_by(SimulationTrade.entry_at.desc())
+               .limit(20).all())
+        trades_by_pair[pair] = [_fmt_trade(t) for t in raw]
 
     # 関連指標（同カテゴリ優先、最大8件）
     related = []
@@ -617,18 +618,20 @@ def get_indicator_page_data(indicator_name: str, app) -> dict | None:
             "category": i["category"],
             "win_rate": br.win_rate if br else None,
         })
-    # 同カテゴリを先に並べて最大8件
     cat = info["category"]
-    related.sort(key=lambda x: (0 if x["category"] == cat else 1,
-                                 -(x["win_rate"] or 0)))
+    related.sort(key=lambda x: (0 if x["category"] == cat else 1, -(x["win_rate"] or 0)))
     related = related[:8]
 
     return {
-        "info":       info,
-        "results":    [r.to_dict() for r in results],
-        "best":       best.to_dict(),
-        "trades":     trades,
-        "related":    related,
+        "info":             info,
+        "results":          [r.to_dict() for r in results],
+        "results_by_pair":  results_by_pair,
+        "trades_by_pair":   trades_by_pair,
+        "pairs":            all_pairs,
+        "best":             best.to_dict(),
+        "sl":               int(sl),
+        "tp":               int(tp),
+        "related":          related,
     }
 
 
