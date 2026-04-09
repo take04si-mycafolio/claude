@@ -12,7 +12,7 @@ set_error_handler(function($errno, $errstr) {
 });
 
 // DB接続情報（.env があれば上書き）
-$_dbHost = 'sv16060.xserver.jp';
+$_dbHost = 'localhost';
 $_dbName = 'xs539690_forex';
 $_dbUser = 'xs539690_forex';
 $_dbPass = 'qPI)d:y9f0tU';
