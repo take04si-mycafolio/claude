@@ -340,12 +340,20 @@
 
   // ---- トレード詳細チャート ----
   let _tradeChart = null;
+  let _pendingRender = null;
 
   function destroyTradeChart() {
     if (_tradeChart) { try { _tradeChart.remove(); } catch(e){} _tradeChart = null; }
   }
 
-  document.getElementById('tradeModal').addEventListener('hidden.bs.modal', destroyTradeChart);
+  const _tradeModalEl = document.getElementById('tradeModal');
+  _tradeModalEl.addEventListener('hidden.bs.modal', () => { destroyTradeChart(); _pendingRender = null; });
+  _tradeModalEl.addEventListener('shown.bs.modal', () => {
+    if (_pendingRender) {
+      renderTradeChart(_pendingRender.candles, _pendingRender.trade);
+      _pendingRender = null;
+    }
+  });
 
   async function openTradeModal(row) {
     const pair       = row.dataset.pair;
@@ -360,7 +368,7 @@
     const label      = row.dataset.entryLabel || '';
 
     // モーダル表示
-    const modal = new bootstrap.Modal(document.getElementById('tradeModal'));
+    const modal = bootstrap.Modal.getOrCreateInstance(_tradeModalEl);
     const isBuy = signal === 'BUY';
     const isWin = outcome === 'WIN';
 
@@ -381,6 +389,7 @@
     document.getElementById('tradeChartLoading').style.display = 'flex';
     document.getElementById('tradeChartContainer').style.display = 'none';
     destroyTradeChart();
+    _pendingRender = null;
     modal.show();
 
     // チャートデータ取得（エントリー前60本 〜 エグジット後30本）
@@ -391,7 +400,13 @@
     try {
       const res = await fetch(`/chart_data.php?pair=${pair}&tf=15min&from=${from}&to=${to}&minimal=1&_=${Date.now()}`);
       const d   = await res.json();
-      renderTradeChart(d.candles || [], { entryTs, exitTs, entryPrice, tpPrice, slPrice, signal, outcome });
+      const tradeData = { entryTs, exitTs, entryPrice, tpPrice, slPrice, signal, outcome };
+      // モーダルアニメーション完了後に描画（shown.bs.modal 待ち or 既に表示済み）
+      if (_tradeModalEl.classList.contains('show')) {
+        renderTradeChart(d.candles || [], tradeData);
+      } else {
+        _pendingRender = { candles: d.candles || [], trade: tradeData };
+      }
     } catch(e) {
       document.getElementById('tradeChartLoading').innerHTML = '<span style="color:#ef4444;">データ取得失敗</span>';
     }
@@ -404,7 +419,7 @@
     destroyTradeChart();
 
     _tradeChart = LightweightCharts.createChart(container, {
-      width:  container.clientWidth,
+      autoSize: true,
       height: 280,
       layout: { background: { type: 'solid', color: '#1e293b' }, textColor: '#94a3b8' },
       grid:   { vertLines: { color: '#334155' }, horzLines: { color: '#334155' } },
