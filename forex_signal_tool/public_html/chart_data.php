@@ -100,6 +100,21 @@ try {
                       'open'  => round($o, 3), 'high' => round($h, 3),
                       'low'   => round($l, 3), 'close' => round($c, 3)];
     }
+
+    // ---- O=H=L=C 修正（yfinance forex の既知問題）----
+    // open==high==low==close の行は前足closeをopenとして合成OHLC
+    for ($i = 1; $i < count($candles); $i++) {
+        $c = &$candles[$i];
+        if ($c['open'] === $c['close'] && $c['high'] === $c['close'] && $c['low'] === $c['close']) {
+            $prevClose = $candles[$i - 1]['close'];
+            $c['open'] = round($prevClose, 3);
+            $c['high'] = round(max($prevClose, $c['close']), 3);
+            $c['low']  = round(min($prevClose, $c['close']), 3);
+        }
+    }
+    // closes を candles と同期
+    $closes = array_column($candles, 'close');
+
 } catch (Exception $e) {
     $dbError = $e->getMessage();
 }

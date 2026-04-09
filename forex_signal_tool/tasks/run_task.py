@@ -85,6 +85,36 @@ def task_report(app):
     logger.info("=== レポート生成完了 ===")
 
 
+def task_refetch_short_tf(app, timeframes=None):
+    """
+    短期足（5min / 30min）の price_data を削除して再取得する。
+    O=H=L=C で保存されてしまったデータを正しい OHLC に置き換えるために使用。
+    """
+    from app import db
+    from app.models.price_data import PriceData
+    from app.services.data_fetcher import fetch_yfinance, save_price_data
+    from app.config import Config
+
+    if timeframes is None:
+        timeframes = ["5min", "30min"]
+
+    with app.app_context():
+        for tf in timeframes:
+            for pair in Config.CURRENCY_PAIRS:
+                deleted = PriceData.query.filter_by(
+                    currency_pair=pair, timeframe=tf
+                ).delete()
+                db.session.commit()
+                logger.info("削除: %s %s %d件", pair, tf, deleted)
+
+                df = fetch_yfinance(pair, tf)
+                if df is not None and not df.empty:
+                    saved = save_price_data(pair, tf, df)
+                    logger.info("再取得: %s %s %d件保存", pair, tf, saved)
+                else:
+                    logger.warning("再取得失敗: %s %s", pair, tf)
+
+
 def task_generate_static(app):
     """静的HTMLを再生成する（各タスク後に呼ばれる）"""
     import subprocess
@@ -126,7 +156,7 @@ def task_save_settings(app, data_json: str):
 def main():
     if len(sys.argv) < 2:
         print("Usage: run_task.py <action> [args...]")
-        print("Actions: fetch_data, backtest, signals, report, save_settings, all")
+        print("Actions: fetch_data, backtest, signals, report, save_settings, refetch_short_tf, all")
         sys.exit(1)
 
     action = sys.argv[1]
@@ -156,6 +186,12 @@ def main():
                 logger.error("save_settings requires JSON argument")
                 sys.exit(1)
             task_save_settings(app, sys.argv[2])
+
+        elif action == "refetch_short_tf":
+            # 5min / 30min の壊れたデータを削除して再取得
+            tfs = sys.argv[2].split(",") if len(sys.argv) >= 3 else None
+            task_refetch_short_tf(app, tfs)
+            task_generate_static(app)
 
         elif action == "all":
             task_fetch_data(app)
