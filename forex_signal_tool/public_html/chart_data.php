@@ -11,22 +11,26 @@ set_error_handler(function($errno, $errstr) {
     exit;
 });
 
-// .env を直接パースしてDB接続情報を取得
-$_home   = getenv('HOME') ?: '/home/xs539690';
+// DB接続情報（.env があれば上書き）
+$_dbHost = 'sv16060.xserver.jp';
+$_dbName = 'xs539690_forex';
+$_dbUser = 'xs539690_forex';
+$_dbPass = 'qPI)d:y9f0tU';
+
+$_home    = getenv('HOME') ?: '/home/xs539690';
 $_envFile = "{$_home}/forex_project/.env";
-$_dbUrl  = 'mysql+pymysql://root:@localhost/forex_signal_db';
 if (file_exists($_envFile)) {
     foreach (file($_envFile, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES) as $_line) {
         if (!$_line || $_line[0] === '#' || strpos($_line, '=') === false) continue;
         [$_k, $_v] = explode('=', $_line, 2);
-        if (trim($_k) === 'DATABASE_URL') { $_dbUrl = trim($_v, " \t\n\r\"'"); break; }
+        if (trim($_k) === 'DATABASE_URL') {
+            $_url = trim($_v, " \t\n\r\"'");
+            preg_match('|://([^:]*):([^@]*)@([^/:]+)(?::\d+)?/([^?]+)|', $_url, $_m);
+            if (!empty($_m[3])) { $_dbHost = $_m[3]; $_dbName = $_m[4]; $_dbUser = $_m[1]; $_dbPass = $_m[2]; }
+            break;
+        }
     }
 }
-preg_match('|://([^:]*):([^@]*)@([^/:]+)(?::\d+)?/([^?]+)|', $_dbUrl, $_m);
-$_dbHost = $_m[3] ?? 'localhost';
-$_dbName = $_m[4] ?? 'forex_signal_db';
-$_dbUser = $_m[1] ?? 'root';
-$_dbPass = $_m[2] ?? '';
 
 function get_pdo(): PDO {
     static $pdo = null;
