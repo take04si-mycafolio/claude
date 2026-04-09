@@ -745,10 +745,12 @@ def get_indicator_page_data(indicator_name: str, app) -> dict | None:
               .order_by(BacktestResult.win_rate.desc())
               .first())
         related.append({
-            "slug":     i["slug"],
-            "display":  i["display"],
-            "category": i["category"],
-            "win_rate": br.win_rate if br else None,
+            "slug":          i["slug"],
+            "url_slug":      i.get("url_slug", i["slug"]),
+            "category_slug": CATEGORY_SLUGS.get(i["category"], "indicators"),
+            "display":       i["display"],
+            "category":      i["category"],
+            "win_rate":      br.win_rate if br else None,
         })
     cat = info["category"]
     related.sort(key=lambda x: (0 if x["category"] == cat else 1, -(x["win_rate"] or 0)))
@@ -902,8 +904,17 @@ def main():
         pairs = Config.CURRENCY_PAIRS
         pair_pages = {"USDJPY": "index.html", "GBPJPY": "gbpjpy.html", "EURJPY": "eurjpy.html"}
 
-        # 各通貨ペアのダッシュボード
+        # 指標名 → 新URL マップ（/<cat_slug>/<url_slug>/）
+        ind_url_map = {
+            name: "/{}/{}/".format(
+                CATEGORY_SLUGS.get(info["category"], "indicators"),
+                info.get("url_slug", info["slug"])
+            )
+            for name, info in INDICATOR_INFO.items()
+        }
         slug_map = {name: info["slug"] for name, info in INDICATOR_INFO.items()}
+
+        # 各通貨ペアのダッシュボード
         for pair, filename in pair_pages.items():
             data = get_pair_data(pair)
             html = render_html(app, "dashboard_static.html", {
@@ -912,6 +923,7 @@ def main():
                 "current_pair": pair,
                 "data": data,
                 "slug_map": slug_map,
+                "ind_url_map": ind_url_map,
                 "updated_at": updated_at,
                 "active_page": "home",
             })
@@ -929,13 +941,13 @@ def main():
         save("signals.html", html)
 
         # バックテスト
-        slug_map = {name: info["slug"] for name, info in INDICATOR_INFO.items()}
         all_bt = get_all_backtest()
         html = render_html(app, "backtest_static.html", {
             "pairs": pairs,
             "pair_pages": pair_pages,
             "results": all_bt,
             "slug_map": slug_map,
+            "ind_url_map": ind_url_map,
             "updated_at": updated_at,
             "active_page": "backtest",
         })

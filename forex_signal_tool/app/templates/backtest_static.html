@@ -10,11 +10,11 @@
 
 {# ===== マクロ：1件分のカード ===== #}
 {% macro bt_item(r) %}
-{% set slug = slug_map.get(r.indicator_name) %}
+{% set ind_url = ind_url_map.get(r.indicator_name) %}
 <div class="bt-detail-item">
   <div class="btd-header">
-    {% if slug %}
-    <a href="/indicators/{{ slug }}.html" class="btd-name btd-name-link">{{ r.indicator_name }}</a>
+    {% if ind_url %}
+    <a href="{{ ind_url }}" class="btd-name btd-name-link">{{ r.indicator_name }}</a>
     {% else %}
     <span class="btd-name">{{ r.indicator_name }}</span>
     {% endif %}

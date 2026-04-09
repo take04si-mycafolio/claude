@@ -266,7 +266,7 @@
     <h2 class="ind-section-title"><i class="bi bi-grid me-2"></i>他の指標を見る</h2>
     <div class="ind-related-grid">
       {% for ind in related %}
-      <a href="/indicators/{{ ind.slug }}.html" class="ind-related-item">
+      <a href="/{{ ind.category_slug }}/{{ ind.url_slug }}/" class="ind-related-item">
         <div class="ind-related-cat">{{ ind.category }}</div>
         <div class="ind-related-name">{{ ind.display }}</div>
         {% if ind.win_rate %}
