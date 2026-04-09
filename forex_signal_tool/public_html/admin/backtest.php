@@ -127,6 +127,7 @@ h2{font-size:20px;font-weight:700;color:#f1f5f9;margin-bottom:6px}
   <nav class="nav">
     <a href="/admin/">ダッシュボード</a>
     <a href="/admin/backtest.php" class="active">バックテストツール</a>
+    <a href="/admin/export.php">CSVエクスポート</a>
     <a href="/admin/settings.php">設定 &amp; 診断</a>
     <a href="/" target="_blank">サイトを見る</a>
     <a href="/admin/?logout=1" class="logout-btn">ログアウト</a>
