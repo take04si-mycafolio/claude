@@ -303,38 +303,48 @@ def get_pair_data(pair: str) -> dict:
         d["signal_time_jst"] = utc_str_to_jst(s.signal_time)
         signal_dicts.append(d)
 
-    # ===== 直近シミュレーショントレード（DBから取得） =====
+    # ===== シミュレーショントレード（TF別・最大15件ずつ） =====
     sl_pips = Setting.get_float("sl_pips", Config.DEFAULT_SL_PIPS)
     tp_pips = Setting.get_float("tp_pips", Config.DEFAULT_TP_PIPS)
     rr_ratio = round(tp_pips / sl_pips, 1) if sl_pips else 2.0
     sim_trades = []
+    sim_trades_by_tf: dict = {}
     sim_no_data = False
     try:
         raw_st = (
             SimulationTrade.query
             .filter_by(currency_pair=pair)
             .order_by(SimulationTrade.entry_at.desc())
-            .limit(20).all()
+            .limit(500).all()
         )
         if not raw_st:
             sim_no_data = True
         else:
             for t in raw_st:
+                tf = t.timeframe or "1hr"
+                bucket = sim_trades_by_tf.setdefault(tf, [])
+                if len(bucket) >= 15:
+                    continue
                 sl_v = float(t.sl_pips) if t.sl_pips else sl_pips
                 tp_v = float(t.tp_pips) if t.tp_pips else tp_pips
                 pips = tp_v if t.outcome == "WIN" else (-sl_v if t.outcome == "LOSS" else 0)
-                sim_trades.append({
-                    "indicator":    t.indicator_name,
-                    "timeframe":    t.timeframe,
-                    "signal":       t.direction,
-                    "entry_ts_jst": utc_str_to_jst(t.entry_at),
-                    "exit_ts_jst":  utc_str_to_jst(t.exit_at) if t.exit_at else "—",
-                    "entry_price":  float(t.entry_price) if t.entry_price else None,
-                    "tp_price":     float(t.tp_price) if t.tp_price else None,
-                    "sl_price":     float(t.sl_price) if t.sl_price else None,
-                    "outcome":      t.outcome,
-                    "pips":         pips,
-                })
+                trade_dict = {
+                    "indicator":     t.indicator_name,
+                    "timeframe":     tf,
+                    "signal":        t.direction,
+                    "entry_ts_jst":  utc_str_to_jst(t.entry_at),
+                    "exit_ts_jst":   utc_str_to_jst(t.exit_at) if t.exit_at else "—",
+                    "entry_ts_unix": _to_unix(t.entry_at) if t.entry_at else 0,
+                    "exit_ts_unix":  _to_unix(t.exit_at)  if t.exit_at  else 0,
+                    "entry_price":   float(t.entry_price) if t.entry_price else None,
+                    "tp_price":      float(t.tp_price)    if t.tp_price    else None,
+                    "sl_price":      float(t.sl_price)    if t.sl_price    else None,
+                    "outcome":       t.outcome,
+                    "pips":          pips,
+                    "pnl":           float(t.profit_loss) if t.profit_loss else 0,
+                }
+                bucket.append(trade_dict)
+                sim_trades.append(trade_dict)
     except Exception as e:
         logger.warning("Sim trades error %s: %s", pair, e)
 
@@ -347,12 +357,15 @@ def get_pair_data(pair: str) -> dict:
         "buy_count": buy_count,
         "sell_count": sell_count,
         "overall": overall,
-        "top_backtest": [r.to_dict() for r in top_bt],
-        "sim_trades":   sim_trades,
-        "sim_no_data":  sim_no_data,
-        "sl_pips":      sl_pips,
-        "tp_pips":      tp_pips,
-        "rr_ratio":     rr_ratio,
+        "top_backtest":     [r.to_dict() for r in top_bt],
+        "sim_trades":       sim_trades,
+        "sim_trades_by_tf": sim_trades_by_tf,
+        "sim_tf_order":     [tf for tf in TF_ORDER if tf in sim_trades_by_tf],
+        "tf_labels":        TF_LABELS,
+        "sim_no_data":      sim_no_data,
+        "sl_pips":          sl_pips,
+        "tp_pips":          tp_pips,
+        "rr_ratio":         rr_ratio,
     }
 
 
@@ -398,6 +411,16 @@ def get_reports() -> list:
 
 CHART_TIMEFRAMES = ["15min", "1hr", "4hr", "daily"]
 CHART_LIMITS = {"15min": 120, "1hr": 200, "4hr": 150, "daily": 300}
+
+TF_ORDER  = ["5min", "15min", "30min", "1hr", "4hr", "daily"]
+TF_LABELS = {
+    "5min":  "5分足",
+    "15min": "15分足",
+    "30min": "30分足",
+    "1hr":   "1時間足",
+    "4hr":   "4時間足",
+    "daily": "日足",
+}
 
 
 def _to_unix(ts) -> int:
