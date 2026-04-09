@@ -422,6 +422,38 @@ TF_LABELS = {
     "daily": "日足",
 }
 
+# カテゴリ定義（スラッグ・表示名・説明）
+CATEGORY_INFO = {
+    "オシレーター": {
+        "slug":        "oscillator",
+        "display":     "オシレーター系指標",
+        "description": "相場の過熱感・売られすぎ・買われすぎを数値化し、レンジ相場での反転タイミングを捉えるのが得意な指標群です。RSI・MACD・ストキャスティクスなどが代表的で、トレンド指標と組み合わせると精度が向上します。",
+    },
+    "トレンド": {
+        "slug":        "trend",
+        "display":     "トレンド系指標",
+        "description": "移動平均線やボリンジャーバンドなど、相場の方向性とトレンドの強さを判断するための指標群です。トレンド相場でのエントリー・エグジットの基準として広く使われています。",
+    },
+    "ライン": {
+        "slug":        "line",
+        "display":     "ライン系指標",
+        "description": "ピボットポイントやフィボナッチなど、重要な価格水準（サポート・レジスタンス）を客観的に算出する指標群です。反転・ブレイクアウトのターゲット設定に活用されます。",
+    },
+    "ボラティリティ": {
+        "slug":        "volatility",
+        "display":     "ボラティリティ系指標",
+        "description": "ATRやBBバンド幅など、相場の値動きの大きさ（ボラティリティ）を測定する指標群です。SL・TPの設定やポジションサイジングの基準として活用されます。",
+    },
+    "ローソク足パターン": {
+        "slug":        "candlestick",
+        "display":     "ローソク足パターン",
+        "description": "ハンマー・包み足・ドジなど、ローソク足の形状から市場参加者の心理と売買圧力の変化を読み取るパターン群です。サポート・レジスタンスと組み合わせると特に有効です。",
+    },
+}
+
+# カテゴリ名 → スラッグ の逆引きマップ
+CATEGORY_SLUGS = {name: info["slug"] for name, info in CATEGORY_INFO.items()}
+
 
 def _to_unix(ts) -> int:
     """datetime / str / timestamp → Unix秒"""
@@ -657,6 +689,7 @@ def get_indicator_page_data(indicator_name: str, app) -> dict | None:
 
     return {
         "info":             info,
+        "category_slug":    CATEGORY_SLUGS.get(info["category"], ""),
         "results":          [r.to_dict() for r in results],
         "results_by_pair":  results_by_pair,
         "trades_by_pair":   trades_by_pair,
@@ -679,6 +712,55 @@ def get_settings() -> dict:
         "min_trades": Setting.get("min_trades", "3"),
         "report_times": Setting.get("report_times", "06:00,12:00,18:00"),
         "gemini_model": Setting.get("gemini_model", "gemini-1.5-flash"),
+    }
+
+
+def get_category_page_data(category_name: str) -> dict | None:
+    """カテゴリページのデータを返す"""
+    from app.models.backtest import BacktestResult
+
+    cat_info = CATEGORY_INFO.get(category_name)
+    if not cat_info:
+        return None
+
+    # そのカテゴリに属する指標を収集
+    indicators = []
+    for ind_name, ind_info in INDICATOR_INFO.items():
+        if ind_info["category"] != category_name:
+            continue
+        # 最高勝率・ペア・TFを BacktestResult から取得
+        br = (BacktestResult.query
+              .filter_by(indicator_name=ind_name)
+              .order_by(BacktestResult.win_rate.desc())
+              .first())
+        indicators.append({
+            "slug":          ind_info["slug"],
+            "display":       ind_info["display"],
+            "description":   ind_info["description"],
+            "good":          ind_info.get("good", []),
+            "best_win_rate": float(br.win_rate) if br else None,
+            "best_pair":     br.currency_pair if br else None,
+            "best_tf":       br.timeframe if br else None,
+        })
+    # 勝率降順ソート
+    indicators.sort(key=lambda x: -(x["best_win_rate"] or 0))
+
+    # 全カテゴリの概要リスト（ナビ用）
+    all_categories = []
+    for name, info in CATEGORY_INFO.items():
+        count = sum(1 for i in INDICATOR_INFO.values() if i["category"] == name)
+        all_categories.append({
+            "slug":        info["slug"],
+            "name":        name,
+            "display":     info["display"],
+            "description": info["description"],
+            "count":       count,
+        })
+
+    return {
+        "category":       {**cat_info, "name": category_name},
+        "indicators":     indicators,
+        "all_categories": all_categories,
     }
 
 
@@ -818,6 +900,23 @@ def main():
                     logger.info("Chart JSON: %s", fname)
                 except Exception as e:
                     logger.warning("Chart JSON error %s %s: %s", pair, tf, e)
+
+        # カテゴリ個別ページ生成（/category/oscillator.html 等）
+        cat_dir = Path(PUBLIC_HTML) / "category"
+        cat_dir.mkdir(exist_ok=True)
+        for cat_name, cat_info in CATEGORY_INFO.items():
+            try:
+                page_data = get_category_page_data(cat_name)
+                if page_data is None:
+                    continue
+                html = render_html(app, "category_static.html", {
+                    **page_data,
+                    "updated_at": updated_at,
+                    "active_page": "backtest",
+                })
+                save(f"category/{cat_info['slug']}.html", html)
+            except Exception as e:
+                logger.warning("Category page error %s: %s", cat_name, e)
 
         # インジケーター個別ページ生成
         ind_dir = Path(PUBLIC_HTML) / "indicators"

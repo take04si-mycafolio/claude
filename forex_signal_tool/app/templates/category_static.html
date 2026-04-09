@@ -1,0 +1,124 @@
+{% extends "base_static.html" %}
+{% block title %}{{ category.display }} 一覧 - FXシグナル{% endblock %}
+
+{% block content %}
+
+<!-- パンくずリスト -->
+<nav class="ind-breadcrumb" aria-label="breadcrumb">
+  <a href="/index.html">ホーム</a>
+  <i class="bi bi-chevron-right"></i>
+  <span>{{ category.display }}</span>
+</nav>
+
+<!-- ヒーローヘッダー -->
+<div class="ind-hero" style="padding-bottom:16px;">
+  <div class="ind-category-badge">テクニカル指標</div>
+  <h1 class="ind-title">{{ category.display }}</h1>
+  <p style="color:#94a3b8;font-size:0.9rem;margin:8px 0 0;max-width:560px;">{{ category.description }}</p>
+</div>
+
+<!-- カテゴリ横断ナビ -->
+<div class="section-card" style="padding:12px 16px;">
+  <div style="display:flex;flex-wrap:wrap;gap:8px;">
+    {% for cat in all_categories %}
+    <a href="/category/{{ cat.slug }}.html"
+       class="cat-nav-btn {% if cat.slug == category.slug %}active{% endif %}">
+      {{ cat.name }}
+      <span class="cat-nav-count">{{ cat.count }}</span>
+    </a>
+    {% endfor %}
+  </div>
+</div>
+
+<!-- 指標カード一覧 -->
+<div class="section-card">
+  <div class="section-title">
+    <i class="bi bi-grid-fill text-info me-2"></i>{{ category.display }}（{{ indicators|length }}指標）
+  </div>
+  <div class="cat-grid">
+    {% for ind in indicators %}
+    <a href="/indicators/{{ ind.slug }}.html" class="cat-ind-card">
+      <div class="cat-ind-header">
+        <div class="cat-ind-name">{{ ind.display }}</div>
+        {% if ind.best_win_rate %}
+        <div class="cat-ind-wr {% if ind.best_win_rate >= 70 %}high{% elif ind.best_win_rate >= 60 %}mid{% else %}low{% endif %}">
+          最高勝率 {{ "%.1f"|format(ind.best_win_rate) }}%
+        </div>
+        {% endif %}
+      </div>
+      <p class="cat-ind-desc">{{ ind.description[:80] }}...</p>
+      {% if ind.best_pair %}
+      <div class="cat-ind-meta">
+        <span>{{ ind.best_pair[:3] }}/{{ ind.best_pair[3:] }} · {{ ind.best_tf }}</span>
+        {% if ind.best_win_rate %}
+        <span class="text-success">勝率 {{ "%.1f"|format(ind.best_win_rate) }}%</span>
+        {% endif %}
+      </div>
+      {% endif %}
+      <div class="cat-ind-good">
+        {% for g in ind.good[:2] %}
+        <span class="cat-good-tag">{{ g }}</span>
+        {% endfor %}
+      </div>
+    </a>
+    {% endfor %}
+  </div>
+</div>
+
+<!-- 他カテゴリへのリンク -->
+<div class="section-card">
+  <div class="section-title">
+    <i class="bi bi-grid me-2"></i>他のカテゴリを見る
+  </div>
+  <div class="cat-grid">
+    {% for cat in all_categories %}
+    {% if cat.slug != category.slug %}
+    <a href="/category/{{ cat.slug }}.html" class="cat-other-card">
+      <div class="cat-other-name">{{ cat.name }}</div>
+      <div class="cat-other-count">{{ cat.count }}指標</div>
+      <div class="cat-other-desc">{{ cat.description[:50] }}...</div>
+    </a>
+    {% endif %}
+    {% endfor %}
+  </div>
+</div>
+
+<div class="section-card" style="font-size:0.72rem; color:#94a3b8; text-align:center; padding:8px 16px;">
+  最終更新: {{ updated_at }}
+</div>
+
+<div style="height:20px"></div>
+
+<style>
+/* ---- カテゴリナビ ---- */
+.cat-nav-btn{display:inline-flex;align-items:center;gap:5px;background:#1e293b;border:1px solid #334155;color:#94a3b8;border-radius:20px;padding:5px 12px;font-size:12px;text-decoration:none;transition:all .15s}
+.cat-nav-btn:hover,.cat-nav-btn.active{background:#1e3a5f;border-color:#3b82f6;color:#60a5fa}
+.cat-nav-count{background:#0f172a;border-radius:10px;padding:1px 6px;font-size:10px;color:#64748b}
+.cat-nav-btn.active .cat-nav-count{color:#93c5fd}
+
+/* ---- 指標カードグリッド ---- */
+.cat-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+@media(max-width:480px){.cat-grid{grid-template-columns:1fr}}
+
+/* ---- 指標カード ---- */
+.cat-ind-card{background:#0f172a;border:1px solid #334155;border-radius:10px;padding:14px;text-decoration:none;display:flex;flex-direction:column;gap:6px;transition:border-color .15s}
+.cat-ind-card:hover{border-color:#3b82f6}
+.cat-ind-header{display:flex;align-items:flex-start;justify-content:space-between;gap:8px}
+.cat-ind-name{font-size:13px;font-weight:600;color:#f1f5f9;line-height:1.3}
+.cat-ind-wr{font-size:10px;font-weight:700;white-space:nowrap;padding:2px 7px;border-radius:4px;flex-shrink:0}
+.cat-ind-wr.high{background:#14532d;color:#4ade80}
+.cat-ind-wr.mid{background:#713f12;color:#fbbf24}
+.cat-ind-wr.low{background:#1e293b;color:#94a3b8}
+.cat-ind-desc{font-size:11px;color:#64748b;margin:0;line-height:1.5;flex:1}
+.cat-ind-meta{display:flex;justify-content:space-between;font-size:11px;color:#64748b}
+.cat-ind-good{display:flex;flex-wrap:wrap;gap:4px}
+.cat-good-tag{font-size:10px;background:#1e3a5f;color:#93c5fd;border-radius:4px;padding:2px 7px}
+
+/* ---- 他カテゴリカード ---- */
+.cat-other-card{background:#0f172a;border:1px solid #334155;border-radius:10px;padding:14px;text-decoration:none;display:flex;flex-direction:column;gap:4px;transition:border-color .15s}
+.cat-other-card:hover{border-color:#3b82f6}
+.cat-other-name{font-size:13px;font-weight:600;color:#f1f5f9}
+.cat-other-count{font-size:11px;color:#3b82f6}
+.cat-other-desc{font-size:11px;color:#64748b;line-height:1.4}
+</style>
+{% endblock %}
