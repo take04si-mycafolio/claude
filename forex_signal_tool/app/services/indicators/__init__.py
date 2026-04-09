@@ -3,6 +3,7 @@ from .trend import calculate_trend
 from .lines import calculate_lines
 from .volatility import calculate_volatility
 from .patterns import calculate_patterns
+from .composite import calculate_composite
 
 __all__ = [
     "calculate_oscillators",
@@ -10,6 +11,7 @@ __all__ = [
     "calculate_lines",
     "calculate_volatility",
     "calculate_patterns",
+    "calculate_composite",
 ]
 
 
@@ -21,4 +23,5 @@ def calculate_all(df):
     results.update(calculate_lines(df))
     results.update(calculate_volatility(df))
     results.update(calculate_patterns(df))
+    results.update(calculate_composite(df))
     return results

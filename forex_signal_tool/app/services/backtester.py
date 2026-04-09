@@ -41,6 +41,8 @@ def run_backtest_for_indicator(
     tp_pips: float,
     backtest_hours: int = 12,
     lot_size: int = 1,
+    sl_mode: str = "pips",
+    tp_mode: str = "pips",
 ) -> Optional[dict]:
     """
     単一指標のバックテストを実行する。
@@ -53,10 +55,12 @@ def run_backtest_for_indicator(
     pair            : 通貨ペア
     timeframe       : タイムフレーム
     initial_capital : 初期資金（円）
-    sl_pips         : ストップロス（pips）
-    tp_pips         : テイクプロフィット（pips）
+    sl_pips         : ストップロス（pips）※ sl_mode='pips' 時のみ使用
+    tp_pips         : テイクプロフィット（pips）※ tp_mode='pips' 時のみ使用
     backtest_hours  : バックテスト期間（時間）
     lot_size        : ロット数（デフォルト1）
+    sl_mode         : 'pips'（固定pips）または 'bb'（BBバンドタッチ）
+    tp_mode         : 'pips'（固定pips）または 'bb'（BBバンドタッチ）
 
     Returns
     -------
@@ -74,8 +78,6 @@ def run_backtest_for_indicator(
     cutoff_ts = latest_ts - timedelta(hours=backtest_hours)
 
     pip_value = _get_pip_value(pair) * lot_size
-    sl_amount = sl_pips * pip_value   # 1トレードあたりの損失額
-    tp_amount = tp_pips * pip_value   # 1トレードあたりの利益額
 
     total_trades = 0
     winning_trades = 0
@@ -83,13 +85,21 @@ def run_backtest_for_indicator(
     capital = initial_capital
     peak_capital = initial_capital
     max_drawdown = 0.0
+    gross_profit = 0.0
+    gross_loss = 0.0
     trades_log = []
-
-    buy_signals = []
-    sell_signals = []
 
     # バックテスト期間内の各バーでシグナルを検出
     backtest_df = df[df["timestamp"] >= cutoff_ts].reset_index(drop=True)
+
+    # BBバンドを事前計算（bb モード使用時）
+    bb_upper_arr = bb_lower_arr = None
+    if sl_mode == "bb" or tp_mode == "bb":
+        _c = backtest_df["close"].astype(float)
+        _m = _c.rolling(20).mean()
+        _s = _c.rolling(20).std(ddof=1)
+        bb_upper_arr = (_m + 2 * _s).values
+        bb_lower_arr = (_m - 2 * _s).values
 
     for i in range(30, len(backtest_df)):
         # 過去30本でシグナル計算
@@ -116,11 +126,33 @@ def run_backtest_for_indicator(
 
         # TP/SL価格を計算
         if signal == "BUY":
-            tp_price = entry_price + tp_pips * 0.01
-            sl_price = entry_price - sl_pips * 0.01
+            if sl_mode == "bb" and bb_lower_arr is not None:
+                bbl = bb_lower_arr[i]
+                sl_price = float(bbl) if (not np.isnan(bbl) and bbl < entry_price) else entry_price - sl_pips * 0.01
+            else:
+                sl_price = entry_price - sl_pips * 0.01
+
+            if tp_mode == "bb" and bb_upper_arr is not None:
+                bbu = bb_upper_arr[i]
+                tp_price = float(bbu) if (not np.isnan(bbu) and bbu > entry_price) else entry_price + tp_pips * 0.01
+            else:
+                tp_price = entry_price + tp_pips * 0.01
         else:  # SELL
-            tp_price = entry_price - tp_pips * 0.01
-            sl_price = entry_price + sl_pips * 0.01
+            if sl_mode == "bb" and bb_upper_arr is not None:
+                bbu = bb_upper_arr[i]
+                sl_price = float(bbu) if (not np.isnan(bbu) and bbu > entry_price) else entry_price + sl_pips * 0.01
+            else:
+                sl_price = entry_price + sl_pips * 0.01
+
+            if tp_mode == "bb" and bb_lower_arr is not None:
+                bbl = bb_lower_arr[i]
+                tp_price = float(bbl) if (not np.isnan(bbl) and bbl < entry_price) else entry_price - tp_pips * 0.01
+            else:
+                tp_price = entry_price - tp_pips * 0.01
+
+        # トレードごとの損益額（BBモードは幅が変動するため個別計算）
+        trade_sl_amount = abs(entry_price - sl_price) / 0.01 * pip_value
+        trade_tp_amount = abs(tp_price - entry_price) / 0.01 * pip_value
 
         # 以降のバーでTP/SL到達を確認
         outcome = None
@@ -160,10 +192,12 @@ def run_backtest_for_indicator(
         total_trades += 1
         if outcome == "WIN":
             winning_trades += 1
-            capital += tp_amount
+            capital += trade_tp_amount
+            gross_profit += trade_tp_amount
         else:
             losing_trades += 1
-            capital -= sl_amount
+            capital -= trade_sl_amount
+            gross_loss += trade_sl_amount
 
         # ドローダウン計算
         peak_capital = max(peak_capital, capital)
@@ -187,10 +221,6 @@ def run_backtest_for_indicator(
 
     win_rate = (winning_trades / total_trades) * 100
     total_profit = capital - initial_capital
-
-    # プロフィットファクター
-    gross_profit = winning_trades * tp_amount
-    gross_loss = losing_trades * sl_amount
     profit_factor = gross_profit / gross_loss if gross_loss > 0 else (gross_profit if gross_profit > 0 else 0)
 
     return {
@@ -210,7 +240,7 @@ def run_backtest_for_indicator(
         "max_drawdown": round(max_drawdown, 0),
         "profit_factor": round(profit_factor, 4),
         "calculated_at": datetime.now(timezone.utc),
-        "trades": trades_log,   # チャート表示用
+        "trades": trades_log,
     }
 
 
@@ -219,26 +249,33 @@ def run_all_backtests(pair: str, timeframe: str, df: pd.DataFrame,
                       backtest_hours: int = 12) -> list:
     """
     全テクニカル指標のバックテストを実行し、結果リストを返す。
+
+    実行内容:
+      1. 通常バックテスト（固定 pips SL/TP） - 全指標 + 複合指標
+      2. BB損切りバリアント（BBバンドタッチ SL/TP） - オシレーター + トレンド + 複合指標
+         ※ 指標名に "_BBSL" サフィックスを付けて別エントリとして保存
     """
     from app.services.indicators.oscillators import calculate_oscillators
     from app.services.indicators.trend import calculate_trend
     from app.services.indicators.lines import calculate_lines
     from app.services.indicators.volatility import calculate_volatility
     from app.services.indicators.patterns import calculate_patterns
+    from app.services.indicators.composite import calculate_composite
 
-    # 各カテゴリの計算関数
+    # 通常バックテスト対象モジュール（全カテゴリ）
     indicator_modules = [
         (calculate_oscillators, "oscillator"),
         (calculate_trend, "trend"),
         (calculate_lines, "line"),
         (calculate_volatility, "volatility"),
         (calculate_patterns, "pattern"),
+        (calculate_composite, "composite"),
     ]
 
     results = []
 
+    # ---- 通常バックテスト（固定 pips SL/TP）----
     for func, category in indicator_modules:
-        # このモジュールがサポートする指標名を取得
         try:
             sample = func(df.tail(50))
         except Exception:
@@ -260,6 +297,37 @@ def run_all_backtests(pair: str, timeframe: str, df: pd.DataFrame,
                 result["indicator_category"] = category
                 results.append(result)
 
+    # ---- BB損切りバリアント（SL=BB下限, TP=BB上限）----
+    bb_sl_modules = [
+        (calculate_oscillators, "oscillator"),
+        (calculate_trend, "trend"),
+        (calculate_composite, "composite"),
+    ]
+    for func, category in bb_sl_modules:
+        try:
+            sample = func(df.tail(50))
+        except Exception:
+            continue
+
+        for ind_name in sample.keys():
+            result = run_backtest_for_indicator(
+                df=df,
+                indicator_name=ind_name,
+                indicator_func=func,
+                pair=pair,
+                timeframe=timeframe,
+                initial_capital=initial_capital,
+                sl_pips=sl_pips,
+                tp_pips=tp_pips,
+                backtest_hours=backtest_hours,
+                sl_mode="bb",
+                tp_mode="bb",
+            )
+            if result:
+                result["indicator_name"] = ind_name + "_BBSL"
+                result["indicator_category"] = category + "_bbsl"
+                results.append(result)
+
     return results
 
 
@@ -275,10 +343,11 @@ def get_recent_trades(pair: str, timeframe: str, df: pd.DataFrame,
     from app.services.indicators.lines import calculate_lines
     from app.services.indicators.volatility import calculate_volatility
     from app.services.indicators.patterns import calculate_patterns
+    from app.services.indicators.composite import calculate_composite
 
     indicator_map = {}
     for func in [calculate_oscillators, calculate_trend, calculate_lines,
-                 calculate_volatility, calculate_patterns]:
+                 calculate_volatility, calculate_patterns, calculate_composite]:
         try:
             sample = func(df.tail(50))
             for name in sample.keys():
@@ -286,15 +355,21 @@ def get_recent_trades(pair: str, timeframe: str, df: pd.DataFrame,
         except Exception:
             pass
 
-    func = indicator_map.get(indicator_name)
+    # _BBSL サフィックスが付いている場合は BB モードで実行
+    use_bb = indicator_name.endswith("_BBSL")
+    lookup_name = indicator_name[:-5] if use_bb else indicator_name
+
+    func = indicator_map.get(lookup_name)
     if func is None:
         return []
 
     result = run_backtest_for_indicator(
-        df=df, indicator_name=indicator_name, indicator_func=func,
+        df=df, indicator_name=lookup_name, indicator_func=func,
         pair=pair, timeframe=timeframe,
         initial_capital=initial_capital, sl_pips=sl_pips, tp_pips=tp_pips,
         backtest_hours=backtest_hours,
+        sl_mode="bb" if use_bb else "pips",
+        tp_mode="bb" if use_bb else "pips",
     )
     if not result:
         return []
