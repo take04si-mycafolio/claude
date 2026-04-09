@@ -149,16 +149,25 @@ def resample_to_4hr(df_1hr: pd.DataFrame) -> pd.DataFrame:
 
 
 def save_price_data(pair: str, timeframe: str, df: pd.DataFrame) -> int:
-    """DataFrameをDBのprice_dataテーブルに保存（重複は無視）"""
+    """DataFrameをDBのprice_dataテーブルに保存。
+    最新足（まだ完成していない可能性）は上書き更新、それ以外は重複スキップ。
+    """
     from app import db
     from app.models.price_data import PriceData
+    from datetime import datetime, timedelta
+
+    # タイムフレームごとの足の長さ（分）
+    tf_minutes = {"5min": 5, "15min": 15, "30min": 30, "1hr": 60, "4hr": 240, "daily": 1440}
+    bar_minutes = tf_minutes.get(timeframe, 15)
+    # 現在時刻より bar_minutes 以内のタイムスタンプは「未完成の可能性あり」→ 上書き
+    now_utc = datetime.utcnow()
+    incomplete_cutoff = now_utc - timedelta(minutes=bar_minutes)
 
     saved = 0
     for _, row in df.iterrows():
         ts = row["timestamp"]
         if hasattr(ts, "to_pydatetime"):
             ts = ts.to_pydatetime()
-        # tzinfo があれば除去（MySQL DATETIME はtz非対応）
         if hasattr(ts, "tzinfo") and ts.tzinfo is not None:
             ts = ts.replace(tzinfo=None)
 
@@ -167,7 +176,16 @@ def save_price_data(pair: str, timeframe: str, df: pd.DataFrame) -> int:
             timeframe=timeframe,
             timestamp=ts,
         ).first()
+
         if existing:
+            # 未完成の可能性がある最新足のみ上書き更新
+            if ts >= incomplete_cutoff:
+                existing.open   = float(row["open"])
+                existing.high   = float(row["high"])
+                existing.low    = float(row["low"])
+                existing.close  = float(row["close"])
+                existing.volume = int(row.get("volume", 0))
+                saved += 1
             continue
 
         record = PriceData(
