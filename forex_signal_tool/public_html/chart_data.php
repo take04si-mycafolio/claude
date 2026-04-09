@@ -11,26 +11,33 @@ set_error_handler(function($errno, $errstr) {
     exit;
 });
 
-$_home = getenv('HOME') ?: '/home/xs539690';
-
-// _config.php が見つからない場合は直接DB接続を試みる
-$_configPath = __DIR__ . '/admin/_config.php';
-if (file_exists($_configPath)) {
-    require_once $_configPath;
-} else {
-    // フォールバック: 環境変数から直接DB接続
-    function get_pdo(): PDO {
-        static $pdo = null;
-        if ($pdo) return $pdo;
-        $url = getenv('DATABASE_URL') ?: 'mysql+pymysql://root:@localhost/forex_signal_db';
-        preg_match('|://([^:]*):([^@]*)@([^/:]+)(?::\d+)?/([^?]+)|', $url, $m);
-        $pdo = new PDO(
-            "mysql:host=" . ($m[3] ?? 'localhost') . ";dbname=" . ($m[4] ?? 'forex_signal_db') . ";charset=utf8mb4",
-            $m[1] ?? 'root', $m[2] ?? '',
-            [PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION, PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC]
-        );
-        return $pdo;
+// .env を直接パースしてDB接続情報を取得
+$_home   = getenv('HOME') ?: '/home/xs539690';
+$_envFile = "{$_home}/forex_project/.env";
+$_dbUrl  = 'mysql+pymysql://root:@localhost/forex_signal_db';
+if (file_exists($_envFile)) {
+    foreach (file($_envFile, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES) as $_line) {
+        if (!$_line || $_line[0] === '#' || strpos($_line, '=') === false) continue;
+        [$_k, $_v] = explode('=', $_line, 2);
+        if (trim($_k) === 'DATABASE_URL') { $_dbUrl = trim($_v, " \t\n\r\"'"); break; }
     }
+}
+preg_match('|://([^:]*):([^@]*)@([^/:]+)(?::\d+)?/([^?]+)|', $_dbUrl, $_m);
+$_dbHost = $_m[3] ?? 'localhost';
+$_dbName = $_m[4] ?? 'forex_signal_db';
+$_dbUser = $_m[1] ?? 'root';
+$_dbPass = $_m[2] ?? '';
+
+function get_pdo(): PDO {
+    static $pdo = null;
+    if ($pdo) return $pdo;
+    global $_dbHost, $_dbName, $_dbUser, $_dbPass;
+    $pdo = new PDO(
+        "mysql:host={$_dbHost};dbname={$_dbName};charset=utf8mb4",
+        $_dbUser, $_dbPass,
+        [PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION, PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC]
+    );
+    return $pdo;
 }
 
 // ---- パラメータ検証 ----
