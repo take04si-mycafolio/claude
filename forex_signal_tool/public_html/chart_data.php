@@ -4,6 +4,9 @@
  * /chart_data.php?pair=USDJPY&tf=15min
  */
 
+// JSON float精度を標準的な桁数に制限
+ini_set('serialize_precision', 8);
+
 // エラーは標準出力に出さずJSONエラーとして返す
 set_error_handler(function($errno, $errstr) {
     header('Content-Type: application/json; charset=utf-8');

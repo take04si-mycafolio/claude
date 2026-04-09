@@ -111,6 +111,15 @@ def fetch_yfinance(pair: str, timeframe: str) -> Optional[pd.DataFrame]:
 
         df = df.sort_values("timestamp").reset_index(drop=True)
 
+        # yfinance forex の既知問題: O=H=L=C になる場合、前足closeをopenとして合成OHLC
+        if len(df) > 1 and (df['open'] == df['close']).all():
+            logger.warning("O=H=L=C detected for %s %s — synthesizing OHLC", pair, timeframe)
+            prev = df['close'].shift(1).fillna(df['close'].iloc[0])
+            df = df.copy()
+            df['open'] = prev.values
+            df['high'] = df[['open', 'close']].max(axis=1)
+            df['low']  = df[['open', 'close']].min(axis=1)
+
         # 4hrリサンプリング
         if timeframe == "4hr":
             df = resample_to_4hr(df)
