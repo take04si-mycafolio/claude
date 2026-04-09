@@ -3,27 +3,27 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
-  <title>{{ info.display }} バックテスト結果 - USD/JPY・GBP/JPY・EUR/JPY | FXシグナル</title>
-  <meta name="description" content="{{ info.display }}のFXバックテスト結果を公開。USD/JPY・GBP/JPY・EUR/JPYの勝率・損益・取引履歴を詳しく解説。{{ info.description[:80] }}">
+  <title>{{ info.seo_title }} | FXシグナル</title>
+  <meta name="description" content="{{ info.seo_description }}">
   <meta name="keywords" content="{{ info.display }},{{ info.category }},FX,バックテスト,USD/JPY,GBP/JPY,EUR/JPY,テクニカル分析,為替,勝率">
   <meta name="robots" content="index, follow">
-  <link rel="canonical" href="https://fx-trend.net/indicators/{{ info.slug }}.html">
+  <link rel="canonical" href="https://fx-trend.net/{{ category_slug }}/{{ info.url_slug }}/">
   <!-- OGP -->
   <meta property="og:type" content="article">
-  <meta property="og:title" content="{{ info.display }} バックテスト結果 | FXシグナル">
-  <meta property="og:description" content="{{ info.description[:120] }}">
-  <meta property="og:url" content="https://fx-trend.net/indicators/{{ info.slug }}.html">
+  <meta property="og:title" content="{{ info.seo_title }} | FXシグナル">
+  <meta property="og:description" content="{{ info.seo_description }}">
+  <meta property="og:url" content="https://fx-trend.net/{{ category_slug }}/{{ info.url_slug }}/">
   <meta property="og:site_name" content="FXシグナル">
   <meta name="twitter:card" content="summary">
-  <meta name="twitter:title" content="{{ info.display }} バックテスト | FXシグナル">
-  <meta name="twitter:description" content="{{ info.description[:120] }}">
+  <meta name="twitter:title" content="{{ info.seo_title }} | FXシグナル">
+  <meta name="twitter:description" content="{{ info.seo_description }}">
   <!-- JSON-LD -->
   <script type="application/ld+json">
   {
     "@context": "https://schema.org",
     "@type": "Article",
-    "headline": "{{ info.display }} FXバックテスト結果",
-    "description": "{{ info.description }}",
+    "headline": "{{ info.seo_title }}",
+    "description": "{{ info.seo_description }}",
     "author": {"@type": "Organization", "name": "FXシグナル", "url": "https://fx-trend.net"},
     "publisher": {"@type": "Organization", "name": "FXシグナル"},
     "dateModified": "{{ updated_at }}",
@@ -52,7 +52,7 @@
   <nav class="ind-breadcrumb" aria-label="breadcrumb">
     <a href="/index.html">ホーム</a>
     <i class="bi bi-chevron-right"></i>
-    <a href="/category/{{ category_slug }}.html">{{ info.category }}</a>
+    <a href="/{{ category_slug }}/">{{ info.category }}</a>
     <i class="bi bi-chevron-right"></i>
     <span>{{ info.display }}</span>
   </nav>

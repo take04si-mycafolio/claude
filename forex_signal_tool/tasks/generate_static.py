@@ -422,37 +422,80 @@ TF_LABELS = {
     "daily": "日足",
 }
 
-# カテゴリ定義（スラッグ・表示名・説明）
+# カテゴリ定義（スラッグ・表示名・説明・SEO）
 CATEGORY_INFO = {
     "オシレーター": {
-        "slug":        "oscillator",
-        "display":     "オシレーター系指標",
-        "description": "相場の過熱感・売られすぎ・買われすぎを数値化し、レンジ相場での反転タイミングを捉えるのが得意な指標群です。RSI・MACD・ストキャスティクスなどが代表的で、トレンド指標と組み合わせると精度が向上します。",
+        "slug":            "oscillator",
+        "display":         "オシレーター系指標",
+        "seo_title":       "FXオシレーターの勝率一覧｜RSI・MACDなどを検証",
+        "seo_description": "RSI・MACD・ストキャスティクスなどオシレーター系テクニカルの勝率を一覧で比較。バックテスト結果をもとに分析。",
+        "description":     "相場の過熱感・売られすぎ・買われすぎを数値化し、レンジ相場での反転タイミングを捉えるのが得意な指標群です。RSI・MACD・ストキャスティクスなどが代表的で、トレンド指標と組み合わせると精度が向上します。",
     },
     "トレンド": {
-        "slug":        "trend",
-        "display":     "トレンド系指標",
-        "description": "移動平均線やボリンジャーバンドなど、相場の方向性とトレンドの強さを判断するための指標群です。トレンド相場でのエントリー・エグジットの基準として広く使われています。",
+        "slug":            "trend",
+        "display":         "トレンド系指標",
+        "seo_title":       "FXトレンド系テクニカルの勝率一覧｜移動平均など検証",
+        "seo_description": "移動平均線やボリンジャーバンドなどトレンド系指標の勝率を比較。バックテスト結果をもとに分析。",
+        "description":     "移動平均線やボリンジャーバンドなど、相場の方向性とトレンドの強さを判断するための指標群です。トレンド相場でのエントリー・エグジットの基準として広く使われています。",
     },
     "ライン": {
-        "slug":        "line",
-        "display":     "ライン系指標",
-        "description": "ピボットポイントやフィボナッチなど、重要な価格水準（サポート・レジスタンス）を客観的に算出する指標群です。反転・ブレイクアウトのターゲット設定に活用されます。",
+        "slug":            "line",
+        "display":         "ライン系指標",
+        "seo_title":       "ライン系テクニカルの勝率｜ピボット・フィボナッチ検証",
+        "seo_description": "ピボットポイントやフィボナッチなどライン系分析の勝率を検証。サポート・レジスタンスの精度を分析。",
+        "description":     "ピボットポイントやフィボナッチなど、重要な価格水準（サポート・レジスタンス）を客観的に算出する指標群です。反転・ブレイクアウトのターゲット設定に活用されます。",
     },
     "ボラティリティ": {
-        "slug":        "volatility",
-        "display":     "ボラティリティ系指標",
-        "description": "ATRやBBバンド幅など、相場の値動きの大きさ（ボラティリティ）を測定する指標群です。SL・TPの設定やポジションサイジングの基準として活用されます。",
+        "slug":            "volatility",
+        "display":         "ボラティリティ系指標",
+        "seo_title":       "FXボラティリティ指標の勝率｜ATR・BB幅を検証",
+        "seo_description": "ATRやボリンジャーバンド幅などボラティリティ指標の勝率を検証。相場の変動分析に活用。",
+        "description":     "ATRやBBバンド幅など、相場の値動きの大きさ（ボラティリティ）を測定する指標群です。SL・TPの設定やポジションサイジングの基準として活用されます。",
     },
     "ローソク足パターン": {
-        "slug":        "candlestick",
-        "display":     "ローソク足パターン",
-        "description": "ハンマー・包み足・ドジなど、ローソク足の形状から市場参加者の心理と売買圧力の変化を読み取るパターン群です。サポート・レジスタンスと組み合わせると特に有効です。",
+        "slug":            "candlestick",
+        "display":         "ローソク足パターン",
+        "seo_title":       "ローソク足パターンの勝率｜主要パターンを検証",
+        "seo_description": "ハンマー・包み足などローソク足パターンの勝率を検証。トレード精度をデータで分析。",
+        "description":     "ハンマー・包み足・ドジなど、ローソク足の形状から市場参加者の心理と売買圧力の変化を読み取るパターン群です。サポート・レジスタンスと組み合わせると特に有効です。",
     },
 }
 
 # カテゴリ名 → スラッグ の逆引きマップ
 CATEGORY_SLUGS = {name: info["slug"] for name, info in CATEGORY_INFO.items()}
+
+# 指標ごとのURL・SEO設定（INDICATOR_INFO にマージ）
+INDICATOR_SEO = {
+    "RSI_14":               {"url_slug": "rsi",                "seo_title": "RSIの勝率｜FXで使えるシグナルを検証",                "seo_description": "RSIの勝率をバックテストで検証。買われすぎ・売られすぎシグナルの精度やトレード結果をデータで解説。"},
+    "MACD_12_26_9":         {"url_slug": "macd",               "seo_title": "MACDの勝率｜クロスシグナルの精度を検証",             "seo_description": "MACDのゴールデンクロス・デッドクロスの勝率を検証。FXトレードでの有効性をデータで解説。"},
+    "Stochastic_14_3":      {"url_slug": "stochastic",         "seo_title": "ストキャスティクスの勝率｜逆張り精度を検証",        "seo_description": "ストキャスティクスの勝率をバックテストで分析。逆張りシグナルの精度やトレード結果を解説。"},
+    "CCI_20":               {"url_slug": "cci",                "seo_title": "CCIの勝率｜トレンド判定の精度を検証",               "seo_description": "CCIの勝率を検証。トレンド判断やエントリー精度をバックテスト結果から分析。"},
+    "Williams_R_14":        {"url_slug": "williams_r",         "seo_title": "ウィリアムズ%Rの勝率｜逆張り指標を検証",           "seo_description": "ウィリアムズ%Rの勝率を検証。売買タイミングの精度やトレード結果をデータで解説。"},
+    "SMA_20":               {"url_slug": "sma20",              "seo_title": "SMA20の勝率｜単純移動平均の精度を検証",            "seo_description": "SMA20の勝率をバックテストで検証。トレンドフォローの精度とエントリー結果を分析。"},
+    "SMA_50":               {"url_slug": "sma50",              "seo_title": "SMA50の勝率｜中期トレンドの精度を検証",            "seo_description": "SMA50の勝率を検証。中期トレンド分析におけるシグナル精度をデータで解説。"},
+    "SMA_Cross_20_50":      {"url_slug": "sma_cross",          "seo_title": "SMAクロスの勝率｜20/50クロスの精度を検証",         "seo_description": "SMA20とSMA50のクロス戦略の勝率を検証。ゴールデンクロスの有効性を分析。"},
+    "EMA_Cross_9_21":       {"url_slug": "ema_cross",          "seo_title": "EMAクロスの勝率｜9/21戦略を検証",                 "seo_description": "EMAクロス（9/21）の勝率を検証。短期トレンド戦略の有効性を分析。"},
+    "EMA_21":               {"url_slug": "ema21",              "seo_title": "EMA21の勝率｜トレンド追従の精度を検証",            "seo_description": "EMA21の勝率を検証。トレンドフォローにおけるエントリー精度を分析。"},
+    "BollingerBands_20_2":  {"url_slug": "bollinger_bands",    "seo_title": "ボリンジャーバンドの勝率｜2σ戦略を検証",         "seo_description": "ボリンジャーバンド（20期間・2σ）の勝率を検証。逆張り・順張りの精度を分析。"},
+    "BB_Squeeze":           {"url_slug": "bb_squeeze",         "seo_title": "BBスクイーズの勝率｜収縮からのブレイク検証",       "seo_description": "ボリンジャーバンド収縮後のブレイク戦略の勝率を検証。相場の変動タイミングを分析。"},
+    "Pivot_Classic":        {"url_slug": "pivot",              "seo_title": "ピボットポイントの勝率｜反発ポイントの精度を検証", "seo_description": "ピボットポイントの勝率を検証。サポート・レジスタンスでの反発精度をバックテスト結果から分析。"},
+    "Fibonacci_Retracement":{"url_slug": "fibonacci",          "seo_title": "フィボナッチの勝率｜押し目・戻りの精度を検証",     "seo_description": "フィボナッチリトレースメントの勝率を検証。押し目・戻り売りの精度をデータで分析。"},
+    "Support_Resistance":   {"url_slug": "support_resistance", "seo_title": "動的サポレジの勝率｜トレンドライン精度を検証",     "seo_description": "動的サポート・レジスタンスの勝率を検証。自動検出した価格水準での反転精度を分析。"},
+    "ATR_14":               {"url_slug": "atr",                "seo_title": "ATRの勝率｜ボラティリティ分析の精度を検証",        "seo_description": "ATRの勝率をバックテストで検証。ボラティリティに基づくエントリー精度とトレード結果を分析。"},
+    "Volatility_Index":     {"url_slug": "volatility_index",   "seo_title": "ボリンジャーバンド幅の勝率｜変動率分析を検証",     "seo_description": "ボリンジャーバンド幅（ボラティリティインデックス）の勝率を検証。スクイーズからのブレイク精度を分析。"},
+    "Hammer":               {"url_slug": "hammer",             "seo_title": "ハンマーの勝率｜反転シグナルの精度を検証",         "seo_description": "ハンマーの勝率をバックテストで検証。底値圏での反転シグナルの精度をデータで分析。"},
+    "Inverted_Hammer":      {"url_slug": "inverted_hammer",    "seo_title": "逆ハンマーの勝率｜天井シグナルの精度を検証",       "seo_description": "逆ハンマーの勝率を検証。天井圏での反転シグナルの精度をデータで分析。"},
+    "Doji":                 {"url_slug": "doji",               "seo_title": "十字線（ドジ）の勝率｜転換シグナルの精度を検証",  "seo_description": "十字線（ドジ）の勝率を検証。相場の転換点を示すシグナルの精度を分析。"},
+    "Bullish_Engulfing":    {"url_slug": "bullish_engulfing",  "seo_title": "強気の包み足の勝率｜上昇転換の精度を検証",        "seo_description": "強気の包み足（ブリッシュエンゲルフィング）の勝率を検証。上昇転換シグナルの精度を分析。"},
+    "Bearish_Engulfing":    {"url_slug": "bearish_engulfing",  "seo_title": "弱気の包み足の勝率｜下降転換の精度を検証",        "seo_description": "弱気の包み足（ベアリッシュエンゲルフィング）の勝率を検証。下降転換シグナルの精度を分析。"},
+    "Three_White_Soldiers": {"url_slug": "three_white_soldiers","seo_title": "三白兵の勝率｜上昇継続の精度を検証",             "seo_description": "三白兵（スリーホワイトソルジャーズ）の勝率を検証。上昇継続シグナルの精度を分析。"},
+    "Three_Black_Crows":    {"url_slug": "three_black_crows",  "seo_title": "三羽烏の勝率｜下降継続の精度を検証",              "seo_description": "三羽烏（スリーブラッククロウズ）の勝率を検証。下降継続シグナルの精度を分析。"},
+    "Pin_Bar":              {"url_slug": "pin_bar",            "seo_title": "ピンバーの勝率｜反転シグナルの精度を検証",         "seo_description": "ピンバーの勝率を検証。サポート・レジスタンスでの反転精度をデータで分析。"},
+}
+# INDICATOR_INFO に SEO フィールドをマージ
+for _k, _seo in INDICATOR_SEO.items():
+    if _k in INDICATOR_INFO:
+        INDICATOR_INFO[_k].update(_seo)
 
 
 def _to_unix(ts) -> int:
@@ -735,6 +778,7 @@ def get_category_page_data(category_name: str) -> dict | None:
               .first())
         indicators.append({
             "slug":          ind_info["slug"],
+            "url_slug":      ind_info.get("url_slug", ind_info["slug"]),
             "display":       ind_info["display"],
             "description":   ind_info["description"],
             "good":          ind_info.get("good", []),
@@ -773,6 +817,7 @@ def render_html(app, template_name: str, context: dict) -> str:
 
 def save(filename: str, html: str):
     path = Path(PUBLIC_HTML) / filename
+    path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(html, encoding="utf-8")
     logger.info("Generated: %s", filename)
 
@@ -901,9 +946,7 @@ def main():
                 except Exception as e:
                     logger.warning("Chart JSON error %s %s: %s", pair, tf, e)
 
-        # カテゴリ個別ページ生成（/category/oscillator.html 等）
-        cat_dir = Path(PUBLIC_HTML) / "category"
-        cat_dir.mkdir(exist_ok=True)
+        # カテゴリ個別ページ生成（/<slug>/index.html → /<slug>/）
         for cat_name, cat_info in CATEGORY_INFO.items():
             try:
                 page_data = get_category_page_data(cat_name)
@@ -914,13 +957,11 @@ def main():
                     "updated_at": updated_at,
                     "active_page": "backtest",
                 })
-                save(f"category/{cat_info['slug']}.html", html)
+                save(f"{cat_info['slug']}/index.html", html)
             except Exception as e:
                 logger.warning("Category page error %s: %s", cat_name, e)
 
-        # インジケーター個別ページ生成
-        ind_dir = Path(PUBLIC_HTML) / "indicators"
-        ind_dir.mkdir(exist_ok=True)
+        # インジケーター個別ページ生成（/<cat_slug>/<url_slug>/index.html）
         for ind_name, ind_info in INDICATOR_INFO.items():
             try:
                 page_data = get_indicator_page_data(ind_name, app)
@@ -931,8 +972,9 @@ def main():
                     "updated_at": updated_at,
                     "active_page": "backtest",
                 })
-                slug = ind_info["slug"]
-                save(f"indicators/{slug}.html", html)
+                cat_slug = CATEGORY_SLUGS.get(ind_info["category"], "indicators")
+                url_slug = ind_info.get("url_slug", ind_info["slug"])
+                save(f"{cat_slug}/{url_slug}/index.html", html)
             except Exception as e:
                 logger.warning("Indicator page error %s: %s", ind_name, e)
 
