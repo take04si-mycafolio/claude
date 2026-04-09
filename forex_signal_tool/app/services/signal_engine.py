@@ -167,6 +167,9 @@ def run_signal_engine() -> dict:
     """
     全通貨ペア・タイムフレームのシグナルを生成してDBに保存する。
 
+    - 同じ指標・方向のシグナルが継続中なら signal_time を保持（更新しない）
+    - 消えたシグナルのみ is_active=False に変更
+
     Returns
     -------
     dict: 通貨ペアごとの生成シグナル数
@@ -175,11 +178,8 @@ def run_signal_engine() -> dict:
     from app.models.signal import TradingSignal
     from app.services.data_fetcher import get_candles
 
-    # 既存のアクティブシグナルを無効化
-    TradingSignal.query.filter_by(is_active=True).update({"is_active": False})
-    db.session.commit()
-
     results = {}
+    kept_ids = set()  # 今回も有効なシグナルのID
 
     for pair in Config.CURRENCY_PAIRS:
         results[pair] = {}
@@ -187,6 +187,7 @@ def run_signal_engine() -> dict:
             df = get_candles(pair, tf, limit=200)
             if df.empty:
                 logger.warning("No data for %s %s", pair, tf)
+                results[pair][tf] = 0
                 continue
 
             signals = generate_signals_for_pair_tf(pair, tf, df)
@@ -194,28 +195,59 @@ def run_signal_engine() -> dict:
             expired_at = datetime.now(timezone.utc) + timedelta(hours=expiry_hours)
 
             for s in signals:
-                record = TradingSignal(
+                # 同じ指標・方向のアクティブシグナルが既に存在するか確認
+                existing = TradingSignal.query.filter_by(
                     currency_pair=s["currency_pair"],
                     timeframe=s["timeframe"],
-                    signal_type=s["signal_type"],
                     indicator_name=s["indicator_name"],
-                    indicator_category=s.get("indicator_category"),
-                    entry_price=s["entry_price"],
-                    sl_price=s["sl_price"],
-                    tp_price=s["tp_price"],
-                    sl_pips=s["sl_pips"],
-                    tp_pips=s["tp_pips"],
-                    win_rate=s["win_rate"],
-                    confidence_score=s["confidence_score"],
+                    signal_type=s["signal_type"],
                     is_active=True,
-                    signal_time=s["signal_time"],
-                    expired_at=expired_at,
-                )
-                db.session.add(record)
+                ).first()
+
+                if existing:
+                    # 継続シグナル: 価格・信頼度のみ更新、signal_time は保持
+                    existing.entry_price      = s["entry_price"]
+                    existing.tp_price         = s["tp_price"]
+                    existing.sl_price         = s["sl_price"]
+                    existing.confidence_score = s["confidence_score"]
+                    existing.expired_at       = expired_at
+                    kept_ids.add(existing.id)
+                else:
+                    # 新規シグナル: signal_time = 最新ローソク足の確定時刻
+                    record = TradingSignal(
+                        currency_pair=s["currency_pair"],
+                        timeframe=s["timeframe"],
+                        signal_type=s["signal_type"],
+                        indicator_name=s["indicator_name"],
+                        indicator_category=s.get("indicator_category"),
+                        entry_price=s["entry_price"],
+                        sl_price=s["sl_price"],
+                        tp_price=s["tp_price"],
+                        sl_pips=s["sl_pips"],
+                        tp_pips=s["tp_pips"],
+                        win_rate=s["win_rate"],
+                        confidence_score=s["confidence_score"],
+                        is_active=True,
+                        signal_time=s["signal_time"],
+                        expired_at=expired_at,
+                    )
+                    db.session.add(record)
+                    db.session.flush()
+                    kept_ids.add(record.id)
 
             db.session.commit()
             results[pair][tf] = len(signals)
             logger.info("%s %s: %d signals generated", pair, tf, len(signals))
+
+    # 今回生成されなかった古いシグナルを無効化
+    if kept_ids:
+        TradingSignal.query.filter(
+            TradingSignal.is_active == True,
+            TradingSignal.id.notin_(list(kept_ids)),
+        ).update({"is_active": False}, synchronize_session=False)
+    else:
+        TradingSignal.query.filter_by(is_active=True).update({"is_active": False})
+    db.session.commit()
 
     return results
 
