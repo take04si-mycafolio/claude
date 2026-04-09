@@ -161,8 +161,11 @@ switch ($action) {
         $rrRatio    = (float)($body['rr_ratio']        ?? 1.5);
         $indicators = $body['indicators']      ?? [];
 
+        $slMode     = $body['sl_mode'] ?? 'pips';
+        if (!in_array($slMode, ['pips', 'bb'], true)) $slMode = 'pips';
+
         $validPairs = ['USDJPY', 'GBPJPY', 'EURJPY'];
-        $validTfs   = ['15min', '1hr', '4hr', 'daily'];
+        $validTfs   = ['5min', '15min', '30min', '1hr', '4hr', 'daily'];
         if (!in_array($pair, $validPairs, true)) {
             json_out(['status' => 'error', 'message' => '無効な通貨ペアです']);
         }
@@ -182,6 +185,7 @@ switch ($action) {
             'initial_capital' => $capital,
             'sl_pips'         => $slPips,
             'rr_ratio'        => $rrRatio,
+            'sl_mode'         => $slMode,
             'indicators'      => $indicators,
         ];
         file_put_contents(BT_PARAMS, json_encode($params, JSON_UNESCAPED_UNICODE));

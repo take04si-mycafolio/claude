@@ -153,10 +153,11 @@ h2{font-size:20px;font-weight:700;color:#f1f5f9;margin-bottom:6px}
       <div class="form-group">
         <label>タイムフレーム</label>
         <select id="timeframe" onchange="updateDateRange()">
+          <option value="5min">5分足</option>
+          <option value="15min">15分足</option>
           <option value="1hr">1時間足</option>
           <option value="4hr">4時間足</option>
           <option value="daily">日足</option>
-          <option value="15min">15分足</option>
         </select>
       </div>
     </div>
@@ -180,7 +181,7 @@ h2{font-size:20px;font-weight:700;color:#f1f5f9;margin-bottom:6px}
         <input type="number" id="capital" value="1000000" min="1000" step="1000">
       </div>
       <div class="form-group">
-        <label>SL (pips)</label>
+        <label>SL (pips) ※固定pipsモード時</label>
         <input type="number" id="sl_pips" value="20" min="1" max="200" step="1">
       </div>
       <div class="form-group">
@@ -192,6 +193,18 @@ h2{font-size:20px;font-weight:700;color:#f1f5f9;margin-bottom:6px}
           <option value="2.5">1:2.5</option>
           <option value="3.0">1:3.0</option>
         </select>
+      </div>
+    </div>
+
+    <!-- 損切りロジック設定 -->
+    <div class="form-row" style="margin-bottom:20px">
+      <div class="form-group">
+        <label>損切りロジック</label>
+        <select id="sl_mode">
+          <option value="pips">固定pips SL/TP（通常）</option>
+          <option value="bb">BBバンドタッチ SL/TP（動的）</option>
+        </select>
+        <span style="font-size:11px;color:#475569;margin-top:4px;display:block">BBモード：SL = BB下限、TP = BB上限（エントリー時点の値を使用）</span>
       </div>
     </div>
 
@@ -235,6 +248,13 @@ h2{font-size:20px;font-weight:700;color:#f1f5f9;margin-bottom:6px}
               'Three_White_Soldiers'=> '三白兵',
               'Three_Black_Crows'   => '三羽烏',
               'Pin_Bar'             => 'ピンバー',
+          ],
+          '複合条件' => [
+              'RSI_MACD_Combo'    => 'RSI + MACD 両方一致',
+              'RSI_Stoch_Combo'   => 'RSI + Stochastic 両方一致',
+              'MACD_Stoch_Combo'  => 'MACD + Stochastic 両方一致',
+              'Triple_OSC_Combo'  => 'トリプルOSC（RSI+MACD+Stoch 全一致）',
+              'All_AND_Consensus' => '全指標AND一致エントリー',
           ],
       ];
       $gIdx = 0;
@@ -317,6 +337,7 @@ function runBacktest() {
     initial_capital: parseInt(document.getElementById('capital').value, 10),
     sl_pips:         parseFloat(document.getElementById('sl_pips').value),
     rr_ratio:        parseFloat(document.getElementById('rr_ratio').value),
+    sl_mode:         document.getElementById('sl_mode').value,
     indicators:      indicators,
   };
 
@@ -473,7 +494,7 @@ function buildIndicatorCard(r) {
     + indStat(wr.toFixed(1) + '%', '勝率', wr >= 50 ? 'green' : 'red')
     + indStat(fmtJpy(r.total_profit), '損益', r.total_profit >= 0 ? 'green' : 'red')
     + indStat(pf.toFixed(2), 'PF', pf >= 1 ? 'green' : 'red')
-    + indStat(r.sl_pips + '/' + r.tp_pips, 'SL/TP pips')
+    + indStat(r.sl_mode === 'bb' ? 'BB動的' : (r.sl_pips + '/' + r.tp_pips + 'p'), 'SL/TP', r.sl_mode === 'bb' ? 'green' : '')
     + '</div>'
     + (trades.length ? '<div style="overflow-x:auto"><table class="trade-table"><thead><tr>'
       + '<th>エントリー</th><th>エグジット</th><th>方向</th><th>EP</th><th>XP</th><th>結果</th><th>残高</th>'

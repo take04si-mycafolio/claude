@@ -52,6 +52,7 @@ def main():
         from app.services.indicators.lines import calculate_lines
         from app.services.indicators.volatility import calculate_volatility
         from app.services.indicators.patterns import calculate_patterns
+        from app.services.indicators.composite import calculate_composite
         import pandas as pd
 
         write_result({'status': 'running', 'message': 'データ取得中...', 'started_at': int(datetime.now(timezone.utc).timestamp())})
@@ -72,10 +73,15 @@ def main():
                 write_result({'status': 'error', 'error': '指標が選択されていません'})
                 return
 
-            # 指標名 → 計算関数マップ
+            sl_mode = params.get('sl_mode', 'pips')
+            if sl_mode not in ('pips', 'bb'):
+                sl_mode = 'pips'
+            tp_mode = sl_mode  # SL/TP は同じロジックを適用
+
+            # 指標名 → 計算関数マップ（複合指標を含む）
             INDICATOR_FUNC_MAP = {}
-            for func in [calculate_oscillators, calculate_trend,
-                         calculate_lines, calculate_volatility, calculate_patterns]:
+            for func in [calculate_oscillators, calculate_trend, calculate_lines,
+                         calculate_volatility, calculate_patterns, calculate_composite]:
                 try:
                     dummy = pd.DataFrame({
                         c: [float(i) for i in range(1, 61)]
@@ -151,6 +157,8 @@ def main():
                         sl_pips=sl_pips,
                         tp_pips=tp_pips,
                         backtest_hours=99999,
+                        sl_mode=sl_mode,
+                        tp_mode=tp_mode,
                     )
                 except Exception:
                     continue
@@ -161,6 +169,7 @@ def main():
                 res['indicator_name'] = ind_name
                 res['tp_pips']  = tp_pips
                 res['rr_ratio'] = rr_ratio
+                res['sl_mode']  = sl_mode
 
                 # トレード履歴を JSON シリアライズ可能な形に変換
                 trades_out = []
