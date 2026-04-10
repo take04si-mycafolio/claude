@@ -215,6 +215,7 @@
            data-signal="{{ t.signal }}"
            data-outcome="{{ t.outcome }}"
            data-pnl="{{ t.pnl }}"
+           data-pips="{{ t.pips }}"
            data-entry-label="{{ t.entry_ts_jst }}">
         <div class="sim-trade-header">
           <span class="signal-type-badge {% if t.signal == 'BUY' %}buy{% else %}sell{% endif %}">{{ '買い' if t.signal == 'BUY' else '売り' }}</span>
@@ -569,7 +570,8 @@ async function openTradeModal(row) {
   const slPrice    = parseFloat(row.dataset.slPrice)    || 0;
   const signal     = row.dataset.signal;
   const outcome    = row.dataset.outcome;
-  const pnl        = parseFloat(row.dataset.pnl) || 0;
+  const pips       = parseFloat(row.dataset.pips) || 0;
+  const pnl        = parseFloat(row.dataset.pnl)  || 0;
   const label      = row.dataset.entryLabel || '';
 
   const modal  = bootstrap.Modal.getOrCreateInstance(_tradeModalEl);
@@ -580,13 +582,15 @@ async function openTradeModal(row) {
     `${pair.slice(0,3)}/${pair.slice(3)} ${isBuy ? '買い' : '売り'} — ${label} (JST)`;
   document.getElementById('tradeModalMeta').textContent = '';
 
+  const pipsSign = pips >= 0 ? '+' : '';
   const footer = document.getElementById('tradeModalFooter');
   footer.innerHTML = `
     <span style="font-size:0.75rem;color:#94a3b8;">エントリー <b class="text-white">${entryPrice.toFixed(3)}</b></span>
     <span style="font-size:0.75rem;color:#22c55e;">TP <b>${tpPrice.toFixed(3)}</b></span>
     <span style="font-size:0.75rem;color:#ef4444;">SL <b>${slPrice.toFixed(3)}</b></span>
     <span style="font-size:0.75rem;" class="${isWin ? 'text-success' : 'text-danger'}">
-      結果 <b>${isWin ? '✓利確' : '✗損切'}</b> ${pnl >= 0 ? '+' : ''}¥${Math.abs(pnl).toLocaleString()}
+      結果 <b>${isWin ? '✓利確' : '✗損切'}</b> ${pipsSign}${Math.abs(pips).toFixed(0)}pips
+      <span style="color:#64748b;font-size:0.7rem;">(¥${Math.abs(pnl).toLocaleString()})</span>
     </span>`;
 
   document.getElementById('tradeChartLoading').style.display = 'flex';
@@ -620,6 +624,11 @@ function renderTradeChart(candles, trade) {
   container.style.display = 'block';
   destroyTradeChart();
 
+  function _jstFmt(ts) {
+    const d = new Date((ts + 9 * 3600) * 1000);
+    return `${String(d.getUTCMonth()+1).padStart(2,'0')}/${String(d.getUTCDate()).padStart(2,'0')} `
+         + `${String(d.getUTCHours()).padStart(2,'0')}:${String(d.getUTCMinutes()).padStart(2,'0')} JST`;
+  }
   _tradeChart = LightweightCharts.createChart(container, {
     autoSize: true,
     height: 280,
@@ -628,6 +637,7 @@ function renderTradeChart(candles, trade) {
     timeScale: { timeVisible: true, secondsVisible: false, borderColor: '#334155' },
     rightPriceScale: { borderColor: '#334155' },
     crosshair: { mode: LightweightCharts.CrosshairMode.Normal },
+    localization: { timeFormatter: _jstFmt },
   });
 
   const cs = _tradeChart.addCandlestickSeries({
@@ -643,8 +653,30 @@ function renderTradeChart(candles, trade) {
 
   const markers = [];
   const isBuy = trade.signal === 'BUY';
-  if (trade.entryTs) markers.push({ time: trade.entryTs, position: isBuy ? 'belowBar' : 'aboveBar', color: isBuy ? '#22c55e' : '#ef4444', shape: isBuy ? 'arrowUp' : 'arrowDown', text: 'IN' });
-  if (trade.exitTs)  markers.push({ time: trade.exitTs,  position: trade.outcome === 'WIN' ? 'aboveBar' : 'belowBar', color: trade.outcome === 'WIN' ? '#22c55e' : '#ef4444', shape: 'circle', text: 'OUT' });
+  const isWin = trade.outcome === 'WIN';
+  // IN: 買いは下から矢印上、売りは上から矢印下
+  if (trade.entryTs) markers.push({
+    time: trade.entryTs,
+    position: isBuy ? 'belowBar' : 'aboveBar',
+    color:    isBuy ? '#22c55e' : '#ef4444',
+    shape:    isBuy ? 'arrowUp' : 'arrowDown',
+    text: 'IN'
+  });
+  // OUT: 利確(TP)は逆側、損切(SL)は同側（価格の動いた方向を表現）
+  // BUY WIN→上(TPはentry上)、BUY LOSS→下(SLはentry下)
+  // SELL WIN→下(TPはentry下)、SELL LOSS→上(SLはentry上)
+  if (trade.exitTs) {
+    const outPos = isBuy
+      ? (isWin ? 'aboveBar' : 'belowBar')
+      : (isWin ? 'belowBar' : 'aboveBar');
+    markers.push({
+      time: trade.exitTs,
+      position: outPos,
+      color: isWin ? '#22c55e' : '#ef4444',
+      shape: 'circle',
+      text: isWin ? 'TP✓' : 'SL✗'
+    });
+  }
   markers.sort((a, b) => a.time - b.time);
   try { cs.setMarkers(markers); } catch(e) {}
   _tradeChart.timeScale().fitContent();
