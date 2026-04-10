@@ -419,44 +419,44 @@ renderTable();
 .rk-pair-tab:hover{border-color:#475569;color:#e2e8f0;background:#263348}
 .rk-pair-tab.active{background:#1e3a5f;border-color:#3b82f6;color:#60a5fa;box-shadow:0 0 0 1px #3b82f633}
 
-/* ===== カテゴリタブ（横スクロール） ===== */
+/* ===== カテゴリタブ（横スクロール・テキスト色=枠線色） ===== */
 .rk-cat-tabs{display:flex;flex-wrap:nowrap;gap:6px;margin-bottom:12px;padding:8px 0 6px;border-top:1px solid #1e293b;overflow-x:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none}
 .rk-cat-tabs::-webkit-scrollbar{display:none}
-.rk-cat{flex-shrink:0;background:transparent;border:1px solid #334155;color:#94a3b8;border-radius:20px;padding:4px 12px;font-size:11px;cursor:pointer;transition:all .15s;white-space:nowrap}
-.rk-cat:hover{border-color:#475569;color:#cbd5e1}
+.rk-cat{flex-shrink:0;background:transparent;border:1px solid #4b5563;color:#4b5563;border-radius:20px;padding:4px 12px;font-size:11px;cursor:pointer;transition:all .15s;white-space:nowrap}
+.rk-cat:hover{border-color:#94a3b8;color:#94a3b8}
 .rk-cat.active{background:#134e4a;border-color:#0d9488;color:#2dd4bf}
 
 /* ===== ランキングテーブル ===== */
 .rk-table-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch;border-radius:8px;border:1px solid #334155}
 .rk-table{width:100%;border-collapse:collapse;font-size:12px}
-.rk-table thead th{background:#1e293b;color:#cbd5e1;font-size:10px;font-weight:700;letter-spacing:.04em;padding:9px 10px;text-align:right;border-bottom:1px solid #334155;white-space:nowrap}
+.rk-table thead th{background:#1e293b;color:#f1f5f9;font-size:10px;font-weight:700;letter-spacing:.04em;padding:9px 10px;text-align:right;border-bottom:1px solid #334155;white-space:nowrap}
 .th-rank,.th-score,.th-name{text-align:left!important}
 .rk-table tbody tr{border-bottom:1px solid #1a2640;transition:background .1s}
 .rk-table tbody tr:hover{background:#1a2d48}
-.rk-table td{padding:9px 10px;text-align:right;color:#e2e8f0;white-space:nowrap}
+.rk-table td{padding:9px 10px;text-align:right;color:#f1f5f9;white-space:nowrap}
 .td-rank{text-align:left;font-size:14px;width:32px}
 .td-score{text-align:left;width:80px}
 .rk-score{display:inline-block;font-size:15px;font-weight:800;padding:2px 7px;border-radius:6px;line-height:1.3}
 .rk-score.sc-high{color:#fbbf24;background:#2d2000}
 .rk-score.sc-mid{color:#93c5fd;background:#0c1a30}
-.rk-score.sc-low{color:#94a3b8;background:#1e293b}
-.score-sub{font-size:9px;color:#64748b;margin-top:2px;letter-spacing:.01em}
+.rk-score.sc-low{color:#f1f5f9;background:#1e293b}
+.score-sub{font-size:9px;color:#94a3b8;margin-top:2px;letter-spacing:.01em}
 .td-name{text-align:left;max-width:130px;white-space:normal;line-height:1.3;font-size:12px;font-weight:600;color:#f1f5f9}
 .rk-ind-link{color:#60a5fa;text-decoration:none;font-weight:600}
 .rk-ind-link:hover{text-decoration:underline}
-.td-pair{color:#cbd5e1;font-size:11px;font-weight:500}
-.td-tf{color:#7dd3fc;font-size:11px;font-weight:500}
-.td-n{color:#e2e8f0;font-weight:500}
-.td-rr{color:#c4b5fd;font-weight:600}
+.td-pair{color:#f1f5f9;font-size:11px;font-weight:500}
+.td-tf{color:#bae6fd;font-size:11px;font-weight:500}
+.td-n{color:#f1f5f9;font-weight:500}
+.td-rr{color:#d8b4fe;font-weight:600}
 .td-pnl.pos{color:#4ade80;font-weight:700}
 .td-pnl.neg{color:#f87171;font-weight:700}
 .td-dd{color:#fca5a5;font-size:11px}
-.td-pf{color:#e2e8f0;font-weight:500}
+.td-pf{color:#f1f5f9;font-weight:500}
 .wl-w{color:#4ade80;font-weight:600}.wl-l{color:#f87171;font-weight:600}
 .rk-wr{font-weight:700;padding:3px 8px;border-radius:4px;font-size:11px}
 .rk-wr.high{background:#14532d;color:#4ade80}
 .rk-wr.mid{background:#713f12;color:#fbbf24}
-.rk-wr.low{background:#1e293b;color:#cbd5e1}
+.rk-wr.low{background:#1e293b;color:#f1f5f9}
 .rk-empty{display:flex;flex-direction:column;align-items:center;padding:32px;color:#94a3b8;font-size:13px;gap:8px}
 
 /* ===== 分析・考察 ===== */
