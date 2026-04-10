@@ -990,22 +990,43 @@ def main():
         for r in all_bt:
             r["url"] = ind_url_map.get(r.get("indicator_name", ""), "")
 
+        # 検証条件データを抽出
+        bt_sl_pips = bt_tp_pips = bt_rr_ratio = bt_timeframes = ""
+        if all_bt:
+            sl = float(all_bt[0].get("sl_pips") or 0)
+            tp = float(all_bt[0].get("tp_pips") or 0)
+            rr = float(all_bt[0].get("rr_ratio") or 0)
+            bt_sl_pips  = str(int(sl)) if sl else ""
+            bt_tp_pips  = str(int(tp)) if tp else ""
+            bt_rr_ratio = str(round(rr, 1)) if rr else ""
+            tfs = sorted(
+                set(r.get("timeframe", "") for r in all_bt if r.get("timeframe")),
+                key=lambda t: TF_ORDER.index(t) if t in TF_ORDER else 99,
+            )
+            bt_timeframes = " · ".join(TF_LABELS.get(t, t) for t in tfs)
+
         results_json   = json.dumps(all_bt,    cls=_DecEncoder, ensure_ascii=False)
         tf_labels_json = json.dumps(TF_LABELS, ensure_ascii=False)
 
         html = render_html(app, "backtest_static.html", {
-            "pairs":          pairs,
-            "pair_pages":     pair_pages,
-            "results":        all_bt,
-            "results_json":   results_json,
-            "tf_labels_json": tf_labels_json,
-            "ind_url_map":    ind_url_map,
+            "pairs":            pairs,
+            "pair_pages":       pair_pages,
+            "results":          all_bt,
+            "results_json":     results_json,
+            "tf_labels_json":   tf_labels_json,
+            "ind_url_map":      ind_url_map,
             "content_analysis": content_db.get("ranking_analysis", ""),
-            "recs_short":     _parse_recs("ranking_short_term"),
-            "recs_day":       _parse_recs("ranking_day_trade"),
-            "recs_swing":     _parse_recs("ranking_swing"),
-            "updated_at":     updated_at,
-            "active_page":    "backtest",
+            "ranking_title":    content_db.get("ranking_title", ""),
+            "ranking_intro":    content_db.get("ranking_intro", ""),
+            "recs_short":       _parse_recs("ranking_short_term"),
+            "recs_day":         _parse_recs("ranking_day_trade"),
+            "recs_swing":       _parse_recs("ranking_swing"),
+            "bt_sl_pips":       bt_sl_pips,
+            "bt_tp_pips":       bt_tp_pips,
+            "bt_rr_ratio":      bt_rr_ratio,
+            "bt_timeframes":    bt_timeframes,
+            "updated_at":       updated_at,
+            "active_page":      "backtest",
         })
         save("technical-ranking/index.html", html)
 

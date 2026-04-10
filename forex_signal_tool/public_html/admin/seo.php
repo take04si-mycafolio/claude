@@ -147,9 +147,25 @@ h2{font-size:19px;font-weight:700;color:#f1f5f9;margin-bottom:4px}
   <div id="content-loading"><div class="spinner"></div><p style="margin-top:12px">読み込み中...</p></div>
   <div id="content-body" style="display:none">
 
+    <!-- ページタイトル・導入文 -->
+    <div class="cont-section">
+      <h3 class="cont-title">① ページタイトル・導入文</h3>
+      <p class="cont-sub">ランキングページのヒーローヘッダーに表示するタイトルと導入文を設定します。</p>
+      <label class="cont-label">ページタイトル</label>
+      <input type="text" id="ranking-title-input" class="cont-input"
+        placeholder="テクニカル指標 バックテスト勝率ランキング">
+      <label class="cont-label" style="margin-top:10px">導入文</label>
+      <textarea id="ranking-intro-input" class="cont-textarea" rows="4"
+        placeholder="FX主要テクニカル指標のバックテスト結果を勝率順にランキング。USD/JPY・GBP/JPY・EUR/JPYの3ペアで検証した実データをもとに、本当に使えるテクニカル指標を徹底比較します。"></textarea>
+      <div class="cont-actions">
+        <span id="pageinfo-status" class="cont-status"></span>
+        <button class="save-btn" onclick="savePageInfo()">保存</button>
+      </div>
+    </div>
+
     <!-- 分析・考察 -->
     <div class="cont-section">
-      <h3 class="cont-title">③ 分析・考察</h3>
+      <h3 class="cont-title">② 分析・考察</h3>
       <p class="cont-sub">バックテスト結果の分析・考察テキスト。改行もそのまま表示されます。</p>
       <textarea id="analysis-input" class="cont-textarea" rows="10"
         placeholder="今週のバックテスト結果を分析すると...&#10;&#10;（AIが自動生成したテキストをここに貼り付けてください）"></textarea>
@@ -539,13 +555,35 @@ async function initContent() {
     const d   = await res.json();
     if (d.status === 'ok') {
       contentData = d.data || {};
-      const analysis = contentData['ranking_analysis']?.value || '';
-      document.getElementById('analysis-input').value = analysis;
+      document.getElementById('ranking-title-input').value = contentData['ranking_title']?.value || '';
+      document.getElementById('ranking-intro-input').value = contentData['ranking_intro']?.value  || '';
+      document.getElementById('analysis-input').value      = contentData['ranking_analysis']?.value || '';
     }
   } catch(e) {}
   renderRecPanels();
   document.getElementById('content-loading').style.display = 'none';
   document.getElementById('content-body').style.display    = 'block';
+}
+
+async function savePageInfo() {
+  const title = document.getElementById('ranking-title-input').value.trim();
+  const intro = document.getElementById('ranking-intro-input').value.trim();
+  const st    = document.getElementById('pageinfo-status');
+  st.textContent = '保存中...'; st.className = 'cont-status saving';
+  try {
+    await fetch('/admin/api.php?action=content_save', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({key:'ranking_title', value: title})
+    });
+    const res2 = await fetch('/admin/api.php?action=content_save', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({key:'ranking_intro', value: intro})
+    });
+    const d = await res2.json();
+    st.textContent = d.status==='ok' ? '✓ 保存しました' : 'エラー: '+d.message;
+    st.className = 'cont-status ' + (d.status==='ok' ? 'ok' : 'err');
+    if (d.status==='ok') setTimeout(()=>{st.textContent=''},3000);
+  } catch(e) { st.textContent='ネットワークエラー'; st.className='cont-status err'; }
 }
 
 async function saveAnalysis() {
@@ -601,6 +639,9 @@ init();
 .cont-section{background:#1e293b;border-radius:12px;padding:20px;margin-bottom:20px}
 .cont-title{font-size:16px;font-weight:700;color:#f1f5f9;margin-bottom:6px}
 .cont-sub{font-size:12px;color:#64748b;margin-bottom:12px;line-height:1.5}
+.cont-label{display:block;font-size:11px;color:#64748b;margin-bottom:4px;font-weight:600;letter-spacing:.04em}
+.cont-input{width:100%;background:#0f172a;border:1px solid #334155;border-radius:8px;color:#e2e8f0;padding:10px 12px;font-size:13px;outline:none;font-family:inherit}
+.cont-input:focus{border-color:#3b82f6}
 .cont-textarea{width:100%;background:#0f172a;border:1px solid #334155;border-radius:8px;color:#e2e8f0;padding:12px;font-size:13px;line-height:1.7;resize:vertical;outline:none;font-family:inherit}
 .cont-textarea:focus{border-color:#3b82f6}
 .cont-actions{display:flex;align-items:center;gap:12px;margin-top:10px;justify-content:flex-end}
