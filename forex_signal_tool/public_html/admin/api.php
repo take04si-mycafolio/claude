@@ -21,9 +21,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 }
 
 // ログ出力先 (バックグラウンドジョブ用)
-define('LOG_FILE',    '/tmp/forex_admin_bg.log');
-define('BT_PARAMS',   '/tmp/forex_bt_params.json');
-define('BT_RESULT',   '/tmp/forex_bt_result.json');
+define('LOG_FILE',           '/tmp/forex_admin_bg.log');
+define('BT_PARAMS',          '/tmp/forex_bt_params.json');
+define('BT_RESULT',          '/tmp/forex_bt_result.json');
+define('RANKING_BT_PARAMS',  '/tmp/ranking_bt_params.json');
+define('RANKING_BT_RESULT',  '/tmp/ranking_bt_result.json');
 
 switch ($action) {
 
@@ -332,6 +334,177 @@ switch ($action) {
             );
             $stmt->execute([$key, $value]);
             json_out(['status' => 'ok', 'message' => '保存しました']);
+        } catch (Exception $e) {
+            json_out(['status' => 'error', 'message' => $e->getMessage()]);
+        }
+        break;
+
+    // ---- ランキングバックテスト管理 ----
+    case 'ranking_bt_run':
+        require_login();
+
+        // 既に実行中チェック（30分で自動解除）
+        if (file_exists(RANKING_BT_RESULT)) {
+            $prev = json_decode(file_get_contents(RANKING_BT_RESULT), true);
+            if (($prev['status'] ?? '') === 'running') {
+                $startedAt = $prev['started_at'] ?? 0;
+                if (time() - $startedAt < 1800) {
+                    json_out(['status' => 'busy', 'message' => '別のバックテストが実行中です（最大30分で自動解除）']);
+                }
+            }
+        }
+
+        $startDate  = trim($body['start_date']       ?? '');
+        $endDate    = trim($body['end_date']         ?? '');
+        $swingStart = trim($body['swing_start_date'] ?? '') ?: $startDate;
+        $swingEnd   = trim($body['swing_end_date']   ?? '') ?: $endDate;
+
+        $params = [
+            'start_date'       => $startDate,
+            'end_date'         => $endDate,
+            'swing_start_date' => $swingStart,
+            'swing_end_date'   => $swingEnd,
+        ];
+        file_put_contents(RANKING_BT_PARAMS, json_encode($params, JSON_UNESCAPED_UNICODE));
+        file_put_contents(RANKING_BT_RESULT, json_encode([
+            'status'     => 'running',
+            'message'    => '初期化中...',
+            'started_at' => time(),
+        ], JSON_UNESCAPED_UNICODE));
+
+        $script = escapeshellarg(TASKS_DIR . '/run_ranking_bt.py');
+        $cmd    = escapeshellarg(PYTHON_BIN) . ' ' . $script;
+        exec("nohup {$cmd} >> /tmp/ranking_bt_bg.log 2>&1 &");
+        json_out(['status' => 'started', 'message' => 'ランキングバックテストを開始しました']);
+        break;
+
+    case 'ranking_bt_status':
+        require_login();
+        if (!file_exists(RANKING_BT_RESULT)) {
+            json_out(['status' => 'idle']);
+        }
+        $result = json_decode(file_get_contents(RANKING_BT_RESULT), true);
+        json_out($result ?: ['status' => 'idle']);
+        break;
+
+    case 'ranking_bt_info':
+        require_login();
+        try {
+            $pdo     = get_pdo();
+            $stCount  = (int)$pdo->query('SELECT COUNT(*) FROM simulation_trades')->fetchColumn();
+            $btCount  = (int)$pdo->query('SELECT COUNT(*) FROM backtest_results')->fetchColumn();
+            $sigCount = (int)$pdo->query("SELECT COUNT(*) FROM trading_signals WHERE is_active=1")->fetchColumn();
+            $lastBt   = setting_get('last_backtest_at', '未実行');
+            json_out([
+                'status'            => 'ok',
+                'simulation_trades' => $stCount,
+                'backtest_results'  => $btCount,
+                'signals'           => $sigCount,
+                'last_backtest_at'  => $lastBt,
+            ]);
+        } catch (Exception $e) {
+            json_out(['status' => 'error', 'message' => $e->getMessage()]);
+        }
+        break;
+
+    case 'ranking_csv':
+        require_login();
+        try {
+            $pdo   = get_pdo();
+            $pairs = ['USDJPY', 'GBPJPY', 'EURJPY'];
+
+            $zipFile = '/tmp/ranking_bt_data_' . date('Ymd_His') . '.zip';
+            $zip = new ZipArchive();
+            if ($zip->open($zipFile, ZipArchive::CREATE) !== true) {
+                json_out(['status' => 'error', 'message' => 'ZIPファイルの作成に失敗しました']);
+            }
+
+            // ペアごとのシミュレーショントレードCSV
+            foreach ($pairs as $pair) {
+                $stmt = $pdo->prepare(
+                    'SELECT id, currency_pair, timeframe, indicator_name,
+                            entry_at, exit_at, direction, entry_price,
+                            exit_price, tp_price, sl_price, sl_pips, tp_pips,
+                            outcome, profit_loss, capital_after
+                     FROM simulation_trades
+                     WHERE currency_pair = ?
+                     ORDER BY entry_at DESC'
+                );
+                $stmt->execute([$pair]);
+                $trades = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+                $csv  = "\xEF\xBB\xBF"; // UTF-8 BOM
+                $csv .= "ID,通貨ペア,タイムフレーム,指標名,エントリー日時,エグジット日時,方向,エントリー価格,エグジット価格,TP価格,SL価格,SL_pips,TP_pips,結果,損益,資金残高\n";
+                foreach ($trades as $t) {
+                    $csv .= implode(',', [
+                        $t['id'], $t['currency_pair'], $t['timeframe'], '"' . $t['indicator_name'] . '"',
+                        $t['entry_at'], $t['exit_at'] ?? '',
+                        $t['direction'],
+                        $t['entry_price'], $t['exit_price'] ?? '',
+                        $t['tp_price'] ?? '', $t['sl_price'] ?? '',
+                        $t['sl_pips'] ?? '', $t['tp_pips'] ?? '',
+                        $t['outcome'] ?? '',
+                        $t['profit_loss'] ?? '', $t['capital_after'] ?? '',
+                    ]) . "\n";
+                }
+                $zip->addFromString("simulation_trades_{$pair}.csv", $csv);
+            }
+
+            // バックテスト結果サマリーCSV
+            $btRows = $pdo->query(
+                'SELECT currency_pair, timeframe, indicator_name,
+                        win_rate, profit_factor, total_trades,
+                        sl_pips, tp_pips, max_drawdown
+                 FROM backtest_results
+                 ORDER BY win_rate DESC'
+            )->fetchAll(PDO::FETCH_ASSOC);
+
+            $sumCsv  = "\xEF\xBB\xBF";
+            $sumCsv .= "通貨ペア,タイムフレーム,指標名,勝率,PF,トレード数,SL_pips,TP_pips,最大ドローダウン\n";
+            foreach ($btRows as $r) {
+                $sumCsv .= implode(',', [
+                    $r['currency_pair'], $r['timeframe'],
+                    '"' . $r['indicator_name'] . '"',
+                    $r['win_rate'], $r['profit_factor'], $r['total_trades'],
+                    $r['sl_pips'], $r['tp_pips'], $r['max_drawdown'],
+                ]) . "\n";
+            }
+            $zip->addFromString("backtest_summary.csv", $sumCsv);
+
+            // シグナルCSV
+            $sigRows = $pdo->query(
+                'SELECT id, currency_pair, timeframe, signal_type, indicator_name,
+                        entry_price, sl_price, tp_price, sl_pips, tp_pips,
+                        win_rate, confidence_score, is_active, signal_time
+                 FROM trading_signals
+                 ORDER BY signal_time DESC
+                 LIMIT 10000'
+            )->fetchAll(PDO::FETCH_ASSOC);
+
+            $sigCsv  = "\xEF\xBB\xBF";
+            $sigCsv .= "ID,通貨ペア,タイムフレーム,シグナル,指標名,エントリー価格,SL価格,TP価格,SL_pips,TP_pips,勝率,信頼度,アクティブ,シグナル日時\n";
+            foreach ($sigRows as $s) {
+                $sigCsv .= implode(',', [
+                    $s['id'], $s['currency_pair'], $s['timeframe'],
+                    $s['signal_type'], '"' . $s['indicator_name'] . '"',
+                    $s['entry_price'] ?? '', $s['sl_price'] ?? '',
+                    $s['tp_price'] ?? '', $s['sl_pips'] ?? '', $s['tp_pips'] ?? '',
+                    $s['win_rate'] ?? '', $s['confidence_score'] ?? '',
+                    $s['is_active'] ? '1' : '0', $s['signal_time'],
+                ]) . "\n";
+            }
+            $zip->addFromString("signals.csv", $sigCsv);
+
+            $zip->close();
+
+            $filename = 'ranking_bt_data_' . date('Ymd') . '.zip';
+            header('Content-Type: application/zip');
+            header('Content-Disposition: attachment; filename="' . $filename . '"');
+            header('Content-Length: ' . filesize($zipFile));
+            readfile($zipFile);
+            unlink($zipFile);
+            exit;
+
         } catch (Exception $e) {
             json_out(['status' => 'error', 'message' => $e->getMessage()]);
         }

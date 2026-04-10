@@ -90,9 +90,10 @@ h2{font-size:19px;font-weight:700;color:#f1f5f9;margin-bottom:4px}
 
 <main>
   <!-- ページ切り替えタブ -->
-  <div class="main-tabs" style="display:flex;gap:8px;margin-bottom:20px">
+  <div class="main-tabs" style="display:flex;gap:8px;margin-bottom:20px;flex-wrap:wrap">
     <button class="main-tab active" onclick="switchMainTab(this,'seo')">ページSEO設定</button>
     <button class="main-tab" onclick="switchMainTab(this,'content')">コンテンツ管理（ランキング）</button>
+    <button class="main-tab" onclick="switchMainTab(this,'ranking')">ランキング管理</button>
   </div>
 
   <!-- SEOタブ -->
@@ -216,6 +217,90 @@ h2{font-size:19px;font-weight:700;color:#f1f5f9;margin-bottom:4px}
 
   </div><!-- /content-body -->
   </div><!-- /tab-content -->
+
+  <!-- ランキング管理タブ -->
+  <div id="tab-ranking" style="display:none">
+  <h2>ランキング管理</h2>
+  <p class="subtitle">バックテスト期間を設定して手動実行します。完了後、手法別おすすめが自動生成され静的ページが更新されます。</p>
+
+  <!-- データ件数 -->
+  <div class="cont-section">
+    <h3 class="cont-title">データ件数</h3>
+    <div id="rk-counts-loading" style="font-size:12px;color:#64748b">読み込み中...</div>
+    <div id="rk-counts" style="display:none">
+      <div style="display:flex;flex-wrap:wrap;gap:16px;margin-bottom:6px">
+        <div class="rk-stat-box">
+          <div class="rk-stat-lbl">シミュレーショントレード</div>
+          <div class="rk-stat-val" id="rk-cnt-st">-</div>
+        </div>
+        <div class="rk-stat-box">
+          <div class="rk-stat-lbl">バックテスト結果</div>
+          <div class="rk-stat-val" id="rk-cnt-bt">-</div>
+        </div>
+        <div class="rk-stat-box">
+          <div class="rk-stat-lbl">シグナル（アクティブ）</div>
+          <div class="rk-stat-val" id="rk-cnt-sig">-</div>
+        </div>
+      </div>
+      <div style="font-size:11px;color:#64748b">最終バックテスト実行: <span id="rk-last-bt">-</span></div>
+    </div>
+    <div style="margin-top:12px;display:flex;gap:8px;flex-wrap:wrap">
+      <button class="save-btn" onclick="loadRkInfo()" style="background:#334155">件数を更新</button>
+      <button class="save-btn" onclick="downloadCsv()" id="rk-csv-btn" style="background:#059669">CSVダウンロード（ZIP）</button>
+    </div>
+  </div>
+
+  <!-- 期間設定 -->
+  <div class="cont-section">
+    <h3 class="cont-title">バックテスト期間設定</h3>
+    <p class="cont-sub">短期・デイトレ（5分〜4時間足）と スイング（日足）は別々に期間指定できます。</p>
+
+    <div style="margin-bottom:16px">
+      <div style="font-size:13px;font-weight:600;color:#e2e8f0;margin-bottom:8px">短期・デイトレ用（5分足 / 15分足 / 30分足 / 1時間足 / 4時間足）</div>
+      <div style="display:flex;gap:12px;flex-wrap:wrap">
+        <div>
+          <label class="cont-label">開始日</label>
+          <input type="date" id="rk-start" class="cont-input" style="width:160px">
+        </div>
+        <div>
+          <label class="cont-label">終了日</label>
+          <input type="date" id="rk-end" class="cont-input" style="width:160px">
+        </div>
+      </div>
+    </div>
+
+    <div>
+      <div style="font-size:13px;font-weight:600;color:#e2e8f0;margin-bottom:4px">スイング用（日足）</div>
+      <p class="cont-sub" style="margin-bottom:8px">デフォルト: 6ヶ月前〜本日</p>
+      <div style="display:flex;gap:12px;flex-wrap:wrap">
+        <div>
+          <label class="cont-label">開始日（日足）</label>
+          <input type="date" id="rk-swing-start" class="cont-input" style="width:160px">
+        </div>
+        <div>
+          <label class="cont-label">終了日（日足）</label>
+          <input type="date" id="rk-swing-end" class="cont-input" style="width:160px">
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 実行 -->
+  <div class="cont-section">
+    <h3 class="cont-title">バックテスト実行</h3>
+    <p class="cont-sub">全通貨ペア（USD/JPY・GBP/JPY・EUR/JPY）× 全タイムフレームのバックテストを行います。<br>完了後、手法別おすすめ（ペア別トップ5）が自動生成され、静的ページが更新されます。</p>
+    <div style="display:flex;align-items:center;gap:12px;margin-top:12px;flex-wrap:wrap">
+      <button class="save-btn" id="rk-run-btn" style="padding:10px 28px;font-size:14px;background:#dc2626" onclick="runRankingBt()">バックテスト実行</button>
+      <span id="rk-run-status" class="cont-status"></span>
+    </div>
+    <div id="rk-progress" style="display:none;margin-top:12px;padding:12px 14px;background:#0f172a;border:1px solid #334155;border-radius:8px">
+      <div style="font-size:12px;color:#94a3b8;line-height:1.6" id="rk-progress-msg">実行中...</div>
+      <div style="margin-top:8px;height:3px;background:#1e293b;border-radius:2px;overflow:hidden">
+        <div id="rk-progress-bar" style="width:0%;height:100%;background:linear-gradient(90deg,#3b82f6,#60a5fa);transition:width .4s;border-radius:2px"></div>
+      </div>
+    </div>
+  </div>
+  </div><!-- /tab-ranking -->
 
 </main>
 
@@ -513,7 +598,9 @@ function switchMainTab(btn, id) {
   btn.classList.add('active');
   document.getElementById('tab-seo').style.display     = id === 'seo'     ? '' : 'none';
   document.getElementById('tab-content').style.display = id === 'content' ? '' : 'none';
+  document.getElementById('tab-ranking').style.display = id === 'ranking' ? '' : 'none';
   if (id === 'content' && !contentLoaded) initContent();
+  if (id === 'ranking' && !rkInfoLoaded) initRankingTab();
 }
 
 // ===== コンテンツ管理 =====
@@ -632,6 +719,148 @@ function switchRecTab(btn, id) {
 }
 
 init();
+
+// ===== ランキング管理 =====
+let rkInfoLoaded = false;
+let rkPollTimer  = null;
+
+function initRankingTab() {
+  rkInfoLoaded = true;
+  // デフォルト日付をセット
+  const today = new Date();
+  const fmt   = d => d.toISOString().slice(0, 10);
+  const minus = (months) => { const d = new Date(today); d.setMonth(d.getMonth() - months); return d; };
+  document.getElementById('rk-end').value         = fmt(today);
+  document.getElementById('rk-start').value       = fmt(minus(12));
+  document.getElementById('rk-swing-end').value   = fmt(today);
+  document.getElementById('rk-swing-start').value = fmt(minus(6));
+  loadRkInfo();
+  pollRkStatus(); // 実行中なら表示を復元
+}
+
+async function loadRkInfo() {
+  document.getElementById('rk-counts-loading').style.display = '';
+  document.getElementById('rk-counts').style.display         = 'none';
+  try {
+    const res = await fetch('/admin/api.php?action=ranking_bt_info');
+    const d   = await res.json();
+    if (d.status === 'ok') {
+      document.getElementById('rk-cnt-st').textContent  = d.simulation_trades.toLocaleString() + ' 件';
+      document.getElementById('rk-cnt-bt').textContent  = d.backtest_results.toLocaleString()  + ' 件';
+      document.getElementById('rk-cnt-sig').textContent = d.signals.toLocaleString()            + ' 件';
+      document.getElementById('rk-last-bt').textContent = d.last_backtest_at;
+    }
+  } catch(e) {}
+  document.getElementById('rk-counts-loading').style.display = 'none';
+  document.getElementById('rk-counts').style.display         = '';
+}
+
+async function runRankingBt() {
+  const btn = document.getElementById('rk-run-btn');
+  const st  = document.getElementById('rk-run-status');
+  if (!confirm('バックテストを実行しますか？\n全ペア×全タイムフレームを処理するため、数分〜数十分かかります。')) return;
+
+  btn.disabled = true;
+  st.className = 'cont-status saving';
+  st.textContent = '送信中...';
+
+  const params = {
+    start_date:       document.getElementById('rk-start').value,
+    end_date:         document.getElementById('rk-end').value,
+    swing_start_date: document.getElementById('rk-swing-start').value,
+    swing_end_date:   document.getElementById('rk-swing-end').value,
+  };
+
+  try {
+    const res = await fetch('/admin/api.php?action=ranking_bt_run', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify(params),
+    });
+    const d = await res.json();
+    if (d.status === 'started') {
+      st.className = 'cont-status ok';
+      st.textContent = '実行開始しました';
+      document.getElementById('rk-progress').style.display = '';
+      pollRkStatus();
+    } else if (d.status === 'busy') {
+      st.className = 'cont-status err';
+      st.textContent = d.message;
+      btn.disabled = false;
+    } else {
+      st.className = 'cont-status err';
+      st.textContent = 'エラー: ' + d.message;
+      btn.disabled = false;
+    }
+  } catch(e) {
+    st.className = 'cont-status err';
+    st.textContent = 'ネットワークエラー';
+    btn.disabled = false;
+  }
+}
+
+async function pollRkStatus() {
+  if (rkPollTimer) clearTimeout(rkPollTimer);
+  try {
+    const res = await fetch('/admin/api.php?action=ranking_bt_status');
+    const d   = await res.json();
+    const btn = document.getElementById('rk-run-btn');
+    const st  = document.getElementById('rk-run-status');
+    const prog = document.getElementById('rk-progress');
+    const msg  = document.getElementById('rk-progress-msg');
+    const bar  = document.getElementById('rk-progress-bar');
+
+    if (d.status === 'running') {
+      prog.style.display = '';
+      msg.textContent    = d.message || '実行中...';
+      btn.disabled       = true;
+      st.className       = 'cont-status saving';
+      st.textContent     = '実行中...';
+      // プログレスバー（メッセージから [n/m] を抽出）
+      const m = (d.message || '').match(/\[(\d+)\/(\d+)\]/);
+      if (m) {
+        bar.style.width = Math.round(parseInt(m[1]) / parseInt(m[2]) * 100) + '%';
+      }
+      rkPollTimer = setTimeout(pollRkStatus, 3000);
+    } else if (d.status === 'done') {
+      prog.style.display = 'none';
+      btn.disabled       = false;
+      st.className       = 'cont-status ok';
+      st.textContent     = '✓ 完了: ' + d.message;
+      bar.style.width    = '100%';
+      loadRkInfo(); // 件数を更新
+    } else if (d.status === 'error') {
+      prog.style.display = 'none';
+      btn.disabled       = false;
+      st.className       = 'cont-status err';
+      st.textContent     = 'エラー: ' + d.message;
+    } else if (d.status === 'generating') {
+      prog.style.display = '';
+      msg.textContent    = d.message || '静的ページ生成中...';
+      bar.style.width    = '95%';
+      btn.disabled       = true;
+      st.className       = 'cont-status saving';
+      st.textContent     = '静的ページ生成中...';
+      rkPollTimer = setTimeout(pollRkStatus, 3000);
+    }
+  } catch(e) {
+    rkPollTimer = setTimeout(pollRkStatus, 5000);
+  }
+}
+
+function downloadCsv() {
+  const btn = document.getElementById('rk-csv-btn');
+  btn.disabled = true;
+  btn.textContent = 'ダウンロード中...';
+  // ZIPダウンロード（リダイレクト方式）
+  const link = document.createElement('a');
+  link.href  = '/admin/api.php?action=ranking_csv';
+  link.click();
+  setTimeout(() => {
+    btn.disabled    = false;
+    btn.textContent = 'CSVダウンロード（ZIP）';
+  }, 3000);
+}
 </script>
 <style>
 .main-tab{background:#1e293b;border:1px solid #334155;color:#94a3b8;border-radius:8px;padding:8px 18px;font-size:13px;cursor:pointer;transition:all .15s}
@@ -660,6 +889,10 @@ init();
 .rec-pair:focus,.rec-tf:focus{border-color:#3b82f6}
 .rec-desc{width:100%;background:#1e293b;border:1px solid #334155;border-radius:6px;color:#e2e8f0;padding:8px 10px;font-size:12px;resize:vertical;outline:none;font-family:inherit;line-height:1.6}
 .rec-desc:focus{border-color:#3b82f6}
+/* ランキング管理 */
+.rk-stat-box{background:#0f172a;border:1px solid #334155;border-radius:8px;padding:10px 16px;min-width:120px}
+.rk-stat-lbl{font-size:10px;color:#64748b;margin-bottom:4px;font-weight:600;letter-spacing:.04em}
+.rk-stat-val{font-size:20px;font-weight:800;color:#60a5fa}
 </style>
 </body>
 </html>
