@@ -345,10 +345,7 @@ function renderTable() {
     const scCls  = sc.total >= 70 ? 'sc-high' : sc.total >= 50 ? 'sc-mid' : 'sc-low';
     return `<tr>
       <td class="td-rank">${rank}</td>
-      <td class="td-score">
-        <span class="rk-score ${scCls}">${sc.total}</span>
-        <div class="score-sub">勝:${sc.wrScore} PF:${sc.pfScore} DD:${sc.ddScore} 回:${sc.nScore} EV:${sc.evScore}</div>
-      </td>
+      <td class="td-score"><span class="rk-score ${scCls}">${sc.total}</span></td>
       <td class="td-name">${nameH}</td>
       <td class="td-pair">${pair}</td>
       <td class="td-tf">${tf}</td>
@@ -426,55 +423,55 @@ renderTable();
 .rk-cat:hover{border-color:#94a3b8;color:#94a3b8}
 .rk-cat.active{background:#134e4a;border-color:#0d9488;color:#2dd4bf}
 
-/* ===== ランキングテーブル ===== */
-.rk-table-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch;border-radius:8px;border:1px solid #334155}
+/* ===== ランキングテーブル（白背景用ダークテキスト） ===== */
+.rk-table-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch;border-radius:8px;border:1px solid #d1d5db}
 .rk-table{width:100%;border-collapse:collapse;font-size:12px}
 .rk-table thead th{background:#1e293b;color:#f1f5f9;font-size:10px;font-weight:700;letter-spacing:.04em;padding:9px 10px;text-align:right;border-bottom:1px solid #334155;white-space:nowrap}
 .th-rank,.th-score,.th-name{text-align:left!important}
-.rk-table tbody tr{border-bottom:1px solid #1a2640;transition:background .1s}
-.rk-table tbody tr:hover{background:#1a2d48}
-.rk-table td{padding:9px 10px;text-align:right;color:#f1f5f9;white-space:nowrap}
+.rk-table tbody tr{border-bottom:1px solid #e5e7eb;transition:background .1s}
+.rk-table tbody tr:hover{background:#f0f4ff}
+.rk-table td{padding:9px 10px;text-align:right;color:#1e293b;white-space:nowrap}
 .td-rank{text-align:left;font-size:14px;width:32px}
-.td-score{text-align:left;width:80px}
+.td-score{text-align:left;width:52px}
 .rk-score{display:inline-block;font-size:15px;font-weight:800;padding:2px 7px;border-radius:6px;line-height:1.3}
-.rk-score.sc-high{color:#fbbf24;background:#2d2000}
-.rk-score.sc-mid{color:#93c5fd;background:#0c1a30}
-.rk-score.sc-low{color:#f1f5f9;background:#1e293b}
-.score-sub{font-size:9px;color:#94a3b8;margin-top:2px;letter-spacing:.01em}
-.td-name{text-align:left;max-width:130px;white-space:normal;line-height:1.3;font-size:12px;font-weight:600;color:#f1f5f9}
-.rk-ind-link{color:#60a5fa;text-decoration:none;font-weight:600}
+.rk-score.sc-high{color:#92400e;background:#fef3c7}
+.rk-score.sc-mid{color:#1d4ed8;background:#dbeafe}
+.rk-score.sc-low{color:#374151;background:#f3f4f6}
+.td-name{text-align:left;max-width:110px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12px;font-weight:600;color:#111827}
+.rk-ind-link{color:#1d4ed8;text-decoration:none;font-weight:600}
 .rk-ind-link:hover{text-decoration:underline}
-.td-pair{color:#f1f5f9;font-size:11px;font-weight:500}
-.td-tf{color:#bae6fd;font-size:11px;font-weight:500}
-.td-n{color:#f1f5f9;font-weight:500}
-.td-rr{color:#d8b4fe;font-weight:600}
-.td-pnl.pos{color:#4ade80;font-weight:700}
-.td-pnl.neg{color:#f87171;font-weight:700}
-.td-dd{color:#fca5a5;font-size:11px}
-.td-pf{color:#f1f5f9;font-weight:500}
-.wl-w{color:#4ade80;font-weight:600}.wl-l{color:#f87171;font-weight:600}
+.td-pair{color:#374151;font-size:11px;font-weight:500}
+.td-tf{color:#0369a1;font-size:11px;font-weight:500}
+.td-n{color:#1e293b;font-weight:500}
+.td-rr{color:#6d28d9;font-weight:600}
+.td-pnl.pos{color:#15803d;font-weight:700}
+.td-pnl.neg{color:#dc2626;font-weight:700}
+.td-dd{color:#b91c1c;font-size:11px}
+.td-pf{color:#1e293b;font-weight:500}
+.wl-w{color:#15803d;font-weight:600}.wl-l{color:#dc2626;font-weight:600}
 .rk-wr{font-weight:700;padding:3px 8px;border-radius:4px;font-size:11px}
-.rk-wr.high{background:#14532d;color:#4ade80}
-.rk-wr.mid{background:#713f12;color:#fbbf24}
-.rk-wr.low{background:#1e293b;color:#f1f5f9}
-.rk-empty{display:flex;flex-direction:column;align-items:center;padding:32px;color:#94a3b8;font-size:13px;gap:8px}
+.rk-wr.high{background:#dcfce7;color:#15803d}
+.rk-wr.mid{background:#fef9c3;color:#854d0e}
+.rk-wr.low{background:#f3f4f6;color:#374151}
+.rk-empty{display:flex;flex-direction:column;align-items:center;padding:32px;color:#6b7280;font-size:13px;gap:8px}
 
 /* ===== 分析・考察 ===== */
-.analysis-body{font-size:13px;color:#cbd5e1;line-height:1.9;white-space:pre-wrap}
-.rk-placeholder{display:flex;flex-direction:column;align-items:center;gap:8px;padding:24px;color:#64748b;font-size:12px;text-align:center;line-height:1.6}
+.analysis-body{font-size:13px;color:#1e293b;line-height:1.9;white-space:pre-wrap}
+.rk-placeholder{display:flex;flex-direction:column;align-items:center;gap:8px;padding:24px;color:#6b7280;font-size:12px;text-align:center;line-height:1.6}
 
 /* ===== 手法別 ===== */
 .method-tabs{display:flex;gap:6px;margin-bottom:12px;flex-wrap:wrap}
-.method-tab{background:#1e293b;border:1px solid #334155;color:#94a3b8;border-radius:20px;padding:6px 16px;font-size:12px;cursor:pointer;transition:all .15s}
-.method-tab:hover,.method-tab.active{background:#1e3a5f;border-color:#3b82f6;color:#60a5fa}
-.method-sub{font-size:12px;color:#94a3b8;margin-bottom:12px;line-height:1.6}
+.method-tab{background:#f3f4f6;border:1px solid #d1d5db;color:#374151;border-radius:20px;padding:6px 16px;font-size:12px;cursor:pointer;transition:all .15s}
+.method-tab:hover{background:#e5e7eb;color:#111827}
+.method-tab.active{background:#1e3a5f;border-color:#3b82f6;color:#60a5fa}
+.method-sub{font-size:12px;color:#6b7280;margin-bottom:12px;line-height:1.6}
 .method-grid{display:flex;flex-direction:column;gap:10px}
-.method-card{display:flex;gap:12px;background:#0f172a;border:1px solid #1e293b;border-radius:10px;padding:12px 14px}
-.method-rank{font-size:22px;font-weight:900;color:#3b82f6;width:28px;text-align:center;line-height:1.1;flex-shrink:0}
+.method-card{display:flex;gap:12px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:12px 14px}
+.method-rank{font-size:22px;font-weight:900;color:#2563eb;width:28px;text-align:center;line-height:1.1;flex-shrink:0}
 .method-body{flex:1;min-width:0}
-.method-ind{font-size:13px;font-weight:600;color:#f1f5f9;margin-bottom:5px}
+.method-ind{font-size:13px;font-weight:600;color:#111827;margin-bottom:5px}
 .method-meta{display:flex;gap:6px;margin-bottom:6px}
-.method-badge{font-size:10px;background:#1e293b;color:#cbd5e1;border-radius:4px;padding:2px 7px}
-.method-desc{font-size:13px;color:#cbd5e1;line-height:1.7;margin:0}
+.method-badge{font-size:10px;background:#e5e7eb;color:#374151;border-radius:4px;padding:2px 7px}
+.method-desc{font-size:13px;color:#374151;line-height:1.7;margin:0}
 </style>
 {% endblock %}
