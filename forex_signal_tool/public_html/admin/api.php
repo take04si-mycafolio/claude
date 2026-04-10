@@ -286,6 +286,57 @@ switch ($action) {
         }
         break;
 
+    // ---- ランキングページ コンテンツ管理 ----
+    case 'content_init':
+        require_login();
+        try {
+            $pdo = get_pdo();
+            $pdo->exec("CREATE TABLE IF NOT EXISTS site_content (
+                content_key   VARCHAR(100) NOT NULL PRIMARY KEY,
+                content_value MEDIUMTEXT,
+                updated_at    DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+            $rows = $pdo->query("SELECT content_key, content_value, updated_at FROM site_content")->fetchAll();
+            $data = [];
+            foreach ($rows as $r) {
+                $data[$r['content_key']] = [
+                    'value'      => $r['content_value'],
+                    'updated_at' => $r['updated_at'],
+                ];
+            }
+            json_out(['status' => 'ok', 'data' => $data]);
+        } catch (Exception $e) {
+            json_out(['status' => 'error', 'message' => $e->getMessage()]);
+        }
+        break;
+
+    case 'content_save':
+        require_login();
+        $key   = trim($body['key']   ?? '');
+        $value = $body['value'] ?? '';
+        $allowed = ['ranking_analysis', 'ranking_short_term', 'ranking_day_trade', 'ranking_swing'];
+        if (!in_array($key, $allowed, true)) {
+            json_out(['status' => 'error', 'message' => '無効なキーです']);
+        }
+        try {
+            $pdo = get_pdo();
+            $pdo->exec("CREATE TABLE IF NOT EXISTS site_content (
+                content_key   VARCHAR(100) NOT NULL PRIMARY KEY,
+                content_value MEDIUMTEXT,
+                updated_at    DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+            $stmt = $pdo->prepare(
+                "INSERT INTO site_content (content_key, content_value)
+                 VALUES (?, ?)
+                 ON DUPLICATE KEY UPDATE content_value=VALUES(content_value), updated_at=NOW()"
+            );
+            $stmt->execute([$key, $value]);
+            json_out(['status' => 'ok', 'message' => '保存しました']);
+        } catch (Exception $e) {
+            json_out(['status' => 'error', 'message' => $e->getMessage()]);
+        }
+        break;
+
     default:
         json_out(['status' => 'error', 'message' => '不明なアクション: ' . htmlspecialchars($action)]);
 }

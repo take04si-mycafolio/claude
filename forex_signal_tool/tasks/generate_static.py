@@ -399,7 +399,16 @@ def get_all_backtest() -> list:
             .order_by(BacktestResult.win_rate.desc())
             .limit(20).all()
         )
-        result.extend([r.to_dict() for r in recs])
+        for r in recs:
+            d = r.to_dict()
+            name = d.get("indicator_name", "")
+            sl = float(d.get("sl_pips") or 0)
+            tp = float(d.get("tp_pips") or 0)
+            d["rr_ratio"] = round(tp / sl, 1) if sl else 0
+            ind_info = INDICATOR_INFO.get(name, {})
+            d["display"]  = ind_info.get("display",  name)
+            d["category"] = ind_info.get("category", "")
+            result.append(d)
     return sorted(result, key=lambda x: x.get("win_rate") or 0, reverse=True)
 
 
@@ -674,6 +683,24 @@ def load_seo_db() -> dict:
         return {}
 
 
+def load_content_db() -> dict:
+    """site_content テーブルからコンテンツを取得（失敗時は空dict）"""
+    try:
+        import sqlalchemy
+        from app.config import Config
+        engine = sqlalchemy.create_engine(Config.SQLALCHEMY_DATABASE_URI)
+        with engine.connect() as conn:
+            rows = conn.execute(
+                sqlalchemy.text(
+                    "SELECT content_key, content_value FROM site_content"
+                )
+            ).fetchall()
+        return {row[0]: (row[1] or "") for row in rows}
+    except Exception as e:
+        logger.warning("load_content_db failed: %s", e)
+        return {}
+
+
 def get_indicator_page_data(indicator_name: str, app) -> dict | None:
     """インジケーター個別ページのデータを取得"""
     from app.models.backtest import BacktestResult
@@ -940,18 +967,47 @@ def main():
         })
         save("signals.html", html)
 
-        # バックテスト
+        # バックテスト（テクニカルランキング）
+        import decimal as _decimal
+        class _DecEncoder(json.JSONEncoder):
+            def default(self, obj):
+                if isinstance(obj, _decimal.Decimal):
+                    return float(obj)
+                if hasattr(obj, "isoformat"):
+                    return str(obj)
+                return super().default(obj)
+
+        content_db = load_content_db()
+
+        def _parse_recs(key):
+            raw = content_db.get(key, "")
+            try:
+                return json.loads(raw) if raw else []
+            except Exception:
+                return []
+
         all_bt = get_all_backtest()
+        for r in all_bt:
+            r["url"] = ind_url_map.get(r.get("indicator_name", ""), "")
+
+        results_json   = json.dumps(all_bt,    cls=_DecEncoder, ensure_ascii=False)
+        tf_labels_json = json.dumps(TF_LABELS, ensure_ascii=False)
+
         html = render_html(app, "backtest_static.html", {
-            "pairs": pairs,
-            "pair_pages": pair_pages,
-            "results": all_bt,
-            "slug_map": slug_map,
-            "ind_url_map": ind_url_map,
-            "updated_at": updated_at,
-            "active_page": "backtest",
+            "pairs":          pairs,
+            "pair_pages":     pair_pages,
+            "results":        all_bt,
+            "results_json":   results_json,
+            "tf_labels_json": tf_labels_json,
+            "ind_url_map":    ind_url_map,
+            "content_analysis": content_db.get("ranking_analysis", ""),
+            "recs_short":     _parse_recs("ranking_short_term"),
+            "recs_day":       _parse_recs("ranking_day_trade"),
+            "recs_swing":     _parse_recs("ranking_swing"),
+            "updated_at":     updated_at,
+            "active_page":    "backtest",
         })
-        save("backtest.html", html)
+        save("technical-ranking/index.html", html)
 
         # レポート
         reports = get_reports()
