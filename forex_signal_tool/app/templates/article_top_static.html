@@ -273,8 +273,8 @@
 {% if pair_panels %}
 <!-- ===== 通貨ペア別 テクニカル検証パネル ===== -->
 <style>
-.pp-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 14px; margin: 0 1.5rem 3rem; }
-.pp-card { border: 0.5px solid var(--color-border); border-radius: var(--radius-lg); padding: 1.25rem 1.25rem 1rem; text-decoration: none; color: inherit; display: flex; flex-direction: column; gap: 10px; transition: box-shadow .15s, border-color .15s; }
+.pp-grid { display: grid; grid-template-columns: 1fr; gap: 12px; margin: 0 1.5rem 3rem; }
+.pp-card { border: 0.5px solid var(--color-border); border-radius: var(--radius-lg); padding: 1rem 1.25rem; text-decoration: none; color: inherit; display: flex; flex-direction: row; align-items: center; gap: 16px; transition: box-shadow .15s, border-color .15s; }
 .pp-card:hover { border-color: var(--color-border-strong); box-shadow: 0 2px 12px rgba(0,0,0,0.07); }
 .pp-label { font-size: 10px; font-weight: 500; letter-spacing: .08em; color: var(--color-text-secondary); text-transform: uppercase; }
 .pp-name { font-family: var(--font-serif); font-size: 1.25rem; font-weight: 700; line-height: 1.2; }
@@ -291,7 +291,11 @@
 .pp-sell    { background: var(--red-bg);   color: var(--red-text); }
 .pp-neutral { background: #f1efe8; color: #5f5e5a; }
 .pp-link { font-size: 12px; color: var(--color-text-secondary); display: flex; align-items: center; gap: 4px; margin-top: 2px; }
-@media (max-width: 600px) { .pp-grid { margin-left: 1rem; margin-right: 1rem; } }
+@media (max-width: 600px) {
+  .pp-grid { margin-left: 1rem; margin-right: 1rem; }
+  .pp-card { flex-wrap: wrap; gap: 10px; }
+  .pp-name { font-size: 1.05rem; }
+}
 </style>
 <div class="sec" style="margin-bottom:1rem">
   <div class="sec-num" style="margin-left:1.5rem">+</div>
@@ -301,23 +305,27 @@
 <div class="pp-grid">
   {% for p in pair_panels %}
   <a href="{{ p.url }}" class="pp-card">
-    <div>
-      <div class="pp-label">リアルタイム テクニカル検証</div>
+    <!-- ペア名 -->
+    <div style="min-width:120px">
+      <div class="pp-label">テクニカル検証</div>
       <div class="pp-name">{{ p.display }}</div>
     </div>
-    <div>
+    <!-- レート -->
+    <div style="min-width:90px">
       {% if p.rate %}
       <div class="pp-rate">{{ "%.3f"|format(p.rate|float) }}</div>
       {% else %}
-      <div class="pp-rate-na">レート取得中</div>
+      <div class="pp-rate-na">取得中</div>
       {% endif %}
     </div>
-    <div class="pp-signals">
+    <!-- シグナル -->
+    <div class="pp-signals" style="flex:1">
       <span class="pp-sig"><strong class="buy">▲ {{ p.buy_count }}</strong> 買い</span>
       <span class="pp-sig"><strong class="sell">▼ {{ p.sell_count }}</strong> 売り</span>
       <span class="pp-bias {{ p.overall_cls }}">{{ p.overall_ja }}</span>
     </div>
-    <div class="pp-link">詳細を見る →</div>
+    <!-- リンク -->
+    <div class="pp-link" style="margin-top:0;flex-shrink:0">詳細を見る →</div>
   </a>
   {% endfor %}
 </div>
