@@ -296,6 +296,15 @@ def main():
         except Exception as exc:
             logger.warning("おすすめ生成失敗: %s", exc)
 
+        # 日次スナップショット保存（バックテスト確定後に記録）
+        write_status("running", "スナップショット保存中...")
+        try:
+            from app.services.backtester import save_daily_snapshot
+            snap_count = save_daily_snapshot()
+            logger.info("日次スナップショット保存完了: %d件", snap_count)
+        except Exception as exc:
+            logger.warning("スナップショット保存失敗: %s", exc)
+
         # 最終更新日時を記録
         now_str = datetime.now(timezone.utc).strftime("%Y/%m/%d %H:%M UTC")
         Setting.set("last_backtest_at", now_str)

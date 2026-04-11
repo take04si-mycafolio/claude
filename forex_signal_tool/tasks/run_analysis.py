@@ -27,7 +27,8 @@ def main():
     from app import create_app
     from app.models.settings import Setting
     from app.services.signal_engine import run_signal_engine
-    from datetime import datetime, timezone
+    from app.services.backtester import save_daily_snapshot
+    from datetime import datetime, timezone, date
 
     app = create_app()
     with app.app_context():
@@ -40,6 +41,16 @@ def main():
         now_str = datetime.now(timezone.utc).strftime("%Y/%m/%d %H:%M UTC")
         Setting.set("last_signal_update_at", now_str)
         Setting.set("signal_status", "done")
+
+        # 日次スナップショット（1日1回: その日まだ保存していない場合のみ）
+        today_str = date.today().isoformat()
+        if Setting.get("last_snapshot_date", "") != today_str:
+            try:
+                count = save_daily_snapshot()
+                logger.info("日次スナップショット保存完了: %d件", count)
+                Setting.set("last_snapshot_date", today_str)
+            except Exception as exc:
+                logger.warning("日次スナップショット保存失敗: %s", exc)
 
     # 静的HTML再生成
     logger.info("静的HTML生成開始")

@@ -19,6 +19,57 @@ from app.config import Config
 
 logger = logging.getLogger(__name__)
 
+# SimulationTrade の指標あたり最大保存件数
+TRADE_LIMIT_PER_INDICATOR = 300
+
+
+def _calc_score(win_rate: float, profit_factor: float, total_trades: int,
+                sl_pips: float, tp_pips: float, max_drawdown: float) -> int:
+    """
+    100点満点スコア計算（フロントエンドJS / run_ranking_bt.py と同一ロジック）
+    将来の「今日の勝率」「ランキング変動」表示に利用する。
+    """
+    dd_pct = (abs(max_drawdown) / 1_000_000) * 100
+    ev = (win_rate / 100) * tp_pips - (1 - win_rate / 100) * sl_pips
+
+    if   win_rate >= 60: wr_s = 30
+    elif win_rate >= 58: wr_s = 27
+    elif win_rate >= 56: wr_s = 24
+    elif win_rate >= 54: wr_s = 20
+    elif win_rate >= 52: wr_s = 16
+    elif win_rate >= 50: wr_s = 12
+    else:                wr_s = max(0, int(win_rate / 50 * 8))
+
+    if   profit_factor >= 1.50: pf_s = 25
+    elif profit_factor >= 1.40: pf_s = 22
+    elif profit_factor >= 1.30: pf_s = 18
+    elif profit_factor >= 1.20: pf_s = 14
+    elif profit_factor >= 1.10: pf_s = 10
+    elif profit_factor >= 1.00: pf_s = 6
+    else:                       pf_s = 0
+
+    if   dd_pct <  5: dd_s = 20
+    elif dd_pct <  8: dd_s = 17
+    elif dd_pct < 12: dd_s = 14
+    elif dd_pct < 16: dd_s = 10
+    elif dd_pct < 20: dd_s = 6
+    else:             dd_s = 2
+
+    if   total_trades >= 500: n_s = 15
+    elif total_trades >= 300: n_s = 12
+    elif total_trades >= 150: n_s = 9
+    elif total_trades >= 80:  n_s = 6
+    elif total_trades >= 30:  n_s = 3
+    else:                     n_s = 0
+
+    if   ev >  5: ev_s = 10
+    elif ev >  2: ev_s = 8
+    elif ev >  0: ev_s = 6
+    elif ev > -2: ev_s = 3
+    else:         ev_s = 0
+
+    return wr_s + pf_s + dd_s + n_s + ev_s
+
 
 def _get_pip_value(pair: str) -> float:
     """JPYペアの1pip値 (標準ロット1本あたり)"""
@@ -495,4 +546,105 @@ def save_backtest_results(results: list) -> int:
         saved += 1
 
     db.session.commit()
+
+    # ---- SimulationTrade を TRADE_LIMIT_PER_INDICATOR 件以内に制限 ----
+    from sqlalchemy import func as sa_func
+    for r in results:
+        pair      = r["currency_pair"]
+        tf        = r["timeframe"]
+        ind_name  = r["indicator_name"]
+
+        total = db.session.query(sa_func.count(SimulationTrade.id)).filter_by(
+            currency_pair=pair, timeframe=tf, indicator_name=ind_name
+        ).scalar() or 0
+
+        if total > TRADE_LIMIT_PER_INDICATOR:
+            keep_ids = [
+                row[0] for row in
+                db.session.query(SimulationTrade.id).filter_by(
+                    currency_pair=pair, timeframe=tf, indicator_name=ind_name
+                ).order_by(SimulationTrade.entry_at.desc())
+                .limit(TRADE_LIMIT_PER_INDICATOR).all()
+            ]
+            db.session.query(SimulationTrade).filter(
+                SimulationTrade.currency_pair  == pair,
+                SimulationTrade.timeframe      == tf,
+                SimulationTrade.indicator_name == ind_name,
+                SimulationTrade.id.notin_(keep_ids),
+            ).delete(synchronize_session=False)
+            logger.debug("Trimmed SimulationTrade: %s %s %s → %d件",
+                         pair, tf, ind_name, TRADE_LIMIT_PER_INDICATOR)
+
+    db.session.commit()
+    return saved
+
+
+def save_daily_snapshot() -> int:
+    """
+    現在の backtest_results から日次スナップショットを保存する。
+    同日に複数回実行した場合は最新値で上書き（upsert）。
+
+    呼び出しタイミング:
+      - run_analysis.py（Cron 30分ごと）で日1回分だけ記録
+      - run_ranking_bt.py（手動バックテスト）実行後
+      - tasks/save_daily_snapshot.py（独立した日次Cronとしても実行可能）
+    """
+    from app.models.backtest import BacktestResult
+    from app.models.backtest_snapshot import BacktestDailySnapshot
+    from app import db
+    from datetime import date
+    from collections import defaultdict
+
+    today   = date.today()
+    results = BacktestResult.query.all()
+    if not results:
+        return 0
+
+    # pair × TF でグループ化してスコア順にランキング付け
+    by_pair_tf: dict = defaultdict(list)
+    for r in results:
+        score = _calc_score(
+            float(r.win_rate      or 0),
+            float(r.profit_factor or 0),
+            int(r.total_trades    or 0),
+            float(r.sl_pips       or 0),
+            float(r.tp_pips       or 0),
+            abs(float(r.max_drawdown or 0)),
+        )
+        by_pair_tf[(r.currency_pair, r.timeframe)].append((score, r))
+
+    saved = 0
+    for (pair, tf), items in by_pair_tf.items():
+        items.sort(key=lambda x: x[0], reverse=True)
+        for rank, (score, r) in enumerate(items, 1):
+            snap = BacktestDailySnapshot.query.filter_by(
+                snapshot_date  = today,
+                currency_pair  = pair,
+                timeframe      = tf,
+                indicator_name = r.indicator_name,
+            ).first()
+            if snap is None:
+                snap = BacktestDailySnapshot(
+                    snapshot_date  = today,
+                    currency_pair  = pair,
+                    timeframe      = tf,
+                    indicator_name = r.indicator_name,
+                )
+                db.session.add(snap)
+
+            snap.win_rate       = r.win_rate
+            snap.profit_factor  = r.profit_factor
+            snap.total_trades   = r.total_trades
+            snap.winning_trades = r.winning_trades
+            snap.losing_trades  = r.losing_trades
+            snap.final_capital  = r.final_capital
+            snap.max_drawdown   = r.max_drawdown
+            snap.sl_pips        = r.sl_pips
+            snap.tp_pips        = r.tp_pips
+            snap.rank_position  = rank
+            snap.score          = score
+            saved += 1
+
+    db.session.commit()
+    logger.info("日次スナップショット保存: %d件 (date=%s)", saved, today)
     return saved
