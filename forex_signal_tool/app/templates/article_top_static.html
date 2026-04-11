@@ -280,12 +280,13 @@
 .pp-card { border: 0.5px solid var(--color-border); border-radius: var(--radius-lg); text-decoration: none; color: inherit; display: flex; align-items: stretch; overflow: hidden; transition: box-shadow .15s, border-color .15s; background: #fff; }
 .pp-card:hover { border-color: var(--color-border-strong); box-shadow: 0 2px 8px rgba(0,0,0,0.07); }
 /* 左カラム */
-.pp-left { flex: 1; padding: 14px 16px; display: flex; flex-direction: column; justify-content: space-between; gap: 4px; }
+.pp-left { flex: 1; padding: 14px 16px; display: flex; flex-direction: column; justify-content: center; gap: 10px; }
+.pp-left-text { display: flex; flex-direction: column; gap: 2px; }
 .pp-tech-lbl { font-size: 12px; color: var(--color-text-secondary); }
 .pp-name     { font-size: 20px; font-weight: 700; color: var(--color-text-primary); line-height: 1.2; }
 .pp-link     { font-size: 10px; color: var(--color-text-secondary); }
 /* 右カラム */
-.pp-right { width: 160px; flex-shrink: 0; background: var(--color-surface); display: flex; flex-direction: column; padding: 10px 12px; gap: 7px; }
+.pp-right { flex: 1; background: var(--color-surface); display: flex; flex-direction: column; align-items: center; padding: 10px 12px; gap: 7px; justify-content: center; }
 .pp-rate    { font-size: 1.35rem; font-weight: 700; font-variant-numeric: tabular-nums; letter-spacing: .01em; line-height: 1; color: var(--color-text-primary); }
 .pp-rate-na { font-size: .85rem; color: var(--color-text-secondary); }
 .pp-bias { display: inline-flex; align-items: center; gap: 5px; padding: 4px 10px; border-radius: 20px; font-size: 11px; font-weight: 600; }
@@ -293,7 +294,7 @@
 .pp-buy     { background: var(--green-bg); color: var(--green-text); }
 .pp-sell    { background: var(--red-bg);   color: var(--red-text); }
 .pp-neutral { background: #ece9e0;         color: #5f5e5a; }
-.pp-counts { display: grid; grid-template-columns: 1fr 1fr; gap: 5px; }
+.pp-counts { display: grid; grid-template-columns: 1fr 1fr; gap: 5px; width: 100%; }
 .pp-count-box { border-radius: 6px; padding: 6px 4px 5px; text-align: center; }
 .pp-count-buy  { background: var(--green-bg); }
 .pp-count-sell { background: var(--red-bg); }
@@ -301,7 +302,7 @@
 .pp-count-buy  .pp-count-num { color: var(--green-text); }
 .pp-count-sell .pp-count-num { color: var(--red-text); }
 .pp-count-lbl  { font-size: 10px; color: var(--color-text-secondary); margin-top: 2px; }
-@media (max-width: 600px) { .pp-wrap { margin-left: 1rem; margin-right: 1rem; } .pp-right { width: 140px; } }
+@media (max-width: 600px) { .pp-wrap { margin-left: 1rem; margin-right: 1rem; } }
 </style>
 <div class="pp-wrap">
   <div class="sec-num">PAIR</div>
@@ -311,8 +312,10 @@
     <a href="{{ p.url }}" class="pp-card">
       <!-- 左：ラベル・ペア名・リンク -->
       <div class="pp-left">
-        <span class="pp-tech-lbl">テクニカル検証</span>
-        <span class="pp-name">{{ p.display }}</span>
+        <div class="pp-left-text">
+          <span class="pp-tech-lbl">テクニカル検証</span>
+          <span class="pp-name">{{ p.display }}</span>
+        </div>
         <span class="pp-link">詳細を見る →</span>
       </div>
       <!-- 右：レート・バイアス・買い売りボックス -->
