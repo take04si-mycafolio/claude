@@ -722,6 +722,7 @@ def get_indicator_page_data(indicator_name: str, app) -> dict | None:
     best = results[0]
     sl = Setting.get_float("sl_pips", 20)
     tp = Setting.get_float("tp_pips", 40)
+    bt_period = Setting.get("backtest_period", "")
 
     def _to_unix(dt):
         """naive UTC datetime → Unix timestamp"""
@@ -753,14 +754,24 @@ def get_indicator_page_data(indicator_name: str, app) -> dict | None:
     for pair in all_pairs:
         results_by_pair[pair] = [r.to_dict() for r in results if r.currency_pair == pair]
 
-    # 通貨ペアごとの15分足トレードシミュレーション（最大20件）
-    trades_by_pair = {}
+    # 通貨ペアごとの最良バックテスト結果（ヒーロー3カラム用）
+    best_by_pair = {}
     for pair in all_pairs:
-        raw = (SimulationTrade.query
-               .filter_by(indicator_name=indicator_name, currency_pair=pair, timeframe="15min")
-               .order_by(SimulationTrade.entry_at.desc())
-               .limit(20).all())
-        trades_by_pair[pair] = [_fmt_trade(t) for t in raw]
+        pair_bests = [r for r in results if r.currency_pair == pair]
+        if pair_bests:
+            best_by_pair[pair] = max(pair_bests, key=lambda r: r.win_rate).to_dict()
+
+    # 全TF・通貨ペアごとのトレードシミュレーション（各TF最新20件）
+    trades_by_pair_tf = {}
+    for pair in all_pairs:
+        trades_by_pair_tf[pair] = {}
+        for tf in TF_ORDER:
+            raw = (SimulationTrade.query
+                   .filter_by(indicator_name=indicator_name, currency_pair=pair, timeframe=tf)
+                   .order_by(SimulationTrade.entry_at.desc())
+                   .limit(20).all())
+            if raw:
+                trades_by_pair_tf[pair][tf] = [_fmt_trade(t) for t in raw]
 
     # 関連指標（同カテゴリ優先、最大8件）
     related = []
@@ -788,11 +799,14 @@ def get_indicator_page_data(indicator_name: str, app) -> dict | None:
         "category_slug":    CATEGORY_SLUGS.get(info["category"], ""),
         "results":          [r.to_dict() for r in results],
         "results_by_pair":  results_by_pair,
-        "trades_by_pair":   trades_by_pair,
+        "best_by_pair":     best_by_pair,
+        "trades_by_pair_tf": trades_by_pair_tf,
+        "tf_labels":        TF_LABELS,
         "pairs":            all_pairs,
         "best":             best.to_dict(),
         "sl":               int(sl),
         "tp":               int(tp),
+        "bt_period":        bt_period,
         "related":          related,
     }
 

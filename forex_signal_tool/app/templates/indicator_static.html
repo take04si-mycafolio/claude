@@ -33,6 +33,21 @@
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
   <link rel="stylesheet" href="/static/css/style.css">
+<style>
+/* ヒーロー3カラム */
+.ind-pair-hero-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-top: 14px; }
+.ind-pair-hero-item { background: rgba(255,255,255,0.08); border-radius: 10px; padding: 10px 12px; text-align: center; }
+.ind-pair-hero-item.good { background: rgba(34,197,94,0.12); }
+.ind-pair-hero-item.ok   { background: rgba(251,191,36,0.10); }
+.ind-pair-hero-item.empty{ background: rgba(255,255,255,0.05); }
+.ind-pair-hero-name { font-size: 13px; font-weight: 700; color: #f1f5f9; margin-bottom: 2px; }
+.ind-pair-hero-tf   { font-size: 11px; color: #94a3b8; margin-bottom: 4px; }
+.ind-pair-hero-wr   { font-size: 16px; font-weight: 700; color: #22c55e; }
+.ind-pair-hero-item.ok .ind-pair-hero-wr { color: #fbbf24; }
+/* TF内部タブ */
+.ind-tf-tabs .nav-link { font-size: 11px; padding: 4px 10px; color: #64748b; }
+.ind-tf-tabs .nav-link.active { color: #3b82f6; }
+</style>
 </head>
 <body>
 
@@ -61,17 +76,21 @@
   <div class="ind-hero">
     <div class="ind-category-badge">{{ info.category }}</div>
     <h1 class="ind-title">{{ info.display }}</h1>
-    {% if best %}
-    <div class="ind-best-stats">
-      <div class="ind-stat-pill {% if best.win_rate >= 70 %}win-high{% elif best.win_rate >= 60 %}win-mid{% else %}win-low{% endif %}">
-        最高勝率 {{ "%.1f"|format(best.win_rate) }}%
+    {% if best_by_pair %}
+    <div class="ind-pair-hero-grid">
+      {% set pair_ja = {'USDJPY': 'ドル円', 'GBPJPY': 'ポン円', 'EURJPY': 'ユロ円'} %}
+      {% for pair in pairs %}
+      {% set pb = best_by_pair.get(pair) %}
+      <div class="ind-pair-hero-item {% if pb and pb.win_rate >= 60 %}good{% elif pb %}ok{% else %}empty{% endif %}">
+        <div class="ind-pair-hero-name">{{ pair_ja.get(pair, pair) }}</div>
+        {% if pb %}
+        <div class="ind-pair-hero-tf">（{{ tf_labels.get(pb.timeframe, pb.timeframe) }}）</div>
+        <div class="ind-pair-hero-wr">勝率 {{ "%.1f"|format(pb.win_rate) }}%</div>
+        {% else %}
+        <div class="ind-pair-hero-tf">データなし</div>
+        {% endif %}
       </div>
-      <div class="ind-stat-pill neutral">
-        {{ best.currency_pair[:3] }}/{{ best.currency_pair[3:] }} {{ best.timeframe }}
-      </div>
-      <div class="ind-stat-pill {% if best.total_profit >= 0 %}win-high{% else %}win-low{% endif %}">
-        損益 ¥{{ "{:,.0f}".format(best.total_profit) }}
-      </div>
+      {% endfor %}
     </div>
     {% endif %}
   </div>
@@ -108,7 +127,12 @@
 
   <!-- バックテスト結果サマリー（通貨ペア別タブ） -->
   <div class="section-card">
-    <h2 class="ind-section-title"><i class="bi bi-bar-chart-fill text-warning me-2"></i>バックテスト結果サマリー</h2>
+    <h2 class="ind-section-title" style="display:flex;align-items:center;justify-content:space-between">
+      <span><i class="bi bi-bar-chart-fill text-warning me-2"></i>バックテスト結果サマリー</span>
+      <span class="info-tip" data-tip="【検証条件】SL: {{ sl }}pips / TP: {{ tp }}pips / 初期資金: 1,000,000円{% if bt_period %} / 検証期間: {{ bt_period }}{% endif %}">
+        <i class="bi bi-info-circle" style="font-size:0.9rem;color:#94a3b8;cursor:pointer"></i>
+      </span>
+    </h2>
     {% if results %}
     <ul class="nav nav-tabs ind-pair-tabs mb-2" id="btTab" role="tablist">
       {% for pair in pairs %}
@@ -144,7 +168,7 @@
             <tbody>
               {% for r in pair_results %}
               <tr>
-                <td style="white-space:nowrap">{{ r.timeframe }}</td>
+                <td style="white-space:nowrap">{{ tf_labels.get(r.timeframe, r.timeframe) }}</td>
                 <td class="fw-bold {% if r.win_rate >= 70 %}text-success{% elif r.win_rate >= 60 %}text-warning{% else %}text-muted{% endif %}">
                   {{ "%.1f"|format(r.win_rate) }}%
                 </td>
@@ -176,7 +200,7 @@
   <div class="section-card">
     <h2 class="ind-section-title">
       <i class="bi bi-clock-history text-info me-2"></i>トレードシミュレーション
-      <span class="info-tip" data-tip="15分足・SL {{ sl }}pips / TP {{ tp }}pips の条件でシグナル発生時にエントリーしたと仮定した場合の損益シミュレーションです。実際の取引結果ではありません。最大20件表示。">
+      <span class="info-tip" data-tip="SL {{ sl }}pips / TP {{ tp }}pips の条件でシグナル発生時にエントリーしたと仮定した場合の損益シミュレーションです。実際の取引結果ではありません。TF別最新20件表示。">
         <i class="bi bi-info-circle-fill"></i>
       </span>
     </h2>
@@ -197,64 +221,91 @@
       {% for pair in pairs %}
       <div class="tab-pane fade {% if loop.first %}show active{% endif %}"
            id="trade-{{ pair.lower() }}" role="tabpanel">
-        {% set pair_trades = trades_by_pair[pair] %}
-        {% if pair_trades %}
-        <div class="ind-trades-table-wrap">
-          <table class="ind-trades-table">
-            <thead>
-              <tr>
-                <th style="white-space:nowrap">エントリー (JST)</th>
-                <th style="white-space:nowrap">種別</th>
-                <th>エントリー</th>
-                <th>TP</th>
-                <th>SL</th>
-                <th style="white-space:nowrap">結果・損益</th>
-              </tr>
-            </thead>
-            <tbody>
-              {% for t in pair_trades %}
-              {% set is_buy = t.signal == 'BUY' %}
-              {% set is_win = t.outcome == 'WIN' %}
-              <tr class="trade-row"
-                  data-pair="{{ pair }}"
-                  data-tf="{{ t.timeframe or '15min' }}"
-                  data-entry-ts="{{ t.entry_ts_unix or '' }}"
-                  data-exit-ts="{{ t.exit_ts_unix or '' }}"
-                  data-entry-price="{{ t.entry_price or '' }}"
-                  data-tp-price="{{ t.tp_price or '' }}"
-                  data-sl-price="{{ t.sl_price or '' }}"
-                  data-signal="{{ t.signal }}"
-                  data-outcome="{{ t.outcome }}"
-                  data-pnl="{{ t.pnl }}"
-                  data-entry-label="{{ t.entry_ts_jst }}"
-                  style="cursor:pointer">
-                <td class="ind-trade-time" style="white-space:nowrap">{{ t.entry_ts_jst }}</td>
-                <td style="white-space:nowrap">
-                  <span class="signal-type-badge {% if is_buy %}buy{% else %}sell{% endif %}">
-                    {{ '買い' if is_buy else '売り' }}
-                  </span>
-                </td>
-                <td class="font-mono">{{ "%.3f"|format(t.entry_price) if t.entry_price else '-' }}</td>
-                <td class="font-mono text-success">{{ "%.3f"|format(t.tp_price) if t.tp_price else '-' }}</td>
-                <td class="font-mono text-danger">{{ "%.3f"|format(t.sl_price) if t.sl_price else '-' }}</td>
-                <td style="white-space:nowrap">
-                  {% if t.outcome == 'WIN' %}
-                  <span class="ind-outcome win">✓利確</span>
-                  <span class="fw-bold text-success ms-1">+¥{{ "{:,.0f}".format(t.pnl|abs) }}</span>
-                  {% elif t.outcome == 'LOSS' %}
-                  <span class="ind-outcome loss">✗損切</span>
-                  <span class="fw-bold text-danger ms-1">-¥{{ "{:,.0f}".format(t.pnl|abs) }}</span>
-                  {% else %}
-                  <span class="ind-outcome neutral">-</span>
-                  {% endif %}
-                </td>
-              </tr>
-              {% endfor %}
-            </tbody>
-          </table>
+        {% set pair_tf_trades = trades_by_pair_tf[pair] %}
+        {% if pair_tf_trades %}
+        <!-- TF切り替えタブ -->
+        <ul class="nav nav-tabs ind-tf-tabs mb-2" id="tfTab-{{ pair.lower() }}" role="tablist">
+          {% for tf in tf_labels.keys() %}
+          {% if pair_tf_trades.get(tf) %}
+          <li class="nav-item" role="presentation">
+            <button class="nav-link {% if loop.first %}active{% endif %}"
+                    id="tf-{{ pair.lower() }}-{{ tf }}-tab"
+                    data-bs-toggle="tab"
+                    data-bs-target="#tf-{{ pair.lower() }}-{{ tf }}"
+                    type="button" role="tab">
+              {{ tf_labels[tf] }}
+            </button>
+          </li>
+          {% endif %}
+          {% endfor %}
+        </ul>
+        <div class="tab-content">
+          {% set first_tf = namespace(done=false) %}
+          {% for tf in tf_labels.keys() %}
+          {% set tf_trades = pair_tf_trades.get(tf) %}
+          {% if tf_trades %}
+          <div class="tab-pane fade {% if not first_tf.done %}show active{% endif %}"
+               id="tf-{{ pair.lower() }}-{{ tf }}" role="tabpanel">
+            {% set _ = first_tf.__setattr__('done', true) %}
+            <div class="ind-trades-table-wrap">
+              <table class="ind-trades-table">
+                <thead>
+                  <tr>
+                    <th style="white-space:nowrap">エントリー (JST)</th>
+                    <th style="white-space:nowrap">種別</th>
+                    <th>エントリー</th>
+                    <th>TP</th>
+                    <th>SL</th>
+                    <th style="white-space:nowrap">結果・損益</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {% for t in tf_trades %}
+                  {% set is_buy = t.signal == 'BUY' %}
+                  <tr class="trade-row"
+                      data-pair="{{ pair }}"
+                      data-tf="{{ t.timeframe or tf }}"
+                      data-entry-ts="{{ t.entry_ts_unix or '' }}"
+                      data-exit-ts="{{ t.exit_ts_unix or '' }}"
+                      data-entry-price="{{ t.entry_price or '' }}"
+                      data-tp-price="{{ t.tp_price or '' }}"
+                      data-sl-price="{{ t.sl_price or '' }}"
+                      data-signal="{{ t.signal }}"
+                      data-outcome="{{ t.outcome }}"
+                      data-pnl="{{ t.pnl }}"
+                      data-entry-label="{{ t.entry_ts_jst }}"
+                      style="cursor:pointer">
+                    <td class="ind-trade-time" style="white-space:nowrap">{{ t.entry_ts_jst }}</td>
+                    <td style="white-space:nowrap">
+                      <span class="signal-type-badge {% if is_buy %}buy{% else %}sell{% endif %}">
+                        {{ '買い' if is_buy else '売り' }}
+                      </span>
+                    </td>
+                    <td class="font-mono">{{ "%.3f"|format(t.entry_price) if t.entry_price else '-' }}</td>
+                    <td class="font-mono text-success">{{ "%.3f"|format(t.tp_price) if t.tp_price else '-' }}</td>
+                    <td class="font-mono text-danger">{{ "%.3f"|format(t.sl_price) if t.sl_price else '-' }}</td>
+                    <td style="white-space:nowrap">
+                      {% if t.outcome == 'WIN' %}
+                      <span class="ind-outcome win">✓利確</span>
+                      <span class="fw-bold text-success ms-1">+¥{{ "{:,.0f}".format(t.pnl|abs) }}</span>
+                      {% elif t.outcome == 'LOSS' %}
+                      <span class="ind-outcome loss">✗損切</span>
+                      <span class="fw-bold text-danger ms-1">-¥{{ "{:,.0f}".format(t.pnl|abs) }}</span>
+                      {% else %}
+                      <span class="ind-outcome neutral">-</span>
+                      {% endif %}
+                    </td>
+                  </tr>
+                  {% endfor %}
+                </tbody>
+              </table>
+            </div>
+          </div>
+          {% endif %}
+          {% endfor %}
         </div>
         {% else %}
-        <div class="empty-state small">{{ pair[:3] }}/{{ pair[3:] }} の15分足データがありません</div>
+        <div class="empty-state small">{{ pair[:3] }}/{{ pair[3:] }} のトレードデータがありません</div>
         {% endif %}
       </div>
       {% endfor %}
@@ -327,6 +378,40 @@
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 <script src="https://unpkg.com/lightweight-charts@4.1.7/dist/lightweight-charts.standalone.production.js"></script>
 <script>
+  // ---- info-tip ツールチップ ----
+  (function() {
+    var popup = null;
+    function showTip(el) {
+      hideTip();
+      var text = el.getAttribute('data-tip');
+      if (!text) return;
+      popup = document.createElement('div');
+      popup.className = 'tooltip-popup';
+      popup.textContent = text;
+      document.body.appendChild(popup);
+      var rect = el.getBoundingClientRect();
+      var W = 260;
+      var left = rect.left + window.scrollX + rect.width / 2 - W / 2;
+      left = Math.max(8, Math.min(left, window.innerWidth - W - 8));
+      popup.style.width = W + 'px';
+      popup.style.left = left + 'px';
+      popup.style.top = (rect.top + window.scrollY - popup.offsetHeight - 10) + 'px';
+      popup.style.opacity = '1';
+    }
+    function hideTip() {
+      if (popup) { popup.remove(); popup = null; }
+    }
+    document.addEventListener('mouseover', function(e) {
+      var el = e.target.closest('.info-tip');
+      if (el) showTip(el); else hideTip();
+    });
+    document.addEventListener('click', function(e) {
+      var el = e.target.closest('.info-tip');
+      if (el) { e.stopPropagation(); popup ? hideTip() : showTip(el); }
+      else hideTip();
+    });
+  })();
+
   // ---- 時計 ----
   function updateClock() {
     const now = new Date();
