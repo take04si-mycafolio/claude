@@ -1,0 +1,185 @@
+{% extends "base_static.html" %}
+{% block title %}FXテクニカルの勝率とは｜一覧・ランキング・実践解説{% endblock %}
+
+{% block content %}
+<style>
+/* ===== TOPページ記事スタイル ===== */
+.article-top {
+  --font-sans: 'Noto Sans JP', sans-serif;
+  --font-serif: 'Noto Serif JP', serif;
+  --color-text-primary: #1a1a1a;
+  --color-text-secondary: #5f5e5a;
+  --color-surface: #f7f6f2;
+  --color-border: rgba(0,0,0,0.12);
+  --color-border-strong: rgba(0,0,0,0.25);
+  --radius-md: 8px;
+  --radius-lg: 12px;
+  --blue-bg: #e6f1fb; --blue-text: #0c447c; --blue-border: #378add;
+  --green-bg: #eaf3de; --green-text: #3b6d11;
+  --amber-bg: #faeeda; --amber-text: #633806; --amber-border: #ba7517;
+  --red-bg: #fcebeb; --red-text: #a32d2d; --red-border: #f7c1c1;
+  font-family: var(--font-sans);
+  color: var(--color-text-primary);
+  line-height: 1.7;
+  background: #fff;
+}
+
+/* page-wrap: サイトレイアウト内では余白のみ */
+.article-top .page-wrap { max-width: none; margin: 0; padding: 1.5rem 0 4rem; }
+
+/* ── KV ── */
+.article-top .kv { border-top: 3px solid var(--color-text-primary); border-bottom: 0.5px solid var(--color-border); padding: 2rem 1.5rem 1.75rem; margin-bottom: 2.5rem; }
+.article-top .kw-row { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 1rem; }
+.article-top .kw { font-size: 11px; font-weight: 500; letter-spacing: .06em; padding: 3px 10px; border: 0.5px solid var(--color-border-strong); border-radius: 2px; color: var(--color-text-secondary); }
+.article-top .kv h1 { font-family: var(--font-serif); font-size: clamp(1.4rem, 4vw, 1.9rem); font-weight: 700; line-height: 1.4; margin-bottom: 1rem; }
+.article-top .kv-lead { font-size: 15px; color: var(--color-text-secondary); line-height: 1.85; }
+
+/* ── TOC ── */
+.article-top .toc { background: var(--color-surface); border-left: 3px solid var(--color-text-primary); padding: 1.25rem 1.5rem; margin: 0 1.5rem 3rem; border-radius: 0 var(--radius-md) var(--radius-md) 0; }
+.article-top .toc-title { font-size: 12px; font-weight: 500; letter-spacing: .08em; color: var(--color-text-secondary); margin-bottom: .75rem; }
+.article-top .toc ol { padding-left: 1.4rem; }
+.article-top .toc li { font-size: 14px; line-height: 1.9; color: var(--color-text-secondary); }
+.article-top .toc a { color: var(--color-text-secondary); text-decoration: none; }
+.article-top .toc a:hover { color: var(--color-text-primary); text-decoration: underline; }
+
+/* ── Section ── */
+.article-top .sec { margin: 0 1.5rem 3.5rem; scroll-margin-top: 2rem; }
+.article-top .sec-num { font-size: 11px; font-weight: 500; letter-spacing: .1em; color: var(--color-text-secondary); margin-bottom: .3rem; }
+.article-top .sec h2 { font-family: var(--font-serif); font-size: clamp(1.05rem, 3vw, 1.3rem); font-weight: 700; line-height: 1.5; padding-bottom: .6rem; border-bottom: 0.5px solid var(--color-border); margin-bottom: 1.1rem; }
+.article-top .sec p { font-size: 15px; line-height: 1.95; margin-bottom: .9rem; }
+
+/* ── Table ── */
+.article-top .tbl-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; margin: 1.25rem 0; border: 0.5px solid var(--color-border); border-radius: var(--radius-lg); }
+.article-top table { width: 100%; border-collapse: collapse; font-size: 13px; min-width: 480px; white-space: nowrap; }
+.article-top th { background: var(--color-surface); font-weight: 500; font-size: 12px; color: var(--color-text-secondary); padding: 10px 14px; text-align: left; border-bottom: 0.5px solid var(--color-border); white-space: nowrap; }
+.article-top td { padding: 10px 14px; border-bottom: 0.5px solid var(--color-border); vertical-align: middle; }
+.article-top tr:last-child td { border-bottom: none; }
+.article-top tbody tr:hover td { background: var(--color-surface); }
+
+/* ── Badges (Bootstrap .badge 競合回避) ── */
+.article-top .badge { display: inline-block; font-size: 11px; font-weight: 500; padding: 2px 8px; border-radius: 3px; white-space: nowrap; }
+.article-top .b-up   { background: var(--green-bg); color: var(--green-text); }
+.article-top .b-mid  { background: var(--amber-bg); color: var(--amber-text); }
+.article-top .b-down { background: var(--red-bg);   color: var(--red-text); }
+.article-top .b-blue { background: var(--blue-bg);  color: var(--blue-text); }
+.article-top .b-gray { background: #f1efe8; color: #444441; }
+
+/* ── Callout ── */
+.article-top .callout { border-left: 3px solid; padding: .9rem 1.1rem; margin: 1.1rem 0; border-radius: 0 var(--radius-md) var(--radius-md) 0; font-size: 14px; line-height: 1.75; }
+.article-top .c-info { border-color: var(--blue-border); background: var(--blue-bg); color: var(--blue-text); }
+.article-top .c-warn { border-color: var(--amber-border); background: var(--amber-bg); color: var(--amber-text); }
+
+/* ── Rank list ── */
+.article-top .rank-list { display: flex; flex-direction: column; gap: 10px; margin: 1.25rem 0; }
+.article-top .rank-item { display: flex; gap: 14px; align-items: flex-start; padding: 1rem; border: 0.5px solid var(--color-border); border-radius: var(--radius-lg); }
+.article-top .rank-item.top { border: 1.5px solid var(--blue-border); background: var(--blue-bg); }
+.article-top .rank-num { font-size: 1.5rem; font-weight: 500; min-width: 32px; text-align: center; line-height: 1; padding-top: 2px; }
+.article-top .rank-num.gold   { color: #ba7517; }
+.article-top .rank-num.silver { color: #5f5e5a; }
+.article-top .rank-num.bronze { color: #993c1d; }
+.article-top .rank-body { flex: 1; }
+.article-top .rank-name { font-size: 15px; font-weight: 500; margin-bottom: 4px; }
+.article-top .rank-meta { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 6px; }
+.article-top .rank-desc { font-size: 13px; color: var(--color-text-secondary); line-height: 1.7; }
+
+/* ── Grid 2-col / card (Bootstrap .card 競合回避) ── */
+.article-top .grid2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 10px; margin: 1.25rem 0; }
+.article-top .card { border: 0.5px solid var(--color-border); border-radius: var(--radius-lg); padding: 1rem; background: none; box-shadow: none; }
+.article-top .card.featured { border: 1.5px solid var(--blue-border); }
+.article-top .card-head { font-size: 12px; font-weight: 500; letter-spacing: .06em; color: var(--color-text-secondary); margin-bottom: .5rem; }
+.article-top .card-head.blue { color: var(--blue-text); }
+.article-top .card-title { font-size: 15px; font-weight: 500; margin-bottom: .5rem; }
+.article-top .card ul { list-style: none; padding: 0; margin: 0; }
+.article-top .card ul li { font-size: 13px; color: var(--color-text-secondary); line-height: 1.8; padding-left: 10px; position: relative; }
+.article-top .card ul li::before { content: ''; position: absolute; left: 0; top: 9px; width: 4px; height: 4px; border-radius: 50%; background: var(--color-text-secondary); }
+
+/* ── Tech cards ── */
+.article-top .tech-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 10px; margin: 1.25rem 0; }
+.article-top .tc { border: 0.5px solid var(--color-border); border-radius: var(--radius-lg); padding: 1rem; }
+.article-top .tc-name { font-size: 15px; font-weight: 500; margin-bottom: .5rem; }
+.article-top .tc-row { display: flex; justify-content: space-between; align-items: center; font-size: 13px; padding: 4px 0; border-bottom: 0.5px solid var(--color-border); }
+.article-top .tc-row:last-child { border-bottom: none; }
+.article-top .tc-label { color: var(--color-text-secondary); }
+
+/* ── Point list ── */
+.article-top .point-list { display: flex; flex-direction: column; gap: 8px; margin: 1.25rem 0; }
+.article-top .point-item { display: flex; gap: 12px; align-items: flex-start; padding: .75rem 1rem; background: var(--color-surface); border-radius: var(--radius-md); }
+.article-top .pi-num { font-size: 13px; font-weight: 500; min-width: 22px; color: var(--color-text-secondary); }
+.article-top .pi-title { font-size: 14px; font-weight: 500; margin-bottom: 2px; }
+.article-top .pi-desc { font-size: 13px; color: var(--color-text-secondary); line-height: 1.65; }
+
+/* ── Flow ── */
+.article-top .flow-wrap { margin: 1.25rem 0; }
+.article-top .flow-step { display: flex; gap: 12px; align-items: flex-start; margin-bottom: 4px; }
+.article-top .flow-line { display: flex; flex-direction: column; align-items: center; }
+.article-top .flow-dot { width: 28px; height: 28px; border-radius: 50%; background: var(--color-text-primary); display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 500; color: #fff; flex-shrink: 0; }
+.article-top .flow-connector { width: 1px; height: 20px; background: var(--color-border-strong); margin: 2px 0; }
+.article-top .flow-body { padding-top: 4px; flex: 1; }
+.article-top .flow-title { font-size: 14px; font-weight: 500; margin-bottom: 2px; }
+.article-top .flow-desc { font-size: 13px; color: var(--color-text-secondary); line-height: 1.65; margin-bottom: 8px; }
+
+/* ── Fail grid ── */
+.article-top .fail-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 8px; margin: 1.25rem 0; }
+.article-top .fail-card { border: 0.5px solid var(--red-border); border-radius: var(--radius-md); padding: .9rem; background: var(--red-bg); }
+.article-top .fail-title { font-size: 13px; font-weight: 500; color: var(--red-text); margin-bottom: 4px; }
+.article-top .fail-desc { font-size: 12px; color: #791f1f; line-height: 1.65; }
+
+/* ── Summary ── */
+.article-top .summary { border: 1.5px solid var(--color-text-primary); border-radius: var(--radius-lg); padding: 1.25rem 1.5rem; margin-top: 2rem; }
+.article-top .summary h3 { font-family: var(--font-serif); font-size: 1rem; font-weight: 700; margin-bottom: .9rem; }
+.article-top .sl { list-style: none; padding: 0; margin: 0; }
+.article-top .sl li { font-size: 14px; line-height: 1.8; padding: .45rem 0; border-bottom: 0.5px solid var(--color-border); display: flex; gap: 10px; align-items: flex-start; }
+.article-top .sl li:last-child { border-bottom: none; }
+.article-top .sld { width: 5px; height: 5px; border-radius: 50%; background: var(--color-text-primary); flex-shrink: 0; margin-top: 9px; }
+
+/* ── Definition box ── */
+.article-top .def-box { border: 0.5px solid var(--color-border-strong); border-radius: var(--radius-lg); padding: 1.25rem 1.5rem; margin: 1.25rem 0; }
+.article-top .def-label { font-size: 11px; font-weight: 500; letter-spacing: .08em; color: var(--color-text-secondary); margin-bottom: .5rem; }
+.article-top .def-formula { font-size: 1.1rem; font-weight: 500; text-align: center; padding: .75rem 0; letter-spacing: .02em; }
+.article-top .def-note { font-size: 13px; color: var(--color-text-secondary); line-height: 1.7; margin-top: .5rem; }
+
+/* ── Metric cards ── */
+.article-top .metric-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 12px; margin: 1.25rem 0; }
+.article-top .metric-card { background: var(--color-surface); border-radius: var(--radius-md); padding: 1rem; }
+.article-top .mc-num { font-size: 1.8rem; font-weight: 500; line-height: 1; margin-bottom: 4px; }
+.article-top .mc-label { font-size: 12px; color: var(--color-text-secondary); line-height: 1.5; }
+
+/* ── Matrix 2x2 ── */
+.article-top .matrix { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin: 1.25rem 0; }
+.article-top .mx-cell { border: 0.5px solid var(--color-border); border-radius: var(--radius-md); padding: 1rem; }
+.article-top .mx-head { font-size: 11px; font-weight: 500; letter-spacing: .06em; color: var(--color-text-secondary); margin-bottom: .4rem; }
+.article-top .mx-body { font-size: 14px; line-height: 1.7; }
+.article-top .mc-tag { display: inline-block; font-size: 10px; padding: 2px 6px; border-radius: 2px; margin-top: 6px; font-weight: 500; }
+.article-top .mc-good { background: var(--green-bg); color: var(--green-text); }
+.article-top .mc-bad  { background: var(--red-bg);   color: var(--red-text); }
+
+/* ── Bar chart ── */
+.article-top .bar-chart { padding: 1rem; }
+.article-top .bar-row { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
+.article-top .bar-row:last-child { margin-bottom: 0; }
+.article-top .bar-label { font-size: 13px; width: 140px; flex-shrink: 0; color: var(--color-text-secondary); }
+.article-top .bar-track { flex: 1; background: var(--color-surface); border-radius: 2px; height: 22px; overflow: hidden; }
+.article-top .bar-fill { height: 100%; border-radius: 2px; display: flex; align-items: center; justify-content: flex-end; padding-right: 8px; }
+.article-top .bar-val { font-size: 12px; font-weight: 500; }
+
+/* ── Responsive ── */
+@media (max-width: 600px) {
+  .article-top .kv,
+  .article-top .sec { margin-left: 1rem; margin-right: 1rem; }
+  .article-top .toc { margin-left: 1rem; margin-right: 1rem; }
+  .article-top .matrix { grid-template-columns: 1fr; }
+  .article-top .rank-item { flex-direction: column; gap: 8px; }
+  .article-top .bar-label { width: 90px; font-size: 12px; }
+}
+</style>
+
+<div class="article-top">
+{% if content %}
+{{ content | safe }}
+{% else %}
+<div style="padding:3rem 1.5rem;text-align:center;color:#6b7280;font-size:14px">
+  管理画面 → SEO管理 → コンテンツ管理 → ⓪ TOPページ記事 からHTMLコンテンツを入力してください。
+</div>
+{% endif %}
+</div>
+{% endblock %}

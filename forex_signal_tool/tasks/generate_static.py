@@ -929,7 +929,7 @@ def main():
     with app.app_context():
         updated_at = datetime.now(JST).strftime("%Y/%m/%d %H:%M")
         pairs = Config.CURRENCY_PAIRS
-        pair_pages = {"USDJPY": "index.html", "GBPJPY": "gbpjpy.html", "EURJPY": "eurjpy.html"}
+        pair_pages = {"USDJPY": "usdjpy/index.html", "GBPJPY": "gbpjpy.html", "EURJPY": "eurjpy.html"}
 
         # 指標名 → 新URL マップ（/<cat_slug>/<url_slug>/）
         ind_url_map = {
@@ -940,6 +940,18 @@ def main():
             for name, info in INDICATOR_INFO.items()
         }
         slug_map = {name: info["slug"] for name, info in INDICATOR_INFO.items()}
+
+        # TOP ページ（記事コンテンツ）
+        content_db_top = load_content_db()
+        top_article = content_db_top.get("top_article", "")
+        html = render_html(app, "article_top_static.html", {
+            "content":    top_article,
+            "pair_pages": pair_pages,
+            "updated_at": updated_at,
+            "active_page": "home",
+        })
+        save("index.html", html)
+        logger.info("TOP ページ（記事）生成完了")
 
         # 各通貨ペアのダッシュボード
         for pair, filename in pair_pages.items():

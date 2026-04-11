@@ -148,6 +148,20 @@ h2{font-size:19px;font-weight:700;color:#f1f5f9;margin-bottom:4px}
   <div id="content-loading"><div class="spinner"></div><p style="margin-top:12px">読み込み中...</p></div>
   <div id="content-body" style="display:none">
 
+    <!-- TOPページ記事 -->
+    <div class="cont-section">
+      <h3 class="cont-title">⓪ TOPページ記事コンテンツ</h3>
+      <p class="cont-sub">サイトTOPページに表示する記事HTMLを入力してください。<br>
+      共有HTMLの <code style="font-size:11px;color:#94a3b8">&lt;main class="page-wrap"&gt;...&lt;/main&gt;</code> の内容をそのまま貼り付けてください。保存後、generate_static を実行すると反映されます。</p>
+      <label class="cont-label">記事HTML</label>
+      <textarea id="top-article-input" class="cont-textarea" rows="20"
+        placeholder="<main class=&quot;page-wrap&quot;>&#10;  <!-- 記事コンテンツ -->&#10;</main>"></textarea>
+      <div style="display:flex;align-items:center;gap:12px;margin-top:10px">
+        <button class="cont-save-btn" onclick="saveTopArticle()">保存</button>
+        <span id="top-article-status" class="cont-status"></span>
+      </div>
+    </div>
+
     <!-- ページタイトル・導入文 -->
     <div class="cont-section">
       <h3 class="cont-title">① ページタイトル・導入文</h3>
@@ -642,6 +656,7 @@ async function initContent() {
     const d   = await res.json();
     if (d.status === 'ok') {
       contentData = d.data || {};
+      document.getElementById('top-article-input').value    = contentData['top_article']?.value       || '';
       document.getElementById('ranking-title-input').value = contentData['ranking_title']?.value || '';
       document.getElementById('ranking-intro-input').value = contentData['ranking_intro']?.value  || '';
       document.getElementById('analysis-input').value      = contentData['ranking_analysis']?.value || '';
@@ -671,6 +686,21 @@ async function savePageInfo() {
     st.className = 'cont-status ' + (d.status==='ok' ? 'ok' : 'err');
     if (d.status==='ok') setTimeout(()=>{st.textContent=''},3000);
   } catch(e) { st.textContent='ネットワークエラー'; st.className='cont-status err'; }
+}
+
+async function saveTopArticle() {
+  const val = document.getElementById('top-article-input').value;
+  const st  = document.getElementById('top-article-status');
+  st.textContent = '保存中...'; st.className = 'cont-status saving';
+  try {
+    const res = await fetch('/admin/api.php', {
+      method: 'POST', headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({action:'set_content', key:'top_article', value: val})
+    });
+    const d = await res.json();
+    if (d.status === 'ok') { st.textContent = '✅ 保存完了'; st.className = 'cont-status ok'; }
+    else { st.textContent = '❌ 失敗: ' + (d.message||''); st.className = 'cont-status err'; }
+  } catch(e) { st.textContent = 'ネットワークエラー'; st.className = 'cont-status err'; }
 }
 
 async function saveAnalysis() {
