@@ -246,7 +246,7 @@
           {% if tf_trades %}
           <div class="tab-pane fade {% if not first_tf.done %}show active{% endif %}"
                id="tf-{{ pair.lower() }}-{{ tf }}" role="tabpanel">
-            {% set _ = first_tf.__setattr__('done', true) %}
+            {% set first_tf.done = true %}
             <div class="ind-trades-table-wrap">
               <table class="ind-trades-table">
                 <thead>
