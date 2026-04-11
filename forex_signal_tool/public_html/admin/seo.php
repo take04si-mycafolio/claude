@@ -82,6 +82,7 @@ h2{font-size:19px;font-weight:700;color:#f1f5f9;margin-bottom:4px}
     <a href="/admin/">ダッシュボード</a>
     <a href="/admin/backtest.php">バックテスト</a>
     <a href="/admin/seo.php" class="active">SEO管理</a>
+    <a href="/admin/articles.php">記事管理</a>
     <a href="/admin/export.php">エクスポート</a>
     <a href="/admin/settings.php">設定</a>
     <a href="#" class="logout-btn" onclick="logout()">ログアウト</a>
@@ -148,29 +149,15 @@ h2{font-size:19px;font-weight:700;color:#f1f5f9;margin-bottom:4px}
   <div id="content-loading"><div class="spinner"></div><p style="margin-top:12px">読み込み中...</p></div>
   <div id="content-body" style="display:none">
 
-    <!-- TOPページ記事 -->
-    <div class="cont-section">
+    <!-- TOPページ記事 → 記事管理ページへ -->
+    <div class="cont-section" style="border-left:3px solid #3b82f6">
       <h3 class="cont-title">⓪ TOPページ記事コンテンツ</h3>
-      <p class="cont-sub">
-        TOPページの記事HTMLを前半・後半に分けて入力してください。<br>
-        <strong style="color:#60a5fa">前半</strong>：勝率一覧テーブルより前のコンテンツ（KV・目次・s01〜s05 相当）<br>
-        <strong style="color:#60a5fa">後半</strong>：勝率一覧テーブルより後のコンテンツ（s08〜s14 相当）<br>
-        ※ s06（勝率一覧）・s07（ランキング）はバックテストデータから自動生成されます。保存後、generate_static を実行すると反映されます。
+      <p class="cont-sub" style="margin-bottom:14px">
+        TOPページの記事（前半・後半）は <strong style="color:#f1f5f9">記事管理ページ</strong> で編集できます。
       </p>
-      <label class="cont-label" style="margin-top:12px">記事HTML（前半：KV・目次・概念説明）</label>
-      <textarea id="top-article-pre-input" class="cont-textarea" rows="16"
-        placeholder="<!-- ヘッダー・目次・s01〜s05 の HTML -->"></textarea>
-      <div style="display:flex;align-items:center;gap:12px;margin-top:8px;margin-bottom:16px">
-        <button class="cont-save-btn" onclick="saveTopArticlePre()">前半を保存</button>
-        <span id="top-article-pre-status" class="cont-status"></span>
-      </div>
-      <label class="cont-label">記事HTML（後半：手法解説・失敗例・まとめ）</label>
-      <textarea id="top-article-post-input" class="cont-textarea" rows="16"
-        placeholder="<!-- s08〜s14 の HTML -->"></textarea>
-      <div style="display:flex;align-items:center;gap:12px;margin-top:8px">
-        <button class="cont-save-btn" onclick="saveTopArticlePost()">後半を保存</button>
-        <span id="top-article-post-status" class="cont-status"></span>
-      </div>
+      <a href="/admin/articles.php" style="display:inline-flex;align-items:center;gap:8px;background:#1e3a5f;color:#60a5fa;border:1px solid #3b82f6;border-radius:8px;padding:10px 20px;font-size:13px;font-weight:600;text-decoration:none;transition:background .15s" onmouseover="this.style.background='#1e4a8f'" onmouseout="this.style.background='#1e3a5f'">
+        📄 記事管理ページへ移動
+      </a>
     </div>
 
     <!-- ページタイトル・導入文 -->
@@ -667,8 +654,6 @@ async function initContent() {
     const d   = await res.json();
     if (d.status === 'ok') {
       contentData = d.data || {};
-      document.getElementById('top-article-pre-input').value  = contentData['top_article_pre']?.value  || '';
-      document.getElementById('top-article-post-input').value = contentData['top_article_post']?.value || '';
       document.getElementById('ranking-title-input').value = contentData['ranking_title']?.value || '';
       document.getElementById('ranking-intro-input').value = contentData['ranking_intro']?.value  || '';
       document.getElementById('analysis-input').value      = contentData['ranking_analysis']?.value || '';
@@ -713,9 +698,6 @@ async function _saveTopPart(key, val, stId) {
     else { st.textContent = '❌ 失敗: ' + (d.message||''); st.className = 'cont-status err'; }
   } catch(e) { st.textContent = 'ネットワークエラー'; st.className = 'cont-status err'; }
 }
-function saveTopArticlePre()  { _saveTopPart('top_article_pre',  document.getElementById('top-article-pre-input').value,  'top-article-pre-status');  }
-function saveTopArticlePost() { _saveTopPart('top_article_post', document.getElementById('top-article-post-input').value, 'top-article-post-status'); }
-
 async function saveAnalysis() {
   const val = document.getElementById('analysis-input').value;
   const st  = document.getElementById('analysis-status');
