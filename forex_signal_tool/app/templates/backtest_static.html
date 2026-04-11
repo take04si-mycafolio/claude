@@ -68,10 +68,12 @@
       <div class="ov-val">{{ bt_sim_total }}件</div>
     </div>
     {% endif %}
+    {% if bt_period %}
     <div class="ov-item">
-      <div class="ov-lbl">最終更新</div>
-      <div class="ov-val">{{ updated_at }}</div>
+      <div class="ov-lbl">検証期間</div>
+      <div class="ov-val">{{ bt_period }}</div>
     </div>
+    {% endif %}
   </div>
   {% if bt_sim_by_tf %}
   <div class="ov-tf-row">

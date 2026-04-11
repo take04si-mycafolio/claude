@@ -1035,6 +1035,9 @@ def main():
         results_json   = json.dumps(all_bt,    cls=_DecEncoder, ensure_ascii=False)
         tf_labels_json = json.dumps(TF_LABELS, ensure_ascii=False)
 
+        from app.models.settings import Setting as _Setting
+        bt_period = _Setting.get("backtest_period", "")
+
         html = render_html(app, "backtest_static.html", {
             "pairs":            pairs,
             "pair_pages":       pair_pages,
@@ -1054,6 +1057,7 @@ def main():
             "bt_timeframes":    bt_timeframes,
             "bt_sim_total":     bt_sim_total,
             "bt_sim_by_tf":     bt_sim_by_tf,
+            "bt_period":        bt_period,
             "updated_at":       updated_at,
             "active_page":      "backtest",
         })

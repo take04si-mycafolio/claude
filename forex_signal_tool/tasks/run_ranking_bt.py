@@ -305,10 +305,18 @@ def main():
         except Exception as exc:
             logger.warning("スナップショット保存失敗: %s", exc)
 
-        # 最終更新日時を記録
+        # 最終更新日時・検証期間を記録
         now_str = datetime.now(timezone.utc).strftime("%Y/%m/%d %H:%M UTC")
         Setting.set("last_backtest_at", now_str)
         Setting.set("backtest_status",  "done")
+
+        # 検証期間（表示用）を保存
+        def _fmt(s): return s.replace("-", "/") if s else ""
+        s_disp = _fmt(start_date)
+        e_disp = _fmt(end_date)
+        period_str = f"{s_disp}～{e_disp}" if s_disp and e_disp else s_disp or e_disp
+        if period_str:
+            Setting.set("backtest_period", period_str)
 
     # 静的ページ再生成
     write_status("generating", f"静的ページ生成中... (バックテスト{total_saved}件完了)")
