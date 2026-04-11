@@ -26,7 +26,7 @@
 <!-- 導入文（ヒーロー外・大きめテキスト） -->
 {% if ranking_intro %}
 <div class="rk-intro-block">
-  <p class="rk-intro-text">{{ ranking_intro }}</p>
+  <div class="rk-intro-text">{{ ranking_intro | safe }}</div>
 </div>
 {% endif %}
 
@@ -136,7 +136,7 @@
 <div class="section-card" id="section-analysis">
   <div class="section-title"><i class="bi bi-lightbulb-fill text-info me-2"></i>分析・考察</div>
   {% if content_analysis %}
-  <div class="analysis-body">{{ content_analysis }}</div>
+  <div class="analysis-body">{{ content_analysis | safe }}</div>
   {% else %}
   <div class="rk-placeholder">
     <i class="bi bi-pencil-square fs-3"></i>
@@ -483,7 +483,7 @@ renderTable();
 .rk-empty{display:flex;flex-direction:column;align-items:center;padding:32px;color:#6b7280;font-size:13px;gap:8px}
 
 /* ===== 分析・考察 ===== */
-.analysis-body{font-size:13px;color:#1e293b;line-height:1.9;white-space:pre-wrap}
+.analysis-body{font-size:13px;color:#1e293b;line-height:1.9}
 .rk-placeholder{display:flex;flex-direction:column;align-items:center;gap:8px;padding:24px;color:#6b7280;font-size:12px;text-align:center;line-height:1.6}
 
 /* ===== 手法別 ===== */
