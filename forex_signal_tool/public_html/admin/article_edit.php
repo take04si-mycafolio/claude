@@ -15,6 +15,15 @@ $article = null;
 foreach ($ARTICLES as $a) {
     if ($a['key'] === $key) { $article = $a; break; }
 }
+// indicator_article_{slug} キーを動的に許可
+if (!$article && preg_match('/^indicator_article_([a-z0-9_]+)$/', $key, $m)) {
+    $slug = $m[1];
+    $article = [
+        'key'   => $key,
+        'title' => 'テクニカル指標 SEO記事（' . $slug . '）',
+        'page'  => '/' . $slug . '/',
+    ];
+}
 if (!$article) {
     header('Location: /admin/articles.php');
     exit;

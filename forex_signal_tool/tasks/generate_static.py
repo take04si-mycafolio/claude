@@ -1283,8 +1283,10 @@ def main():
                     page_data["info"]["seo_title"] = seo_db[db_key]["title"]
                 if db_key in seo_db and seo_db[db_key]["meta_description"]:
                     page_data["info"]["seo_description"] = seo_db[db_key]["meta_description"]
+                article_key = f"indicator_article_{url_slug}"
                 html = render_html(app, "indicator_static.html", {
                     **page_data,
+                    "indicator_article": content_db.get(article_key, ""),
                     "updated_at": updated_at,
                     "active_page": "backtest",
                 })

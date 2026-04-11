@@ -312,6 +312,13 @@
     </div>
   </div>
 
+  <!-- SEO記事 -->
+  {% if indicator_article %}
+  <div class="section-card">
+    <div class="indicator-seo-article">{{ indicator_article | safe }}</div>
+  </div>
+  {% endif %}
+
   <!-- 関連指標リンク -->
   <div class="section-card">
     <h2 class="ind-section-title"><i class="bi bi-grid me-2"></i>他の指標を見る</h2>

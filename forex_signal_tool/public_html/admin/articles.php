@@ -9,6 +9,39 @@ $ARTICLES = [
     ['key' => 'ranking_intro',    'title' => 'テクニカルランキング 導入文',             'page' => '/technical-ranking/'],
     ['key' => 'ranking_analysis', 'title' => 'テクニカルランキング 分析・考察',          'page' => '/technical-ranking/'],
 ];
+
+$INDICATOR_ARTICLES = [
+    // オシレーター
+    ['key' => 'indicator_article_rsi',               'title' => 'RSI（14期間）',                     'page' => '/oscillator/rsi/'],
+    ['key' => 'indicator_article_macd',              'title' => 'MACD（12・26・9）',                  'page' => '/oscillator/macd/'],
+    ['key' => 'indicator_article_stochastic',        'title' => 'ストキャスティクス（14・3・3）',      'page' => '/oscillator/stochastic/'],
+    ['key' => 'indicator_article_cci',               'title' => 'CCI（20期間）',                      'page' => '/oscillator/cci/'],
+    ['key' => 'indicator_article_williams_r',        'title' => 'ウィリアムズ%R（14期間）',            'page' => '/oscillator/williams_r/'],
+    // トレンド
+    ['key' => 'indicator_article_sma20',             'title' => 'SMA（20期間）',                      'page' => '/trend/sma20/'],
+    ['key' => 'indicator_article_sma50',             'title' => 'SMA（50期間）',                      'page' => '/trend/sma50/'],
+    ['key' => 'indicator_article_sma_cross',         'title' => 'SMAクロス（20/50）',                 'page' => '/trend/sma_cross/'],
+    ['key' => 'indicator_article_ema_cross',         'title' => 'EMAクロス（9/21）',                  'page' => '/trend/ema_cross/'],
+    ['key' => 'indicator_article_ema21',             'title' => 'EMA（21期間）',                      'page' => '/trend/ema21/'],
+    ['key' => 'indicator_article_bollinger_bands',   'title' => 'ボリンジャーバンド（20・2σ）',       'page' => '/trend/bollinger_bands/'],
+    ['key' => 'indicator_article_bb_squeeze',        'title' => 'BBスクイーズ',                       'page' => '/trend/bb_squeeze/'],
+    // ライン
+    ['key' => 'indicator_article_pivot',             'title' => 'クラシックピボット',                  'page' => '/line/pivot/'],
+    ['key' => 'indicator_article_fibonacci',         'title' => 'フィボナッチリトレースメント',         'page' => '/line/fibonacci/'],
+    ['key' => 'indicator_article_support_resistance','title' => '動的サポート・レジスタンス',           'page' => '/line/support_resistance/'],
+    // ボラティリティ
+    ['key' => 'indicator_article_atr',               'title' => 'ATR（14期間）',                      'page' => '/volatility/atr/'],
+    ['key' => 'indicator_article_volatility_index',  'title' => 'ボリンジャーバンド幅（ボラティリティ）','page' => '/volatility/volatility_index/'],
+    // ローソク足
+    ['key' => 'indicator_article_hammer',            'title' => 'ハンマー',                            'page' => '/candlestick/hammer/'],
+    ['key' => 'indicator_article_inverted_hammer',   'title' => '逆ハンマー',                          'page' => '/candlestick/inverted_hammer/'],
+    ['key' => 'indicator_article_doji',              'title' => '十字線（ドジ）',                      'page' => '/candlestick/doji/'],
+    ['key' => 'indicator_article_bullish_engulfing', 'title' => '強気の包み足',                        'page' => '/candlestick/bullish_engulfing/'],
+    ['key' => 'indicator_article_bearish_engulfing', 'title' => '弱気の包み足',                        'page' => '/candlestick/bearish_engulfing/'],
+    ['key' => 'indicator_article_three_white_soldiers','title'=> '三白兵',                             'page' => '/candlestick/three_white_soldiers/'],
+    ['key' => 'indicator_article_three_black_crows', 'title' => '三羽烏',                              'page' => '/candlestick/three_black_crows/'],
+    ['key' => 'indicator_article_pin_bar',           'title' => 'ピンバー',                            'page' => '/candlestick/pin_bar/'],
+];
 ?>
 <!DOCTYPE html>
 <html lang="ja">
@@ -74,6 +107,34 @@ h2{font-size:19px;font-weight:700;color:#f1f5f9;margin-bottom:4px}
     </thead>
     <tbody>
       <?php foreach ($ARTICLES as $art): ?>
+      <tr>
+        <td>
+          <div class="art-title"><?= htmlspecialchars($art['title']) ?></div>
+        </td>
+        <td>
+          <div class="art-page"><?= htmlspecialchars($art['page']) ?></div>
+        </td>
+        <td style="text-align:center">
+          <a href="/admin/article_edit.php?key=<?= urlencode($art['key']) ?>" class="edit-btn">編集</a>
+        </td>
+      </tr>
+      <?php endforeach; ?>
+    </tbody>
+  </table>
+
+  <h2 style="margin-top:40px">テクニカル指標 SEO記事</h2>
+  <p class="subtitle">各指標ページのトレードシミュレーション下に表示されるSEO記事を管理します。</p>
+
+  <table class="article-table">
+    <thead>
+      <tr>
+        <th>指標名</th>
+        <th>対象ページ</th>
+        <th style="width:90px;text-align:center">操作</th>
+      </tr>
+    </thead>
+    <tbody>
+      <?php foreach ($INDICATOR_ARTICLES as $art): ?>
       <tr>
         <td>
           <div class="art-title"><?= htmlspecialchars($art['title']) ?></div>
