@@ -1005,6 +1005,32 @@ def main():
             )
             bt_timeframes = " · ".join(TF_LABELS.get(t, t) for t in tfs)
 
+        # シミュレーショントレード数（TF別集計）
+        bt_sim_total = ""
+        bt_sim_by_tf = ""
+        try:
+            from app.models.simulation_trade import SimulationTrade
+            from sqlalchemy import func as _sf
+            tf_rows = (
+                SimulationTrade.query
+                .with_entities(SimulationTrade.timeframe, _sf.count(SimulationTrade.id))
+                .group_by(SimulationTrade.timeframe)
+                .all()
+            )
+            tf_counts = {tf: cnt for tf, cnt in tf_rows if tf}
+            total = sum(tf_counts.values())
+            if total:
+                bt_sim_total = f"{total:,}"
+                ordered = sorted(
+                    tf_counts.items(),
+                    key=lambda x: TF_ORDER.index(x[0]) if x[0] in TF_ORDER else 99,
+                )
+                bt_sim_by_tf = " · ".join(
+                    f"{TF_LABELS.get(tf, tf)}: {cnt:,}件" for tf, cnt in ordered
+                )
+        except Exception as _e:
+            logger.warning("sim trade count failed: %s", _e)
+
         results_json   = json.dumps(all_bt,    cls=_DecEncoder, ensure_ascii=False)
         tf_labels_json = json.dumps(TF_LABELS, ensure_ascii=False)
 
@@ -1025,6 +1051,8 @@ def main():
             "bt_tp_pips":       bt_tp_pips,
             "bt_rr_ratio":      bt_rr_ratio,
             "bt_timeframes":    bt_timeframes,
+            "bt_sim_total":     bt_sim_total,
+            "bt_sim_by_tf":     bt_sim_by_tf,
             "updated_at":       updated_at,
             "active_page":      "backtest",
         })
