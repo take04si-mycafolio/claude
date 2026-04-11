@@ -1011,6 +1011,7 @@ def main():
                     "display":      _info.get("display", _r.indicator_name),
                     "short_name":   _short,
                     "category":     _info.get("category", ""),
+                    "feature":      _info.get("feature", ""),
                     "wr_class":     _wr_cls(_avg_wr),
                     "wr_label":     f"{_min_wr:.0f}〜{_max_wr:.0f}%",
                     "avg_wr":       _avg_wr,
@@ -1021,8 +1022,18 @@ def main():
                     "score":        _score_top(_avg_wr, _avg_pf, _total, _avg_sl, _avg_tp, _avg_dd, _avg_cp),
                 })
 
-            bt_top_table   = sorted(_scored, key=lambda x: x["avg_wr"], reverse=True)
-            bt_top_ranking = sorted(_scored, key=lambda x: x["score"],  reverse=True)[:5]
+            # TOPページ勝率一覧は7指標を固定順で表示（一目均衡表はDB未対応→テンプレート側で静的追加）
+            _TOP_TABLE_ORDER = [
+                "SMA_Cross_20_50",
+                "MACD_12_26_9",
+                "RSI_14",
+                "BollingerBands_20_2",
+                "Stochastic_14_3",
+                "ATR_14",
+            ]
+            _scored_map  = {r["ind"]: r for r in _scored}
+            bt_top_table = [_scored_map[k] for k in _TOP_TABLE_ORDER if k in _scored_map]
+            bt_top_ranking = sorted(_scored, key=lambda x: x["score"], reverse=True)[:5]
             logger.info("TOP ページ集計: %d指標", len(bt_top_table))
         except Exception as _e:
             logger.warning("TOP page data aggregation failed: %s", _e)
