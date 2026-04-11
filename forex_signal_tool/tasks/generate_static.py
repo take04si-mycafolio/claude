@@ -704,6 +704,8 @@ def scope_article_css(css, scope=".ind-seo-article"):
     # Bootstrapと競合するクラス
     for cls in ('badge', 'card'):
         css = re.sub(rf'(?<![\w-])\.{cls}\b', f'{scope} .{cls}', css)
+    # テーブルセルの折り返し禁止を強制追加
+    css += f"\n{scope} td, {scope} th {{ white-space: nowrap; }}"
     return css
 
 
