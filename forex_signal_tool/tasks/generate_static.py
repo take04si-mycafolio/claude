@@ -929,7 +929,7 @@ def main():
     with app.app_context():
         updated_at = datetime.now(JST).strftime("%Y/%m/%d %H:%M")
         pairs = Config.CURRENCY_PAIRS
-        pair_pages = {"USDJPY": "usdjpy/index.html", "GBPJPY": "gbpjpy.html", "EURJPY": "eurjpy.html"}
+        pair_pages = {"USDJPY": "usdjpy/index.html", "GBPJPY": "gbpjpy/index.html", "EURJPY": "eurjpy/index.html"}
 
         # 指標名 → 新URL マップ（/<cat_slug>/<url_slug>/）
         ind_url_map = {
@@ -1038,11 +1038,42 @@ def main():
         except Exception as _e:
             logger.warning("TOP page data aggregation failed: %s", _e)
 
+        # 通貨ペア別パネルデータ（TOPページ内部リンク用 + ダッシュボード生成共用）
+        _pair_url_map = {"USDJPY": "/usdjpy/", "GBPJPY": "/gbpjpy/", "EURJPY": "/eurjpy/"}
+        _pair_data_cache = {}
+        pair_panels = []
+        for _pair in ["USDJPY", "GBPJPY", "EURJPY"]:
+            try:
+                _pd = get_pair_data(_pair)
+                _pair_data_cache[_pair] = _pd
+                _pr  = _pd.get("price") or {}
+                _ov  = _pd.get("overall", "NEUTRAL")
+                pair_panels.append({
+                    "pair":        _pair,
+                    "display":     _pd.get("display", _pair),
+                    "url":         _pair_url_map[_pair],
+                    "rate":        _pr.get("close"),
+                    "buy_count":   _pd.get("buy_count", 0),
+                    "sell_count":  _pd.get("sell_count", 0),
+                    "overall":     _ov,
+                    "overall_ja":  "買い優勢" if _ov == "BUY" else "売り優勢" if _ov == "SELL" else "中立",
+                    "overall_cls": "pp-buy" if _ov == "BUY" else "pp-sell" if _ov == "SELL" else "pp-neutral",
+                })
+            except Exception as _pe:
+                logger.warning("Pair panel data error %s: %s", _pair, _pe)
+                pair_panels.append({
+                    "pair": _pair, "display": f"{_pair[:3]}/{_pair[3:]}",
+                    "url": _pair_url_map[_pair], "rate": None,
+                    "buy_count": 0, "sell_count": 0,
+                    "overall": "NEUTRAL", "overall_ja": "中立", "overall_cls": "pp-neutral",
+                })
+
         html = render_html(app, "article_top_static.html", {
             "content_pre":     top_pre,
             "content_post":    top_post,
             "bt_top_table":    bt_top_table,
             "bt_top_ranking":  bt_top_ranking,
+            "pair_panels":     pair_panels,
             "pair_pages":      pair_pages,
             "updated_at":      updated_at,
             "active_page":     "home",
@@ -1052,7 +1083,7 @@ def main():
 
         # 各通貨ペアのダッシュボード
         for pair, filename in pair_pages.items():
-            data = get_pair_data(pair)
+            data = _pair_data_cache.get(pair) or get_pair_data(pair)
             html = render_html(app, "dashboard_static.html", {
                 "pairs": pairs,
                 "pair_pages": pair_pages,
