@@ -12,6 +12,7 @@ Cronジョブ設定例（30分ごと）:
 import sys
 import os
 import json
+import re
 import logging
 from datetime import datetime, timezone, timedelta
 from pathlib import Path
@@ -683,6 +684,29 @@ def load_seo_db() -> dict:
         return {}
 
 
+def scope_article_css(css, scope=".ind-seo-article"):
+    """記事CSSをスコープクラスに閉じ込め、Bootstrapとの競合を防ぐ。"""
+    if not css:
+        return ""
+    # :root {} → スコープクラスに変換（CSS変数をスコープ内に閉じ込める）
+    css = re.sub(r':root\s*\{', f'{scope} {{', css)
+    # body {} ブロックを削除（インジケーターページのbodyスタイルを汚染しない）
+    css = re.sub(r'\bbody\s*\{[^{}]*\}', '', css, flags=re.DOTALL)
+    # *, *::before, *::after → スコープ内に限定
+    css = re.sub(
+        r'(?m)^\s*\*\s*,\s*\*::before\s*,\s*\*::after\s*\{',
+        f'\n{scope} *, {scope} *::before, {scope} *::after {{',
+        css,
+    )
+    # 素のHTML要素セレクター（Bootstrap競合）をスコープ付きに
+    for tag in ('table', 'th', 'td', 'tr', 'tbody', 'thead'):
+        css = re.sub(rf'(?<![.#\w-])\b{tag}\b(?=\s*[{{,])', f'{scope} {tag}', css)
+    # Bootstrapと競合するクラス
+    for cls in ('badge', 'card'):
+        css = re.sub(rf'(?<![\w-])\.{cls}\b', f'{scope} .{cls}', css)
+    return css
+
+
 def load_content_db() -> dict:
     """site_content テーブルからコンテンツを取得（失敗時は空dict）"""
     try:
@@ -1284,9 +1308,13 @@ def main():
                 if db_key in seo_db and seo_db[db_key]["meta_description"]:
                     page_data["info"]["seo_description"] = seo_db[db_key]["meta_description"]
                 article_key = f"indicator_article_{url_slug}"
+                raw_css    = content_db.get(f"{article_key}_css", "")
+                raw_jsonld = content_db.get(f"{article_key}_jsonld", "")
                 html = render_html(app, "indicator_static.html", {
                     **page_data,
-                    "indicator_article": content_db.get(article_key, ""),
+                    "indicator_article":        content_db.get(article_key, ""),
+                    "indicator_article_css":    scope_article_css(raw_css),
+                    "indicator_article_jsonld": raw_jsonld,
                     "updated_at": updated_at,
                     "active_page": "backtest",
                 })

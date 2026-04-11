@@ -99,9 +99,40 @@ main{max-width:960px;margin:0 auto;padding:28px 16px}
     <div class="art-meta">対象ページ: <span><?= htmlspecialchars($article['page']) ?></span></div>
   </div>
 
-  <div class="editor-card">
+<?php $is_indicator = (bool)preg_match('/^indicator_article_/', $article['key']); ?>
+
+<?php if ($is_indicator): ?>
+  <!-- 指標記事：3フィールド（CSS / HTML / JSON-LD） -->
+  <div class="editor-card" style="margin-bottom:16px">
+    <label class="editor-label">① CSS（&lt;style&gt;タグの中身のみ。body{}は不要）</label>
+    <div style="font-size:11px;color:#475569;margin-bottom:6px">:root{} はそのまま貼り付け可。body{} はページ全体に影響するため自動的に除去されます。</div>
+    <textarea id="editor-css" class="editor-textarea" style="min-height:200px" placeholder="*, *::before, *::after { box-sizing: border-box; }
+:root { --font-sans: ... }
+.kv { ... }"></textarea>
+  </div>
+  <div class="editor-card" style="margin-bottom:16px">
+    <label class="editor-label">② 記事 HTML（&lt;main class=&quot;page-wrap&quot;&gt;〜&lt;/main&gt; の中身）</label>
+    <div style="font-size:11px;color:#475569;margin-bottom:6px">&lt;html&gt;/&lt;head&gt;/&lt;body&gt;タグは不要です。&lt;main&gt;タグ内のコンテンツのみ貼り付けてください。</div>
+    <textarea id="editor" class="editor-textarea" placeholder="<header class=&quot;kv&quot;>..."></textarea>
+  </div>
+  <div class="editor-card" style="margin-bottom:16px">
+    <label class="editor-label">③ 構造化データ JSON-LD（&lt;script type=&quot;application/ld+json&quot;&gt;の中身のみ）</label>
+    <div style="font-size:11px;color:#475569;margin-bottom:6px">&lt;script&gt;タグは不要。{ "@context": "https://schema.org", ... } のJSONのみ貼り付けてください。</div>
+    <textarea id="editor-jsonld" class="editor-textarea" style="min-height:160px" placeholder='{
+  "@context": "https://schema.org",
+  "@type": "FAQPage",
+  "mainEntity": [...]
+}'></textarea>
+  </div>
+<?php else: ?>
+  <!-- 通常記事：HTMLのみ -->
+  <div class="editor-card" style="margin-bottom:16px">
     <label class="editor-label" for="editor">記事 HTML</label>
     <textarea id="editor" class="editor-textarea" placeholder="HTMLを入力してください..."></textarea>
+  </div>
+<?php endif; ?>
+
+  <div class="editor-card">
     <div class="editor-actions">
       <button class="save-btn" id="save-btn" onclick="saveContent()">保存する</button>
       <span id="save-status" class="save-status"></span>
@@ -114,7 +145,8 @@ main{max-width:960px;margin:0 auto;padding:28px 16px}
 </main>
 
 <script>
-const ARTICLE_KEY = <?= json_encode($article['key']) ?>;
+const ARTICLE_KEY    = <?= json_encode($article['key']) ?>;
+const IS_INDICATOR   = <?= $is_indicator ? 'true' : 'false' ?>;
 
 async function loadContent() {
   try {
@@ -123,6 +155,10 @@ async function loadContent() {
     if (d.status === 'ok') {
       const data = d.data || {};
       document.getElementById('editor').value = data[ARTICLE_KEY]?.value || '';
+      if (IS_INDICATOR) {
+        document.getElementById('editor-css').value    = data[ARTICLE_KEY + '_css']?.value    || '';
+        document.getElementById('editor-jsonld').value = data[ARTICLE_KEY + '_jsonld']?.value || '';
+      }
     }
   } catch(e) {
     console.error('Failed to load content', e);
@@ -131,26 +167,37 @@ async function loadContent() {
   }
 }
 
+async function _save(key, value) {
+  const res = await fetch('/admin/api.php', {
+    method:  'POST',
+    headers: {'Content-Type': 'application/json'},
+    body:    JSON.stringify({action: 'content_save', key, value}),
+  });
+  return res.json();
+}
+
 async function saveContent() {
-  const val = document.getElementById('editor').value;
   const st  = document.getElementById('save-status');
   const btn = document.getElementById('save-btn');
   st.textContent = '保存中...';
   st.className   = 'save-status saving';
   btn.disabled   = true;
   try {
-    const res = await fetch('/admin/api.php', {
-      method:  'POST',
-      headers: {'Content-Type': 'application/json'},
-      body:    JSON.stringify({action: 'content_save', key: ARTICLE_KEY, value: val}),
-    });
-    const d = await res.json();
-    if (d.status === 'ok') {
+    const saves = [
+      _save(ARTICLE_KEY, document.getElementById('editor').value),
+    ];
+    if (IS_INDICATOR) {
+      saves.push(_save(ARTICLE_KEY + '_css',    document.getElementById('editor-css').value));
+      saves.push(_save(ARTICLE_KEY + '_jsonld', document.getElementById('editor-jsonld').value));
+    }
+    const results = await Promise.all(saves);
+    const failed  = results.find(d => d.status !== 'ok');
+    if (!failed) {
       st.textContent = '✅ 保存完了';
       st.className   = 'save-status ok';
       setTimeout(() => { st.textContent = ''; st.className = 'save-status'; }, 4000);
     } else {
-      st.textContent = '❌ 失敗: ' + (d.message || '');
+      st.textContent = '❌ 失敗: ' + (failed.message || '');
       st.className   = 'save-status err';
     }
   } catch(e) {
