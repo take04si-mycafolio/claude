@@ -151,14 +151,25 @@ h2{font-size:19px;font-weight:700;color:#f1f5f9;margin-bottom:4px}
     <!-- TOPページ記事 -->
     <div class="cont-section">
       <h3 class="cont-title">⓪ TOPページ記事コンテンツ</h3>
-      <p class="cont-sub">サイトTOPページに表示する記事HTMLを入力してください。<br>
-      共有HTMLの <code style="font-size:11px;color:#94a3b8">&lt;main class="page-wrap"&gt;...&lt;/main&gt;</code> の内容をそのまま貼り付けてください。保存後、generate_static を実行すると反映されます。</p>
-      <label class="cont-label">記事HTML</label>
-      <textarea id="top-article-input" class="cont-textarea" rows="20"
-        placeholder="<main class=&quot;page-wrap&quot;>&#10;  <!-- 記事コンテンツ -->&#10;</main>"></textarea>
-      <div style="display:flex;align-items:center;gap:12px;margin-top:10px">
-        <button class="cont-save-btn" onclick="saveTopArticle()">保存</button>
-        <span id="top-article-status" class="cont-status"></span>
+      <p class="cont-sub">
+        TOPページの記事HTMLを前半・後半に分けて入力してください。<br>
+        <strong style="color:#60a5fa">前半</strong>：勝率一覧テーブルより前のコンテンツ（KV・目次・s01〜s05 相当）<br>
+        <strong style="color:#60a5fa">後半</strong>：勝率一覧テーブルより後のコンテンツ（s08〜s14 相当）<br>
+        ※ s06（勝率一覧）・s07（ランキング）はバックテストデータから自動生成されます。保存後、generate_static を実行すると反映されます。
+      </p>
+      <label class="cont-label" style="margin-top:12px">記事HTML（前半：KV・目次・概念説明）</label>
+      <textarea id="top-article-pre-input" class="cont-textarea" rows="16"
+        placeholder="<!-- ヘッダー・目次・s01〜s05 の HTML -->"></textarea>
+      <div style="display:flex;align-items:center;gap:12px;margin-top:8px;margin-bottom:16px">
+        <button class="cont-save-btn" onclick="saveTopArticlePre()">前半を保存</button>
+        <span id="top-article-pre-status" class="cont-status"></span>
+      </div>
+      <label class="cont-label">記事HTML（後半：手法解説・失敗例・まとめ）</label>
+      <textarea id="top-article-post-input" class="cont-textarea" rows="16"
+        placeholder="<!-- s08〜s14 の HTML -->"></textarea>
+      <div style="display:flex;align-items:center;gap:12px;margin-top:8px">
+        <button class="cont-save-btn" onclick="saveTopArticlePost()">後半を保存</button>
+        <span id="top-article-post-status" class="cont-status"></span>
       </div>
     </div>
 
@@ -656,7 +667,8 @@ async function initContent() {
     const d   = await res.json();
     if (d.status === 'ok') {
       contentData = d.data || {};
-      document.getElementById('top-article-input').value    = contentData['top_article']?.value       || '';
+      document.getElementById('top-article-pre-input').value  = contentData['top_article_pre']?.value  || '';
+      document.getElementById('top-article-post-input').value = contentData['top_article_post']?.value || '';
       document.getElementById('ranking-title-input').value = contentData['ranking_title']?.value || '';
       document.getElementById('ranking-intro-input').value = contentData['ranking_intro']?.value  || '';
       document.getElementById('analysis-input').value      = contentData['ranking_analysis']?.value || '';
@@ -688,20 +700,21 @@ async function savePageInfo() {
   } catch(e) { st.textContent='ネットワークエラー'; st.className='cont-status err'; }
 }
 
-async function saveTopArticle() {
-  const val = document.getElementById('top-article-input').value;
-  const st  = document.getElementById('top-article-status');
+async function _saveTopPart(key, val, stId) {
+  const st = document.getElementById(stId);
   st.textContent = '保存中...'; st.className = 'cont-status saving';
   try {
     const res = await fetch('/admin/api.php', {
       method: 'POST', headers: {'Content-Type':'application/json'},
-      body: JSON.stringify({action:'content_save', key:'top_article', value: val})
+      body: JSON.stringify({action:'content_save', key, value: val})
     });
     const d = await res.json();
     if (d.status === 'ok') { st.textContent = '✅ 保存完了'; st.className = 'cont-status ok'; }
     else { st.textContent = '❌ 失敗: ' + (d.message||''); st.className = 'cont-status err'; }
   } catch(e) { st.textContent = 'ネットワークエラー'; st.className = 'cont-status err'; }
 }
+function saveTopArticlePre()  { _saveTopPart('top_article_pre',  document.getElementById('top-article-pre-input').value,  'top-article-pre-status');  }
+function saveTopArticlePost() { _saveTopPart('top_article_post', document.getElementById('top-article-post-input').value, 'top-article-post-status'); }
 
 async function saveAnalysis() {
   const val = document.getElementById('analysis-input').value;

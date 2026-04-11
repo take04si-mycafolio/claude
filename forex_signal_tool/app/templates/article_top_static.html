@@ -174,12 +174,90 @@
 </style>
 
 <div class="article-top">
-{% if content %}
-{{ content | safe }}
-{% else %}
+
+{% if content_pre %}{{ content_pre | safe }}{% endif %}
+
+{% if bt_top_table %}
+<!-- ===== Section 06: 勝率一覧（BacktestResultから自動生成） ===== -->
+<section class="sec" id="s06">
+  <div class="sec-num">06</div>
+  <h2>FXテクニカルの勝率一覧</h2>
+  <div class="kw-row">
+    <span class="kw">FX テクニカル 勝率 一覧</span>
+    <span class="kw">RSI 勝率</span>
+    <span class="kw">MACD 勝率</span>
+    <span class="kw">ボリンジャーバンド 勝率</span>
+  </div>
+  <p>当サイトのバックテストデータ（USD/JPY・GBP/JPY・EUR/JPY、全時間軸）をもとに集計した実績値です。勝率・PF・最大DDを合わせて確認することで、各手法の特性が見えてきます。</p>
+  <div class="tbl-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>テクニカル</th>
+          <th>カテゴリ</th>
+          <th>勝率（範囲）</th>
+          <th>PF（平均）</th>
+          <th>最大DD</th>
+          <th>総取引数</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in bt_top_table %}
+        <tr>
+          <td style="font-weight:500;white-space:nowrap">{{ row.short_name }}</td>
+          <td style="font-size:12px;color:var(--color-text-secondary);white-space:nowrap">{{ row.category }}</td>
+          <td><span class="badge {{ row.wr_class }}">{{ row.wr_label }}</span></td>
+          <td>{{ row.pf_label }}</td>
+          <td>{{ row.dd_label }}</td>
+          <td style="font-size:12px;color:var(--color-text-secondary)">{{ "{:,}".format(row.total_trades) }}回</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  <div class="callout c-warn">PF（プロフィットファクター）が1.0を下回ると長期的に資金は減少する。勝率が高くてもPFが1.2未満なら再検討が必要だ。</div>
+</section>
+{% endif %}
+
+{% if bt_top_ranking %}
+<!-- ===== Section 07: 総合ランキング（スコア順） ===== -->
+<section class="sec" id="s07">
+  <div class="sec-num">07</div>
+  <h2>FXテクニカル勝率ランキング</h2>
+  <div class="kw-row">
+    <span class="kw">FX テクニカル 勝率 ランキング</span>
+    <span class="kw">FX 勝てる 指標</span>
+    <span class="kw">FX 手法 ランキング</span>
+  </div>
+  <p>勝率単体ではなく「勝率 × PF × 取引数 × ドローダウン × 期待値」の100点満点スコアによる総合評価で順位を決定しています。</p>
+  <div class="rank-list">
+    {% for row in bt_top_ranking %}
+    <div class="rank-item {% if loop.index == 1 %}top{% endif %}">
+      <div class="rank-num {{ ['gold','silver','bronze','',''][loop.index0 if loop.index0 < 3 else 3] }}">{{ loop.index }}</div>
+      <div class="rank-body">
+        <div class="rank-name">{{ row.display }}</div>
+        <div class="rank-meta">
+          <span class="badge {{ row.wr_class }}">勝率 {{ row.wr_label }}</span>
+          <span class="badge b-blue">PF {{ row.pf_label }}</span>
+          <span class="badge b-gray">スコア {{ row.score }}点</span>
+        </div>
+        <div class="rank-desc">
+          {{ row.category }}系。{{ "{:,}".format(row.total_trades) }}回のバックテストに基づく集計値（USD/JPY・GBP/JPY・EUR/JPY、全時間軸）。
+        </div>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+</section>
+{% endif %}
+
+{% if content_post %}{{ content_post | safe }}{% endif %}
+
+{% if not content_pre and not content_post and not bt_top_table %}
 <div style="padding:3rem 1.5rem;text-align:center;color:#6b7280;font-size:14px">
   管理画面 → SEO管理 → コンテンツ管理 → ⓪ TOPページ記事 からHTMLコンテンツを入力してください。
 </div>
 {% endif %}
+
 </div>
 {% endblock %}

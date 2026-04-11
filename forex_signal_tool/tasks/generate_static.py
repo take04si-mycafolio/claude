@@ -943,12 +943,98 @@ def main():
 
         # TOP ページ（記事コンテンツ）
         content_db_top = load_content_db()
-        top_article = content_db_top.get("top_article", "")
+        top_pre  = content_db_top.get("top_article_pre",  "")
+        top_post = content_db_top.get("top_article_post", "")
+
+        # 指標別集計データ（勝率一覧 s06 / ランキング s07 用）
+        bt_top_table   = []
+        bt_top_ranking = []
+        try:
+            from app.models.backtest import BacktestResult as _BT
+            from sqlalchemy import func as _sqf
+
+            _agg = (
+                _BT.query
+                .with_entities(
+                    _BT.indicator_name,
+                    _sqf.avg(_BT.win_rate).label("avg_wr"),
+                    _sqf.min(_BT.win_rate).label("min_wr"),
+                    _sqf.max(_BT.win_rate).label("max_wr"),
+                    _sqf.avg(_BT.profit_factor).label("avg_pf"),
+                    _sqf.avg(_BT.max_drawdown).label("avg_dd"),
+                    _sqf.avg(_BT.initial_capital).label("avg_cap"),
+                    _sqf.sum(_BT.total_trades).label("total_t"),
+                    _sqf.avg(_BT.sl_pips).label("avg_sl"),
+                    _sqf.avg(_BT.tp_pips).label("avg_tp"),
+                )
+                .filter(_BT.total_trades >= 5)
+                .group_by(_BT.indicator_name)
+                .all()
+            )
+
+            def _wr_cls(wr):
+                if wr >= 55: return "b-up"
+                if wr >= 45: return "b-mid"
+                return "b-down"
+
+            def _score_top(wr, pf, n, sl, tp, dd_abs, cap):
+                dd_pct = abs(dd_abs) / max(cap, 1) * 100
+                ev = (wr / 100) * tp - (1 - wr / 100) * sl
+                wr_s = 30 if wr>=60 else 27 if wr>=58 else 24 if wr>=56 else 20 if wr>=54 else 16 if wr>=52 else 12 if wr>=50 else max(0, int(wr/50*8))
+                pf_s = 25 if pf>=1.50 else 22 if pf>=1.40 else 18 if pf>=1.30 else 14 if pf>=1.20 else 10 if pf>=1.10 else 6 if pf>=1.00 else 0
+                dd_s = 20 if dd_pct<5 else 17 if dd_pct<8 else 14 if dd_pct<12 else 10 if dd_pct<16 else 6 if dd_pct<20 else 2
+                n_s  = 15 if n>=500 else 12 if n>=300 else 9 if n>=150 else 6 if n>=80 else 3 if n>=30 else 0
+                ev_s = 10 if ev>5 else 8 if ev>2 else 6 if ev>0 else 3 if ev>-2 else 0
+                return wr_s + pf_s + dd_s + n_s + ev_s
+
+            _scored = []
+            for _r in _agg:
+                _info   = INDICATOR_INFO.get(_r.indicator_name, {})
+                _avg_wr = float(_r.avg_wr or 0)
+                _min_wr = float(_r.min_wr or 0)
+                _max_wr = float(_r.max_wr or 0)
+                _avg_pf = float(_r.avg_pf or 0)
+                _avg_dd = float(_r.avg_dd or 0)
+                _avg_cp = float(_r.avg_cap or 1_000_000)
+                _total  = int(_r.total_t or 0)
+                _avg_sl = float(_r.avg_sl or 20)
+                _avg_tp = float(_r.avg_tp or 40)
+
+                _short = _info.get("display", _r.indicator_name)
+                for _cut in ["（", "/"]:
+                    if _cut in _short:
+                        _short = _short.split(_cut)[0].strip()
+                        break
+
+                _scored.append({
+                    "ind":          _r.indicator_name,
+                    "display":      _info.get("display", _r.indicator_name),
+                    "short_name":   _short,
+                    "category":     _info.get("category", ""),
+                    "wr_class":     _wr_cls(_avg_wr),
+                    "wr_label":     f"{_min_wr:.0f}〜{_max_wr:.0f}%",
+                    "avg_wr":       _avg_wr,
+                    "pf_label":     f"{_avg_pf:.2f}",
+                    "avg_pf":       _avg_pf,
+                    "dd_label":     f"{abs(_avg_dd)/max(_avg_cp,1)*100:.1f}%",
+                    "total_trades": _total,
+                    "score":        _score_top(_avg_wr, _avg_pf, _total, _avg_sl, _avg_tp, _avg_dd, _avg_cp),
+                })
+
+            bt_top_table   = sorted(_scored, key=lambda x: x["avg_wr"], reverse=True)
+            bt_top_ranking = sorted(_scored, key=lambda x: x["score"],  reverse=True)[:5]
+            logger.info("TOP ページ集計: %d指標", len(bt_top_table))
+        except Exception as _e:
+            logger.warning("TOP page data aggregation failed: %s", _e)
+
         html = render_html(app, "article_top_static.html", {
-            "content":    top_article,
-            "pair_pages": pair_pages,
-            "updated_at": updated_at,
-            "active_page": "home",
+            "content_pre":     top_pre,
+            "content_post":    top_post,
+            "bt_top_table":    bt_top_table,
+            "bt_top_ranking":  bt_top_ranking,
+            "pair_pages":      pair_pages,
+            "updated_at":      updated_at,
+            "active_page":     "home",
         })
         save("index.html", html)
         logger.info("TOP ページ（記事）生成完了")
