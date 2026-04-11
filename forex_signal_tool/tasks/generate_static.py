@@ -1005,19 +1005,20 @@ def main():
             )
             bt_timeframes = " · ".join(TF_LABELS.get(t, t) for t in tfs)
 
-        # シミュレーショントレード数（TF別集計）
+        # バックテスト取引数（BacktestResult.total_trades を TF 別に合算）
+        # ※ SimulationTrade は 300 件上限で刈り込まれるため使用しない
         bt_sim_total = ""
         bt_sim_by_tf = ""
         try:
-            from app.models.simulation_trade import SimulationTrade
+            from app.models.backtest import BacktestResult
             from sqlalchemy import func as _sf
             tf_rows = (
-                SimulationTrade.query
-                .with_entities(SimulationTrade.timeframe, _sf.count(SimulationTrade.id))
-                .group_by(SimulationTrade.timeframe)
+                BacktestResult.query
+                .with_entities(BacktestResult.timeframe, _sf.sum(BacktestResult.total_trades))
+                .group_by(BacktestResult.timeframe)
                 .all()
             )
-            tf_counts = {tf: cnt for tf, cnt in tf_rows if tf}
+            tf_counts = {tf: int(cnt or 0) for tf, cnt in tf_rows if tf}
             total = sum(tf_counts.values())
             if total:
                 bt_sim_total = f"{total:,}"
@@ -1029,7 +1030,7 @@ def main():
                     f"{TF_LABELS.get(tf, tf)}: {cnt:,}件" for tf, cnt in ordered
                 )
         except Exception as _e:
-            logger.warning("sim trade count failed: %s", _e)
+            logger.warning("bt trade count failed: %s", _e)
 
         results_json   = json.dumps(all_bt,    cls=_DecEncoder, ensure_ascii=False)
         tf_labels_json = json.dumps(TF_LABELS, ensure_ascii=False)
