@@ -1056,7 +1056,7 @@ def main():
                     "buy_count":   _pd.get("buy_count", 0),
                     "sell_count":  _pd.get("sell_count", 0),
                     "overall":     _ov,
-                    "overall_ja":  "買い優勢" if _ov == "BUY" else "売り優勢" if _ov == "SELL" else "中立",
+                    "overall_ja":  "買いシグナル優勢" if _ov == "BUY" else "売りシグナル優勢" if _ov == "SELL" else "中立",
                     "overall_cls": "pp-buy" if _ov == "BUY" else "pp-sell" if _ov == "SELL" else "pp-neutral",
                 })
             except Exception as _pe:
