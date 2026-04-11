@@ -695,7 +695,7 @@ async function saveTopArticle() {
   try {
     const res = await fetch('/admin/api.php', {
       method: 'POST', headers: {'Content-Type':'application/json'},
-      body: JSON.stringify({action:'set_content', key:'top_article', value: val})
+      body: JSON.stringify({action:'content_save', key:'top_article', value: val})
     });
     const d = await res.json();
     if (d.status === 'ok') { st.textContent = '✅ 保存完了'; st.className = 'cont-status ok'; }

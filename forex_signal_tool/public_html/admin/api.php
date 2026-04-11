@@ -316,7 +316,7 @@ switch ($action) {
         require_login();
         $key   = trim($body['key']   ?? '');
         $value = $body['value'] ?? '';
-        $allowed = ['ranking_analysis', 'ranking_short_term', 'ranking_day_trade', 'ranking_swing', 'ranking_title', 'ranking_intro'];
+        $allowed = ['ranking_analysis', 'ranking_short_term', 'ranking_day_trade', 'ranking_swing', 'ranking_title', 'ranking_intro', 'top_article'];
         if (!in_array($key, $allowed, true)) {
             json_out(['status' => 'error', 'message' => '無効なキーです']);
         }
