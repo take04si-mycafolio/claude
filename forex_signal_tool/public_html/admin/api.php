@@ -439,7 +439,10 @@ switch ($action) {
                      LIMIT ? OFFSET ?'
                 );
                 do {
-                    $stmt->execute([$pair, $chunk, $offset]);
+                    $stmt->bindValue(1, $pair,   PDO::PARAM_STR);
+                    $stmt->bindValue(2, $chunk,  PDO::PARAM_INT);
+                    $stmt->bindValue(3, $offset, PDO::PARAM_INT);
+                    $stmt->execute();
                     $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
                     foreach ($rows as $t) {
                         fputcsv($fh, [
