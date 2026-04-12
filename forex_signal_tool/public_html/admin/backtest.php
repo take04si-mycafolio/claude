@@ -72,6 +72,8 @@ h2{font-size:20px;font-weight:700;color:#f1f5f9;margin-bottom:6px}
 .btn-run:disabled{opacity:.5;cursor:not-allowed}
 .btn-reset{background:none;border:1px solid #ef4444;color:#ef4444;border-radius:9px;padding:11px 20px;font-size:13px;cursor:pointer;display:none}
 .btn-reset:hover{background:#7f1d1d}
+.btn-st-reset{background:none;border:1px solid #f97316;color:#f97316;border-radius:9px;padding:11px 20px;font-size:13px;cursor:pointer}
+.btn-st-reset:hover{background:rgba(249,115,22,.15)}
 /* オーバーレイ */
 .overlay{position:fixed;inset:0;background:rgba(15,23,42,.85);z-index:100;display:none;flex-direction:column;align-items:center;justify-content:center;gap:16px}
 .overlay.active{display:flex}
@@ -287,6 +289,7 @@ h2{font-size:20px;font-weight:700;color:#f1f5f9;margin-bottom:6px}
     <div class="actions">
       <button class="btn-run" id="btn-run" onclick="runBacktest()">バックテスト実行</button>
       <button class="btn-reset" id="btn-reset" onclick="resetBt()">実行フラグをリセット</button>
+      <button class="btn-st-reset" onclick="resetSimulationTrades()">シミュレーション履歴をリセット</button>
     </div>
   </div>
 
@@ -419,6 +422,17 @@ function resetBt() {
     hideErr();
     alert(d.message || 'リセットしました');
   });
+}
+
+// ---- シミュレーション履歴リセット ----
+function resetSimulationTrades() {
+  if (!confirm('シミュレーション履歴とバックテスト結果をすべて削除します。\nこの操作は元に戻せません。よろしいですか？')) return;
+  fetch('/admin/api.php?action=simulation_trades_reset', {method:'POST',headers:{'Content-Type':'application/json'},body:'{}'})
+  .then(function(r){ return r.json(); })
+  .then(function(d){
+    alert(d.status === 'ok' ? d.message : 'エラー: ' + (d.message || '不明'));
+  })
+  .catch(function(){ alert('通信エラーが発生しました'); });
 }
 
 // ---- 結果表示 ----

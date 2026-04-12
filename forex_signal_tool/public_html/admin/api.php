@@ -226,6 +226,25 @@ switch ($action) {
         json_out(['status' => 'ok', 'message' => '実行フラグをリセットしました']);
         break;
 
+    case 'simulation_trades_reset':
+        require_login();
+        try {
+            $pdo = get_pdo();
+            // simulation_trades は backtest_results の CASCADE DELETE で連動するため
+            // backtest_results を先に削除すれば両方クリアされる
+            $st_count = (int)$pdo->query('SELECT COUNT(*) FROM simulation_trades')->fetchColumn();
+            $bt_count = (int)$pdo->query('SELECT COUNT(*) FROM backtest_results')->fetchColumn();
+            $pdo->exec('DELETE FROM simulation_trades');
+            $pdo->exec('DELETE FROM backtest_results');
+            json_out([
+                'status'  => 'ok',
+                'message' => "シミュレーション履歴 {$st_count}件・バックテスト結果 {$bt_count}件 を削除しました。",
+            ]);
+        } catch (Exception $e) {
+            json_out(['status' => 'error', 'message' => $e->getMessage()]);
+        }
+        break;
+
     // ---- SEO 管理 ----
     case 'seo_init':
         require_login();
