@@ -216,7 +216,16 @@ h2{font-size:20px;font-weight:700;color:#f1f5f9;margin-bottom:6px}
   </div>
 
   <!-- 10c: エントリー条件ビルダー -->
-  <div id="section-conditions"><!-- 10c --></div>
+  <div class="form-card" id="section-conditions">
+    <h3>エントリー条件</h3>
+    <div class="logic-toggle">
+      <span style="font-size:12px;color:#64748b;margin-right:4px">条件の結合:</span>
+      <button class="logic-btn active" id="logic-and" onclick="setLogic('AND')">AND（全条件一致）</button>
+      <button class="logic-btn"        id="logic-or"  onclick="setLogic('OR')">OR（いずれか一致）</button>
+    </div>
+    <div class="cond-list" id="cond-list"></div>
+    <button class="btn-add-cond" onclick="addCondition()">＋ 条件を追加</button>
+  </div>
 
   <!-- 10d: SL / TP / トレーリング -->
   <div id="section-risk"><!-- 10d --></div>
@@ -237,6 +246,215 @@ h2{font-size:20px;font-weight:700;color:#f1f5f9;margin-bottom:6px}
     <div id="section-trades"></div>
   </div>
 </main>
+
+<script>
+/* =====================================================================
+   指標定義マップ
+   ===================================================================== */
+const IND = {
+  RSI:         { label:'RSI',          params:[{n:'period',   l:'期間',     d:14}] },
+  EMA:         { label:'EMA',          params:[{n:'period',   l:'期間',     d:21}] },
+  SMA:         { label:'SMA',          params:[{n:'period',   l:'期間',     d:20}] },
+  MACD_HIST:   { label:'MACD ヒスト',  params:[{n:'fast',l:'Fast',d:12},{n:'slow',l:'Slow',d:26},{n:'signal',l:'Sig',d:9}] },
+  MACD_LINE:   { label:'MACD ライン',  params:[{n:'fast',l:'Fast',d:12},{n:'slow',l:'Slow',d:26},{n:'signal',l:'Sig',d:9}] },
+  MACD_SIGNAL: { label:'MACD シグナル',params:[{n:'fast',l:'Fast',d:12},{n:'slow',l:'Slow',d:26},{n:'signal',l:'Sig',d:9}] },
+  STOCH_K:     { label:'Stoch %K',     params:[{n:'k_period',l:'K期間',d:14},{n:'d_period',l:'D期間',d:3},{n:'smooth_k',l:'平滑K',d:3}] },
+  STOCH_D:     { label:'Stoch %D',     params:[{n:'k_period',l:'K期間',d:14},{n:'d_period',l:'D期間',d:3},{n:'smooth_k',l:'平滑K',d:3}] },
+  CCI:         { label:'CCI',          params:[{n:'period',   l:'期間',     d:20}] },
+  WILLIAMS_R:  { label:'Williams %R',  params:[{n:'period',   l:'期間',     d:14}] },
+  ATR:         { label:'ATR',          params:[{n:'period',   l:'期間',     d:14}] },
+  BB_UPPER:    { label:'BB 上バンド',  params:[{n:'period',l:'期間',d:20},{n:'std',l:'σ',d:2.0}] },
+  BB_LOWER:    { label:'BB 下バンド',  params:[{n:'period',l:'期間',d:20},{n:'std',l:'σ',d:2.0}] },
+  BB_MID:      { label:'BB 中央',      params:[{n:'period',   l:'期間',     d:20}] },
+  CLOSE:       { label:'終値 (CLOSE)', params:[] },
+  HIGH:        { label:'高値 (HIGH)',  params:[] },
+  LOW:         { label:'安値 (LOW)',   params:[] },
+};
+
+const COMPARISONS = [
+  { v:'less_than',             l:'< (小さい)' },
+  { v:'less_than_or_equal',    l:'≤ (以下)' },
+  { v:'greater_than',          l:'> (大きい)' },
+  { v:'greater_than_or_equal', l:'≥ (以上)' },
+  { v:'equals',                l:'= (等しい)' },
+  { v:'crosses_above',         l:'↑ クロスアップ' },
+  { v:'crosses_below',         l:'↓ クロスダウン' },
+];
+
+let _condSeq = 0;
+let _logic = 'AND';
+
+/* ---------- AND/OR 切り替え ---------- */
+function setLogic(v) {
+  _logic = v;
+  document.getElementById('logic-and').classList.toggle('active', v === 'AND');
+  document.getElementById('logic-or' ).classList.toggle('active', v === 'OR');
+}
+
+/* ---------- 条件追加 ---------- */
+function addCondition() {
+  const id = 'cond-' + (++_condSeq);
+  const row = document.createElement('div');
+  row.className = 'cond-row';
+  row.id = id;
+  row.dataset.id = 'c' + _condSeq;
+
+  row.innerHTML = `
+    <div class="form-group">
+      <label>指標</label>
+      <select onchange="onIndChange(this, '${id}')">
+        ${Object.entries(IND).map(([k,v]) => `<option value="${k}">${v.label}</option>`).join('')}
+      </select>
+    </div>
+    <div class="form-group" id="${id}-params">
+      ${buildParamInputs('RSI', id)}
+    </div>
+    <div class="form-group">
+      <label>比較</label>
+      <select id="${id}-cmp" onchange="onCmpChange('${id}')">
+        ${COMPARISONS.map(c => `<option value="${c.v}">${c.l}</option>`).join('')}
+      </select>
+    </div>
+    <div class="form-group" id="${id}-rhs">
+      ${buildRhsScalar(id)}
+    </div>
+    <div>
+      <label style="visibility:hidden">削除</label>
+      <button class="btn-del-cond" onclick="removeCondition('${id}')">✕</button>
+    </div>`;
+
+  document.getElementById('cond-list').appendChild(row);
+  updateActions();
+}
+
+/* ---------- 条件削除 ---------- */
+function removeCondition(id) {
+  const el = document.getElementById(id);
+  if (el) el.remove();
+  updateActions();
+}
+
+/* ---------- 指標変更 → パラメータ再描画 ---------- */
+function onIndChange(sel, rowId) {
+  document.getElementById(rowId + '-params').innerHTML =
+    buildParamInputs(sel.value, rowId);
+}
+
+/* ---------- パラメータ入力 HTML 生成 ---------- */
+function buildParamInputs(indKey, rowId) {
+  const ps = (IND[indKey] || {}).params || [];
+  if (!ps.length) return '<label style="visibility:hidden">-</label><div style="color:#475569;font-size:12px;padding:9px 0">パラメータなし</div>';
+  const inputs = ps.map(p =>
+    `<div style="display:flex;flex-direction:column;gap:3px">
+       <span style="font-size:10px;color:#64748b">${p.l}</span>
+       <input type="number" id="${rowId}-p-${p.n}" value="${p.d}" step="${p.n==='std'?0.1:1}" style="width:62px">
+     </div>`
+  ).join('');
+  return `<label>パラメータ</label><div style="display:flex;gap:6px;flex-wrap:wrap">${inputs}</div>`;
+}
+
+/* ---------- 比較変更 → RHS 再描画 ---------- */
+function onCmpChange(rowId) {
+  const cmp = document.getElementById(rowId + '-cmp').value;
+  const isCross = cmp === 'crosses_above' || cmp === 'crosses_below';
+  document.getElementById(rowId + '-rhs').innerHTML = isCross
+    ? buildRhsCross(rowId)
+    : buildRhsScalar(rowId);
+}
+
+/* ---------- RHS: スカラー値 ---------- */
+function buildRhsScalar(rowId) {
+  return `<label>比較値</label>
+    <input type="number" id="${rowId}-val" value="30" step="0.1" style="width:100%">`;
+}
+
+/* ---------- RHS: クロス比較先指標 ---------- */
+function buildRhsCross(rowId) {
+  const opts = Object.entries(IND).map(([k,v]) =>
+    `<option value="${k}">${v.label}</option>`).join('');
+  return `<label>比較先指標</label>
+    <select id="${rowId}-cmp-ind" onchange="onCmpIndChange('${rowId}')">
+      <option value="">--- スカラー値 ---</option>
+      ${opts}
+    </select>
+    <div id="${rowId}-cross-val" style="margin-top:6px">
+      <input type="number" id="${rowId}-val" value="0" step="0.1" placeholder="閾値" style="width:100%">
+    </div>`;
+}
+
+/* ---------- クロス比較先指標変更 → 閾値表示切り替え ---------- */
+function onCmpIndChange(rowId) {
+  const sel = document.getElementById(rowId + '-cmp-ind');
+  const valDiv = document.getElementById(rowId + '-cross-val');
+  if (valDiv) valDiv.style.display = sel.value ? 'none' : 'block';
+}
+
+/* ---------- 実行ボタン表示制御 ---------- */
+function updateActions() {
+  const hasCond = document.querySelectorAll('#cond-list .cond-row').length > 0;
+  document.getElementById('section-actions').style.display = hasCond ? 'flex' : 'none';
+}
+
+/* ---------- 条件 → StrategyCondition オブジェクト ---------- */
+function buildConditions() {
+  const rows = document.querySelectorAll('#cond-list .cond-row');
+  const conds = [];
+  for (const row of rows) {
+    const condId   = row.dataset.id;
+    const indSel   = row.querySelector('select');
+    const indKey   = indSel ? indSel.value : 'RSI';
+    const rowId    = row.id;
+    const cmpVal   = document.getElementById(rowId + '-cmp')?.value || 'less_than';
+    const isCross  = cmpVal === 'crosses_above' || cmpVal === 'crosses_below';
+
+    // params
+    const ps = (IND[indKey] || {}).params || [];
+    const params = {};
+    ps.forEach(p => {
+      const el = document.getElementById(rowId + '-p-' + p.n);
+      if (el) params[p.n] = parseFloat(el.value);
+    });
+
+    // value / compare_to_indicator
+    let value = null;
+    let compare_to_indicator = null;
+    let compare_to_params    = null;
+
+    if (isCross) {
+      const cmpIndSel = document.getElementById(rowId + '-cmp-ind');
+      if (cmpIndSel && cmpIndSel.value) {
+        compare_to_indicator = cmpIndSel.value;
+        const cps = (IND[cmpIndSel.value] || {}).params || [];
+        compare_to_params = {};
+        cps.forEach(p => {
+          const el = document.getElementById(rowId + '-p-' + p.n);
+          compare_to_params[p.n] = el ? parseFloat(el.value) : p.d;
+        });
+      } else {
+        const valEl = document.getElementById(rowId + '-val');
+        value = valEl ? parseFloat(valEl.value) : null;
+      }
+    } else {
+      const valEl = document.getElementById(rowId + '-val');
+      value = valEl ? parseFloat(valEl.value) : null;
+    }
+
+    conds.push({
+      id: condId,
+      indicator: indKey,
+      params,
+      comparison: cmpVal,
+      value,
+      compare_to_indicator,
+      compare_to_params,
+    });
+  }
+  return conds;
+}
+
+/* ---------- 初期条件を1つ追加 ---------- */
+addCondition();
+</script>
 
 </body>
 </html>
