@@ -12,6 +12,7 @@ require_login();
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>マルチ条件バックテスト v2 | FX Trend 管理</title>
+<script src="https://unpkg.com/lightweight-charts@4.1.3/dist/lightweight-charts.standalone.production.js"></script>
 <style>
 /* ===== reset / base ===== */
 *{box-sizing:border-box;margin:0;padding:0}
@@ -629,10 +630,81 @@ function buildConditions() {
   return conds;
 }
 
-/* チャートスタブ（10g で置き換え） */
+/* =====================================================================
+   10g: Lightweight Charts — ローソク足 + トレードマーカー
+   ===================================================================== */
+let _lwChart = null;
+let _candleSeries = null;
+
 function renderChart(ohlcv, chartData) {
+  /* ---- チャートコンテナを描画 ---- */
   document.getElementById('section-chart').innerHTML =
-    '<div class="chart-card"><h3>チャート</h3><div id="tv-chart" style="background:#0f172a;display:flex;align-items:center;justify-content:center;color:#475569;font-size:13px">チャートは次ステップで実装</div></div>';
+    '<div class="chart-card"><h3>チャート（ローソク足 + トレードシグナル）</h3><div id="tv-chart"></div></div>';
+
+  /* ---- 既存チャートを破棄 ---- */
+  if (_lwChart) { try { _lwChart.remove(); } catch(e){} _lwChart = null; }
+
+  const container = document.getElementById('tv-chart');
+  if (!container || !ohlcv.length) return;
+
+  /* ---- チャート生成 ---- */
+  _lwChart = LightweightCharts.createChart(container, {
+    width:  container.clientWidth || 900,
+    height: 420,
+    layout:     { background: { color: '#0f172a' }, textColor: '#94a3b8' },
+    grid:       { vertLines: { color: '#1e293b' }, horzLines: { color: '#1e293b' } },
+    crosshair:  { mode: LightweightCharts.CrosshairMode.Normal },
+    rightPriceScale: { borderColor: '#334155' },
+    timeScale:  { borderColor: '#334155', timeVisible: true, secondsVisible: false },
+  });
+
+  _candleSeries = _lwChart.addCandlestickSeries({
+    upColor:   '#22c55e', downColor: '#ef4444',
+    borderUpColor: '#22c55e', borderDownColor: '#ef4444',
+    wickUpColor:   '#22c55e', wickDownColor:   '#ef4444',
+  });
+
+  /* ---- OHLCV データ変換 ---- */
+  const candles = ohlcv
+    .map(d => {
+      const t = toChartTime(d.timestamp || d.time || d.date);
+      if (!t) return null;
+      return { time: t, open: +d.open, high: +d.high, low: +d.low, close: +d.close };
+    })
+    .filter(Boolean)
+    .sort((a, b) => a.time - b.time);
+
+  if (candles.length) _candleSeries.setData(candles);
+
+  /* ---- トレードマーカー ---- */
+  const markers = (chartData.markers || [])
+    .map(m => {
+      const t = toChartTime(m.time);
+      if (!t) return null;
+      return { time: t, position: m.position, color: m.color, shape: m.shape, text: m.text };
+    })
+    .filter(Boolean)
+    .sort((a, b) => a.time - b.time);
+
+  if (markers.length) _candleSeries.setMarkers(markers);
+
+  /* ---- レスポンシブリサイズ ---- */
+  new ResizeObserver(() => {
+    if (_lwChart && container) _lwChart.resize(container.clientWidth, 420);
+  }).observe(container);
+}
+
+/* ---------- タイムスタンプ → Unix 秒 ---------- */
+function toChartTime(ts) {
+  if (!ts && ts !== 0) return null;
+  if (typeof ts === 'number') {
+    if (ts > 1e15) return Math.floor(ts / 1e6);  // nanoseconds
+    if (ts > 1e12) return Math.floor(ts / 1000);  // milliseconds
+    return ts;                                     // seconds
+  }
+  const s = String(ts).replace(' ', 'T');
+  const d = new Date(s.includes('Z') || s.includes('+') ? s : s + 'Z');
+  return isNaN(d) ? null : Math.floor(d.getTime() / 1000);
 }
 
 /* ---------- 初期条件を1つ追加 ---------- */
