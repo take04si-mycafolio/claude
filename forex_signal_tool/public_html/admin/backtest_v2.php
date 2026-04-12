@@ -629,6 +629,12 @@ function buildConditions() {
   return conds;
 }
 
+/* チャートスタブ（10g で置き換え） */
+function renderChart(ohlcv, chartData) {
+  document.getElementById('section-chart').innerHTML =
+    '<div class="chart-card"><h3>チャート</h3><div id="tv-chart" style="background:#0f172a;display:flex;align-items:center;justify-content:center;color:#475569;font-size:13px">チャートは次ステップで実装</div></div>';
+}
+
 /* ---------- 初期条件を1つ追加 ---------- */
 addCondition();
 
@@ -725,6 +731,100 @@ function showErr(msg) {
   b.scrollIntoView({behavior:'smooth', block:'nearest'});
 }
 function hideErr() { document.getElementById('err-banner').style.display = 'none'; }
+
+/* =====================================================================
+   10f: メトリクス & トレードログ表示
+   ===================================================================== */
+
+function renderMetrics(m, barsUsed) {
+  const wr = m.win_rate != null ? (m.win_rate * 100).toFixed(1) : '-';
+  const wrCls = m.win_rate >= 0.5 ? 'green' : 'red';
+  const pf = m.profit_factor == null ? '-' : (isFinite(m.profit_factor) ? m.profit_factor.toFixed(2) : '∞');
+  const pfCls = (m.profit_factor == null || m.profit_factor < 1) ? 'red' : 'green';
+  const net = m.net_profit_pips != null ? (m.net_profit_pips >= 0 ? '+' : '') + m.net_profit_pips.toFixed(1) + ' pips' : '-';
+  const netCls = m.net_profit_pips >= 0 ? 'green' : 'red';
+  const dd = m.max_drawdown_pips != null ? m.max_drawdown_pips.toFixed(1) + ' pips' : '-';
+
+  document.getElementById('section-metrics').innerHTML = `
+    <div class="metrics-grid">
+      ${mc('総取引数', m.total_trades + '回 / ' + barsUsed + 'bar', '')}
+      ${mc('勝率',     wr + '%', wrCls)}
+      ${mc('純損益',   net, netCls)}
+      ${mc('最大DD',   dd, 'yellow')}
+    </div>
+    <div class="metrics-grid2">
+      ${ms('PF',      pf, pfCls)}
+      ${ms('期待値',  m.expectancy_pips != null ? m.expectancy_pips.toFixed(2)+'p' : '-', m.expectancy_pips >= 0 ? 'green' : 'red')}
+      ${ms('平均RR',  m.avg_rr != null && isFinite(m.avg_rr) ? m.avg_rr.toFixed(2) : (m.avg_rr == null ? '-' : '∞'), '')}
+      ${ms('勝 / 負', m.wins + ' / ' + m.losses, '')}
+      ${ms('最大連勝/連敗', m.max_win_streak + ' / ' + m.max_loss_streak, '')}
+      ${ms('平均保有', m.avg_holding_bars != null ? m.avg_holding_bars.toFixed(1)+'bar' : '-', '')}
+      ${ms('L勝率', m.long_win_rate != null ? (m.long_win_rate*100).toFixed(1)+'%' : '-', '')}
+      ${ms('S勝率', m.short_win_rate != null ? (m.short_win_rate*100).toFixed(1)+'%' : '-', '')}
+      ${ms('総利益pips', m.gross_profit_pips != null ? '+'+m.gross_profit_pips.toFixed(1) : '-', 'green')}
+      ${ms('総損失pips', m.gross_loss_pips   != null ? '-'+m.gross_loss_pips.toFixed(1)   : '-', 'red')}
+    </div>`;
+}
+
+function mc(label, val, cls) {
+  return `<div class="metric-card"><div class="mc-label">${label}</div><div class="mc-val ${cls}">${val}</div></div>`;
+}
+function ms(label, val, cls) {
+  return `<div class="metric-sm"><div class="ms-label">${label}</div><div class="ms-val ${cls}">${val}</div></div>`;
+}
+
+function renderTrades(trades) {
+  if (!trades.length) {
+    document.getElementById('section-trades').innerHTML =
+      '<div class="table-card"><h3>トレードログ</h3><div style="color:#64748b;font-size:13px">取引なし</div></div>';
+    return;
+  }
+
+  const reasonBadge = r => {
+    const map = { TP:'bdg-tp', SL:'bdg-sl', TRAILING_SL:'bdg-tsl', END_OF_DATA:'bdg-eod' };
+    const lbl = { TP:'TP', SL:'SL', TRAILING_SL:'TSL', END_OF_DATA:'EOD' };
+    return `<span class="bdg ${map[r]||''}">${lbl[r]||r}</span>`;
+  };
+
+  const fmt = v => parseFloat(v).toFixed(3);
+  const fmtPips = v => (v >= 0 ? '+' : '') + parseFloat(v).toFixed(1);
+
+  const rows = trades.map((t, i) => {
+    const dirBdg = t.direction === 'BUY'
+      ? '<span class="bdg bdg-buy">BUY</span>'
+      : '<span class="bdg bdg-sell">SELL</span>';
+    const pnlCls = t.pnl_pips >= 0 ? 'style="color:#4ade80"' : 'style="color:#f87171"';
+    return `<tr>
+      <td style="color:#64748b">${i+1}</td>
+      <td>${dirBdg}</td>
+      <td>${t.entry_time.replace('T',' ').slice(0,16)}</td>
+      <td>${fmt(t.entry_price)}</td>
+      <td>${fmt(t.sl_price)}</td>
+      <td>${fmt(t.tp_price)}</td>
+      <td>${t.exit_time.replace('T',' ').slice(0,16)}</td>
+      <td>${fmt(t.exit_price)}</td>
+      <td>${reasonBadge(t.exit_reason)}</td>
+      <td ${pnlCls}>${fmtPips(t.pnl_pips)}p</td>
+      <td ${pnlCls}>${(t.pnl_currency >= 0 ? '+' : '')}${Math.round(t.pnl_currency).toLocaleString()}円</td>
+      <td style="color:#64748b">${Math.round(t.running_capital).toLocaleString()}円</td>
+    </tr>`;
+  }).join('');
+
+  document.getElementById('section-trades').innerHTML = `
+    <div class="table-card">
+      <h3>トレードログ（${trades.length}件）</h3>
+      <div class="tbl-wrap">
+        <table class="trade-tbl">
+          <thead><tr>
+            <th>#</th><th>方向</th><th>エントリー時刻</th><th>EP</th>
+            <th>SL</th><th>TP</th><th>クローズ時刻</th><th>XP</th>
+            <th>決済理由</th><th>pips</th><th>損益</th><th>残高</th>
+          </tr></thead>
+          <tbody>${rows}</tbody>
+        </table>
+      </div>
+    </div>`;
+}
 </script>
 
 </body>
