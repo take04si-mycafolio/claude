@@ -228,7 +228,118 @@ h2{font-size:20px;font-weight:700;color:#f1f5f9;margin-bottom:6px}
   </div>
 
   <!-- 10d: SL / TP / トレーリング -->
-  <div id="section-risk"><!-- 10d --></div>
+  <div class="form-card" id="section-risk">
+    <h3>リスク管理（SL / TP / トレーリング）</h3>
+
+    <!-- SL 設定 -->
+    <div style="margin-bottom:20px">
+      <div style="font-size:12px;font-weight:600;color:#94a3b8;margin-bottom:10px">◆ ストップロス (SL)</div>
+      <div class="form-row col3" style="margin-bottom:10px">
+        <div class="form-group">
+          <label>SL タイプ</label>
+          <select id="sl_type" onchange="onSlTypeChange()">
+            <option value="fixed">固定 pips</option>
+            <option value="recentHighLow">直近高値/安値</option>
+            <option value="atr">ATR 倍数</option>
+          </select>
+        </div>
+      </div>
+      <!-- fixed -->
+      <div class="form-row col2 type-panel active" id="sl-fixed">
+        <div class="form-group">
+          <label>SL pips</label>
+          <input type="number" id="sl_pips" value="20" min="1" step="1">
+        </div>
+      </div>
+      <!-- recentHighLow -->
+      <div class="form-row col3 type-panel" id="sl-recentHighLow">
+        <div class="form-group">
+          <label>ルックバック本数</label>
+          <input type="number" id="sl_lookback" value="10" min="1" step="1">
+        </div>
+        <div class="form-group">
+          <label>バッファ pips</label>
+          <input type="number" id="sl_buffer" value="3" min="0" step="0.5">
+        </div>
+      </div>
+      <!-- atr -->
+      <div class="form-row col2 type-panel" id="sl-atr">
+        <div class="form-group">
+          <label>ATR 期間</label>
+          <input type="number" id="sl_atr_period" value="14" min="1" step="1">
+        </div>
+        <div class="form-group">
+          <label>ATR 倍数</label>
+          <input type="number" id="sl_atr_mult" value="1.5" min="0.1" step="0.1">
+        </div>
+      </div>
+    </div>
+
+    <!-- TP 設定 -->
+    <div style="margin-bottom:20px">
+      <div style="font-size:12px;font-weight:600;color:#94a3b8;margin-bottom:10px">◆ テイクプロフィット (TP)</div>
+      <div class="form-row col3" style="margin-bottom:10px">
+        <div class="form-group">
+          <label>TP タイプ</label>
+          <select id="tp_type" onchange="onTpTypeChange()">
+            <option value="rr">RR 比率（SL × 倍率）</option>
+            <option value="fixed">固定 pips</option>
+            <option value="atr">ATR 倍数</option>
+          </select>
+        </div>
+      </div>
+      <!-- rr -->
+      <div class="form-row col2 type-panel active" id="tp-rr">
+        <div class="form-group">
+          <label>RR 比率</label>
+          <select id="tp_rr_ratio">
+            <option value="1.0">1 : 1.0</option>
+            <option value="1.5" selected>1 : 1.5</option>
+            <option value="2.0">1 : 2.0</option>
+            <option value="2.5">1 : 2.5</option>
+            <option value="3.0">1 : 3.0</option>
+          </select>
+        </div>
+      </div>
+      <!-- fixed -->
+      <div class="form-row col2 type-panel" id="tp-fixed">
+        <div class="form-group">
+          <label>TP pips</label>
+          <input type="number" id="tp_pips" value="40" min="1" step="1">
+        </div>
+      </div>
+      <!-- atr -->
+      <div class="form-row col2 type-panel" id="tp-atr">
+        <div class="form-group">
+          <label>ATR 期間</label>
+          <input type="number" id="tp_atr_period" value="14" min="1" step="1">
+        </div>
+        <div class="form-group">
+          <label>ATR 倍数</label>
+          <input type="number" id="tp_atr_mult" value="3.0" min="0.1" step="0.1">
+        </div>
+      </div>
+    </div>
+
+    <!-- トレーリングストップ -->
+    <div>
+      <div class="toggle-row">
+        <span class="toggle-label" style="font-size:12px;font-weight:600;color:#94a3b8">◆ トレーリングストップ</span>
+        <label class="toggle-sw">
+          <input type="checkbox" id="trailing_enabled" onchange="onTrailingChange()">
+          <div class="toggle-track"></div>
+          <div class="toggle-thumb"></div>
+        </label>
+        <span id="trailing-label" style="font-size:12px;color:#64748b">OFF</span>
+      </div>
+      <div class="form-row col2 trailing-fields" id="trailing-fields">
+        <div class="form-group">
+          <label>トレール幅 (pips)</label>
+          <input type="number" id="trail_pips" value="10" min="1" step="1">
+        </div>
+      </div>
+    </div>
+  </div>
 
   <!-- 実行ボタン -->
   <div class="actions" id="section-actions" style="display:none">
@@ -248,6 +359,72 @@ h2{font-size:20px;font-weight:700;color:#f1f5f9;margin-bottom:6px}
 </main>
 
 <script>
+/* =====================================================================
+   SL / TP / トレーリング パネル切り替え
+   ===================================================================== */
+function onSlTypeChange() {
+  const t = document.getElementById('sl_type').value;
+  ['fixed','recentHighLow','atr'].forEach(k => {
+    const el = document.getElementById('sl-' + k);
+    if (el) el.classList.toggle('active', k === t);
+  });
+}
+function onTpTypeChange() {
+  const t = document.getElementById('tp_type').value;
+  ['rr','fixed','atr'].forEach(k => {
+    const el = document.getElementById('tp-' + k);
+    if (el) el.classList.toggle('active', k === t);
+  });
+}
+function onTrailingChange() {
+  const on = document.getElementById('trailing_enabled').checked;
+  document.getElementById('trailing-label').textContent = on ? 'ON' : 'OFF';
+  document.getElementById('trailing-fields').classList.toggle('open', on);
+}
+
+/* ---------- SL 設定オブジェクト構築 ---------- */
+function buildSlConfig() {
+  const t = document.getElementById('sl_type').value;
+  if (t === 'fixed')
+    return { type:'fixed', pips: parseFloat(document.getElementById('sl_pips').value),
+             lookback_bars:null, buffer_pips:null, atr_period:null, atr_multiplier:null };
+  if (t === 'recentHighLow')
+    return { type:'recentHighLow', pips:null,
+             lookback_bars: parseInt(document.getElementById('sl_lookback').value),
+             buffer_pips:   parseFloat(document.getElementById('sl_buffer').value),
+             atr_period:null, atr_multiplier:null };
+  // atr
+  return { type:'atr', pips:null, lookback_bars:null, buffer_pips:null,
+           atr_period:      parseInt(document.getElementById('sl_atr_period').value),
+           atr_multiplier:  parseFloat(document.getElementById('sl_atr_mult').value) };
+}
+
+/* ---------- TP 設定オブジェクト構築 ---------- */
+function buildTpConfig() {
+  const t = document.getElementById('tp_type').value;
+  if (t === 'rr')
+    return { type:'rr', pips:null,
+             rr_ratio:   parseFloat(document.getElementById('tp_rr_ratio').value),
+             atr_period:null, atr_multiplier:null };
+  if (t === 'fixed')
+    return { type:'fixed', pips: parseFloat(document.getElementById('tp_pips').value),
+             rr_ratio:null, atr_period:null, atr_multiplier:null };
+  // atr
+  return { type:'atr', pips:null, rr_ratio:null,
+           atr_period:     parseInt(document.getElementById('tp_atr_period').value),
+           atr_multiplier: parseFloat(document.getElementById('tp_atr_mult').value) };
+}
+
+/* ---------- トレーリング設定オブジェクト構築 ---------- */
+function buildTrailingConfig() {
+  const enabled = document.getElementById('trailing_enabled').checked;
+  return {
+    enabled,
+    type:       enabled ? 'fixedTrailing' : null,
+    trail_pips: enabled ? parseFloat(document.getElementById('trail_pips').value) : null,
+  };
+}
+
 /* =====================================================================
    指標定義マップ
    ===================================================================== */
