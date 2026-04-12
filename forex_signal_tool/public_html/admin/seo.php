@@ -259,6 +259,7 @@ h2{font-size:19px;font-weight:700;color:#f1f5f9;margin-bottom:4px}
     <div style="margin-top:12px;display:flex;gap:8px;flex-wrap:wrap">
       <button class="save-btn" onclick="loadRkInfo()" style="background:#334155">件数を更新</button>
       <button class="save-btn" onclick="downloadCsv()" id="rk-csv-btn" style="background:#059669">CSVダウンロード（ZIP）</button>
+      <button class="save-btn" onclick="resetSimulationTrades()" style="background:#92400e;border:1px solid #f97316">シミュレーション履歴をリセット</button>
     </div>
   </div>
 
@@ -744,6 +745,23 @@ function switchRecTab(btn, id) {
 }
 
 init();
+
+// ===== シミュレーション履歴リセット =====
+async function resetSimulationTrades() {
+  if (!confirm('シミュレーション履歴とバックテスト結果をすべて削除します。\nこの操作は元に戻せません。よろしいですか？')) return;
+  try {
+    const res = await fetch('/admin/api.php', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({action: 'simulation_trades_reset'}),
+    });
+    const d = await res.json();
+    alert(d.status === 'ok' ? d.message : 'エラー: ' + (d.message || '不明'));
+    if (d.status === 'ok') loadRkInfo();
+  } catch(e) {
+    alert('通信エラーが発生しました');
+  }
+}
 
 // ===== ランキング管理 =====
 let rkInfoLoaded = false;
