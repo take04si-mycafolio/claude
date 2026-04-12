@@ -631,6 +631,100 @@ function buildConditions() {
 
 /* ---------- 初期条件を1つ追加 ---------- */
 addCondition();
+
+/* =====================================================================
+   10e: 実行ロジック
+   ===================================================================== */
+
+/* ---------- StrategyConfig 組み立て ---------- */
+function buildStrategyConfig() {
+  const conds = buildConditions();
+  if (!conds.length) throw new Error('条件を1つ以上追加してください');
+  return {
+    strategy_version: '1.0',
+    direction:        document.getElementById('direction').value,
+    entry_conditions: { logic: _logic, conditions: conds },
+    filters:          null,
+    sl_config:        buildSlConfig(),
+    tp_config:        buildTpConfig(),
+    trailing_config:  buildTrailingConfig(),
+  };
+}
+
+/* ---------- メインエントリーポイント ---------- */
+let _lastTrades   = [];
+let _lastOhlcv    = [];
+let _lastMetrics  = null;
+
+async function runBacktest() {
+  hideErr();
+
+  let strategy;
+  try { strategy = buildStrategyConfig(); }
+  catch(e) { showErr(e.message); return; }
+
+  const pair      = document.getElementById('pair').value;
+  const timeframe = document.getElementById('timeframe').value;
+  const limit     = parseInt(document.getElementById('limit').value, 10);
+  const simParams = {
+    initial_capital:  parseFloat(document.getElementById('initial_capital').value),
+    pip_value:        parseFloat(document.getElementById('pip_value').value),
+    max_bars_to_exit: parseInt(document.getElementById('max_bars_to_exit').value, 10),
+  };
+
+  document.getElementById('btn-run').disabled = true;
+  document.getElementById('run-status').textContent = '';
+  document.getElementById('result-wrap').classList.remove('show');
+  showOverlay('バックテスト実行中...', 'しばらくお待ちください');
+
+  try {
+    /* ---- バックテスト実行 ---- */
+    const btRes = await fetch('/api/v2/backtest', {
+      method:  'POST',
+      headers: {'Content-Type':'application/json'},
+      body:    JSON.stringify({ pair, timeframe, limit, strategy_config: strategy, sim_params: simParams }),
+    }).then(r => r.json());
+
+    if (!btRes.ok) throw new Error(btRes.error || 'バックテストAPIエラー');
+
+    /* ---- OHLCV 取得（チャート用） ---- */
+    const ohlcvRes = await fetch(`/api/prices/${pair}/${timeframe}?limit=${limit}`)
+      .then(r => r.json());
+
+    _lastTrades  = btRes.trades  || [];
+    _lastMetrics = btRes.metrics || {};
+    _lastOhlcv   = Array.isArray(ohlcvRes) ? ohlcvRes : [];
+
+    hideOverlay();
+    document.getElementById('btn-run').disabled = false;
+
+    renderMetrics(btRes.metrics, btRes.bars_used);
+    renderChart(_lastOhlcv, btRes.chart_data || {});
+    renderTrades(_lastTrades);
+
+    document.getElementById('result-wrap').classList.add('show');
+    document.getElementById('result-wrap').scrollIntoView({behavior:'smooth', block:'start'});
+
+  } catch(e) {
+    hideOverlay();
+    document.getElementById('btn-run').disabled = false;
+    showErr(e.message);
+  }
+}
+
+/* ---------- オーバーレイ / エラー ---------- */
+function showOverlay(msg, sub) {
+  document.getElementById('overlay-msg').textContent = msg || '';
+  document.getElementById('overlay-sub').textContent = sub || '';
+  document.getElementById('overlay').classList.add('active');
+}
+function hideOverlay() { document.getElementById('overlay').classList.remove('active'); }
+function showErr(msg) {
+  const b = document.getElementById('err-banner');
+  b.textContent = msg; b.style.display = 'block';
+  b.scrollIntoView({behavior:'smooth', block:'nearest'});
+}
+function hideErr() { document.getElementById('err-banner').style.display = 'none'; }
 </script>
 
 </body>
