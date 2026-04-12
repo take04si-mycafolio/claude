@@ -200,3 +200,58 @@ def calculate_trend(df: pd.DataFrame) -> dict:
     }
 
     return results
+
+
+# ---------------------------------------------------------------------------
+# Phase 1 — parameterizable series computers (condition_evaluator 用)
+# ---------------------------------------------------------------------------
+
+def compute_sma(df: pd.DataFrame, params: dict = None) -> pd.Series:
+    """SMA 系列。params: {"period"} (default 20)"""
+    p = params or {}
+    return df["close"].astype(float).rolling(p.get("period", 20)).mean()
+
+
+def compute_ema(df: pd.DataFrame, params: dict = None) -> pd.Series:
+    """EMA 系列。params: {"period"} (default 21)"""
+    p = params or {}
+    return df["close"].astype(float).ewm(span=p.get("period", 21), adjust=False).mean()
+
+
+def compute_bb_upper(df: pd.DataFrame, params: dict = None) -> pd.Series:
+    """Bollinger 上バンド系列。params: {"period", "std"} (defaults 20, 2.0)"""
+    p = params or {}
+    period = p.get("period", 20)
+    std_mult = p.get("std", 2.0)
+    close = df["close"].astype(float)
+    mid = close.rolling(period).mean()
+    return mid + std_mult * close.rolling(period).std()
+
+
+def compute_bb_lower(df: pd.DataFrame, params: dict = None) -> pd.Series:
+    """Bollinger 下バンド系列。params: {"period", "std"} (defaults 20, 2.0)"""
+    p = params or {}
+    period = p.get("period", 20)
+    std_mult = p.get("std", 2.0)
+    close = df["close"].astype(float)
+    mid = close.rolling(period).mean()
+    return mid - std_mult * close.rolling(period).std()
+
+
+def compute_bb_mid(df: pd.DataFrame, params: dict = None) -> pd.Series:
+    """Bollinger 中央バンド（SMA）系列。params: {"period"} (default 20)"""
+    p = params or {}
+    return df["close"].astype(float).rolling(p.get("period", 20)).mean()
+
+
+def compute_bb_width(df: pd.DataFrame, params: dict = None) -> pd.Series:
+    """Bollinger バンド幅（(upper−lower)/mid）系列。params: {"period", "std"}"""
+    p = params or {}
+    period = p.get("period", 20)
+    std_mult = p.get("std", 2.0)
+    close = df["close"].astype(float)
+    mid = close.rolling(period).mean()
+    std = close.rolling(period).std()
+    upper = mid + std_mult * std
+    lower = mid - std_mult * std
+    return (upper - lower) / mid

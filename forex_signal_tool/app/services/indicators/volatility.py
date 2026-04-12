@@ -94,3 +94,14 @@ def calculate_volatility(df: pd.DataFrame) -> dict:
     }
 
     return results
+
+
+# ---------------------------------------------------------------------------
+# Phase 1 — parameterizable series computer (condition_evaluator / riskManager 用)
+# ---------------------------------------------------------------------------
+
+def compute_atr(df: pd.DataFrame, params: dict = None) -> pd.Series:
+    """ATR 系列。params: {"period"} (default 14)"""
+    p = params or {}
+    return _atr(df["high"].astype(float), df["low"].astype(float),
+                df["close"].astype(float), p.get("period", 14))

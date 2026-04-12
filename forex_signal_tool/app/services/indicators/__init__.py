@@ -4,6 +4,7 @@ from .lines import calculate_lines
 from .volatility import calculate_volatility
 from .patterns import calculate_patterns
 from .composite import calculate_composite
+from .compute import compute_series
 
 __all__ = [
     "calculate_oscillators",
@@ -12,6 +13,7 @@ __all__ = [
     "calculate_volatility",
     "calculate_patterns",
     "calculate_composite",
+    "compute_series",
 ]
 
 

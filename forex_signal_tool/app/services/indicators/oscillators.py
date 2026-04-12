@@ -217,3 +217,69 @@ def calculate_oscillators(df: pd.DataFrame) -> dict:
     }
 
     return results
+
+
+# ---------------------------------------------------------------------------
+# Phase 1 — parameterizable series computers (condition_evaluator 用)
+# ---------------------------------------------------------------------------
+
+def compute_rsi(df: pd.DataFrame, params: dict = None) -> pd.Series:
+    """RSI の全系列を返す。params: {"period": int} (default 14)"""
+    p = params or {}
+    return _rsi(df["close"].astype(float), p.get("period", 14))
+
+
+def compute_macd_line(df: pd.DataFrame, params: dict = None) -> pd.Series:
+    """MACD ライン（fast EMA − slow EMA）。params: {"fast", "slow", "signal"}"""
+    p = params or {}
+    line, _, _ = _macd(df["close"].astype(float),
+                       p.get("fast", 12), p.get("slow", 26), p.get("signal", 9))
+    return line
+
+
+def compute_macd_signal(df: pd.DataFrame, params: dict = None) -> pd.Series:
+    """MACD シグナルライン。params: {"fast", "slow", "signal"}"""
+    p = params or {}
+    _, signal_line, _ = _macd(df["close"].astype(float),
+                              p.get("fast", 12), p.get("slow", 26), p.get("signal", 9))
+    return signal_line
+
+
+def compute_macd_hist(df: pd.DataFrame, params: dict = None) -> pd.Series:
+    """MACD ヒストグラム（MACD − signal）。params: {"fast", "slow", "signal"}"""
+    p = params or {}
+    _, _, histogram = _macd(df["close"].astype(float),
+                            p.get("fast", 12), p.get("slow", 26), p.get("signal", 9))
+    return histogram
+
+
+def compute_stoch_k(df: pd.DataFrame, params: dict = None) -> pd.Series:
+    """Stochastic %K 系列。params: {"k_period", "d_period", "smooth_k"}"""
+    p = params or {}
+    k, _ = _stochastic(df["high"].astype(float), df["low"].astype(float),
+                       df["close"].astype(float),
+                       p.get("k_period", 14), p.get("d_period", 3), p.get("smooth_k", 3))
+    return k
+
+
+def compute_stoch_d(df: pd.DataFrame, params: dict = None) -> pd.Series:
+    """Stochastic %D 系列。params: {"k_period", "d_period", "smooth_k"}"""
+    p = params or {}
+    _, d = _stochastic(df["high"].astype(float), df["low"].astype(float),
+                       df["close"].astype(float),
+                       p.get("k_period", 14), p.get("d_period", 3), p.get("smooth_k", 3))
+    return d
+
+
+def compute_cci(df: pd.DataFrame, params: dict = None) -> pd.Series:
+    """CCI 系列。params: {"period"} (default 20)"""
+    p = params or {}
+    return _cci(df["high"].astype(float), df["low"].astype(float),
+                df["close"].astype(float), p.get("period", 20))
+
+
+def compute_williams_r(df: pd.DataFrame, params: dict = None) -> pd.Series:
+    """Williams %R 系列。params: {"period"} (default 14)"""
+    p = params or {}
+    return _williams_r(df["high"].astype(float), df["low"].astype(float),
+                       df["close"].astype(float), p.get("period", 14))
