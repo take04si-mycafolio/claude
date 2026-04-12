@@ -152,7 +152,15 @@ def run_backtest_for_indicator(
         bb_upper_arr = (_m + 2 * _s).values
         bb_lower_arr = (_m - 2 * _s).values
 
+    prev_signal = "NEUTRAL"  # 前バーのシグナル（重複エントリー防止）
+    skip_until  = -1          # トレード中はこのバーインデックスまでスキップ
+
     for i in range(30, len(backtest_df)):
+        # トレード保有中のバーはスキップ（決済バーの次から再判断）
+        if i <= skip_until:
+            prev_signal = "NEUTRAL"
+            continue
+
         # 過去30本でシグナル計算
         window = backtest_df.iloc[max(0, i - 100):i].copy()
         if len(window) < 30:
@@ -168,7 +176,14 @@ def run_backtest_for_indicator(
         signal = ind_data.get("signal", "NEUTRAL")
 
         if signal == "NEUTRAL":
+            prev_signal = "NEUTRAL"
             continue
+
+        # 前バーと同じシグナルが継続している場合はエントリーしない
+        # （NEUTRAL→BUY/SELL へ転換した最初のバーのみエントリー）
+        if signal == prev_signal:
+            continue
+        prev_signal = signal
 
         # シグナル発生バーの情報
         entry_bar = backtest_df.iloc[i]
@@ -209,6 +224,7 @@ def run_backtest_for_indicator(
         outcome = None
         exit_price = None
         exit_ts = None
+        exit_bar_idx = min(i + 200, len(backtest_df)) - 1  # 未決済時の最大スキップ先
         for j in range(i + 1, min(i + 200, len(backtest_df))):
             future_bar = backtest_df.iloc[j]
             fh = float(future_bar["high"])
@@ -219,23 +235,30 @@ def run_backtest_for_indicator(
                     outcome = "WIN"
                     exit_price = tp_price
                     exit_ts = future_bar["timestamp"]
+                    exit_bar_idx = j
                     break
                 if fl <= sl_price:
                     outcome = "LOSS"
                     exit_price = sl_price
                     exit_ts = future_bar["timestamp"]
+                    exit_bar_idx = j
                     break
             else:  # SELL
                 if fl <= tp_price:
                     outcome = "WIN"
                     exit_price = tp_price
                     exit_ts = future_bar["timestamp"]
+                    exit_bar_idx = j
                     break
                 if fh >= sl_price:
                     outcome = "LOSS"
                     exit_price = sl_price
                     exit_ts = future_bar["timestamp"]
+                    exit_bar_idx = j
                     break
+
+        # 決済バーまでの間は新規エントリーしない（未決済でも同様）
+        skip_until = exit_bar_idx
 
         if outcome is None:
             continue  # 未決済は除外
