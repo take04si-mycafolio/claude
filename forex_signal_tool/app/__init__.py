@@ -30,10 +30,12 @@ def create_app():
     from app.routes.api import bp as api_bp
     from app.routes.settings_routes import bp as settings_bp
     from app.routes.admin import bp as admin_bp
+    from app.routes.backtest_v2 import bp as backtest_v2_bp
 
     app.register_blueprint(dashboard_bp)
     app.register_blueprint(api_bp, url_prefix="/api")
     app.register_blueprint(settings_bp, url_prefix="/settings")
     app.register_blueprint(admin_bp, url_prefix="/admin")
+    app.register_blueprint(backtest_v2_bp, url_prefix="/api")
 
     return app
