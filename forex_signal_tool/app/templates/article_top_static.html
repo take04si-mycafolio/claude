@@ -311,7 +311,7 @@
   <h2>通貨ペア別 テクニカル検証</h2>
   <div class="pp-grid">
     {% for p in pair_panels %}
-    <a href="{{ p.url }}" class="pp-card">
+    <a href="{{ p.url }}" class="pp-card" data-pair="{{ p.pair }}">
       <!-- 左：ラベル・ペア名・リンク -->
       <div class="pp-left">
         <div class="pp-left-text">
@@ -322,11 +322,7 @@
       </div>
       <!-- 右：レート・バイアス・買い売りボックス -->
       <div class="pp-right">
-        {% if p.rate %}
-        <div class="pp-rate">{{ "%.3f"|format(p.rate|float) }}</div>
-        {% else %}
-        <div class="pp-rate-na">取得中</div>
-        {% endif %}
+        <div class="pp-rate" data-rate-display>{% if p.rate %}{{ "%.3f"|format(p.rate|float) }}{% else %}---{% endif %}</div>
         <div><span class="pp-bias {{ p.overall_cls }}">{{ p.overall_ja }}</span></div>
         <div class="pp-counts">
           <div class="pp-count-box pp-count-buy">
@@ -343,6 +339,31 @@
     {% endfor %}
   </div>
 </div>
+<script>
+(function() {
+  var cards = document.querySelectorAll('.pp-card[data-pair]');
+  if (!cards.length) return;
+  function updateRate(card) {
+    var pair = card.dataset.pair;
+    var el = card.querySelector('[data-rate-display]');
+    if (!el) return;
+    fetch('/realtime.php?pair=' + pair, {cache: 'no-store'})
+      .then(function(r) { return r.json(); })
+      .then(function(d) {
+        if (d.ok && d.price != null) {
+          el.textContent = d.price.toFixed(3);
+          el.className = 'pp-rate';
+        }
+      })
+      .catch(function() {});
+  }
+  function updateAll() {
+    cards.forEach(updateRate);
+  }
+  updateAll();
+  setInterval(updateAll, 60000);
+})();
+</script>
 {% endif %}
 
 {% if not content_pre and not content_post and not bt_top_table %}

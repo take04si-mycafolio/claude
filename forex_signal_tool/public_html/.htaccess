@@ -21,12 +21,18 @@ AddHandler cgi-script .cgi
   Require all denied
 </FilesMatch>
 
-# ---- 管理パネル URL ルーティング ----
+# ---- URL正規化・ルーティング ----
 <IfModule mod_rewrite.c>
   RewriteEngine On
-  # 実ファイルはそのまま配信
-  RewriteCond %{REQUEST_FILENAME} -f
+
+  # index.html → / に正規化（301 Permanent）
+  RewriteRule ^index\.html$ / [R=301,L]
+
+  # 実ファイル・ディレクトリはそのまま配信
+  RewriteCond %{REQUEST_FILENAME} -f [OR]
+  RewriteCond %{REQUEST_FILENAME} -d
   RewriteRule ^ - [L]
-  # /admin/ → admin/index.php (DirectoryIndex + PHP が処理)
-  # 実ファイルチェックは上の RewriteCond で対応済み
+
+  # 存在しないページ → TOP へリダイレクト（302）
+  RewriteRule ^ / [R=302,L]
 </IfModule>

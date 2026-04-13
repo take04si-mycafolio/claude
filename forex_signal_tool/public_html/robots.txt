@@ -1,0 +1,6 @@
+User-agent: *
+Allow: /
+Disallow: /admin/
+Disallow: /chart_data/
+
+Sitemap: https://fx-trend.net/sitemap.xml

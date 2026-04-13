@@ -1817,6 +1817,51 @@ def main():
             except Exception as e:
                 logger.warning("Indicator page error %s: %s", ind_name, e)
 
+        # ---- sitemap.xml 生成 ----
+        SITE_URL = "https://fx-trend.net"
+        _today   = datetime.now(JST).strftime("%Y-%m-%d")
+        _sitemap_urls = [
+            # 優先度高い静的ページ
+            (SITE_URL + "/",                   "daily",  "1.0"),
+            (SITE_URL + "/usdjpy/",            "hourly", "0.9"),
+            (SITE_URL + "/gbpjpy/",            "hourly", "0.9"),
+            (SITE_URL + "/eurjpy/",            "hourly", "0.9"),
+            (SITE_URL + "/technical-ranking/", "daily",  "0.8"),
+            (SITE_URL + "/signals.html",       "hourly", "0.7"),
+            (SITE_URL + "/reports.html",       "weekly", "0.5"),
+        ]
+        # カテゴリページ
+        for _cat_name, _cat_info in CATEGORY_INFO.items():
+            _sitemap_urls.append((
+                f"{SITE_URL}/{_cat_info['slug']}/", "weekly", "0.7",
+            ))
+        # 指標個別ページ（_BBSL除く）
+        for _ind_name, _ind_info in INDICATOR_INFO.items():
+            if _ind_name.endswith("_BBSL"):
+                continue
+            _url_slug  = _ind_info.get("url_slug", _ind_info["slug"])
+            _cat_slug  = CATEGORY_SLUGS.get(_ind_info["category"], "indicators")
+            _sitemap_urls.append((
+                f"{SITE_URL}/{_cat_slug}/{_url_slug}/", "weekly", "0.6",
+            ))
+
+        _xml = ['<?xml version="1.0" encoding="UTF-8"?>',
+                '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">']
+        for _loc, _freq, _pri in _sitemap_urls:
+            _xml += [
+                "  <url>",
+                f"    <loc>{_loc}</loc>",
+                f"    <lastmod>{_today}</lastmod>",
+                f"    <changefreq>{_freq}</changefreq>",
+                f"    <priority>{_pri}</priority>",
+                "  </url>",
+            ]
+        _xml.append("</urlset>")
+        (Path(PUBLIC_HTML) / "sitemap.xml").write_text(
+            "\n".join(_xml) + "\n", encoding="utf-8"
+        )
+        logger.info("Generated: sitemap.xml (%d URLs)", len(_sitemap_urls))
+
         logger.info("Static site generation complete")
 
 
