@@ -18,6 +18,8 @@ from typing import List, Literal, Optional
 import pandas as pd
 import numpy as np
 
+_JST_OFFSET = pd.Timedelta(hours=9)
+
 from app.services.data_structures import (
     StrategyConfig,
     SimulationParams,
@@ -40,7 +42,8 @@ _DEFAULT_MAX_BARS = 200
 # ---------------------------------------------------------------------------
 
 def _bar_time(df: pd.DataFrame, idx: int) -> str:
-    """bar[idx] のタイムスタンプを ISO 8601 UTC 文字列で返す。
+    """bar[idx] のタイムスタンプを JST の ISO 8601 文字列（タイムゾーン表記なし）で返す。
+    DB は UTC で保存しているため +9h して JST に変換する。
     get_candles() は timestamp をカラムとして返す（インデックスは整数）ため
     カラムを優先し、なければインデックスにフォールバックする。
     """
@@ -48,8 +51,11 @@ def _bar_time(df: pd.DataFrame, idx: int) -> str:
         ts = df["timestamp"].iloc[idx]
     else:
         ts = df.index[idx]
-    if hasattr(ts, "isoformat"):
-        return ts.isoformat()
+    if isinstance(ts, pd.Timestamp):
+        # timezone-aware なら UTC naive に変換してから JST (+9h) を加算
+        if ts.tzinfo is not None:
+            ts = ts.tz_convert(None)
+        return (ts + _JST_OFFSET).strftime("%Y-%m-%dT%H:%M:%S")
     return str(ts)
 
 

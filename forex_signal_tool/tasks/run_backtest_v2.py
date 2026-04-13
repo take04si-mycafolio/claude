@@ -12,6 +12,7 @@ import os
 import json
 import math
 import traceback
+from datetime import timedelta
 
 SCRIPT_DIR   = os.path.dirname(os.path.abspath(__file__))
 PROJECT_ROOT = os.path.dirname(SCRIPT_DIR)
@@ -87,11 +88,19 @@ def main():
 
             # チャート用 OHLCV リスト
             # get_candles() は timestamp をカラムとして返す（インデックスは整数）
+            # DB は UTC 保存のため +9h して JST に変換し、タイムゾーン表記なしで出力する
+            _JST_DELTA = timedelta(hours=9)
             use_ts_col = "timestamp" in df.columns
             ohlcv = []
             for i in range(len(df)):
                 ts = df["timestamp"].iloc[i] if use_ts_col else df.index[i]
-                t  = ts.isoformat() if hasattr(ts, "isoformat") else str(ts)
+                if hasattr(ts, "strftime"):
+                    # timezone-aware なら naive に変換（UTC として扱う）
+                    if getattr(ts, "tzinfo", None) is not None:
+                        ts = ts.replace(tzinfo=None)
+                    t = (ts + _JST_DELTA).strftime("%Y-%m-%dT%H:%M:%S")
+                else:
+                    t = str(ts)
                 ohlcv.append({
                     "timestamp": t,
                     "open":  float(df["open"].iloc[i]),
