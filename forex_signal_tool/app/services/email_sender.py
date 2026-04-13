@@ -3,8 +3,10 @@
 """
 
 import logging
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 from typing import Optional
+
+JST = timezone(timedelta(hours=9))
 
 from app.config import Config
 
@@ -33,7 +35,7 @@ def send_report_email(report_id: int) -> bool:
         logger.warning("No REPORT_RECIPIENTS configured")
         return False
 
-    now_str = datetime.now(timezone.utc).strftime("%Y年%m月%d日 %H:%M UTC")
+    now_str = datetime.now(JST).strftime("%Y年%m月%d日 %H:%M JST")
     subject = f"【FXシグナルツール】相場分析レポート {now_str}"
 
     # Markdown をプレーンテキストに変換（簡易）

@@ -3,8 +3,10 @@ Google Gemini API を使用した相場分析レポート生成サービス
 """
 
 import logging
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 from typing import Optional
+
+JST = timezone(timedelta(hours=9))
 
 import google.generativeai as genai
 
@@ -15,7 +17,7 @@ logger = logging.getLogger(__name__)
 
 def _build_prompt(signals_summary: dict, backtest_summary: list, current_prices: dict) -> str:
     """Geminiへのプロンプトを構築する"""
-    now_jst = datetime.now(timezone.utc).strftime("%Y年%m月%d日 %H:%M UTC")
+    now_jst = datetime.now(JST).strftime("%Y年%m月%d日 %H:%M JST")
 
     lines = [
         f"あなたはプロのFXトレーダー兼アナリストです。",

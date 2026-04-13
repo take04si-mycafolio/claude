@@ -17,7 +17,7 @@
       <i class="bi bi-graph-up-arrow"></i>
       <span>FXシグナル</span>
     </div>
-    <div class="header-time" id="current-time">--:--:-- UTC</div>
+    <div class="header-time" id="current-time">--:--:-- JST</div>
   </div>
 </header>
 
@@ -76,7 +76,7 @@
 <div class="section-card">
   <div class="section-title">レポート配信</div>
   <div class="setting-item">
-    <label class="setting-label">配信時刻（UTC）</label>
+    <label class="setting-label">配信時刻（JST）</label>
     <input type="text" class="setting-input" id="s-report-times" value="06:00,12:00,18:00">
     <div class="setting-hint">カンマ区切り例: 06:00,12:00,18:00</div>
   </div>
@@ -115,10 +115,11 @@
 <script>
   function updateClock() {
     const now = new Date();
-    const h = String(now.getUTCHours()).padStart(2,'0');
-    const m = String(now.getUTCMinutes()).padStart(2,'0');
-    const s = String(now.getUTCSeconds()).padStart(2,'0');
-    document.getElementById('current-time').textContent = `${h}:${m}:${s} UTC`;
+    const jst = new Date(now.getTime() + 9 * 3600 * 1000);
+    const h = String(jst.getUTCHours()).padStart(2,'0');
+    const m = String(jst.getUTCMinutes()).padStart(2,'0');
+    const s = String(jst.getUTCSeconds()).padStart(2,'0');
+    document.getElementById('current-time').textContent = `${h}:${m}:${s} JST`;
   }
   setInterval(updateClock, 1000);
   updateClock();

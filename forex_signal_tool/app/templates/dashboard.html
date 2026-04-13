@@ -17,7 +17,7 @@
   <div class="price-pair-name">{{ data.display }}</div>
   {% if data.price %}
   <div class="price-value">{{ "%.3f"|format(data.price.close) }}</div>
-  <div class="price-meta">最終更新: {{ data.price.timestamp[:16] }} UTC</div>
+  <div class="price-meta">最終更新: {{ data.price.timestamp | utc_to_jst }} JST</div>
   {% else %}
   <div class="price-value">---.---</div>
   <div class="price-meta">データ未取得</div>

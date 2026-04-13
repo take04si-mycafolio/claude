@@ -2,10 +2,32 @@ from flask import Flask
 from flask_sqlalchemy import SQLAlchemy
 from flask_migrate import Migrate
 from flask_mail import Mail
+from datetime import datetime, timezone, timedelta
 
 db = SQLAlchemy()
 migrate = Migrate()
 mail = Mail()
+
+JST = timezone(timedelta(hours=9))
+
+
+def _utc_to_jst(value):
+    """UTC日時文字列またはdatetimeをJST文字列に変換"""
+    if value is None:
+        return ""
+    if isinstance(value, str):
+        for fmt in ("%Y-%m-%dT%H:%M:%S", "%Y-%m-%d %H:%M:%S"):
+            try:
+                dt = datetime.strptime(value[:19], fmt).replace(tzinfo=timezone.utc)
+                return dt.astimezone(JST).strftime("%Y/%m/%d %H:%M")
+            except ValueError:
+                pass
+        return value[:16]
+    if hasattr(value, "astimezone"):
+        if value.tzinfo is None:
+            value = value.replace(tzinfo=timezone.utc)
+        return value.astimezone(JST).strftime("%Y/%m/%d %H:%M")
+    return str(value)
 
 
 def create_app():
@@ -17,6 +39,8 @@ def create_app():
 
     from app.config import Config
     app.config.from_object(Config)
+
+    app.jinja_env.filters["utc_to_jst"] = _utc_to_jst
 
     db.init_app(app)
     migrate.init_app(app, db)
