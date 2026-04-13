@@ -199,6 +199,54 @@ def calculate_trend(df: pd.DataFrame) -> dict:
         },
     }
 
+    # --- 一目均衡表 (Ichimoku Kinko Hyo) ---
+    # 転換線 (Tenkan-sen): 9期間の中間値
+    tenkan = (high.rolling(9).max() + low.rolling(9).min()) / 2
+    # 基準線 (Kijun-sen): 26期間の中間値
+    kijun  = (high.rolling(26).max() + low.rolling(26).min()) / 2
+    # 先行スパンA (Senkou Span A): 転換線+基準線の平均を26期間先に描く
+    # 現在の雲 = 26期間前に計算したSenkou A/B
+    senkou_a_series = (tenkan + kijun) / 2
+    senkou_b_series = (high.rolling(52).max() + low.rolling(52).min()) / 2
+    # 26期間前の値を現在の雲として使用（shift(26) = 26本前の値を現在に合わせる）
+    senkou_a_current = senkou_a_series.shift(26) if len(senkou_a_series) > 26 else senkou_a_series
+    senkou_b_current = senkou_b_series.shift(26) if len(senkou_b_series) > 26 else senkou_b_series
+
+    tenkan_val   = tenkan.iloc[-1]
+    kijun_val    = kijun.iloc[-1]
+    sa_val       = senkou_a_current.iloc[-1]
+    sb_val       = senkou_b_current.iloc[-1]
+
+    if (pd.isna(tenkan_val) or pd.isna(kijun_val) or
+            pd.isna(sa_val) or pd.isna(sb_val)):
+        ichi_signal = "NEUTRAL"
+    else:
+        cloud_top    = max(float(sa_val), float(sb_val))
+        cloud_bottom = min(float(sa_val), float(sb_val))
+        above_cloud  = float(current_close) > cloud_top
+        below_cloud  = float(current_close) < cloud_bottom
+        tenkan_above = float(tenkan_val) >= float(kijun_val)
+
+        if above_cloud and tenkan_above:
+            ichi_signal = "BUY"
+        elif below_cloud and not tenkan_above:
+            ichi_signal = "SELL"
+        else:
+            ichi_signal = "NEUTRAL"
+
+    results["Ichimoku_Cloud"] = {
+        "value": round(float(kijun_val), 3) if not pd.isna(kijun_val) else None,
+        "signal": ichi_signal,
+        "category": "trend",
+        "details": {
+            "tenkan":    round(float(tenkan_val), 3) if not pd.isna(tenkan_val) else None,
+            "kijun":     round(float(kijun_val),  3) if not pd.isna(kijun_val)  else None,
+            "senkou_a":  round(float(sa_val),      3) if not pd.isna(sa_val)     else None,
+            "senkou_b":  round(float(sb_val),      3) if not pd.isna(sb_val)     else None,
+            "current_close": round(float(current_close), 3),
+        },
+    }
+
     return results
 
 
