@@ -560,12 +560,12 @@ tr.trade-row.sim-active td{background:rgba(59,130,246,.10)!important}
           }
           if (exitTs && outcome && outcome !== 'OPEN') {
             const isWin = outcome === 'WIN';
+            const outAbove = isWin ? signal === 'BUY' : signal !== 'BUY';
             markers.push({
               time: exitTs,
-              position: isWin ? (signal === 'BUY' ? 'aboveBar' : 'belowBar')
-                               : (signal === 'BUY' ? 'belowBar' : 'aboveBar'),
+              position: outAbove ? 'aboveBar' : 'belowBar',
               color: isWin ? '#22c55e' : '#ef5350',
-              shape: 'circle',
+              shape: outAbove ? 'arrowUp' : 'arrowDown',
               text: 'OUT', size: 1.5,
             });
           }
