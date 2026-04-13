@@ -448,7 +448,7 @@ def get_all_backtest() -> list:
             BacktestResult.query
             .filter_by(currency_pair=pair)
             .order_by(BacktestResult.win_rate.desc())
-            .limit(20).all()
+            .limit(200).all()
         )
         for r in recs:
             d = r.to_dict()
