@@ -28,20 +28,134 @@ if (isset($_GET['logout'])) {
 }
 
 // ---- ダッシュボードデータ (ログイン済みのみ) ----
-$stats      = ['price_rows' => 0, 'signal_count' => 0, 'bt_count' => 0];
-$lastFetch  = '未実行';
-$lastBt     = '未実行';
-$lastSignal = '未実行';
+$stats      = ['price_rows' => 0, 'signal_count' => 0, 'bt_count' => 0, 'sim_count' => 0];
+$lastFetch       = '未実行';
+$lastDailyFetch  = '未実行';
+$lastBt          = '未実行';
+$lastSignal      = '未実行';
+$dbUsage         = [];
+$simByPair       = [];
+$simByTf         = [];
+$simWinLoss      = ['WIN' => 0, 'LOSS' => 0];
+$btTopByWinRate  = [];
+$btByPair        = [];
+$btByTf          = [];
+
 if ($isLoggedIn) {
     try {
         $pdo = get_pdo();
+
+        // ---- 基本統計 ----
         $stats['price_rows']   = (int)$pdo->query('SELECT COUNT(*) FROM price_data')->fetchColumn();
         $stats['signal_count'] = (int)$pdo->query('SELECT COUNT(*) FROM trading_signals WHERE is_active=1')->fetchColumn();
         $stats['bt_count']     = (int)$pdo->query('SELECT COUNT(*) FROM backtest_results')->fetchColumn();
+        $stats['sim_count']    = (int)$pdo->query('SELECT COUNT(*) FROM simulation_trades')->fetchColumn();
+
+        // ---- DB 使用量内訳 (information_schema) ----
+        $dbName = $pdo->query('SELECT DATABASE()')->fetchColumn();
+        $dbRows = $pdo->query("
+            SELECT table_name,
+                   ROUND((data_length + index_length) / 1024 / 1024, 2) AS size_mb,
+                   table_rows AS est_rows
+            FROM information_schema.tables
+            WHERE table_schema = " . $pdo->quote($dbName) . "
+            ORDER BY (data_length + index_length) DESC
+        ")->fetchAll(PDO::FETCH_ASSOC);
+        foreach ($dbRows as $r) {
+            $dbUsage[] = [
+                'table'    => $r['table_name'],
+                'size_mb'  => (float)$r['size_mb'],
+                'est_rows' => (int)$r['est_rows'],
+            ];
+        }
+
+        // ---- シミュレーショントレード: 通貨ペア別 ----
+        $rows = $pdo->query("
+            SELECT currency_pair,
+                   COUNT(*) AS cnt,
+                   SUM(outcome='WIN')  AS wins,
+                   SUM(outcome='LOSS') AS losses
+            FROM simulation_trades
+            GROUP BY currency_pair
+            ORDER BY cnt DESC
+        ")->fetchAll(PDO::FETCH_ASSOC);
+        foreach ($rows as $r) {
+            $simByPair[] = [
+                'pair'   => $r['currency_pair'],
+                'cnt'    => (int)$r['cnt'],
+                'wins'   => (int)$r['wins'],
+                'losses' => (int)$r['losses'],
+                'rate'   => $r['cnt'] > 0 ? round($r['wins'] / $r['cnt'] * 100, 1) : 0,
+            ];
+        }
+
+        // ---- シミュレーショントレード: 時間足別 ----
+        $tfOrder = ['5min','15min','30min','1hr','4hr','daily'];
+        $rows = $pdo->query("
+            SELECT timeframe,
+                   COUNT(*) AS cnt,
+                   SUM(outcome='WIN')  AS wins,
+                   SUM(outcome='LOSS') AS losses
+            FROM simulation_trades
+            GROUP BY timeframe
+        ")->fetchAll(PDO::FETCH_ASSOC);
+        $tfMap = [];
+        foreach ($rows as $r) { $tfMap[$r['timeframe']] = $r; }
+        foreach ($tfOrder as $tf) {
+            if (!isset($tfMap[$tf])) continue;
+            $r = $tfMap[$tf];
+            $simByTf[] = [
+                'tf'     => $tf,
+                'cnt'    => (int)$r['cnt'],
+                'wins'   => (int)$r['wins'],
+                'losses' => (int)$r['losses'],
+                'rate'   => $r['cnt'] > 0 ? round($r['wins'] / $r['cnt'] * 100, 1) : 0,
+            ];
+        }
+
+        // ---- シミュレーショントレード: 勝敗合計 ----
+        $simWinLoss['WIN']  = (int)$pdo->query("SELECT COUNT(*) FROM simulation_trades WHERE outcome='WIN'")->fetchColumn();
+        $simWinLoss['LOSS'] = (int)$pdo->query("SELECT COUNT(*) FROM simulation_trades WHERE outcome='LOSS'")->fetchColumn();
+
+        // ---- バックテスト: 勝率上位10件 ----
+        $btTopByWinRate = $pdo->query("
+            SELECT currency_pair, timeframe, indicator_name, win_rate, total_trades, calculated_at
+            FROM backtest_results
+            WHERE total_trades >= 10
+            ORDER BY win_rate DESC
+            LIMIT 10
+        ")->fetchAll(PDO::FETCH_ASSOC);
+
+        // ---- バックテスト: 通貨ペア別件数 ----
+        $rows = $pdo->query("
+            SELECT currency_pair, COUNT(*) AS cnt
+            FROM backtest_results
+            GROUP BY currency_pair
+            ORDER BY cnt DESC
+        ")->fetchAll(PDO::FETCH_ASSOC);
+        foreach ($rows as $r) {
+            $btByPair[] = ['pair' => $r['currency_pair'], 'cnt' => (int)$r['cnt']];
+        }
+
+        // ---- バックテスト: 時間足別件数 ----
+        $rows = $pdo->query("
+            SELECT timeframe, COUNT(*) AS cnt
+            FROM backtest_results
+            GROUP BY timeframe
+        ")->fetchAll(PDO::FETCH_ASSOC);
+        $tfMap2 = [];
+        foreach ($rows as $r) { $tfMap2[$r['timeframe']] = (int)$r['cnt']; }
+        foreach ($tfOrder as $tf) {
+            if (!isset($tfMap2[$tf])) continue;
+            $btByTf[] = ['tf' => $tf, 'cnt' => $tfMap2[$tf]];
+        }
+
     } catch (Exception $e) {}
-    $lastFetch  = setting_get('last_data_fetch_at',    '未実行');
-    $lastBt     = setting_get('last_backtest_at',      '未実行');
-    $lastSignal = setting_get('last_signal_update_at', '未実行');
+
+    $lastFetch      = setting_get('last_data_fetch_at',    '未実行');
+    $lastDailyFetch = setting_get('last_daily_fetch_at',   '未実行');
+    $lastBt         = setting_get('last_backtest_at',      '未実行');
+    $lastSignal     = setting_get('last_signal_update_at', '未実行');
 }
 ?>
 <!DOCTYPE html>
@@ -102,6 +216,20 @@ main{max-width:900px;margin:0 auto;padding:28px 20px}
 .tool-card a:hover{background:#2563eb}
 @keyframes spin{to{transform:rotate(360deg)}}
 .spin{display:inline-block;width:13px;height:13px;border:2px solid #ffffff44;border-top-color:#fff;border-radius:50%;animation:spin .7s linear infinite;vertical-align:middle;margin-right:5px}
+/* ---- 拡張テーブル ---- */
+.data-table{width:100%;border-collapse:collapse;font-size:13px}
+.data-table th{background:#1e293b;color:#64748b;font-weight:600;padding:9px 12px;text-align:left;border-bottom:1px solid #334155}
+.data-table td{padding:8px 12px;border-bottom:1px solid #1e293b;color:#e2e8f0}
+.data-table tr:last-child td{border-bottom:none}
+.data-table tr:hover td{background:#1e293b55}
+.data-table .num{text-align:right;font-family:'Courier New',monospace}
+.table-wrap{background:#0f172a;border:1px solid #334155;border-radius:10px;overflow:hidden}
+.win-bar-wrap{background:#1e293b;border-radius:4px;height:8px;min-width:60px;display:inline-block;vertical-align:middle;margin-right:6px}
+.win-bar{background:#22c55e;height:8px;border-radius:4px}
+.badge-pair{display:inline-block;background:#1e3a5f;color:#60a5fa;border-radius:4px;padding:2px 7px;font-size:11px;font-weight:600}
+.badge-tf{display:inline-block;background:#1e1a3a;color:#a78bfa;border-radius:4px;padding:2px 7px;font-size:11px;font-weight:600}
+.two-col{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+@media(max-width:640px){.two-col{grid-template-columns:1fr}.stats-grid{grid-template-columns:repeat(2,1fr)}.ops-grid{grid-template-columns:1fr}}
 </style>
 </head>
 <body>
@@ -142,7 +270,7 @@ main{max-width:900px;margin:0 auto;padding:28px 20px}
 <main>
   <div class="section">
     <div class="section-title">データ概要</div>
-    <div class="stats-grid">
+    <div class="stats-grid" style="grid-template-columns:repeat(4,1fr)">
       <div class="stat-card">
         <div class="label">価格データ行数</div>
         <div class="value"><?= number_format($stats['price_rows']) ?></div>
@@ -155,6 +283,10 @@ main{max-width:900px;margin:0 auto;padding:28px 20px}
         <div class="label">バックテスト件数</div>
         <div class="value"><?= number_format($stats['bt_count']) ?></div>
       </div>
+      <div class="stat-card">
+        <div class="label">シミュレーション取引数</div>
+        <div class="value"><?= number_format($stats['sim_count']) ?></div>
+      </div>
     </div>
   </div>
 
@@ -162,8 +294,12 @@ main{max-width:900px;margin:0 auto;padding:28px 20px}
     <div class="section-title">最終実行日時</div>
     <div class="run-times">
       <div class="run-row">
-        <span class="run-label">データ取得</span>
+        <span class="run-label">データ取得（短期足）</span>
         <span class="run-time" id="rt-fetch"><?= htmlspecialchars($lastFetch) ?></span>
+      </div>
+      <div class="run-row">
+        <span class="run-label">データ取得（日足 / Alpha Vantage）</span>
+        <span class="run-time" id="rt-daily-fetch"><?= htmlspecialchars($lastDailyFetch) ?></span>
       </div>
       <div class="run-row">
         <span class="run-label">バックテスト</span>
@@ -197,6 +333,187 @@ main{max-width:900px;margin:0 auto;padding:28px 20px}
         <button class="run-btn sig" onclick="runOp('signals')">シグナル更新を実行</button>
         <div class="result-msg" id="msg-signals"></div>
       </div>
+    </div>
+  </div>
+
+  <!-- ===== DB 使用量内訳 ===== -->
+  <div class="section">
+    <div class="section-title">データベース使用量内訳</div>
+    <div class="table-wrap">
+      <table class="data-table">
+        <thead><tr>
+          <th>テーブル名</th>
+          <th class="num">推定件数</th>
+          <th class="num">サイズ (MB)</th>
+        </tr></thead>
+        <tbody>
+        <?php
+          $totalMb = 0;
+          foreach ($dbUsage as $row):
+            $totalMb += $row['size_mb'];
+        ?>
+          <tr>
+            <td><code style="font-size:12px"><?= htmlspecialchars($row['table']) ?></code></td>
+            <td class="num"><?= number_format($row['est_rows']) ?></td>
+            <td class="num"><?= $row['size_mb'] ?> MB</td>
+          </tr>
+        <?php endforeach; ?>
+        </tbody>
+        <tfoot><tr style="border-top:1px solid #334155">
+          <td colspan="2" style="padding:9px 12px;color:#64748b;font-weight:600">合計</td>
+          <td class="num" style="padding:9px 12px;font-weight:700;color:#60a5fa"><?= round($totalMb, 2) ?> MB</td>
+        </tr></tfoot>
+      </table>
+    </div>
+  </div>
+
+  <!-- ===== シミュレーショントレード ===== -->
+  <div class="section">
+    <div class="section-title">シミュレーショントレード詳細</div>
+    <?php
+      $totalSim = $simWinLoss['WIN'] + $simWinLoss['LOSS'];
+      $overallRate = $totalSim > 0 ? round($simWinLoss['WIN'] / $totalSim * 100, 1) : 0;
+    ?>
+    <!-- 勝敗サマリー -->
+    <div class="stats-grid" style="grid-template-columns:repeat(3,1fr);margin-bottom:12px">
+      <div class="stat-card">
+        <div class="label">勝ちトレード</div>
+        <div class="value" style="color:#4ade80"><?= number_format($simWinLoss['WIN']) ?></div>
+      </div>
+      <div class="stat-card">
+        <div class="label">負けトレード</div>
+        <div class="value" style="color:#f87171"><?= number_format($simWinLoss['LOSS']) ?></div>
+      </div>
+      <div class="stat-card">
+        <div class="label">全体勝率</div>
+        <div class="value" style="color:<?= $overallRate >= 50 ? '#4ade80' : '#f87171' ?>"><?= $overallRate ?>%</div>
+      </div>
+    </div>
+    <!-- 通貨ペア別 / 時間足別 -->
+    <div class="two-col">
+      <div class="table-wrap">
+        <table class="data-table">
+          <thead><tr>
+            <th>通貨ペア</th>
+            <th class="num">件数</th>
+            <th>勝率</th>
+          </tr></thead>
+          <tbody>
+          <?php foreach ($simByPair as $r): ?>
+            <tr>
+              <td><span class="badge-pair"><?= htmlspecialchars($r['pair']) ?></span></td>
+              <td class="num"><?= number_format($r['cnt']) ?></td>
+              <td>
+                <span class="win-bar-wrap"><span class="win-bar" style="width:<?= $r['rate'] ?>%"></span></span>
+                <?= $r['rate'] ?>%
+              </td>
+            </tr>
+          <?php endforeach; ?>
+          <?php if (empty($simByPair)): ?>
+            <tr><td colspan="3" style="color:#475569;text-align:center;padding:16px">データなし</td></tr>
+          <?php endif; ?>
+          </tbody>
+        </table>
+      </div>
+      <div class="table-wrap">
+        <table class="data-table">
+          <thead><tr>
+            <th>時間足</th>
+            <th class="num">件数</th>
+            <th>勝率</th>
+          </tr></thead>
+          <tbody>
+          <?php foreach ($simByTf as $r): ?>
+            <tr>
+              <td><span class="badge-tf"><?= htmlspecialchars($r['tf']) ?></span></td>
+              <td class="num"><?= number_format($r['cnt']) ?></td>
+              <td>
+                <span class="win-bar-wrap"><span class="win-bar" style="width:<?= $r['rate'] ?>%"></span></span>
+                <?= $r['rate'] ?>%
+              </td>
+            </tr>
+          <?php endforeach; ?>
+          <?php if (empty($simByTf)): ?>
+            <tr><td colspan="3" style="color:#475569;text-align:center;padding:16px">データなし</td></tr>
+          <?php endif; ?>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== バックテスト詳細 ===== -->
+  <div class="section">
+    <div class="section-title">バックテスト詳細</div>
+    <!-- ペア別 / TF別 -->
+    <div class="two-col" style="margin-bottom:12px">
+      <div class="table-wrap">
+        <table class="data-table">
+          <thead><tr>
+            <th>通貨ペア</th>
+            <th class="num">件数</th>
+          </tr></thead>
+          <tbody>
+          <?php foreach ($btByPair as $r): ?>
+            <tr>
+              <td><span class="badge-pair"><?= htmlspecialchars($r['pair']) ?></span></td>
+              <td class="num"><?= number_format($r['cnt']) ?></td>
+            </tr>
+          <?php endforeach; ?>
+          <?php if (empty($btByPair)): ?>
+            <tr><td colspan="2" style="color:#475569;text-align:center;padding:16px">データなし</td></tr>
+          <?php endif; ?>
+          </tbody>
+        </table>
+      </div>
+      <div class="table-wrap">
+        <table class="data-table">
+          <thead><tr>
+            <th>時間足</th>
+            <th class="num">件数</th>
+          </tr></thead>
+          <tbody>
+          <?php foreach ($btByTf as $r): ?>
+            <tr>
+              <td><span class="badge-tf"><?= htmlspecialchars($r['tf']) ?></span></td>
+              <td class="num"><?= number_format($r['cnt']) ?></td>
+            </tr>
+          <?php endforeach; ?>
+          <?php if (empty($btByTf)): ?>
+            <tr><td colspan="2" style="color:#475569;text-align:center;padding:16px">データなし</td></tr>
+          <?php endif; ?>
+          </tbody>
+        </table>
+      </div>
+    </div>
+    <!-- 勝率上位10件 -->
+    <div class="section-title" style="margin-bottom:10px">勝率上位10件（取引10件以上）</div>
+    <div class="table-wrap">
+      <table class="data-table">
+        <thead><tr>
+          <th>通貨ペア</th>
+          <th>時間足</th>
+          <th>指標名</th>
+          <th class="num">勝率</th>
+          <th class="num">取引数</th>
+          <th>計算日時</th>
+        </tr></thead>
+        <tbody>
+        <?php foreach ($btTopByWinRate as $r): ?>
+          <tr>
+            <td><span class="badge-pair"><?= htmlspecialchars($r['currency_pair']) ?></span></td>
+            <td><span class="badge-tf"><?= htmlspecialchars($r['timeframe']) ?></span></td>
+            <td style="font-size:12px"><?= htmlspecialchars($r['indicator_name']) ?></td>
+            <td class="num" style="color:#4ade80;font-weight:700"><?= $r['win_rate'] ?>%</td>
+            <td class="num"><?= number_format($r['total_trades']) ?></td>
+            <td style="font-size:11px;color:#64748b"><?= htmlspecialchars(substr($r['calculated_at'], 0, 16)) ?></td>
+          </tr>
+        <?php endforeach; ?>
+        <?php if (empty($btTopByWinRate)): ?>
+          <tr><td colspan="6" style="color:#475569;text-align:center;padding:16px">データなし（取引10件以上のバックテストがありません）</td></tr>
+        <?php endif; ?>
+        </tbody>
+      </table>
     </div>
   </div>
 
