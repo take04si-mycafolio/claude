@@ -79,6 +79,14 @@ h2{font-size:20px;font-weight:700;color:#f1f5f9;margin-bottom:6px}
 .trailing-fields{display:none}
 .trailing-fields.open{display:grid}
 
+/* ===== filter blocks ===== */
+.filter-block{margin-bottom:18px;padding-bottom:18px;border-bottom:1px solid #1e293b}
+.filter-block:last-child{border-bottom:none;margin-bottom:0;padding-bottom:0}
+.filter-block-title{font-size:12px;font-weight:600;color:#64748b;margin-bottom:10px;text-transform:uppercase;letter-spacing:.4px}
+.weekday-btns{display:flex;gap:6px;flex-wrap:wrap}
+.wd-btn{background:#0f172a;border:1px solid #334155;color:#64748b;border-radius:6px;padding:5px 11px;font-size:12px;font-weight:600;cursor:pointer;transition:all .15s;user-select:none}
+.wd-btn.active{background:#1e3a5f;border-color:#3b82f6;color:#60a5fa}
+
 /* ===== action buttons ===== */
 .actions{display:flex;gap:12px;align-items:center;margin-top:8px}
 .btn-run{background:#3b82f6;color:#fff;border:none;border-radius:9px;padding:12px 32px;font-size:14px;font-weight:600;cursor:pointer;transition:background .2s}
@@ -226,6 +234,75 @@ h2{font-size:20px;font-weight:700;color:#f1f5f9;margin-bottom:6px}
     </div>
     <div class="cond-list" id="cond-list"></div>
     <button class="btn-add-cond" onclick="addCondition()">＋ 条件を追加</button>
+  </div>
+
+  <!-- フィルター設定 -->
+  <div class="form-card" id="section-filters">
+    <h3>フィルター設定（任意）</h3>
+
+    <!-- 時間帯 -->
+    <div class="filter-block">
+      <div class="filter-block-title">時間帯（JST）</div>
+      <div class="form-row col2" style="margin-bottom:10px">
+        <div class="form-group">
+          <label>セッション プリセット</label>
+          <select id="f-session" onchange="onSessionPreset()">
+            <option value="">-- フィルターなし --</option>
+            <option value="tokyo">東京セッション (07:00〜16:00 JST)</option>
+            <option value="london">ロンドンセッション (17:00〜02:00 JST)</option>
+            <option value="ny">ニューヨークセッション (22:00〜07:00 JST)</option>
+            <option value="custom">カスタム</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-row col2" id="f-custom-time" style="display:none">
+        <div class="form-group">
+          <label>開始時刻 (JST・時)</label>
+          <input type="number" id="f-start-hour" value="9" min="0" max="23" step="1">
+        </div>
+        <div class="form-group">
+          <label>終了時刻 (JST・時)</label>
+          <input type="number" id="f-end-hour" value="17" min="0" max="23" step="1">
+          <div class="form-hint">終了 &lt; 開始 の場合は日をまたぐ（例: 22〜7）</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 曜日 -->
+    <div class="filter-block">
+      <div class="filter-block-title">曜日（全選択 = フィルターなし）</div>
+      <div class="weekday-btns" id="weekday-btns">
+        <button class="wd-btn active" data-wd="0" onclick="toggleWd(this)">月</button>
+        <button class="wd-btn active" data-wd="1" onclick="toggleWd(this)">火</button>
+        <button class="wd-btn active" data-wd="2" onclick="toggleWd(this)">水</button>
+        <button class="wd-btn active" data-wd="3" onclick="toggleWd(this)">木</button>
+        <button class="wd-btn active" data-wd="4" onclick="toggleWd(this)">金</button>
+        <button class="wd-btn" data-wd="5" onclick="toggleWd(this)">土</button>
+        <button class="wd-btn" data-wd="6" onclick="toggleWd(this)">日</button>
+      </div>
+      <div class="form-hint" style="margin-top:8px">クリックで ON/OFF 切り替え。全ON は曜日フィルターなし。</div>
+    </div>
+
+    <!-- ATR ボラティリティ -->
+    <div class="filter-block">
+      <div class="filter-block-title">ボラティリティ（ATR フィルター）</div>
+      <div class="form-row col3">
+        <div class="form-group">
+          <label>ATR 期間</label>
+          <input type="number" id="f-atr-period" value="14" min="1" step="1">
+        </div>
+        <div class="form-group">
+          <label>最小 pips</label>
+          <input type="number" id="f-atr-min" value="0" min="0" step="1">
+          <div class="form-hint">0 = 無効</div>
+        </div>
+        <div class="form-group">
+          <label>最大 pips</label>
+          <input type="number" id="f-atr-max" value="0" min="0" step="1">
+          <div class="form-hint">0 = 無制限</div>
+        </div>
+      </div>
+    </div>
   </div>
 
   <!-- 10d: SL / TP / トレーリング -->
@@ -424,6 +501,82 @@ function buildTrailingConfig() {
     type:       enabled ? 'fixedTrailing' : null,
     trail_pips: enabled ? parseFloat(document.getElementById('trail_pips').value) : null,
   };
+}
+
+/* =====================================================================
+   フィルター UI
+   ===================================================================== */
+const SESSION_PRESETS = {
+  tokyo:  { start: 7,  end: 16 },
+  london: { start: 17, end: 2  },
+  ny:     { start: 22, end: 7  },
+};
+
+function onSessionPreset() {
+  const val = document.getElementById('f-session').value;
+  const customEl = document.getElementById('f-custom-time');
+  customEl.style.display = val === 'custom' ? 'grid' : 'none';
+  if (val && val !== 'custom') {
+    const p = SESSION_PRESETS[val];
+    document.getElementById('f-start-hour').value = p.start;
+    document.getElementById('f-end-hour').value   = p.end;
+  }
+}
+
+function toggleWd(btn) {
+  btn.classList.toggle('active');
+}
+
+/* フィルター ConditionGroup 構築（有効フィルターがなければ null） */
+function buildFilters() {
+  const conds = [];
+
+  // 時間帯フィルター
+  const session = document.getElementById('f-session').value;
+  if (session) {
+    const start = parseInt(document.getElementById('f-start-hour').value, 10);
+    const end   = parseInt(document.getElementById('f-end-hour').value, 10);
+    conds.push({
+      id: 'f-time', indicator: 'TIME_RANGE',
+      params: { start_hour: start, end_hour: end },
+      comparison: 'filter_pass', value: null,
+      compare_to_indicator: null, compare_to_params: null,
+    });
+  }
+
+  // 曜日フィルター（全ON = フィルターなし）
+  const activeDays = [...document.querySelectorAll('#weekday-btns .wd-btn.active')]
+                       .map(b => parseInt(b.dataset.wd, 10));
+  if (activeDays.length < 7) {
+    if (activeDays.length === 0) {
+      // 全OFFは設定ミス → 全曜日許可に戻す（フィルターなし）
+    } else {
+      conds.push({
+        id: 'f-weekday', indicator: 'WEEKDAY',
+        params: { days: activeDays },
+        comparison: 'filter_pass', value: null,
+        compare_to_indicator: null, compare_to_params: null,
+      });
+    }
+  }
+
+  // ATR ボラティリティフィルター
+  const atrMin = parseFloat(document.getElementById('f-atr-min').value) || 0;
+  const atrMax = parseFloat(document.getElementById('f-atr-max').value) || 0;
+  if (atrMin > 0 || atrMax > 0) {
+    conds.push({
+      id: 'f-atr', indicator: 'ATR_THRESHOLD',
+      params: {
+        period:   parseInt(document.getElementById('f-atr-period').value, 10),
+        min_pips: atrMin,
+        max_pips: atrMax > 0 ? atrMax : null,
+      },
+      comparison: 'filter_pass', value: null,
+      compare_to_indicator: null, compare_to_params: null,
+    });
+  }
+
+  return conds.length ? { logic: 'AND', conditions: conds } : null;
 }
 
 /* =====================================================================
@@ -722,7 +875,7 @@ function buildStrategyConfig() {
     strategy_version: '1.0',
     direction:        document.getElementById('direction').value,
     entry_conditions: { logic: _logic, conditions: conds },
-    filters:          null,
+    filters:          buildFilters(),
     sl_config:        buildSlConfig(),
     tp_config:        buildTpConfig(),
     trailing_config:  buildTrailingConfig(),

@@ -27,6 +27,75 @@ from app.services.indicators.compute import compute_series
 
 
 # ---------------------------------------------------------------------------
+# フィルター専用条件（指標計算なしで評価）
+# ---------------------------------------------------------------------------
+
+_FILTER_INDICATORS = frozenset({"TIME_RANGE", "WEEKDAY", "ATR_THRESHOLD"})
+_JST = pd.Timedelta(hours=9)
+
+
+def _get_bar_jst(df: pd.DataFrame, idx: int) -> pd.Timestamp:
+    """bar[idx] のタイムスタンプを JST naive Timestamp で返す（DB は UTC 保存）"""
+    if "timestamp" in df.columns:
+        ts = df["timestamp"].iloc[idx]
+    else:
+        ts = df.index[idx]
+    if isinstance(ts, pd.Timestamp):
+        if ts.tzinfo is not None:
+            ts = ts.tz_convert(None)  # UTC naive に変換
+        return ts + _JST
+    return pd.Timestamp(str(ts)) + _JST
+
+
+def _evaluate_filter_condition(cond: StrategyCondition, df: pd.DataFrame, idx: int) -> bool:
+    """
+    TIME_RANGE / WEEKDAY / ATR_THRESHOLD の特殊フィルター条件を評価する。
+
+    TIME_RANGE  : params = {start_hour: int, end_hour: int}  JST 時間帯フィルター
+                  start > end の場合は日をまたぐ（例 22〜7 → 22:xx か 0:xx〜6:xx）
+    WEEKDAY     : params = {days: [0..6]}  0=月, 6=日。指定曜日以外を除外
+    ATR_THRESHOLD: params = {period: int, min_pips: float, max_pips: float|null}
+                  ATR が min_pips 未満 または max_pips 超のバーを除外（JPYペア前提）
+    """
+    indicator = cond["indicator"]
+    params = cond.get("params") or {}
+
+    if indicator == "TIME_RANGE":
+        dt = _get_bar_jst(df, idx)
+        start = int(params.get("start_hour", 0))
+        end   = int(params.get("end_hour", 24))
+        h = dt.hour
+        if start <= end:
+            return start <= h < end
+        else:  # 日をまたぐ（例: 22〜7）
+            return h >= start or h < end
+
+    if indicator == "WEEKDAY":
+        dt = _get_bar_jst(df, idx)
+        days = [int(d) for d in params.get("days", [0, 1, 2, 3, 4])]
+        return dt.weekday() in days
+
+    if indicator == "ATR_THRESHOLD":
+        atr_series = compute_series("ATR", {"period": int(params.get("period", 14))}, df)
+        if idx < 0 or idx >= len(atr_series):
+            return False
+        atr_val = atr_series.iloc[idx]
+        if pd.isna(atr_val):
+            return False
+        atr_pips = float(atr_val) / 0.01  # JPY ペア: 1 pip = 0.01
+        min_pips = float(params.get("min_pips", 0) or 0)
+        max_pips_raw = params.get("max_pips")
+        max_pips = float(max_pips_raw) if max_pips_raw else None
+        if min_pips > 0 and atr_pips < min_pips:
+            return False
+        if max_pips and max_pips > 0 and atr_pips > max_pips:
+            return False
+        return True
+
+    return True  # 未知のフィルタータイプは通過させる
+
+
+# ---------------------------------------------------------------------------
 # 単一条件の評価
 # ---------------------------------------------------------------------------
 
@@ -44,6 +113,10 @@ def evaluate_condition(cond: StrategyCondition, df: pd.DataFrame, idx: int) -> b
     -------
     bool
     """
+    # フィルター専用条件を優先処理（compute_series を呼ばない）
+    if cond.get("indicator") in _FILTER_INDICATORS:
+        return _evaluate_filter_condition(cond, df, idx)
+
     comparison = cond["comparison"]
 
     # 自指標の現在値（idx）を取得
