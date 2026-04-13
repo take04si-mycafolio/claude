@@ -1406,6 +1406,18 @@ def main():
     # PHP/.htaccess を public_html に同期
     deploy_static_files()
 
+    # 管理画面用 slug→indicator_name マッピング JSON を生成
+    _slug_map = {
+        info["url_slug"]: name
+        for name, info in INDICATOR_INFO.items()
+        if not name.endswith("_BBSL")
+    }
+    _slug_map_path = Path(PUBLIC_HTML) / "admin" / "indicator_slugs.json"
+    _slug_map_path.write_text(
+        json.dumps(_slug_map, ensure_ascii=False, indent=2), encoding="utf-8"
+    )
+    logger.info("Generated: admin/indicator_slugs.json (%d entries)", len(_slug_map))
+
     # 管理パネルに移動した設定ページの古いファイルを削除
     for obsolete in ["settings.html", "settings_data.json"]:
         p = Path(PUBLIC_HTML) / obsolete

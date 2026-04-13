@@ -69,6 +69,11 @@ main{max-width:960px;margin:0 auto;padding:28px 16px}
 #loading-overlay{position:fixed;inset:0;background:#0f172a;display:flex;align-items:center;justify-content:center;z-index:999}
 .spinner{display:inline-block;width:24px;height:24px;border:2px solid #334155;border-top-color:#3b82f6;border-radius:50%;animation:spin .7s linear infinite}
 @keyframes spin{to{transform:rotate(360deg)}}
+.csv-card{background:#0d1f2d;border:1px solid #164e63;border-radius:10px;padding:16px 20px;margin-top:16px}
+.csv-card h3{font-size:12px;font-weight:600;color:#67e8f9;text-transform:uppercase;letter-spacing:.05em;margin-bottom:8px}
+.csv-card p{font-size:12px;color:#94a3b8;line-height:1.7;margin-bottom:12px}
+.csv-btn{display:inline-flex;align-items:center;gap:6px;background:#0e7490;color:#fff;border:none;border-radius:8px;padding:9px 20px;font-size:13px;font-weight:600;text-decoration:none;cursor:pointer;transition:background .15s}
+.csv-btn:hover{background:#0891b2;color:#fff;text-decoration:none}
 </style>
 </head>
 <body>
@@ -99,7 +104,14 @@ main{max-width:960px;margin:0 auto;padding:28px 16px}
     <div class="art-meta">対象ページ: <span><?= htmlspecialchars($article['page']) ?></span></div>
   </div>
 
-<?php $is_indicator = (bool)preg_match('/^indicator_article_/', $article['key']); ?>
+<?php
+$is_indicator = (bool)preg_match('/^indicator_article_/', $article['key']);
+$ind_slug = '';
+if ($is_indicator) {
+    preg_match('/^indicator_article_([a-z0-9_]+)$/', $article['key'], $sm);
+    $ind_slug = $sm[1] ?? '';
+}
+?>
 
 <?php if ($is_indicator): ?>
   <!-- 指標記事：3フィールド（CSS / HTML / JSON-LD） -->
@@ -142,6 +154,28 @@ main{max-width:960px;margin:0 auto;padding:28px 16px}
       <strong>generate_static</strong> を実行すると公開ページに反映されます。
     </div>
   </div>
+
+<?php if ($is_indicator && $ind_slug): ?>
+  <div class="csv-card">
+    <h3>📊 バックテストデータ &amp; 改善分析</h3>
+    <p>
+      ① CSVをダウンロードしてAIに渡し、改善ポイントを分析します。<br>
+      ② AIの提案条件を <strong>バックテストツール2</strong> に入力して同一期間で検証します。<br>
+      収録: <code>backtest_summary_<?= htmlspecialchars($ind_slug) ?>.csv</code> ・
+            <code>simulation_trades_<?= htmlspecialchars($ind_slug) ?>.csv</code>
+    </p>
+    <div style="display:flex;gap:10px;flex-wrap:wrap">
+      <a class="csv-btn"
+         href="/admin/api.php?action=indicator_csv&amp;slug=<?= urlencode($ind_slug) ?>">
+        📥 CSVをダウンロード（ZIP）
+      </a>
+      <a class="csv-btn" style="background:#0f766e"
+         href="/admin/backtest_v2.php">
+        ⚙️ バックテストツール2で開く
+      </a>
+    </div>
+  </div>
+<?php endif; ?>
 </main>
 
 <script>

@@ -564,6 +564,111 @@ switch ($action) {
         }
         break;
 
+    case 'indicator_csv':
+        require_login();
+        $slug = preg_replace('/[^a-z0-9_]/', '', strtolower(trim($_GET['slug'] ?? '')));
+
+        // slug → indicator_name マッピング読み込み
+        $mapFile = __DIR__ . '/indicator_slugs.json';
+        if (!file_exists($mapFile)) {
+            json_out(['status' => 'error', 'message' => 'indicator_slugs.json が見つかりません。generate_static.py を実行してください。']);
+            break;
+        }
+        $slugMap = json_decode(file_get_contents($mapFile), true) ?? [];
+        if (!isset($slugMap[$slug])) {
+            json_out(['status' => 'error', 'message' => "指標スラッグ '{$slug}' が見つかりません"]);
+            break;
+        }
+
+        $indicatorName = $slugMap[$slug];
+        $pdo    = get_pdo();
+        $suffix = date('YmdHis') . '_' . getmypid();
+        $tmpDir = sys_get_temp_dir();
+        $tmpFiles = [];
+
+        try {
+            // ① バックテストサマリー CSV
+            $btFile = "{$tmpDir}/bt_summary_{$suffix}.csv";
+            $tmpFiles[] = $btFile;
+            $fh = fopen($btFile, 'w');
+            fwrite($fh, "\xEF\xBB\xBF");
+            fputcsv($fh, ['通貨ペア', 'TF', '指標名', 'シグナル方向', '勝率(%)', 'PF',
+                          'トレード数', '勝ち', '負け', '総損益(円)', 'SL(pips)', 'TP(pips)',
+                          '最大DD(円)', '検証日時']);
+            $stmt = $pdo->prepare(
+                'SELECT currency_pair, timeframe, indicator_name, signal_direction,
+                        win_rate, profit_factor, total_trades, winning_trades, losing_trades,
+                        total_profit, sl_pips, tp_pips, max_drawdown, calculated_at
+                 FROM backtest_results WHERE indicator_name = ?
+                 ORDER BY currency_pair, timeframe'
+            );
+            $stmt->execute([$indicatorName]);
+            while ($r = $stmt->fetch(PDO::FETCH_ASSOC)) { fputcsv($fh, array_values($r)); }
+            fclose($fh);
+
+            // ② シミュレーショントレード CSV（チャンク取得）
+            $simFile = "{$tmpDir}/sim_trades_{$suffix}.csv";
+            $tmpFiles[] = $simFile;
+            $fh2 = fopen($simFile, 'w');
+            fwrite($fh2, "\xEF\xBB\xBF");
+            fputcsv($fh2, ['ID', '通貨ペア', 'TF', '指標名', 'エントリー日時(UTC)', 'エグジット日時(UTC)',
+                           '方向', 'エントリー価格', 'エグジット価格', 'TP価格', 'SL価格',
+                           'SL(pips)', 'TP(pips)', '結果', '損益(円)', '資金残高(円)']);
+            $offset = 0; $chunk = 1000;
+            $stmt2 = $pdo->prepare(
+                'SELECT id, currency_pair, timeframe, indicator_name,
+                        entry_at, exit_at, direction, entry_price,
+                        exit_price, tp_price, sl_price, sl_pips, tp_pips,
+                        outcome, profit_loss, capital_after
+                 FROM simulation_trades WHERE indicator_name = ?
+                 ORDER BY entry_at LIMIT ? OFFSET ?'
+            );
+            do {
+                $stmt2->bindValue(1, $indicatorName, PDO::PARAM_STR);
+                $stmt2->bindValue(2, $chunk,         PDO::PARAM_INT);
+                $stmt2->bindValue(3, $offset,        PDO::PARAM_INT);
+                $stmt2->execute();
+                $rows = $stmt2->fetchAll(PDO::FETCH_ASSOC);
+                foreach ($rows as $t) {
+                    fputcsv($fh2, [
+                        $t['id'], $t['currency_pair'], $t['timeframe'], $t['indicator_name'],
+                        $t['entry_at'], $t['exit_at'] ?? '', $t['direction'],
+                        $t['entry_price'], $t['exit_price'] ?? '',
+                        $t['tp_price'] ?? '', $t['sl_price'] ?? '',
+                        $t['sl_pips'] ?? '', $t['tp_pips'] ?? '',
+                        $t['outcome'] ?? '', $t['profit_loss'] ?? '', $t['capital_after'] ?? '',
+                    ]);
+                }
+                $offset += $chunk;
+            } while (count($rows) === $chunk);
+            fclose($fh2);
+
+            // ③ ZIP 作成・ダウンロード
+            $zipFile = "{$tmpDir}/indicator_{$slug}_{$suffix}.zip";
+            $zip = new ZipArchive();
+            if ($zip->open($zipFile, ZipArchive::CREATE) !== true) {
+                throw new Exception('ZIP ファイルの作成に失敗しました');
+            }
+            $zip->addFile($btFile,  "backtest_summary_{$slug}.csv");
+            $zip->addFile($simFile, "simulation_trades_{$slug}.csv");
+            $zip->close();
+            foreach ($tmpFiles as $f) { @unlink($f); }
+
+            $dlName = "{$indicatorName}_backtest_" . date('Ymd') . ".zip";
+            header('Content-Type: application/zip');
+            header('Content-Disposition: attachment; filename="' . $dlName . '"');
+            header('Content-Length: ' . filesize($zipFile));
+            header('Cache-Control: no-cache');
+            readfile($zipFile);
+            unlink($zipFile);
+            exit;
+
+        } catch (Exception $e) {
+            foreach ($tmpFiles as $f) { @unlink($f); }
+            json_out(['status' => 'error', 'message' => $e->getMessage()]);
+        }
+        break;
+
     case 'ranking_csv':
         require_login();
         $tmpFiles = [];
