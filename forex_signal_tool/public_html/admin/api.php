@@ -227,6 +227,79 @@ switch ($action) {
         json_out($result);
         break;
 
+    // ---- 戦略保存 / 読込 / 一覧 ----
+    case 'save_strategy':
+        require_login();
+        try {
+            $pdo = get_pdo();
+            $pdo->exec("CREATE TABLE IF NOT EXISTS saved_strategies (
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                name VARCHAR(255) NOT NULL,
+                config_json TEXT NOT NULL,
+                created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+
+            $name   = trim($body['name'] ?? '');
+            $config = $body['config'] ?? null;
+            if (!$name)   json_out(['ok' => false, 'error' => '戦略名を入力してください']);
+            if (!$config) json_out(['ok' => false, 'error' => 'config が必要です']);
+
+            $stmt = $pdo->prepare('INSERT INTO saved_strategies (name, config_json) VALUES (?, ?)');
+            $stmt->execute([$name, json_encode($config, JSON_UNESCAPED_UNICODE)]);
+            json_out(['ok' => true, 'id' => (int)$pdo->lastInsertId()]);
+        } catch (Exception $e) {
+            json_out(['ok' => false, 'error' => $e->getMessage()]);
+        }
+        break;
+
+    case 'get_strategies':
+        require_login();
+        try {
+            $pdo = get_pdo();
+            $pdo->exec("CREATE TABLE IF NOT EXISTS saved_strategies (
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                name VARCHAR(255) NOT NULL,
+                config_json TEXT NOT NULL,
+                created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+
+            $rows = $pdo->query('SELECT id, name, created_at FROM saved_strategies ORDER BY id DESC')
+                        ->fetchAll();
+            json_out(['ok' => true, 'strategies' => $rows]);
+        } catch (Exception $e) {
+            json_out(['ok' => false, 'error' => $e->getMessage()]);
+        }
+        break;
+
+    case 'load_strategy':
+        require_login();
+        try {
+            $pdo = get_pdo();
+            $id  = (int)($body['id'] ?? 0);
+            if (!$id) json_out(['ok' => false, 'error' => 'id が必要です']);
+            $stmt = $pdo->prepare('SELECT config_json FROM saved_strategies WHERE id = ?');
+            $stmt->execute([$id]);
+            $row = $stmt->fetch();
+            if (!$row) json_out(['ok' => false, 'error' => '戦略が見つかりません']);
+            json_out(['ok' => true, 'config' => json_decode($row['config_json'], true)]);
+        } catch (Exception $e) {
+            json_out(['ok' => false, 'error' => $e->getMessage()]);
+        }
+        break;
+
+    case 'delete_strategy':
+        require_login();
+        try {
+            $pdo = get_pdo();
+            $id  = (int)($body['id'] ?? 0);
+            if (!$id) json_out(['ok' => false, 'error' => 'id が必要です']);
+            $pdo->prepare('DELETE FROM saved_strategies WHERE id = ?')->execute([$id]);
+            json_out(['ok' => true]);
+        } catch (Exception $e) {
+            json_out(['ok' => false, 'error' => $e->getMessage()]);
+        }
+        break;
+
     // ---- Phase 1 グリッドサーチ最適化 ----
     case 'bt_optimize':
         require_login();

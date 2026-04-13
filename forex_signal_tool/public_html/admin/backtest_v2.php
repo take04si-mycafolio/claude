@@ -124,6 +124,28 @@ h2{font-size:20px;font-weight:700;color:#f1f5f9;margin-bottom:6px}
 .opt-apply-btn{background:#1e3a5f;border:1px solid #3b82f6;color:#60a5fa;border-radius:5px;padding:4px 10px;font-size:11px;font-weight:600;cursor:pointer;white-space:nowrap;transition:background .15s}
 .opt-apply-btn:hover{background:#1e40af}
 
+/* ===== preset bar ===== */
+.preset-bar{background:#1e293b;border:1px solid #334155;border-radius:12px;padding:13px 18px;margin-bottom:20px;display:flex;align-items:center;gap:14px;flex-wrap:wrap}
+.preset-section{display:flex;align-items:center;gap:8px}
+.preset-lbl{font-size:11px;color:#64748b;font-weight:600;text-transform:uppercase;letter-spacing:.4px;white-space:nowrap}
+.preset-sel{background:#0f172a;border:1px solid #475569;border-radius:7px;color:#e2e8f0;padding:6px 10px;font-size:12px;outline:none;min-width:210px}
+.preset-sel:focus{border-color:#3b82f6}
+.preset-sep{width:1px;height:24px;background:#334155}
+.preset-btn{padding:6px 14px;border-radius:7px;font-size:12px;font-weight:600;cursor:pointer;border:1px solid #3b82f6;background:#1e3a5f;color:#60a5fa;transition:background .15s;white-space:nowrap}
+.preset-btn:hover{background:#1e40af}
+
+/* ===== save modal ===== */
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.78);z-index:400;display:flex;align-items:center;justify-content:center}
+.modal-box{background:#1e293b;border:1px solid #334155;border-radius:14px;padding:28px 24px;width:440px;max-width:90vw}
+.modal-title{font-size:15px;font-weight:700;color:#f1f5f9;margin-bottom:18px}
+.modal-input{width:100%;background:#0f172a;border:1px solid #475569;border-radius:8px;color:#e2e8f0;padding:10px 12px;font-size:14px;outline:none}
+.modal-input:focus{border-color:#3b82f6}
+.modal-err{font-size:12px;color:#f87171;margin-top:8px;min-height:18px}
+.modal-actions{display:flex;gap:10px;margin-top:18px;justify-content:flex-end}
+.modal-btn{padding:8px 20px;border-radius:7px;font-size:13px;font-weight:600;cursor:pointer;border:none}
+.modal-btn.cancel{background:#334155;color:#94a3b8}
+.modal-btn.confirm{background:#3b82f6;color:#fff}
+
 /* ===== action buttons ===== */
 .actions{display:flex;gap:12px;align-items:center;margin-top:8px}
 .btn-run{background:#3b82f6;color:#fff;border:none;border-radius:9px;padding:12px 32px;font-size:14px;font-weight:600;cursor:pointer;transition:background .2s}
@@ -181,6 +203,20 @@ h2{font-size:20px;font-weight:700;color:#f1f5f9;margin-bottom:6px}
 </head>
 <body>
 
+<!-- 保存モーダル -->
+<div id="save-modal" class="modal-overlay" style="display:none" onclick="if(event.target===this)closeSaveModal()">
+  <div class="modal-box">
+    <div class="modal-title">戦略を保存</div>
+    <label style="font-size:12px;color:#64748b;display:block;margin-bottom:6px">戦略名</label>
+    <input type="text" id="save-name" class="modal-input" placeholder="例: USDJPY RSI 逆張り" maxlength="100">
+    <div class="modal-err" id="save-err"></div>
+    <div class="modal-actions">
+      <button class="modal-btn cancel" onclick="closeSaveModal()">キャンセル</button>
+      <button class="modal-btn confirm" onclick="confirmSave()">保存する</button>
+    </div>
+  </div>
+</div>
+
 <div class="overlay" id="overlay">
   <div class="big-spin"></div>
   <div class="overlay-msg" id="overlay-msg">バックテスト実行中...</div>
@@ -204,6 +240,35 @@ h2{font-size:20px;font-weight:700;color:#f1f5f9;margin-bottom:6px}
 <main>
   <h2>マルチ条件バックテスト</h2>
   <p class="subtitle">複数テクニカル条件・SL/TP設定を組み合わせてバックテストを実行します（Phase 1）</p>
+
+  <!-- プリセット / 保存済み戦略バー -->
+  <div class="preset-bar">
+    <div class="preset-section">
+      <span class="preset-lbl">プリセット</span>
+      <select class="preset-sel" id="preset-select" onchange="loadPreset(this.value)">
+        <option value="">-- 戦略を選択 --</option>
+        <optgroup label="トレンドフォロー">
+          <option value="macd_trend">MACD ゼロクロス</option>
+          <option value="cci_momentum">CCI 100 突破</option>
+        </optgroup>
+        <optgroup label="逆張り">
+          <option value="rsi_reversal">RSI 30 過売り（BUY）</option>
+          <option value="stoch_reversal">Stoch 20 過売り（BUY）</option>
+        </optgroup>
+        <optgroup label="ブレイクアウト">
+          <option value="bb_breakout">BB 上バンド突破（BUY）</option>
+        </optgroup>
+      </select>
+    </div>
+    <div class="preset-sep"></div>
+    <div class="preset-section">
+      <span class="preset-lbl">保存済み</span>
+      <select class="preset-sel" id="saved-select" onchange="applySavedStrategy(this.value)">
+        <option value="">-- 読み込む --</option>
+      </select>
+      <button class="preset-btn" onclick="showSaveModal()">この設定を保存</button>
+    </div>
+  </div>
 
   <div class="err-banner" id="err-banner"></div>
 
@@ -1230,6 +1295,304 @@ function jumpToBar(entryTime) {
 addCondition();
 
 /* =====================================================================
+   12: プリセット戦略
+   ===================================================================== */
+
+const PRESETS = {
+  macd_trend: {
+    direction: 'BOTH', logic: 'AND',
+    conditions: [
+      { indicator:'MACD_LINE', params:{fast:12,slow:26,signal:9}, comparison:'crosses_above', value:0, compare_to_indicator:null },
+    ],
+    sl: { type:'atr',   atr_period:14, atr_multiplier:2.0 },
+    tp: { type:'rr',    rr_ratio:2.0 },
+    trail: { enabled:false },
+    desc: 'MACDラインがゼロ線を上抜け（下抜け）でエントリー。ATR×2 SL / RR2.0倍 TP。',
+  },
+  cci_momentum: {
+    direction: 'BOTH', logic: 'AND',
+    conditions: [
+      { indicator:'CCI', params:{period:20}, comparison:'crosses_above', value:100, compare_to_indicator:null },
+    ],
+    sl: { type:'atr',   atr_period:14, atr_multiplier:1.5 },
+    tp: { type:'atr',   atr_period:14, atr_multiplier:3.5 },
+    trail: { enabled:true, trail_pips:15 },
+    desc: 'CCI(20)が100を上抜けで強トレンド参加。ATRトレーリングで利益確保。',
+  },
+  rsi_reversal: {
+    direction: 'BUY', logic: 'AND',
+    conditions: [
+      { indicator:'RSI', params:{period:14}, comparison:'less_than', value:30, compare_to_indicator:null },
+    ],
+    sl: { type:'fixed', pips:25 },
+    tp: { type:'rr',    rr_ratio:1.5 },
+    trail: { enabled:false },
+    desc: 'RSI(14)が30未満で過売り判断。固定25pips SL / RR1.5倍 TP。',
+  },
+  stoch_reversal: {
+    direction: 'BUY', logic: 'AND',
+    conditions: [
+      { indicator:'STOCH_K', params:{k_period:14,d_period:3,smooth_k:3}, comparison:'less_than', value:20, compare_to_indicator:null },
+    ],
+    sl: { type:'fixed', pips:20 },
+    tp: { type:'rr',    rr_ratio:2.0 },
+    trail: { enabled:true, trail_pips:10 },
+    desc: 'Stoch %K(14)が20未満で過売り判断。トレーリング10pipsで利益確保。',
+  },
+  bb_breakout: {
+    direction: 'BUY', logic: 'AND',
+    conditions: [
+      // CLOSE の params が空のため BB_UPPER の params はデフォルト値(period:20,std:2.0)が使われる
+      { indicator:'CLOSE', params:{}, comparison:'crosses_above', compare_to_indicator:'BB_UPPER', compare_to_params:{period:20,std:2.0}, value:null },
+    ],
+    sl: { type:'atr',   atr_period:14, atr_multiplier:2.0 },
+    tp: { type:'rr',    rr_ratio:2.5 },
+    trail: { enabled:false },
+    desc: '終値がBB(20, 2σ)上バンドを上抜けでブレイクアウトエントリー。ATR×2 SL。',
+  },
+};
+
+/* ---------- プリセット読み込み ---------- */
+function loadPreset(key) {
+  if (!key) return;
+  const p = PRESETS[key];
+  if (!p) return;
+
+  // 条件リセット
+  document.getElementById('cond-list').innerHTML = '';
+  _condSeq = 0;
+
+  // 方向・ロジック
+  document.getElementById('direction').value = p.direction;
+  setLogic(p.logic || 'AND');
+
+  // 条件追加
+  (p.conditions || []).forEach(addConditionFromPreset);
+
+  // SL
+  restoreSlConfig(p.sl);
+
+  // TP
+  restoreTpConfig(p.tp);
+
+  // トレーリング
+  const tc = p.trail || {};
+  document.getElementById('trailing_enabled').checked = !!tc.enabled;
+  onTrailingChange();
+  if (tc.enabled && tc.trail_pips) document.getElementById('trail_pips').value = tc.trail_pips;
+
+  document.getElementById('preset-select').value = '';
+  updateActions();
+}
+
+/* ---------- 条件データからフォーム行を生成 ---------- */
+function addConditionFromPreset(cond) {
+  addCondition();
+  const rowId = 'cond-' + _condSeq;
+  const row   = document.getElementById(rowId);
+
+  // 指標
+  const indSel = row.querySelector('select');
+  if (indSel && cond.indicator) { indSel.value = cond.indicator; onIndChange(indSel, rowId); }
+
+  // パラメータ
+  Object.entries(cond.params || {}).forEach(([k, v]) => {
+    const el = document.getElementById(rowId + '-p-' + k);
+    if (el) el.value = v;
+  });
+
+  // 比較演算子
+  const cmpSel = document.getElementById(rowId + '-cmp');
+  if (cmpSel && cond.comparison) { cmpSel.value = cond.comparison; onCmpChange(rowId); }
+
+  // RHS
+  const isCross = ['crosses_above','crosses_below'].includes(cond.comparison);
+  if (isCross && cond.compare_to_indicator) {
+    const cmpIndSel = document.getElementById(rowId + '-cmp-ind');
+    if (cmpIndSel) { cmpIndSel.value = cond.compare_to_indicator; onCmpIndChange(rowId); }
+  } else {
+    const valEl = document.getElementById(rowId + '-val');
+    if (valEl && cond.value !== null && cond.value !== undefined) valEl.value = cond.value;
+  }
+}
+
+/* =====================================================================
+   11: 戦略保存 / 読込
+   ===================================================================== */
+
+let _savedList = [];
+
+/* --- 保存済みリストを取得してドロップダウンを更新 --- */
+async function loadSavedStrategies() {
+  try {
+    const res = await fetch('/admin/api.php', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({action:'get_strategies'}),
+    }).then(r => r.json());
+    if (!res.ok) return;
+    _savedList = res.strategies || [];
+    const sel = document.getElementById('saved-select');
+    sel.innerHTML = '<option value="">-- 読み込む --</option>' +
+      _savedList.map(s =>
+        `<option value="${s.id}">[${s.created_at.slice(0,10)}] ${s.name}</option>`
+      ).join('');
+  } catch(e) {}
+}
+
+/* --- 保存済み戦略を適用 --- */
+async function applySavedStrategy(id) {
+  if (!id) return;
+  document.getElementById('saved-select').value = '';
+  try {
+    const res = await fetch('/admin/api.php', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({action:'load_strategy', id: parseInt(id, 10)}),
+    }).then(r => r.json());
+    if (!res.ok) { showErr(res.error || '読み込みエラー'); return; }
+    restoreFromConfig(res.config);
+  } catch(e) { showErr('読み込みエラー: ' + e.message); }
+}
+
+/* --- 保存モーダル --- */
+function showSaveModal() {
+  document.getElementById('save-name').value = '';
+  document.getElementById('save-err').textContent = '';
+  document.getElementById('save-modal').style.display = 'flex';
+  setTimeout(() => document.getElementById('save-name').focus(), 80);
+}
+function closeSaveModal() { document.getElementById('save-modal').style.display = 'none'; }
+
+async function confirmSave() {
+  const name  = document.getElementById('save-name').value.trim();
+  const errEl = document.getElementById('save-err');
+  if (!name) { errEl.textContent = '戦略名を入力してください'; return; }
+
+  let config;
+  try {
+    config = {
+      pairs:      getSelectedPairs(),
+      timeframe:  document.getElementById('timeframe').value,
+      limit:      parseInt(document.getElementById('limit').value, 10),
+      sim_params: {
+        initial_capital:  parseFloat(document.getElementById('initial_capital').value),
+        pip_value:        parseFloat(document.getElementById('pip_value').value),
+        max_bars_to_exit: parseInt(document.getElementById('max_bars_to_exit').value, 10),
+      },
+      strategy:  buildStrategyConfig(),
+      filter_ui: captureFilterUI(),
+    };
+  } catch(e) { errEl.textContent = e.message; return; }
+
+  try {
+    const res = await fetch('/admin/api.php', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({action:'save_strategy', name, config}),
+    }).then(r => r.json());
+    if (!res.ok) { errEl.textContent = res.error || '保存エラー'; return; }
+    closeSaveModal();
+    await loadSavedStrategies();
+  } catch(e) { errEl.textContent = '通信エラー: ' + e.message; }
+}
+
+/* --- フィルターUI状態の取得/復元 --- */
+function captureFilterUI() {
+  return {
+    session:    document.getElementById('f-session').value,
+    start_hour: parseInt(document.getElementById('f-start-hour').value, 10),
+    end_hour:   parseInt(document.getElementById('f-end-hour').value, 10),
+    weekdays:   [...document.querySelectorAll('#weekday-btns .wd-btn.active')].map(b => parseInt(b.dataset.wd, 10)),
+    atr_period: parseInt(document.getElementById('f-atr-period').value, 10),
+    atr_min:    parseFloat(document.getElementById('f-atr-min').value) || 0,
+    atr_max:    parseFloat(document.getElementById('f-atr-max').value) || 0,
+  };
+}
+function restoreFilterUI(f) {
+  if (!f) return;
+  document.getElementById('f-session').value = f.session || '';
+  onSessionPreset();
+  if (f.session === 'custom') {
+    document.getElementById('f-start-hour').value = f.start_hour || 9;
+    document.getElementById('f-end-hour').value   = f.end_hour   || 17;
+  }
+  const wds = f.weekdays ?? [0,1,2,3,4,5,6];
+  document.querySelectorAll('#weekday-btns .wd-btn').forEach(b => {
+    b.classList.toggle('active', wds.includes(parseInt(b.dataset.wd, 10)));
+  });
+  document.getElementById('f-atr-period').value = f.atr_period || 14;
+  document.getElementById('f-atr-min').value    = f.atr_min    || 0;
+  document.getElementById('f-atr-max').value    = f.atr_max    || 0;
+}
+
+/* --- SL/TP/トレーリング復元 --- */
+function restoreSlConfig(sl) {
+  if (!sl) return;
+  document.getElementById('sl_type').value = sl.type;
+  onSlTypeChange();
+  if (sl.type === 'fixed')          document.getElementById('sl_pips').value       = sl.pips ?? 20;
+  if (sl.type === 'recentHighLow') {
+    document.getElementById('sl_lookback').value = sl.lookback_bars ?? 10;
+    document.getElementById('sl_buffer').value   = sl.buffer_pips   ?? 3;
+  }
+  if (sl.type === 'atr') {
+    document.getElementById('sl_atr_period').value = sl.atr_period     ?? 14;
+    document.getElementById('sl_atr_mult').value   = sl.atr_multiplier ?? 1.5;
+  }
+}
+function restoreTpConfig(tp) {
+  if (!tp) return;
+  document.getElementById('tp_type').value = tp.type;
+  onTpTypeChange();
+  if (tp.type === 'rr') {
+    const v = parseFloat(tp.rr_ratio).toFixed(1);
+    const opt = [...document.getElementById('tp_rr_ratio').options].find(o => o.value === v);
+    if (opt) document.getElementById('tp_rr_ratio').value = v;
+  }
+  if (tp.type === 'fixed') document.getElementById('tp_pips').value = tp.pips ?? 40;
+  if (tp.type === 'atr') {
+    document.getElementById('tp_atr_period').value = tp.atr_period     ?? 14;
+    document.getElementById('tp_atr_mult').value   = tp.atr_multiplier ?? 3.0;
+  }
+}
+
+/* --- 保存済みからフォームを完全復元 --- */
+function restoreFromConfig(cfg) {
+  if (!cfg) return;
+  const s = cfg.strategy || {};
+
+  // ペア
+  document.querySelectorAll('.pair-cb').forEach(cb => {
+    cb.checked = (cfg.pairs || ['USDJPY']).includes(cb.value);
+  });
+  // 基本設定
+  if (cfg.timeframe) document.getElementById('timeframe').value             = cfg.timeframe;
+  if (cfg.limit)     document.getElementById('limit').value                 = cfg.limit;
+  if (cfg.sim_params) {
+    document.getElementById('initial_capital').value  = cfg.sim_params.initial_capital  || 1000000;
+    document.getElementById('pip_value').value        = cfg.sim_params.pip_value        || 100;
+    document.getElementById('max_bars_to_exit').value = cfg.sim_params.max_bars_to_exit || 200;
+  }
+  // 方向・ロジック・条件
+  if (s.direction) document.getElementById('direction').value = s.direction;
+  setLogic((s.entry_conditions || {}).logic || 'AND');
+  document.getElementById('cond-list').innerHTML = '';
+  _condSeq = 0;
+  ((s.entry_conditions || {}).conditions || []).forEach(addConditionFromPreset);
+
+  // SL / TP / トレーリング
+  restoreSlConfig(s.sl_config);
+  restoreTpConfig(s.tp_config);
+  const t = s.trailing_config || {};
+  document.getElementById('trailing_enabled').checked = !!t.enabled;
+  onTrailingChange();
+  if (t.enabled && t.trail_pips) document.getElementById('trail_pips').value = t.trail_pips;
+
+  // フィルター
+  restoreFilterUI(cfg.filter_ui);
+
+  updateActions();
+}
+
+/* =====================================================================
    10e: 実行ロジック
    ===================================================================== */
 
@@ -1540,6 +1903,9 @@ function renderTrades(trades) {
     </div>`;
   renderTradesTo(trades, document.getElementById('trade-tab-content'));
 }
+
+/* ---------- 起動時初期化 ---------- */
+loadSavedStrategies();
 </script>
 
 </body>
