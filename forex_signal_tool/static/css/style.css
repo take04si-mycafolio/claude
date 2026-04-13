@@ -554,6 +554,7 @@ body {
   border-bottom: 1px solid #f8fafc;
 }
 .sim-trade-item:last-child { border-bottom: none; }
+.sim-trade-item.sim-active { background: rgba(59,130,246,.08); border-radius: 6px; }
 .sim-trade-header {
   display: flex;
   align-items: center;

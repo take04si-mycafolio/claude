@@ -168,7 +168,7 @@
   <div class="section-title section-title-row">
     <div class="section-title-left">
       <i class="bi bi-clock-history text-info me-2"></i>シミュレーショントレード
-      <span class="info-tip" data-tip="シグナル発生時点でエントリーしたと仮定した場合の損益シミュレーションです。実際の取引結果ではありません。タイムフレーム別・最大15件。行をタップするとメインチャートに移動します。">
+      <span class="info-tip" data-tip="シグナル発生時点でエントリーしたと仮定した場合の損益シミュレーションです。実際の取引結果ではありません。タイムフレーム別・最大15件。行をタップするとチャートが表示されます。">
         <i class="bi bi-info-circle-fill"></i>
       </span>
     </div>
@@ -245,13 +245,6 @@
     </div>
     {% endfor %}
   </div>
-  <!-- エクイティカーブ -->
-  {% if not data.sim_no_data and data.sim_trades %}
-  <div id="sim-eq-wrap" style="display:none;margin-top:6px">
-    <div style="font-size:10px;color:#64748b;margin-bottom:2px">資産推移（累計損益）</div>
-    <div id="sim-eq-chart" style="height:60px;background:#131722;border-radius:6px;overflow:hidden"></div>
-  </div>
-  {% endif %}
   {% endif %}
 </div>
 <!-- 操作パネル -->
@@ -281,6 +274,37 @@
 </div>
 
 <div style="height: 20px;"></div>
+
+<!-- トレード詳細チャートモーダル -->
+<div class="modal fade" id="tradeModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-lg modal-dialog-centered">
+    <div class="modal-content" style="background:#131722;border:1px solid #1e293b;border-radius:12px">
+      <div class="modal-header" style="background:#1a2233;border-bottom:1px solid #1e293b;border-radius:12px 12px 0 0;padding:10px 16px">
+        <div style="flex:1">
+          <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+            <span id="modal-badge" class="signal-type-badge">—</span>
+            <span id="modal-pair-tf" style="font-size:13px;color:#94a3b8;font-weight:600">—</span>
+            <span id="modal-outcome" style="font-size:12px;font-weight:600"></span>
+          </div>
+          <div style="font-size:11px;color:#64748b;margin-top:4px">
+            IN: <span id="modal-entry" style="color:#94a3b8">—</span>
+            &nbsp;TP: <span id="modal-tp" style="color:#26a69a">—</span>
+            &nbsp;SL: <span id="modal-sl" style="color:#ef5350">—</span>
+            &nbsp;<span id="modal-time" style="color:#64748b">—</span>
+          </div>
+        </div>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body" style="padding:0;position:relative">
+        <div id="modal-chart-loading" style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:#131722;z-index:10;font-size:12px;color:#64748b">
+          読み込み中...
+        </div>
+        <div id="modal-chart" style="height:320px"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
 {% endblock %}
 
 {% block extra_js %}
@@ -388,7 +412,7 @@ function initCharts() {
 }
 
 // ===== チャートデータ読み込み =====
-async function loadChartData(tf, afterLoad) {
+async function loadChartData(tf) {
   const loading = document.getElementById('chart-loading');
   loading.style.display = 'block';
   try {
@@ -453,7 +477,6 @@ async function loadChartData(tf, afterLoad) {
     mainChart.timeScale().fitContent();
     rsiChart.timeScale().fitContent();
     loading.style.display = 'none';
-    if (afterLoad) afterLoad();
   } catch(e) {
     loading.textContent = 'チャート読込エラー: ' + e.message;
   }
@@ -521,97 +544,126 @@ async function runAction(action, loadingMsg, doneMsg) {
 // ===== 起動 =====
 document.addEventListener('DOMContentLoaded', () => {
   initCharts();
-  loadChartData(currentTf, () => _initEquityChart(currentTf));
+  loadChartData(currentTf);
   fetchRealtimePrice();
   setInterval(fetchRealtimePrice, 30000);
 });
 </script>
 
 <script>
-// ===== シミュレーショントレード v2 UI =====
-const TF_SECS = { '5min':300,'15min':900,'30min':1800,'1hr':3600,'4hr':14400,'daily':86400 };
-let _eqChart=null, _eqSeries=null;
+// ===== シミュレーショントレード チャートモーダル =====
+(function() {
+  const TF_LBL  = { '5min':'5m','15min':'15m','1hr':'1H','4hr':'4H','daily':'D' };
+  const TF_SECS = { '5min':300,'15min':900,'30min':1800,'1hr':3600,'4hr':14400,'daily':86400 };
+  let mChart=null, mCs=null, cacheKey=null, cacheData=null;
 
-function _initEquityChart(tf) {
-  const el = document.getElementById('sim-eq-chart');
-  if (!el) return;
-  if (!_eqChart) {
-    _eqChart = LightweightCharts.createChart(el, {
-      autoSize: true, height: 60,
-      layout: { background:{color:'#131722'}, textColor:'#94a3b8', fontSize:10 },
+  /* JST フォーマッター（チャート時間軸） */
+  function jstFmt(ts) {
+    const d = new Date((ts + 32400) * 1000);
+    return String(d.getUTCMonth()+1).padStart(2,'0') + '/'
+         + String(d.getUTCDate()).padStart(2,'0') + ' '
+         + String(d.getUTCHours()).padStart(2,'0') + ':'
+         + String(d.getUTCMinutes()).padStart(2,'0');
+  }
+
+  function initModalChart() {
+    if (mChart) return;
+    const el = document.getElementById('modal-chart');
+    mChart = LightweightCharts.createChart(el, {
+      autoSize: true, height: 320,
+      layout: { background:{color:'#131722'}, textColor:'#94a3b8', fontSize:11 },
       grid: { vertLines:{color:'#1a2233'}, horzLines:{color:'#1a2233'} },
       crosshair: { mode:1 },
-      rightPriceScale: { borderColor:'#1a2233', scaleMargins:{top:.3,bottom:.3} },
-      timeScale: { visible:false },
+      rightPriceScale: { borderColor:'#1a2233', scaleMargins:{top:.1,bottom:.1} },
+      timeScale: { borderColor:'#1a2233', timeVisible:true, secondsVisible:false },
+      localization: { timeFormatter: jstFmt },
+      handleScroll:true, handleScale:true,
     });
-    _eqSeries = _eqChart.addAreaSeries({
-      lineColor:'#3b82f6', topColor:'rgba(59,130,246,.25)',
-      bottomColor:'rgba(59,130,246,0)', lineWidth:1.5,
-      priceLineVisible:false, lastValueVisible:false,
+    mCs = mChart.addCandlestickSeries({
+      upColor:'#26a69a', downColor:'#ef5350',
+      borderUpColor:'#26a69a', borderDownColor:'#ef5350',
+      wickUpColor:'#26a69a', wickDownColor:'#ef5350',
     });
     new ResizeObserver(() => {
       const w = el.clientWidth;
-      if (w>0) _eqChart.applyOptions({width:w});
+      if (w > 0) mChart.applyOptions({width:w});
     }).observe(el);
   }
-  _buildEquity(tf);
-}
 
-function _buildEquity(tf) {
-  if (!_eqSeries) return;
-  const rows = [...document.querySelectorAll(`#sim-tf-${tf} .trade-row`)];
-  rows.sort((a,b) => +a.dataset.entryTs - +b.dataset.entryTs);
-  let cum = 0;
-  const pts = rows.filter(r=>+r.dataset.entryTs>0)
-    .map(r => ({ time:+r.dataset.entryTs, value:Math.round(cum+=parseFloat(r.dataset.pnl||0)) }));
-  try {
-    _eqSeries.setData(pts);
-    _eqChart.timeScale().fitContent();
-    document.getElementById('sim-eq-wrap').style.display = pts.length ? 'block' : 'none';
-  } catch(e) {}
-}
+  async function openTradeModal(row) {
+    const tf      = row.dataset.tf || '1hr';
+    const ts      = parseInt(row.dataset.entryTs) || 0;
+    const signal  = row.dataset.signal || '';
+    const outcome = row.dataset.outcome || '';
+    const entryP  = parseFloat(row.dataset.entryPrice) || 0;
+    const tpP     = parseFloat(row.dataset.tpPrice) || 0;
+    const slP     = parseFloat(row.dataset.slPrice) || 0;
+    const timeLabel = row.dataset.entryLabel || '';
 
-// TF タブ切替時にエクイティカーブを更新
-document.addEventListener('shown.bs.tab', function(e) {
-  const m = (e.target.getAttribute('data-bs-target')||'').match(/^#sim-tf-(\w+)$/);
-  if (m) _buildEquity(m[1]);
-});
+    /* ヘッダー更新 */
+    const badge = document.getElementById('modal-badge');
+    badge.textContent = signal === 'BUY' ? '買い' : '売り';
+    badge.className = 'signal-type-badge ' + (signal === 'BUY' ? 'buy' : 'sell');
+    document.getElementById('modal-pair-tf').textContent = PAIR + ' ' + (TF_LBL[tf]||tf);
+    const outEl = document.getElementById('modal-outcome');
+    if (outcome==='WIN')        { outEl.textContent='✓ 利確'; outEl.style.color='#22c55e'; }
+    else if (outcome==='LOSS')  { outEl.textContent='✗ 損切'; outEl.style.color='#ef5350'; }
+    else                        { outEl.textContent='OPEN';   outEl.style.color='#f59e0b'; }
+    document.getElementById('modal-entry').textContent = entryP ? entryP.toFixed(3) : '—';
+    document.getElementById('modal-tp').textContent    = tpP    ? tpP.toFixed(3)    : '—';
+    document.getElementById('modal-sl').textContent    = slP    ? slP.toFixed(3)    : '—';
+    document.getElementById('modal-time').textContent  = timeLabel;
 
-// トレード行クリック → メインチャートに TF 切替 + バーにジャンプ
-document.addEventListener('click', function(e) {
-  const row = e.target.closest('.trade-row');
-  if (!row) return;
+    /* モーダル表示 */
+    bootstrap.Modal.getOrCreateInstance(document.getElementById('tradeModal')).show();
 
-  // 行ハイライト
-  document.querySelectorAll('.trade-row.sim-active').forEach(r=>r.classList.remove('sim-active'));
-  row.classList.add('sim-active');
+    /* チャート描画（モーダルDOM確定後） */
+    setTimeout(async () => {
+      initModalChart();
+      const loading = document.getElementById('modal-chart-loading');
+      loading.style.display = 'flex';
+      try {
+        const key = PAIR + '_' + tf;
+        if (cacheKey !== key) {
+          const d = await fetch(`/chart_data.php?pair=${PAIR}&tf=${tf}&_=${Date.now()}`).then(r=>r.json());
+          cacheKey = key; cacheData = d;
+        }
+        const d = cacheData;
+        mCs.setData(d.candles || []);
+        mCs.setMarkers(d.trades && d.trades.length ? d.trades : []);
 
-  const tf = row.dataset.tf || '1hr';
-  const ts = parseInt(row.dataset.entryTs) || 0;
-  const bar = TF_SECS[tf] || 3600;
+        /* 価格ライン（エントリー・TP・SL） */
+        ['_plEp','_plTp','_plSl'].forEach(k => {
+          try { if(mCs[k]) mCs.removePriceLine(mCs[k]); } catch(e) {}
+        });
+        const ec = signal === 'BUY' ? '#26a69a' : '#ef5350';
+        if (entryP) mCs._plEp = mCs.createPriceLine({price:entryP,color:ec,     lineWidth:1,lineStyle:0,axisLabelVisible:true,title:'Entry'});
+        if (tpP)    mCs._plTp = mCs.createPriceLine({price:tpP,  color:'#26a69a',lineWidth:1,lineStyle:2,axisLabelVisible:true,title:'TP'});
+        if (slP)    mCs._plSl = mCs.createPriceLine({price:slP,  color:'#ef5350',lineWidth:1,lineStyle:2,axisLabelVisible:true,title:'SL'});
 
-  const doJump = () => {
-    if (!mainChart || !ts) return;
-    mainChart.timeScale().setVisibleRange({ from: ts - 30*bar, to: ts + 50*bar });
-  };
+        loading.style.display = 'none';
 
-  // メインチャートのTFを切替（必要なら）してバーにジャンプ
-  if (currentTf !== tf) {
-    const tfBtn = document.querySelector(`.tf-tab[data-tf="${tf}"]`);
-    if (tfBtn) {
-      document.querySelectorAll('.tf-tab').forEach(b=>b.classList.remove('active'));
-      tfBtn.classList.add('active');
-      currentTf = tf;
-      loadChartData(tf, doJump);
-    } else {
-      doJump();
-    }
-  } else {
-    doJump();
+        /* 該当バーにジャンプ */
+        if (ts) {
+          const bar = TF_SECS[tf] || 3600;
+          mChart.timeScale().setVisibleRange({ from: ts - 30*bar, to: ts + 50*bar });
+        } else {
+          mChart.timeScale().fitContent();
+        }
+      } catch(e) {
+        loading.textContent = 'エラー: ' + e.message;
+      }
+    }, 150);
   }
 
-  // メインチャートまでスクロール
-  document.querySelector('.chart-card')?.scrollIntoView({ behavior:'smooth', block:'start' });
-});
+  /* トレード行クリック */
+  document.addEventListener('click', function(e) {
+    const row = e.target.closest('.trade-row');
+    if (!row) return;
+    document.querySelectorAll('.trade-row.sim-active').forEach(r=>r.classList.remove('sim-active'));
+    row.classList.add('sim-active');
+    openTradeModal(row);
+  });
+})();
 </script>
 {% endblock %}
