@@ -145,6 +145,65 @@ def dashboard():
     # DB 合計サイズ
     db_total_mb = round(sum(t["total_mb"] for t in db_tables), 2)
 
+    # ---- シミュレーショントレード集計 ----
+    sim_stats = {"total": 0, "by_pair": [], "by_tf": [], "win": 0, "loss": 0}
+    try:
+        from app.models.simulation_trade import SimulationTrade
+        from sqlalchemy import func as sa_func
+
+        sim_stats["total"] = SimulationTrade.query.count()
+
+        # 通貨ペア別
+        for pair in Config.CURRENCY_PAIRS:
+            c = SimulationTrade.query.filter_by(currency_pair=pair).count()
+            sim_stats["by_pair"].append({"pair": pair, "count": c})
+
+        # タイムフレーム別
+        tf_order = ["5min", "15min", "30min", "1hr", "4hr", "daily"]
+        for tf in tf_order:
+            c = SimulationTrade.query.filter_by(timeframe=tf).count()
+            if c > 0:
+                sim_stats["by_tf"].append({"tf": tf, "count": c})
+
+        # 勝敗集計
+        sim_stats["win"]  = SimulationTrade.query.filter_by(outcome="WIN").count()
+        sim_stats["loss"] = SimulationTrade.query.filter_by(outcome="LOSS").count()
+    except Exception:
+        pass
+
+    # ---- バックテスト結果集計 ----
+    bt_stats = {"total": 0, "by_pair": [], "by_tf": [], "top": []}
+    try:
+        bt_stats["total"] = BacktestResult.query.count()
+
+        # 通貨ペア別
+        for pair in Config.CURRENCY_PAIRS:
+            c = BacktestResult.query.filter_by(currency_pair=pair).count()
+            bt_stats["by_pair"].append({"pair": pair, "count": c})
+
+        # タイムフレーム別
+        for tf in tf_order:
+            c = BacktestResult.query.filter_by(timeframe=tf).count()
+            if c > 0:
+                bt_stats["by_tf"].append({"tf": tf, "count": c})
+
+        # 勝率上位10件
+        top = (BacktestResult.query
+               .filter(BacktestResult.total_trades >= 5)
+               .order_by(BacktestResult.win_rate.desc())
+               .limit(10).all())
+        for r in top:
+            bt_stats["top"].append({
+                "pair":      r.currency_pair,
+                "tf":        r.timeframe,
+                "indicator": r.indicator_name,
+                "win_rate":  float(r.win_rate),
+                "trades":    r.total_trades,
+                "pf":        float(r.profit_factor) if r.profit_factor else 0,
+            })
+    except Exception:
+        pass
+
     return render_template(
         "admin/dashboard.html",
         last_fetch=last_fetch,
@@ -155,6 +214,8 @@ def dashboard():
         db_tables=db_tables,
         price_by_tf=price_by_tf,
         db_total_mb=db_total_mb,
+        sim_stats=sim_stats,
+        bt_stats=bt_stats,
     )
 
 

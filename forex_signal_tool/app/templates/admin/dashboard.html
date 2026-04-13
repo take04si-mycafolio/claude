@@ -68,6 +68,24 @@ main{max-width:900px;margin:0 auto;padding:28px 20px}
 .tf-card{background:#0f172a;border:1px solid #334155;border-radius:7px;padding:10px;text-align:center}
 .tf-card .tf-label{font-size:11px;color:#64748b;margin-bottom:4px}
 .tf-card .tf-count{font-size:16px;font-weight:700;color:#f1f5f9}
+/* Sim / BT stats */
+.two-col{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+.inner-card{background:#1e293b;border:1px solid #334155;border-radius:10px;padding:16px 18px}
+.inner-card h4{font-size:13px;font-weight:600;color:#94a3b8;margin-bottom:12px}
+.kv-row{display:flex;justify-content:space-between;align-items:center;padding:5px 0;border-bottom:1px solid #0f172a;font-size:13px}
+.kv-row:last-child{border-bottom:none}
+.kv-label{color:#94a3b8}
+.kv-val{color:#f1f5f9;font-weight:600;font-family:'Courier New',monospace}
+.win-badge{color:#4ade80}.loss-badge{color:#f87171}
+.top-table{width:100%;border-collapse:collapse;font-size:12px;margin-top:4px}
+.top-table th{text-align:left;padding:6px 8px;color:#64748b;font-size:11px;text-transform:uppercase;border-bottom:1px solid #334155;white-space:nowrap}
+.top-table td{padding:6px 8px;border-bottom:1px solid #1e293b;white-space:nowrap}
+.top-table tr:last-child td{border-bottom:none}
+.top-table tr:hover td{background:#0f172a}
+.wr-high{color:#4ade80;font-weight:700}
+.wr-mid{color:#facc15;font-weight:600}
+.ind-name{color:#e2e8f0;max-width:160px;overflow:hidden;text-overflow:ellipsis}
+.pair-badge{display:inline-block;padding:1px 6px;border-radius:4px;font-size:10px;font-weight:700;background:#1e3a5f;color:#60a5fa;margin-right:4px}
 /* Spinner */
 @keyframes spin{to{transform:rotate(360deg)}}
 .spinner{display:inline-block;width:14px;height:14px;border:2px solid #ffffff44;border-top-color:#fff;border-radius:50%;animation:spin .7s linear infinite;vertical-align:middle;margin-right:6px}
@@ -147,6 +165,101 @@ main{max-width:900px;margin:0 auto;padding:28px 20px}
         <div class="result-msg" id="msg-signals"></div>
       </div>
     </div>
+  </div>
+
+  <!-- シミュレーション & バックテスト -->
+  <div class="section">
+    <div class="section-title">シミュレーショントレード / バックテスト</div>
+    <div class="two-col">
+
+      <!-- シミュレーショントレード -->
+      <div class="inner-card">
+        <h4>シミュレーショントレード &nbsp;<span style="color:#f1f5f9;font-size:20px;font-weight:700">{{ "{:,}".format(sim_stats.total) }}</span><span style="font-size:12px;color:#64748b"> 件</span></h4>
+        <div class="kv-row">
+          <span class="kv-label">WIN</span>
+          <span class="kv-val win-badge">{{ "{:,}".format(sim_stats.win) }}</span>
+        </div>
+        <div class="kv-row">
+          <span class="kv-label">LOSS</span>
+          <span class="kv-val loss-badge">{{ "{:,}".format(sim_stats.loss) }}</span>
+        </div>
+        {% if sim_stats.win + sim_stats.loss > 0 %}
+        <div class="kv-row">
+          <span class="kv-label">全体勝率</span>
+          <span class="kv-val">{{ "%.1f"|format(sim_stats.win / (sim_stats.win + sim_stats.loss) * 100) }}%</span>
+        </div>
+        {% endif %}
+        <div style="margin-top:10px;font-size:11px;color:#64748b;margin-bottom:6px">通貨ペア別</div>
+        {% for p in sim_stats.by_pair %}
+        <div class="kv-row">
+          <span class="kv-label">{{ p.pair[:3] }}/{{ p.pair[3:] }}</span>
+          <span class="kv-val">{{ "{:,}".format(p.count) }}</span>
+        </div>
+        {% endfor %}
+        {% if sim_stats.by_tf %}
+        <div style="margin-top:10px;font-size:11px;color:#64748b;margin-bottom:6px">タイムフレーム別</div>
+        {% for t in sim_stats.by_tf %}
+        <div class="kv-row">
+          <span class="kv-label">{{ t.tf }}</span>
+          <span class="kv-val">{{ "{:,}".format(t.count) }}</span>
+        </div>
+        {% endfor %}
+        {% endif %}
+      </div>
+
+      <!-- バックテスト結果 -->
+      <div class="inner-card">
+        <h4>バックテスト結果 &nbsp;<span style="color:#f1f5f9;font-size:20px;font-weight:700">{{ "{:,}".format(bt_stats.total) }}</span><span style="font-size:12px;color:#64748b"> 件</span></h4>
+        {% for p in bt_stats.by_pair %}
+        <div class="kv-row">
+          <span class="kv-label">{{ p.pair[:3] }}/{{ p.pair[3:] }}</span>
+          <span class="kv-val">{{ "{:,}".format(p.count) }}</span>
+        </div>
+        {% endfor %}
+        {% if bt_stats.by_tf %}
+        <div style="margin-top:10px;font-size:11px;color:#64748b;margin-bottom:6px">タイムフレーム別</div>
+        {% for t in bt_stats.by_tf %}
+        <div class="kv-row">
+          <span class="kv-label">{{ t.tf }}</span>
+          <span class="kv-val">{{ "{:,}".format(t.count) }}</span>
+        </div>
+        {% endfor %}
+        {% endif %}
+      </div>
+    </div>
+
+    <!-- 勝率上位10件 -->
+    {% if bt_stats.top %}
+    <div class="inner-card" style="margin-top:14px">
+      <h4>勝率上位 TOP 10（5取引以上）</h4>
+      <table class="top-table">
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>通貨ペア</th>
+            <th>TF</th>
+            <th>指標</th>
+            <th>勝率</th>
+            <th>取引数</th>
+            <th>PF</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for r in bt_stats.top %}
+          <tr>
+            <td style="color:#64748b">{{ loop.index }}</td>
+            <td><span class="pair-badge">{{ r.pair }}</span></td>
+            <td style="color:#94a3b8">{{ r.tf }}</td>
+            <td class="ind-name" title="{{ r.indicator }}">{{ r.indicator }}</td>
+            <td class="{{ 'wr-high' if r.win_rate >= 60 else 'wr-mid' }}">{{ "%.1f"|format(r.win_rate) }}%</td>
+            <td style="color:#94a3b8">{{ r.trades }}</td>
+            <td style="color:#94a3b8">{{ "%.2f"|format(r.pf) }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% endif %}
   </div>
 
   <!-- DB 使用量 -->
