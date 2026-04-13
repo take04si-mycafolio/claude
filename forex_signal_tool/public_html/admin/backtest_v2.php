@@ -87,6 +87,24 @@ h2{font-size:20px;font-weight:700;color:#f1f5f9;margin-bottom:6px}
 .wd-btn{background:#0f172a;border:1px solid #334155;color:#64748b;border-radius:6px;padding:5px 11px;font-size:12px;font-weight:600;cursor:pointer;transition:all .15s;user-select:none}
 .wd-btn.active{background:#1e3a5f;border-color:#3b82f6;color:#60a5fa}
 
+/* ===== pair checkboxes ===== */
+.pair-checks{display:flex;flex-direction:column;gap:5px}
+.pair-ck{display:flex;align-items:center;gap:6px;font-size:12px;color:#94a3b8;cursor:pointer;padding:5px 8px;background:#0f172a;border:1px solid #334155;border-radius:6px;transition:all .15s;user-select:none}
+.pair-ck:has(input:checked){background:#1e3a5f;border-color:#3b82f6;color:#60a5fa}
+.pair-ck input{accent-color:#3b82f6}
+
+/* ===== multi-pair ===== */
+.pair-tabs{display:flex;gap:6px;margin-bottom:14px}
+.pair-tab{background:#0f172a;border:1px solid #334155;color:#64748b;border-radius:6px;padding:5px 14px;font-size:12px;font-weight:600;cursor:pointer;transition:all .15s}
+.pair-tab.active{background:#1e3a5f;border-color:#3b82f6;color:#60a5fa}
+.compare-tbl-wrap{overflow-x:auto;margin-bottom:4px}
+.compare-tbl{width:100%;border-collapse:collapse;font-size:12px}
+.compare-tbl th{background:#0f172a;color:#64748b;padding:9px 14px;border-bottom:2px solid #334155;white-space:nowrap;text-align:center}
+.compare-tbl th:first-child{text-align:left}
+.compare-tbl td{padding:8px 14px;border-bottom:1px solid #1e293b;color:#cbd5e1;text-align:center}
+.compare-tbl td:first-child{color:#64748b;font-size:11px;font-weight:600;text-align:left;text-transform:uppercase;letter-spacing:.3px}
+.compare-tbl tr:hover td{background:rgba(255,255,255,.02)}
+
 /* ===== action buttons ===== */
 .actions{display:flex;gap:12px;align-items:center;margin-top:8px}
 .btn-run{background:#3b82f6;color:#fff;border:none;border-radius:9px;padding:12px 32px;font-size:14px;font-weight:600;cursor:pointer;transition:background .2s}
@@ -175,12 +193,12 @@ h2{font-size:20px;font-weight:700;color:#f1f5f9;margin-bottom:6px}
     <h3>基本設定</h3>
     <div class="form-row col3">
       <div class="form-group">
-        <label>通貨ペア</label>
-        <select id="pair">
-          <option value="USDJPY">ドル円 (USD/JPY)</option>
-          <option value="GBPJPY">ポンド円 (GBP/JPY)</option>
-          <option value="EURJPY">ユーロ円 (EUR/JPY)</option>
-        </select>
+        <label>通貨ペア（複数選択可）</label>
+        <div class="pair-checks">
+          <label class="pair-ck"><input type="checkbox" class="pair-cb" value="USDJPY" checked> USD/JPY（ドル円）</label>
+          <label class="pair-ck"><input type="checkbox" class="pair-cb" value="GBPJPY"> GBP/JPY（ポンド円）</label>
+          <label class="pair-ck"><input type="checkbox" class="pair-cb" value="EURJPY"> EUR/JPY（ユーロ円）</label>
+        </div>
       </div>
       <div class="form-group">
         <label>タイムフレーム</label>
@@ -882,19 +900,42 @@ function buildStrategyConfig() {
   };
 }
 
-/* ---------- メインエントリーポイント ---------- */
+/* ---------- 選択通貨ペア取得 ---------- */
+function getSelectedPairs() {
+  return [...document.querySelectorAll('.pair-cb:checked')].map(el => el.value);
+}
+
+/* ---------- 1ペア分 API 呼び出し ---------- */
+async function fetchOnePair(pair, timeframe, limit, strategy, simParams) {
+  const res = await fetch('/admin/api.php', {
+    method:  'POST',
+    headers: {'Content-Type':'application/json'},
+    body:    JSON.stringify({
+      action: 'bt_v2', pair, timeframe, limit,
+      strategy_config: strategy,
+      sim_params: simParams,
+    }),
+  }).then(r => r.json());
+  if (!res.ok) throw new Error(`[${pair}] ${res.error || 'APIエラー'}`);
+  return res;
+}
+
+/* ---------- メインエントリーポイント（複数ペア対応） ---------- */
 let _lastTrades   = [];
 let _lastOhlcv    = [];
 let _lastMetrics  = null;
+let _multiResults = {};
 
 async function runBacktest() {
   hideErr();
+
+  const pairs = getSelectedPairs();
+  if (!pairs.length) { showErr('通貨ペアを1つ以上選択してください'); return; }
 
   let strategy;
   try { strategy = buildStrategyConfig(); }
   catch(e) { showErr(e.message); return; }
 
-  const pair      = document.getElementById('pair').value;
   const timeframe = document.getElementById('timeframe').value;
   const limit     = parseInt(document.getElementById('limit').value, 10);
   const simParams = {
@@ -906,42 +947,175 @@ async function runBacktest() {
   document.getElementById('btn-run').disabled = true;
   document.getElementById('run-status').textContent = '';
   document.getElementById('result-wrap').classList.remove('show');
-  showOverlay('バックテスト実行中...', 'しばらくお待ちください');
 
-  try {
-    /* ---- バックテスト実行（PHP proxy 経由） ---- */
-    const btRes = await fetch('/admin/api.php', {
-      method:  'POST',
-      headers: {'Content-Type':'application/json'},
-      body:    JSON.stringify({
-        action: 'bt_v2',
-        pair, timeframe, limit,
-        strategy_config: strategy,
-        sim_params: simParams,
-      }),
-    }).then(r => r.json());
-
-    if (!btRes.ok) throw new Error(btRes.error || 'バックテストAPIエラー');
-
-    _lastTrades  = btRes.trades  || [];
-    _lastMetrics = btRes.metrics || {};
-    _lastOhlcv   = btRes.ohlcv   || [];
-
-    hideOverlay();
-    document.getElementById('btn-run').disabled = false;
-
-    renderMetrics(btRes.metrics, btRes.bars_used);
-    renderChart(_lastOhlcv, btRes.chart_data || {});
-    renderTrades(_lastTrades);
-
-    document.getElementById('result-wrap').classList.add('show');
-    document.getElementById('result-wrap').scrollIntoView({behavior:'smooth', block:'start'});
-
-  } catch(e) {
-    hideOverlay();
-    document.getElementById('btn-run').disabled = false;
-    showErr(e.message);
+  /* ---- 各ペアを順次実行 ---- */
+  const results = {};
+  for (let i = 0; i < pairs.length; i++) {
+    const pair = pairs[i];
+    showOverlay('バックテスト実行中...', `${pair} (${i + 1} / ${pairs.length})`);
+    try {
+      results[pair] = await fetchOnePair(pair, timeframe, limit, strategy, simParams);
+    } catch(e) {
+      hideOverlay();
+      document.getElementById('btn-run').disabled = false;
+      showErr(e.message);
+      return;
+    }
   }
+
+  hideOverlay();
+  document.getElementById('btn-run').disabled = false;
+
+  if (pairs.length === 1) {
+    const r = results[pairs[0]];
+    _lastTrades  = r.trades  || [];
+    _lastMetrics = r.metrics || {};
+    _lastOhlcv   = r.ohlcv   || [];
+    renderMetrics(r.metrics, r.bars_used);
+    renderChart(_lastOhlcv, r.chart_data || {});
+    renderTrades(_lastTrades);
+  } else {
+    _multiResults = results;
+    renderMultiPairResults(results, timeframe);
+  }
+
+  document.getElementById('result-wrap').classList.add('show');
+  document.getElementById('result-wrap').scrollIntoView({behavior:'smooth', block:'start'});
+}
+
+/* ---------- 複数ペア比較レンダリング ---------- */
+function renderMultiPairResults(results, timeframe) {
+  const pairs = Object.keys(results);
+  const m = pair => results[pair].metrics || {};
+
+  const fmtF = (v, d=2)  => v == null ? '-' : (isFinite(v) ? v.toFixed(d) : '∞');
+  const fmtS = (v, unit, d=1) => v == null ? '-' : (v >= 0 ? '+' : '') + v.toFixed(d) + unit;
+  const clsPN = v => v != null && v >= 0 ? 'style="color:#4ade80"' : 'style="color:#f87171"';
+  const clsPF = v => v == null || v < 1   ? 'style="color:#f87171"' : 'style="color:#4ade80"';
+  const clsWR = v => v != null && v >= 0.5 ? 'style="color:#4ade80"' : 'style="color:#f87171"';
+
+  const ROWS = [
+    { l:'総取引数',   f: p => m(p).total_trades + '回',       c: null },
+    { l:'勝率',       f: p => m(p).win_rate != null ? (m(p).win_rate*100).toFixed(1)+'%' : '-', c: p => clsWR(m(p).win_rate) },
+    { l:'PF',        f: p => fmtF(m(p).profit_factor),       c: p => clsPF(m(p).profit_factor) },
+    { l:'期待値',     f: p => fmtS(m(p).expectancy_pips,'p'), c: p => clsPN(m(p).expectancy_pips) },
+    { l:'純損益',     f: p => fmtS(m(p).net_profit_pips,'p'),c: p => clsPN(m(p).net_profit_pips) },
+    { l:'最大DD',     f: p => m(p).max_drawdown_pips != null ? m(p).max_drawdown_pips.toFixed(1)+'p' : '-', c: () => 'style="color:#fbbf24"' },
+    { l:'平均RR',     f: p => fmtF(m(p).avg_rr),             c: null },
+    { l:'最大連勝',   f: p => m(p).max_win_streak + '連',    c: null },
+    { l:'最大連敗',   f: p => m(p).max_loss_streak + '連',   c: null },
+    { l:'平均保有',   f: p => m(p).avg_holding_bars != null ? m(p).avg_holding_bars.toFixed(1)+'bar' : '-', c: null },
+    { l:'L勝率',      f: p => m(p).long_win_rate  != null ? (m(p).long_win_rate*100).toFixed(1)+'%' : '-',  c: p => clsWR(m(p).long_win_rate) },
+    { l:'S勝率',      f: p => m(p).short_win_rate != null ? (m(p).short_win_rate*100).toFixed(1)+'%' : '-', c: p => clsWR(m(p).short_win_rate) },
+  ];
+
+  const th = pairs.map(p => `<th>${p}</th>`).join('');
+  const tbody = ROWS.map(row => {
+    const cells = pairs.map(p => {
+      const cls = row.c ? row.c(p) : '';
+      return `<td ${cls}>${row.f(p)}</td>`;
+    }).join('');
+    return `<tr><td>${row.l}</td>${cells}</tr>`;
+  }).join('');
+
+  document.getElementById('section-metrics').innerHTML = `
+    <div class="form-card">
+      <h3>通貨ペア比較（${timeframe}）</h3>
+      <div class="compare-tbl-wrap">
+        <table class="compare-tbl">
+          <thead><tr><th>指標</th>${th}</tr></thead>
+          <tbody>${tbody}</tbody>
+        </table>
+      </div>
+    </div>`;
+
+  /* ---- チャート（タブ切り替え） ---- */
+  const chartTabs = pairs.map((p,i) =>
+    `<button class="pair-tab ${i===0?'active':''}" onclick="switchChartPair('${p}',this)">${p}</button>`
+  ).join('');
+  document.getElementById('section-chart').innerHTML = `
+    <div class="chart-card">
+      <h3>チャート（ローソク足 + トレードシグナル）</h3>
+      <div class="pair-tabs" id="chart-tabs">${chartTabs}</div>
+      <div id="tv-chart"></div>
+    </div>`;
+  const r0 = results[pairs[0]];
+  renderChart(r0.ohlcv || [], r0.chart_data || {});
+
+  /* ---- トレードログ（タブ切り替え） ---- */
+  const tradeTabs = pairs.map((p,i) =>
+    `<button class="pair-tab ${i===0?'active':''}" onclick="switchTradePair('${p}',this)">${p}</button>`
+  ).join('');
+  document.getElementById('section-trades').innerHTML = `
+    <div class="table-card">
+      <h3>トレードログ</h3>
+      <div class="pair-tabs" id="trade-tabs">${tradeTabs}</div>
+      <div id="trade-tab-content"></div>
+    </div>`;
+  renderTradesTo(r0.trades || [], document.getElementById('trade-tab-content'));
+}
+
+/* ---------- チャートタブ切り替え ---------- */
+function switchChartPair(pair, btn) {
+  btn.closest('.pair-tabs').querySelectorAll('.pair-tab').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  const r = _multiResults[pair];
+  if (r) renderChart(r.ohlcv || [], r.chart_data || {});
+}
+
+/* ---------- トレードタブ切り替え ---------- */
+function switchTradePair(pair, btn) {
+  btn.closest('.pair-tabs').querySelectorAll('.pair-tab').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  const r = _multiResults[pair];
+  if (r) renderTradesTo(r.trades || [], document.getElementById('trade-tab-content'));
+}
+
+/* ---------- トレードテーブルを任意コンテナに描画 ---------- */
+function renderTradesTo(trades, container) {
+  if (!container) return;
+  if (!trades.length) {
+    container.innerHTML = '<div style="color:#64748b;font-size:13px;padding:8px 0">取引なし</div>';
+    return;
+  }
+  const reasonBadge = r => {
+    const map = { TP:'bdg-tp', SL:'bdg-sl', TRAILING_SL:'bdg-tsl', END_OF_DATA:'bdg-eod' };
+    const lbl = { TP:'TP', SL:'SL', TRAILING_SL:'TSL', END_OF_DATA:'EOD' };
+    return `<span class="bdg ${map[r]||''}">${lbl[r]||r}</span>`;
+  };
+  const fmt = v => parseFloat(v).toFixed(3);
+  const fmtPips = v => (v >= 0 ? '+' : '') + parseFloat(v).toFixed(1);
+  const rows = trades.map((t, i) => {
+    const dirBdg = t.direction === 'BUY'
+      ? '<span class="bdg bdg-buy">BUY</span>'
+      : '<span class="bdg bdg-sell">SELL</span>';
+    const pnlCls = t.pnl_pips >= 0 ? 'style="color:#4ade80"' : 'style="color:#f87171"';
+    return `<tr>
+      <td style="color:#64748b">${i+1}</td>
+      <td>${dirBdg}</td>
+      <td>${t.entry_time.replace('T',' ').slice(0,16)}</td>
+      <td>${fmt(t.entry_price)}</td>
+      <td>${fmt(t.sl_price)}</td>
+      <td>${fmt(t.tp_price)}</td>
+      <td>${t.exit_time.replace('T',' ').slice(0,16)}</td>
+      <td>${fmt(t.exit_price)}</td>
+      <td>${reasonBadge(t.exit_reason)}</td>
+      <td ${pnlCls}>${fmtPips(t.pnl_pips)}p</td>
+      <td ${pnlCls}>${(t.pnl_currency >= 0 ? '+' : '')}${Math.round(t.pnl_currency).toLocaleString()}円</td>
+      <td style="color:#64748b">${Math.round(t.running_capital).toLocaleString()}円</td>
+    </tr>`;
+  }).join('');
+  container.innerHTML = `
+    <div class="tbl-wrap">
+      <table class="trade-tbl">
+        <thead><tr>
+          <th>#</th><th>方向</th><th>エントリー時刻</th><th>EP</th>
+          <th>SL</th><th>TP</th><th>クローズ時刻</th><th>XP</th>
+          <th>決済理由</th><th>pips</th><th>損益</th><th>残高</th>
+        </tr></thead>
+        <tbody>${rows}</tbody>
+      </table>
+    </div>`;
 }
 
 /* ---------- オーバーレイ / エラー ---------- */
@@ -1000,56 +1174,12 @@ function ms(label, val, cls) {
 }
 
 function renderTrades(trades) {
-  if (!trades.length) {
-    document.getElementById('section-trades').innerHTML =
-      '<div class="table-card"><h3>トレードログ</h3><div style="color:#64748b;font-size:13px">取引なし</div></div>';
-    return;
-  }
-
-  const reasonBadge = r => {
-    const map = { TP:'bdg-tp', SL:'bdg-sl', TRAILING_SL:'bdg-tsl', END_OF_DATA:'bdg-eod' };
-    const lbl = { TP:'TP', SL:'SL', TRAILING_SL:'TSL', END_OF_DATA:'EOD' };
-    return `<span class="bdg ${map[r]||''}">${lbl[r]||r}</span>`;
-  };
-
-  const fmt = v => parseFloat(v).toFixed(3);
-  const fmtPips = v => (v >= 0 ? '+' : '') + parseFloat(v).toFixed(1);
-
-  const rows = trades.map((t, i) => {
-    const dirBdg = t.direction === 'BUY'
-      ? '<span class="bdg bdg-buy">BUY</span>'
-      : '<span class="bdg bdg-sell">SELL</span>';
-    const pnlCls = t.pnl_pips >= 0 ? 'style="color:#4ade80"' : 'style="color:#f87171"';
-    return `<tr>
-      <td style="color:#64748b">${i+1}</td>
-      <td>${dirBdg}</td>
-      <td>${t.entry_time.replace('T',' ').slice(0,16)}</td>
-      <td>${fmt(t.entry_price)}</td>
-      <td>${fmt(t.sl_price)}</td>
-      <td>${fmt(t.tp_price)}</td>
-      <td>${t.exit_time.replace('T',' ').slice(0,16)}</td>
-      <td>${fmt(t.exit_price)}</td>
-      <td>${reasonBadge(t.exit_reason)}</td>
-      <td ${pnlCls}>${fmtPips(t.pnl_pips)}p</td>
-      <td ${pnlCls}>${(t.pnl_currency >= 0 ? '+' : '')}${Math.round(t.pnl_currency).toLocaleString()}円</td>
-      <td style="color:#64748b">${Math.round(t.running_capital).toLocaleString()}円</td>
-    </tr>`;
-  }).join('');
-
   document.getElementById('section-trades').innerHTML = `
     <div class="table-card">
       <h3>トレードログ（${trades.length}件）</h3>
-      <div class="tbl-wrap">
-        <table class="trade-tbl">
-          <thead><tr>
-            <th>#</th><th>方向</th><th>エントリー時刻</th><th>EP</th>
-            <th>SL</th><th>TP</th><th>クローズ時刻</th><th>XP</th>
-            <th>決済理由</th><th>pips</th><th>損益</th><th>残高</th>
-          </tr></thead>
-          <tbody>${rows}</tbody>
-        </table>
-      </div>
+      <div id="trade-tab-content"></div>
     </div>`;
+  renderTradesTo(trades, document.getElementById('trade-tab-content'));
 }
 </script>
 
