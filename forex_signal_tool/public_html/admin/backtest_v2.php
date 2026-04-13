@@ -111,6 +111,19 @@ h2{font-size:20px;font-weight:700;color:#f1f5f9;margin-bottom:6px}
 .trade-tbl tr.clickable:hover td{background:rgba(59,130,246,.08)!important}
 #equity-chart{width:100%;height:130px}
 
+/* ===== optimization ===== */
+.opt-row{background:#0f172a;border:1px solid #334155;border-radius:9px;padding:12px 14px;display:grid;grid-template-columns:1fr 1fr 80px 80px 80px auto;gap:10px;align-items:end}
+.opt-result-tbl{width:100%;border-collapse:collapse;font-size:12px}
+.opt-result-tbl th{background:#0f172a;color:#64748b;padding:9px 12px;border-bottom:2px solid #334155;white-space:nowrap;text-align:center}
+.opt-result-tbl th:first-child,.opt-result-tbl td:first-child{text-align:left}
+.opt-result-tbl td{padding:8px 12px;border-bottom:1px solid #1e293b;color:#cbd5e1;text-align:center}
+.opt-result-tbl tr:hover td{background:rgba(255,255,255,.03)}
+.rank-1 td{background:rgba(250,204,21,.06)!important}
+.rank-2 td{background:rgba(148,163,184,.04)!important}
+.rank-3 td{background:rgba(180,120,60,.04)!important}
+.opt-apply-btn{background:#1e3a5f;border:1px solid #3b82f6;color:#60a5fa;border-radius:5px;padding:4px 10px;font-size:11px;font-weight:600;cursor:pointer;white-space:nowrap;transition:background .15s}
+.opt-apply-btn:hover{background:#1e40af}
+
 /* ===== action buttons ===== */
 .actions{display:flex;gap:12px;align-items:center;margin-top:8px}
 .btn-run{background:#3b82f6;color:#fff;border:none;border-radius:9px;padding:12px 32px;font-size:14px;font-weight:600;cursor:pointer;transition:background .2s}
@@ -458,6 +471,46 @@ h2{font-size:20px;font-weight:700;color:#f1f5f9;margin-bottom:6px}
     <!-- 10f trade table -->
     <div id="section-trades"></div>
   </div>
+
+  <!-- 最適化設定 -->
+  <div class="form-card" id="section-optimize" style="display:none">
+    <h3>最適化設定（グリッドサーチ）</h3>
+
+    <div class="form-row col3" style="margin-bottom:14px">
+      <div class="form-group">
+        <label>最適化指標</label>
+        <select id="opt-objective">
+          <option value="profit_factor">プロフィットファクター（PF）</option>
+          <option value="win_rate">勝率</option>
+          <option value="expectancy_pips">期待値 (pips)</option>
+          <option value="net_profit_pips">純損益 (pips)</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>上位表示件数</label>
+        <input type="number" id="opt-top-n" value="20" min="5" max="100" step="5">
+      </div>
+      <div class="form-group">
+        <label>最大組み合わせ数</label>
+        <input type="number" id="opt-max-combos" value="200" min="10" max="500" step="10">
+        <div class="form-hint">上限超過時はエラーになります</div>
+      </div>
+    </div>
+
+    <div style="font-size:12px;font-weight:600;color:#94a3b8;margin-bottom:10px">最適化対象パラメータ</div>
+    <div class="cond-list" id="opt-target-list"></div>
+    <button class="btn-add-cond" onclick="addOptTarget()">＋ 最適化対象を追加</button>
+
+    <div class="actions" style="margin-top:16px">
+      <button class="btn-run" id="btn-optimize" onclick="runOptimize()" style="background:#7c3aed">最適化実行</button>
+      <span id="opt-status" style="font-size:13px;color:#64748b"></span>
+    </div>
+  </div>
+
+  <!-- 最適化結果 -->
+  <div class="result-wrap" id="opt-result-wrap">
+    <div id="section-opt-result"></div>
+  </div>
 </main>
 
 <script>
@@ -525,6 +578,214 @@ function buildTrailingConfig() {
     type:       enabled ? 'fixedTrailing' : null,
     trail_pips: enabled ? parseFloat(document.getElementById('trail_pips').value) : null,
   };
+}
+
+/* =====================================================================
+   最適化 UI
+   ===================================================================== */
+let _optSeq = 0;
+
+/* 現在の条件 ID リストを取得 */
+function getConditionIds() {
+  return [...document.querySelectorAll('#cond-list .cond-row')].map(r => r.dataset.id);
+}
+
+/* 最適化対象行を追加 */
+function addOptTarget() {
+  const ids = getConditionIds();
+  if (!ids.length) { alert('先にエントリー条件を追加してください'); return; }
+  const id = 'opt-' + (++_optSeq);
+  const row = document.createElement('div');
+  row.className = 'opt-row';
+  row.id = id;
+  const idOpts = ids.map(c => `<option value="${c}">${c}</option>`).join('');
+  row.innerHTML = `
+    <div class="form-group">
+      <label>条件 ID</label>
+      <select id="${id}-cid">${idOpts}</select>
+    </div>
+    <div class="form-group">
+      <label>パラメータ名</label>
+      <input type="text" id="${id}-param" value="period" placeholder="period / fast / slow ...">
+    </div>
+    <div class="form-group">
+      <label>最小値</label>
+      <input type="number" id="${id}-min" value="5" min="1" step="1">
+    </div>
+    <div class="form-group">
+      <label>最大値</label>
+      <input type="number" id="${id}-max" value="30" min="1" step="1">
+    </div>
+    <div class="form-group">
+      <label>Step</label>
+      <input type="number" id="${id}-step" value="5" min="1" step="1">
+    </div>
+    <div>
+      <label style="visibility:hidden">削除</label>
+      <button class="btn-del-cond" onclick="this.closest('.opt-row').remove()">✕</button>
+    </div>`;
+  document.getElementById('opt-target-list').appendChild(row);
+}
+
+/* 最適化設定オブジェクト構築 */
+function buildOptimizeConfig() {
+  const rows = document.querySelectorAll('#opt-target-list .opt-row');
+  if (!rows.length) throw new Error('最適化対象パラメータを1つ以上追加してください');
+  const targets = [...rows].map(row => {
+    const id = row.id;
+    return {
+      condition_id: document.getElementById(id + '-cid').value,
+      param:        document.getElementById(id + '-param').value.trim(),
+      range:        [
+        parseFloat(document.getElementById(id + '-min').value),
+        parseFloat(document.getElementById(id + '-max').value),
+      ],
+      step: parseFloat(document.getElementById(id + '-step').value),
+    };
+  });
+  return {
+    target_conditions: targets,
+    objective:  document.getElementById('opt-objective').value,
+    top_n:      parseInt(document.getElementById('opt-top-n').value, 10),
+    max_combos: parseInt(document.getElementById('opt-max-combos').value, 10),
+  };
+}
+
+/* 最適化結果にパラメータを適用 */
+function applyOptParams(paramsJson) {
+  const params = JSON.parse(paramsJson);
+  document.querySelectorAll('#cond-list .cond-row').forEach(row => {
+    const condId = row.dataset.id;
+    Object.entries(params).forEach(([key, val]) => {
+      // key = "c1.period" 形式
+      const [pid, pname] = key.split('.');
+      if (pid !== condId) return;
+      const el = row.querySelector(`[id$="-p-${pname}"]`);
+      if (el) { el.value = val; }
+    });
+  });
+}
+
+/* 最適化実行 */
+async function runOptimize() {
+  hideErr();
+  let optCfg, strategy;
+  try {
+    optCfg   = buildOptimizeConfig();
+    strategy = buildStrategyConfig();
+  } catch(e) { showErr(e.message); return; }
+
+  const pairs = getSelectedPairs();
+  const pair  = pairs[0] || 'USDJPY';
+
+  const payload = {
+    action:           'bt_optimize',
+    pair,
+    timeframe:        document.getElementById('timeframe').value,
+    limit:            parseInt(document.getElementById('limit').value, 10),
+    strategy_config:  strategy,
+    sim_params: {
+      initial_capital:  parseFloat(document.getElementById('initial_capital').value),
+      pip_value:        parseFloat(document.getElementById('pip_value').value),
+      max_bars_to_exit: parseInt(document.getElementById('max_bars_to_exit').value, 10),
+    },
+    optimize_config: optCfg,
+  };
+
+  document.getElementById('btn-optimize').disabled = true;
+  document.getElementById('opt-status').textContent = '最適化中...';
+  document.getElementById('opt-result-wrap').classList.remove('show');
+  showOverlay('最適化実行中...', `グリッドサーチ中（最大 ${optCfg.max_combos} 組み合わせ）`);
+
+  try {
+    const res = await fetch('/admin/api.php', {
+      method:  'POST',
+      headers: {'Content-Type':'application/json'},
+      body:    JSON.stringify(payload),
+    }).then(r => r.json());
+
+    hideOverlay();
+    document.getElementById('btn-optimize').disabled = false;
+
+    if (!res.ok) {
+      document.getElementById('opt-status').textContent = '❌ ' + (res.error || 'エラー');
+      showErr(res.error || '最適化エラー');
+      return;
+    }
+
+    document.getElementById('opt-status').textContent =
+      `✅ 完了 (${res.total_combinations} 組み合わせ / ${(res.results || []).length} 件表示)`;
+
+    renderOptResults(res);
+    document.getElementById('opt-result-wrap').classList.add('show');
+    document.getElementById('opt-result-wrap').scrollIntoView({behavior:'smooth', block:'start'});
+
+  } catch(e) {
+    hideOverlay();
+    document.getElementById('btn-optimize').disabled = false;
+    document.getElementById('opt-status').textContent = '❌ エラー';
+    showErr(e.message);
+  }
+}
+
+/* 最適化結果テーブル描画 */
+function renderOptResults(res) {
+  const results  = res.results || [];
+  const objLabel = {
+    profit_factor:   'PF',
+    win_rate:        '勝率',
+    expectancy_pips: '期待値',
+    net_profit_pips: '純損益',
+  }[res.objective] || res.objective;
+
+  if (!results.length) {
+    document.getElementById('section-opt-result').innerHTML =
+      '<div class="form-card"><h3>最適化結果</h3><div style="color:#64748b;font-size:13px">有効な結果がありません</div></div>';
+    return;
+  }
+
+  // パラメータのキー一覧
+  const paramKeys = Object.keys(results[0].params || {});
+
+  const fmtPF = v => v == null ? '-' : (isFinite(v) ? v.toFixed(2) : '∞');
+  const fmtWR = v => v == null ? '-' : (v * 100).toFixed(1) + '%';
+  const fmtP  = v => v == null ? '-' : (v >= 0 ? '+' : '') + v.toFixed(1) + 'p';
+
+  const clsPF = v => v != null && v >= 1    ? 'style="color:#4ade80"' : 'style="color:#f87171"';
+  const clsWR = v => v != null && v >= 0.5  ? 'style="color:#4ade80"' : 'style="color:#f87171"';
+  const clsPN = v => v != null && v >= 0    ? 'style="color:#4ade80"' : 'style="color:#f87171"';
+
+  const paramThs = paramKeys.map(k => `<th>${k}</th>`).join('');
+  const rows = results.map((r, i) => {
+    const rankCls = i === 0 ? 'rank-1' : i === 1 ? 'rank-2' : i === 2 ? 'rank-3' : '';
+    const paramCells = paramKeys.map(k => `<td><strong>${r.params[k] ?? '-'}</strong></td>`).join('');
+    const paramsJson = JSON.stringify(r.params).replace(/"/g, '&quot;');
+    return `<tr class="${rankCls}">
+      <td style="color:#64748b">${i+1}</td>
+      ${paramCells}
+      <td>${r.total_trades}</td>
+      <td ${clsWR(r.win_rate)}>${fmtWR(r.win_rate)}</td>
+      <td ${clsPF(r.profit_factor)}>${fmtPF(r.profit_factor)}</td>
+      <td ${clsPN(r.expectancy_pips)}>${fmtP(r.expectancy_pips)}</td>
+      <td ${clsPN(r.net_profit_pips)}>${fmtP(r.net_profit_pips)}</td>
+      <td ${clsPN(r.max_drawdown_pips ? -r.max_drawdown_pips : null)}>${r.max_drawdown_pips != null ? r.max_drawdown_pips.toFixed(1) + 'p' : '-'}</td>
+      <td><button class="opt-apply-btn" onclick="applyOptParams('${paramsJson}')">適用</button></td>
+    </tr>`;
+  }).join('');
+
+  document.getElementById('section-opt-result').innerHTML = `
+    <div class="form-card">
+      <h3>最適化結果（${res.pair} ${res.timeframe} / ${res.total_combinations} 組み合わせ / 最適化指標: ${objLabel}）</h3>
+      <div class="tbl-wrap">
+        <table class="opt-result-tbl">
+          <thead><tr>
+            <th>#</th>${paramThs}
+            <th>取引数</th><th>勝率</th><th>PF</th><th>期待値</th><th>純損益</th><th>最大DD</th><th>適用</th>
+          </tr></thead>
+          <tbody>${rows}</tbody>
+        </table>
+      </div>
+    </div>`;
 }
 
 /* =====================================================================
@@ -748,6 +1009,7 @@ function onCmpIndChange(rowId) {
 function updateActions() {
   const hasCond = document.querySelectorAll('#cond-list .cond-row').length > 0;
   document.getElementById('section-actions').style.display = hasCond ? 'flex' : 'none';
+  document.getElementById('section-optimize').style.display = hasCond ? 'block' : 'none';
 }
 
 /* ---------- 条件 → StrategyCondition オブジェクト ---------- */

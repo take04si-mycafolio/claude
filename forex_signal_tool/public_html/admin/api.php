@@ -227,6 +227,27 @@ switch ($action) {
         json_out($result);
         break;
 
+    // ---- Phase 1 グリッドサーチ最適化 ----
+    case 'bt_optimize':
+        require_login();
+
+        $paramsFile = '/tmp/forex_bt_opt_params.json';
+        file_put_contents($paramsFile, json_encode($body, JSON_UNESCAPED_UNICODE));
+
+        $py     = escapeshellarg(PYTHON_BIN);
+        $script = escapeshellarg(TASKS_DIR . '/run_optimize.py');
+        $pfile  = escapeshellarg($paramsFile);
+
+        exec("{$py} {$script} {$pfile} 2>&1", $lines, $ret);
+        $raw = implode('', $lines);
+
+        $result = json_decode($raw, true);
+        if ($result === null) {
+            json_out(['ok' => false, 'error' => 'Pythonスクリプト実行エラー', 'detail' => $raw]);
+        }
+        json_out($result);
+        break;
+
     case 'bt_status':
         require_login();
         if (!file_exists(BT_RESULT)) {
