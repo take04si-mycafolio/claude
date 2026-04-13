@@ -76,17 +76,16 @@ tr.trade-row.sim-active td{background:rgba(59,130,246,.10)!important}
 
 <main class="app-main">
 
-  <!-- パンくずリスト -->
-  <nav class="ind-breadcrumb" aria-label="breadcrumb">
-    <a href="/">ホーム</a>
-    <i class="bi bi-chevron-right"></i>
-    <a href="/{{ category_slug }}/">{{ info.category }}</a>
-    <i class="bi bi-chevron-right"></i>
-    <span>{{ info.display }}</span>
-  </nav>
-
   <!-- ヒーローヘッダー -->
   <div class="ind-hero">
+    <!-- パンくずリスト -->
+    <nav class="ind-breadcrumb" aria-label="breadcrumb">
+      <a href="/">ホーム</a>
+      <i class="bi bi-chevron-right"></i>
+      <a href="/{{ category_slug }}/">{{ info.category }}</a>
+      <i class="bi bi-chevron-right"></i>
+      <span class="ind-breadcrumb-current">{{ info.display }}</span>
+    </nav>
     <div class="ind-category-badge">{{ info.category }}</div>
     <h1 class="ind-title">{{ info.display }}</h1>
     {% if best_by_pair %}

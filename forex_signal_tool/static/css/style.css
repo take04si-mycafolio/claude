@@ -687,18 +687,23 @@ body {
   display: flex;
   align-items: center;
   gap: 6px;
-  padding: 10px 16px;
-  font-size: 0.72rem;
-  color: #94a3b8;
+  margin-bottom: 12px;
+  font-size: 11px;
+  color: #64748b;
+  flex-wrap: nowrap;
+  overflow: hidden;
 }
-.ind-breadcrumb a { color: #3b82f6; text-decoration: none; }
-.ind-breadcrumb i { font-size: 0.65rem; }
+.ind-breadcrumb a { color: #64748b; text-decoration: none; white-space: nowrap; flex-shrink: 0; }
+.ind-breadcrumb a:hover { color: #94a3b8; }
+.ind-breadcrumb i { font-size: 9px; flex-shrink: 0; }
+.ind-breadcrumb-current { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
 
 /* ヒーローセクション */
 .ind-hero {
-  background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+  background: linear-gradient(135deg, #0f172a 0%, #1a2540 100%);
+  border-bottom: 1px solid #1e293b;
   color: #fff;
-  padding: 20px 16px;
+  padding: 20px 16px 22px;
   text-align: center;
 }
 .ind-category-badge {
