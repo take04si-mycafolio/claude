@@ -756,22 +756,23 @@ async function runBacktest() {
   showOverlay('バックテスト実行中...', 'しばらくお待ちください');
 
   try {
-    /* ---- バックテスト実行 ---- */
-    const btRes = await fetch('/api/v2/backtest', {
+    /* ---- バックテスト実行（PHP proxy 経由） ---- */
+    const btRes = await fetch('/admin/api.php', {
       method:  'POST',
       headers: {'Content-Type':'application/json'},
-      body:    JSON.stringify({ pair, timeframe, limit, strategy_config: strategy, sim_params: simParams }),
+      body:    JSON.stringify({
+        action: 'bt_v2',
+        pair, timeframe, limit,
+        strategy_config: strategy,
+        sim_params: simParams,
+      }),
     }).then(r => r.json());
 
     if (!btRes.ok) throw new Error(btRes.error || 'バックテストAPIエラー');
 
-    /* ---- OHLCV 取得（チャート用） ---- */
-    const ohlcvRes = await fetch(`/api/prices/${pair}/${timeframe}?limit=${limit}`)
-      .then(r => r.json());
-
     _lastTrades  = btRes.trades  || [];
     _lastMetrics = btRes.metrics || {};
-    _lastOhlcv   = Array.isArray(ohlcvRes) ? ohlcvRes : [];
+    _lastOhlcv   = btRes.ohlcv   || [];
 
     hideOverlay();
     document.getElementById('btn-run').disabled = false;

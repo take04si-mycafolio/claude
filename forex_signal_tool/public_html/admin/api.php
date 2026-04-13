@@ -206,6 +206,27 @@ switch ($action) {
         json_out(['status' => 'started', 'message' => 'バックテストを開始しました']);
         break;
 
+    // ---- Phase 1 マルチ条件バックテスト ----
+    case 'bt_v2':
+        require_login();
+
+        $paramsFile = '/tmp/forex_bt_v2_params.json';
+        file_put_contents($paramsFile, json_encode($body, JSON_UNESCAPED_UNICODE));
+
+        $py     = escapeshellarg(PYTHON_BIN);
+        $script = escapeshellarg(TASKS_DIR . '/run_backtest_v2.py');
+        $pfile  = escapeshellarg($paramsFile);
+
+        exec("{$py} {$script} {$pfile} 2>&1", $lines, $ret);
+        $raw = implode('', $lines);
+
+        $result = json_decode($raw, true);
+        if ($result === null) {
+            json_out(['ok' => false, 'error' => 'Pythonスクリプト実行エラー', 'detail' => $raw]);
+        }
+        json_out($result);
+        break;
+
     case 'bt_status':
         require_login();
         if (!file_exists(BT_RESULT)) {
