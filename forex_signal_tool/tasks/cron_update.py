@@ -34,12 +34,14 @@ def main():
     now = datetime.now(timezone.utc).strftime("%Y/%m/%d %H:%M UTC")
     logger.info("========== cron_update 開始 %s ==========", now)
 
-    # ---- 1. データ取得 ----
+    # ---- 1. データ取得（短期足のみ・日足は fetch_daily.py が担当）----
     try:
         from app.services.data_fetcher import fetch_and_store_all
+        from app.config import Config
+        intraday_tfs = [tf for tf in Config.TIMEFRAMES if tf != "daily"]
         with app.app_context():
-            logger.info("--- データ取得 開始 ---")
-            results = fetch_and_store_all()
+            logger.info("--- データ取得 開始（短期足: %s）---", intraday_tfs)
+            results = fetch_and_store_all(timeframes=intraday_tfs)
             total = sum(v for tf_r in results.values() for v in tf_r.values())
             now_str = datetime.now(timezone.utc).strftime("%Y/%m/%d %H:%M UTC")
             Setting.set("last_data_fetch_at", now_str)
