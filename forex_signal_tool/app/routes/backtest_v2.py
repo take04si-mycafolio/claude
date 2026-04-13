@@ -46,6 +46,15 @@ bp = Blueprint("backtest_v2", __name__)
 @bp.route("/v2/backtest", methods=["POST"])
 def run_backtest_v2():
     """Phase 1 マルチ条件バックテストを実行して結果を返す。"""
+    try:
+        return _run_backtest_v2_inner()
+    except Exception as exc:
+        import traceback
+        return jsonify({"ok": False, "error": str(exc),
+                        "detail": traceback.format_exc()}), 500
+
+
+def _run_backtest_v2_inner():
     from app.services.data_fetcher import get_candles
     from app.services.backtest_engine import run_backtest
     from app.services.metrics_calculator import calculate_metrics

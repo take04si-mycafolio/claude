@@ -29,8 +29,7 @@ metricsCalculator / tradeLogBuilder）がここからインポートする。
 
 from __future__ import annotations
 
-from typing import List, Literal, Optional
-from typing_extensions import TypedDict
+from typing import List, Literal, Optional, TypedDict
 
 
 # ---------------------------------------------------------------------------
