@@ -105,6 +105,12 @@ h2{font-size:20px;font-weight:700;color:#f1f5f9;margin-bottom:6px}
 .compare-tbl td:first-child{color:#64748b;font-size:11px;font-weight:600;text-align:left;text-transform:uppercase;letter-spacing:.3px}
 .compare-tbl tr:hover td{background:rgba(255,255,255,.02)}
 
+/* ===== trade log analysis ===== */
+.reason-tag{display:inline-block;background:#1e3a5f;color:#93c5fd;border-radius:3px;padding:1px 5px;font-size:10px;font-weight:600;margin:1px}
+.trade-tbl tr.clickable{cursor:pointer}
+.trade-tbl tr.clickable:hover td{background:rgba(59,130,246,.08)!important}
+#equity-chart{width:100%;height:130px}
+
 /* ===== action buttons ===== */
 .actions{display:flex;gap:12px;align-items:center;margin-top:8px}
 .btn-run{background:#3b82f6;color:#fff;border:none;border-radius:9px;padding:12px 32px;font-size:14px;font-weight:600;cursor:pointer;transition:background .2s}
@@ -447,7 +453,7 @@ h2{font-size:20px;font-weight:700;color:#f1f5f9;margin-bottom:6px}
   <div class="result-wrap" id="result-wrap">
     <!-- 10f metrics -->
     <div id="section-metrics"></div>
-    <!-- 10g chart -->
+    <!-- 10g chart + equity curve -->
     <div id="section-chart"></div>
     <!-- 10f trade table -->
     <div id="section-trades"></div>
@@ -806,14 +812,26 @@ function buildConditions() {
    ===================================================================== */
 let _lwChart = null;
 let _candleSeries = null;
+let _equityChart  = null;
+let _lastInitialCapital = 1000000;
+let _currentOhlcv = [];
 
 function renderChart(ohlcv, chartData) {
+  _currentOhlcv = ohlcv;
   /* ---- チャートコンテナを描画 ---- */
   document.getElementById('section-chart').innerHTML =
-    '<div class="chart-card"><h3>チャート（ローソク足 + トレードシグナル）</h3><div id="tv-chart"></div></div>';
+    `<div class="chart-card">
+       <h3>チャート（ローソク足 + トレードシグナル）</h3>
+       <div id="tv-chart"></div>
+       <div style="margin-top:14px;border-top:1px solid #1e293b;padding-top:12px">
+         <div style="font-size:11px;color:#64748b;margin-bottom:6px">エクイティカーブ（残高推移）</div>
+         <div id="equity-chart"></div>
+       </div>
+     </div>`;
 
   /* ---- 既存チャートを破棄 ---- */
-  if (_lwChart) { try { _lwChart.remove(); } catch(e){} _lwChart = null; }
+  if (_lwChart)    { try { _lwChart.remove();    } catch(e){} _lwChart    = null; }
+  if (_equityChart){ try { _equityChart.remove(); } catch(e){} _equityChart = null; }
 
   const container = document.getElementById('tv-chart');
   if (!container || !ohlcv.length) return;
@@ -876,6 +894,74 @@ function toChartTime(ts) {
   const s = String(ts).replace(' ', 'T');
   const d = new Date(s.includes('Z') || s.includes('+') ? s : s + 'Z');
   return isNaN(d) ? null : Math.floor(d.getTime() / 1000);
+}
+
+/* ---------- エクイティカーブ描画 ---------- */
+function renderEquityCurve(trades, initialCapital) {
+  const container = document.getElementById('equity-chart');
+  if (!container) return;
+  if (_equityChart) { try { _equityChart.remove(); } catch(e){} _equityChart = null; }
+  if (!trades || !trades.length) return;
+
+  const data = [];
+  // 開始点（初期資金）
+  const firstT = toChartTime(trades[0].entry_time);
+  if (firstT) data.push({ time: firstT - 1, value: initialCapital });
+  // 各トレード決済時点
+  trades.forEach(t => {
+    const tm = toChartTime(t.exit_time);
+    if (tm) data.push({ time: tm, value: t.running_capital });
+  });
+  data.sort((a, b) => a.time - b.time);
+  if (data.length < 2) return;
+
+  _equityChart = LightweightCharts.createChart(container, {
+    width:  container.clientWidth || 900,
+    height: 130,
+    layout:     { background: { color: '#0f172a' }, textColor: '#94a3b8' },
+    grid:       { vertLines: { color: '#1e293b' }, horzLines: { color: '#1e293b' } },
+    rightPriceScale: { borderColor: '#334155' },
+    timeScale:  { borderColor: '#334155', timeVisible: true, secondsVisible: false },
+    handleScroll: false,
+    handleScale:  false,
+    crosshair:  { mode: LightweightCharts.CrosshairMode.Normal },
+  });
+
+  const profitColor = data[data.length-1].value >= initialCapital ? '#4ade80' : '#f87171';
+  const topBg       = data[data.length-1].value >= initialCapital
+    ? 'rgba(74,222,128,0.2)' : 'rgba(248,113,113,0.2)';
+
+  const eq = _equityChart.addAreaSeries({
+    lineColor:   profitColor,
+    topColor:    topBg,
+    bottomColor: 'rgba(15,23,42,0.0)',
+    lineWidth: 2,
+  });
+  eq.setData(data);
+
+  new ResizeObserver(() => {
+    if (_equityChart && container) _equityChart.resize(container.clientWidth, 130);
+  }).observe(container);
+}
+
+/* ---------- トレード行クリック → チャートジャンプ ---------- */
+function jumpToBar(entryTime) {
+  if (!_lwChart) return;
+  const targetT = toChartTime(entryTime);
+  if (!targetT) return;
+  // _currentOhlcv から最近傍バーのインデックスを探す
+  let bestIdx = 0, bestDiff = Infinity;
+  _currentOhlcv.forEach((d, i) => {
+    const t = toChartTime(d.timestamp || d.time || d.date);
+    if (t != null) {
+      const diff = Math.abs(t - targetT);
+      if (diff < bestDiff) { bestDiff = diff; bestIdx = i; }
+    }
+  });
+  _lwChart.timeScale().setVisibleLogicalRange({
+    from: Math.max(0, bestIdx - 50),
+    to:   Math.min(_currentOhlcv.length - 1, bestIdx + 50),
+  });
 }
 
 /* ---------- 初期条件を1つ追加 ---------- */
@@ -971,8 +1057,10 @@ async function runBacktest() {
     _lastTrades  = r.trades  || [];
     _lastMetrics = r.metrics || {};
     _lastOhlcv   = r.ohlcv   || [];
+    _lastInitialCapital = simParams.initial_capital;
     renderMetrics(r.metrics, r.bars_used);
     renderChart(_lastOhlcv, r.chart_data || {});
+    renderEquityCurve(_lastTrades, _lastInitialCapital);
     renderTrades(_lastTrades);
   } else {
     _multiResults = results;
@@ -1041,6 +1129,7 @@ function renderMultiPairResults(results, timeframe) {
     </div>`;
   const r0 = results[pairs[0]];
   renderChart(r0.ohlcv || [], r0.chart_data || {});
+  renderEquityCurve(r0.trades || [], _lastInitialCapital);
 
   /* ---- トレードログ（タブ切り替え） ---- */
   const tradeTabs = pairs.map((p,i) =>
@@ -1060,7 +1149,10 @@ function switchChartPair(pair, btn) {
   btn.closest('.pair-tabs').querySelectorAll('.pair-tab').forEach(b => b.classList.remove('active'));
   btn.classList.add('active');
   const r = _multiResults[pair];
-  if (r) renderChart(r.ohlcv || [], r.chart_data || {});
+  if (r) {
+    renderChart(r.ohlcv || [], r.chart_data || {});
+    renderEquityCurve(r.trades || [], _lastInitialCapital);
+  }
 }
 
 /* ---------- トレードタブ切り替え ---------- */
@@ -1085,12 +1177,16 @@ function renderTradesTo(trades, container) {
   };
   const fmt = v => parseFloat(v).toFixed(3);
   const fmtPips = v => (v >= 0 ? '+' : '') + parseFloat(v).toFixed(1);
+  const reasonTags = reasons => (reasons || [])
+    .map(r => `<span class="reason-tag">${r}</span>`).join('') || '<span style="color:#475569">-</span>';
+
   const rows = trades.map((t, i) => {
     const dirBdg = t.direction === 'BUY'
       ? '<span class="bdg bdg-buy">BUY</span>'
       : '<span class="bdg bdg-sell">SELL</span>';
     const pnlCls = t.pnl_pips >= 0 ? 'style="color:#4ade80"' : 'style="color:#f87171"';
-    return `<tr>
+    const entryEsc = (t.entry_time || '').replace(/'/g, "\\'");
+    return `<tr class="clickable" onclick="jumpToBar('${entryEsc}')">
       <td style="color:#64748b">${i+1}</td>
       <td>${dirBdg}</td>
       <td>${t.entry_time.replace('T',' ').slice(0,16)}</td>
@@ -1103,6 +1199,7 @@ function renderTradesTo(trades, container) {
       <td ${pnlCls}>${fmtPips(t.pnl_pips)}p</td>
       <td ${pnlCls}>${(t.pnl_currency >= 0 ? '+' : '')}${Math.round(t.pnl_currency).toLocaleString()}円</td>
       <td style="color:#64748b">${Math.round(t.running_capital).toLocaleString()}円</td>
+      <td>${reasonTags(t.entry_reasons)}</td>
     </tr>`;
   }).join('');
   container.innerHTML = `
@@ -1111,7 +1208,7 @@ function renderTradesTo(trades, container) {
         <thead><tr>
           <th>#</th><th>方向</th><th>エントリー時刻</th><th>EP</th>
           <th>SL</th><th>TP</th><th>クローズ時刻</th><th>XP</th>
-          <th>決済理由</th><th>pips</th><th>損益</th><th>残高</th>
+          <th>決済理由</th><th>pips</th><th>損益</th><th>残高</th><th>条件ID</th>
         </tr></thead>
         <tbody>${rows}</tbody>
       </table>
