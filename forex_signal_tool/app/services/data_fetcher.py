@@ -231,10 +231,86 @@ def save_price_data(pair: str, timeframe: str, df: pd.DataFrame) -> int:
     return saved
 
 
+def fetch_alphavantage_daily(pair: str) -> Optional[pd.DataFrame]:
+    """
+    Alpha Vantage FX_DAILY API から日足データを取得する。
+    outputsize=full で 20 年以上の正確な OHLCV を返す。
+    無料プラン: 25 リクエスト/日、5 リクエスト/分。
+    """
+    api_key = Config.ALPHA_VANTAGE_API_KEY
+    if not api_key:
+        logger.warning("ALPHA_VANTAGE_API_KEY が未設定です")
+        return None
+
+    from_sym, to_sym = Config.AV_PAIR_MAP.get(pair, (None, None))
+    if not from_sym:
+        logger.error("Alpha Vantage: Unknown pair: %s", pair)
+        return None
+
+    url = Config.ALPHA_VANTAGE_BASE_URL
+    params = {
+        "function":    "FX_DAILY",
+        "from_symbol": from_sym,
+        "to_symbol":   to_sym,
+        "outputsize":  "full",
+        "apikey":      api_key,
+    }
+
+    try:
+        resp = requests.get(url, params=params, timeout=30)
+        resp.raise_for_status()
+        data = resp.json()
+
+        # エラーレスポンス検出
+        if "Error Message" in data:
+            logger.error("Alpha Vantage error: %s", data["Error Message"])
+            return None
+        if "Note" in data:
+            logger.warning("Alpha Vantage rate limit: %s", data["Note"])
+            return None
+        if "Information" in data:
+            logger.warning("Alpha Vantage info: %s", data["Information"])
+            return None
+
+        ts_data = data.get("Time Series FX (Daily)", {})
+        if not ts_data:
+            logger.warning("Alpha Vantage: no time series data for %s", pair)
+            return None
+
+        rows = []
+        for date_str, values in ts_data.items():
+            rows.append({
+                "timestamp": date_str,
+                "open":      float(values["1. open"]),
+                "high":      float(values["2. high"]),
+                "low":       float(values["3. low"]),
+                "close":     float(values["4. close"]),
+                "volume":    0,
+            })
+
+        df = pd.DataFrame(rows)
+        df["timestamp"] = pd.to_datetime(df["timestamp"])
+        df = df.sort_values("timestamp").reset_index(drop=True)
+
+        # タイムゾーンなし（MySQL 用）
+        df["timestamp"] = df["timestamp"].dt.tz_localize(None)
+
+        logger.info("AlphaVantage: %s daily %d rows (%s〜%s)",
+                    pair, len(df),
+                    df["timestamp"].iloc[0].date(),
+                    df["timestamp"].iloc[-1].date())
+        return df
+
+    except Exception as exc:
+        logger.error("Alpha Vantage fetch error for %s: %s", pair, exc)
+        return None
+
+
 def fetch_and_store_all(pairs=None, timeframes=None) -> dict:
     """
     全通貨ペア・タイムフレームのデータを取得してDBに保存する。
-    yfinance を使用。日足は period="max" で最長履歴を取得。
+    日足: Alpha Vantage（正確な OHLCV・長期履歴）
+    その他: yfinance
     """
     if pairs is None:
         pairs = Config.CURRENCY_PAIRS
@@ -247,7 +323,18 @@ def fetch_and_store_all(pairs=None, timeframes=None) -> dict:
         results[pair] = {}
         for tf in timeframes:
             logger.info("Fetching %s %s ...", pair, tf)
-            df = fetch_yfinance(pair, tf)
+
+            if tf == "daily":
+                # 日足は Alpha Vantage を優先（正確な OHLCV）
+                df = fetch_alphavantage_daily(pair)
+                if df is None or df.empty:
+                    logger.warning("Alpha Vantage 失敗、yfinance にフォールバック: %s daily", pair)
+                    df = fetch_yfinance(pair, tf)
+                # Alpha Vantage は 5req/分制限 → ペア間で待機
+                time.sleep(15)
+            else:
+                df = fetch_yfinance(pair, tf)
+
             if df is not None and not df.empty:
                 saved = save_price_data(pair, tf, df)
                 results[pair][tf] = saved
