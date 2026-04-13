@@ -326,6 +326,17 @@ function initCharts() {
     return `${String(d.getUTCMonth()+1).padStart(2,'0')}/${String(d.getUTCDate()).padStart(2,'0')} ${String(d.getUTCHours()).padStart(2,'0')}:${String(d.getUTCMinutes()).padStart(2,'0')}`;
   }
 
+  function jstTickMark(ts, type) {
+    const d = new Date((ts + 32400) * 1000);
+    const mo = String(d.getUTCMonth()+1).padStart(2,'0');
+    const da = String(d.getUTCDate()).padStart(2,'0');
+    const hh = String(d.getUTCHours()).padStart(2,'0');
+    const mi = String(d.getUTCMinutes()).padStart(2,'0');
+    if (type === 0) return String(d.getUTCFullYear());
+    if (type <= 2)  return mo + '/' + da;
+    return hh + ':' + mi;
+  }
+
   const BASE = {
     layout: { background: { color: '#131722' }, textColor: '#94a3b8', fontSize: 11 },
     grid:   { vertLines: { color: '#1a2233' }, horzLines: { color: '#1a2233' } },
@@ -335,7 +346,7 @@ function initCharts() {
       horzLine: { color: '#3b82f6', style: 1, width: 1, labelBackgroundColor: '#1e3a5f' },
     },
     rightPriceScale: { borderColor: '#1a2233', scaleMargins: { top: 0.06, bottom: 0.06 } },
-    timeScale: { borderColor: '#1a2233', timeVisible: true, secondsVisible: false },
+    timeScale: { borderColor: '#1a2233', timeVisible: true, secondsVisible: false, tickMarkFormatter: jstTickMark },
     localization: { timeFormatter: jstFormatter },
     handleScroll: true, handleScale: true,
   };
@@ -557,13 +568,24 @@ document.addEventListener('DOMContentLoaded', () => {
   const TF_SECS = { '5min':300,'15min':900,'30min':1800,'1hr':3600,'4hr':14400,'daily':86400 };
   let mChart=null, mCs=null, cacheKey=null, cacheData=null;
 
-  /* JST フォーマッター（チャート時間軸） */
+  /* JST フォーマッター（クロスヘア tooltip） */
   function jstFmt(ts) {
     const d = new Date((ts + 32400) * 1000);
     return String(d.getUTCMonth()+1).padStart(2,'0') + '/'
          + String(d.getUTCDate()).padStart(2,'0') + ' '
          + String(d.getUTCHours()).padStart(2,'0') + ':'
          + String(d.getUTCMinutes()).padStart(2,'0');
+  }
+  /* JST フォーマッター（時間軸目盛り） */
+  function jstTick(ts, type) {
+    const d = new Date((ts + 32400) * 1000);
+    const mo = String(d.getUTCMonth()+1).padStart(2,'0');
+    const da = String(d.getUTCDate()).padStart(2,'0');
+    const hh = String(d.getUTCHours()).padStart(2,'0');
+    const mi = String(d.getUTCMinutes()).padStart(2,'0');
+    if (type === 0) return String(d.getUTCFullYear());
+    if (type <= 2)  return mo + '/' + da;
+    return hh + ':' + mi;
   }
 
   function initModalChart() {
@@ -575,7 +597,7 @@ document.addEventListener('DOMContentLoaded', () => {
       grid: { vertLines:{color:'#1a2233'}, horzLines:{color:'#1a2233'} },
       crosshair: { mode:1 },
       rightPriceScale: { borderColor:'#1a2233', scaleMargins:{top:.1,bottom:.1} },
-      timeScale: { borderColor:'#1a2233', timeVisible:true, secondsVisible:false },
+      timeScale: { borderColor:'#1a2233', timeVisible:true, secondsVisible:false, tickMarkFormatter: jstTick },
       localization: { timeFormatter: jstFmt },
       handleScroll:true, handleScale:true,
     });

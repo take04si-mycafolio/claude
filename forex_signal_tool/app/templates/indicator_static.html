@@ -458,13 +458,24 @@ tr.trade-row.sim-active td{background:rgba(59,130,246,.10)!important}
 
     let mChart=null, mCs=null, cacheKey=null, cacheData=null;
 
-    /* JST フォーマッター（チャート時間軸） */
+    /* JST フォーマッター（クロスヘア tooltip） */
     function jstFmt(ts) {
       const d = new Date((ts + 32400) * 1000);
       return String(d.getUTCMonth()+1).padStart(2,'0') + '/'
            + String(d.getUTCDate()).padStart(2,'0') + ' '
            + String(d.getUTCHours()).padStart(2,'0') + ':'
            + String(d.getUTCMinutes()).padStart(2,'0');
+    }
+    /* JST フォーマッター（時間軸目盛り） */
+    function jstTick(ts, type) {
+      const d = new Date((ts + 32400) * 1000);
+      const mo = String(d.getUTCMonth()+1).padStart(2,'0');
+      const da = String(d.getUTCDate()).padStart(2,'0');
+      const hh = String(d.getUTCHours()).padStart(2,'0');
+      const mi = String(d.getUTCMinutes()).padStart(2,'0');
+      if (type === 0) return String(d.getUTCFullYear());
+      if (type <= 2)  return mo + '/' + da;
+      return hh + ':' + mi;
     }
 
     function initModalChart() {
@@ -476,7 +487,7 @@ tr.trade-row.sim-active td{background:rgba(59,130,246,.10)!important}
         grid: { vertLines:{color:'#1a2233'}, horzLines:{color:'#1a2233'} },
         crosshair: { mode:1 },
         rightPriceScale: { borderColor:'#1a2233', scaleMargins:{top:.1,bottom:.1} },
-        timeScale: { borderColor:'#1a2233', timeVisible:true, secondsVisible:false },
+        timeScale: { borderColor:'#1a2233', timeVisible:true, secondsVisible:false, tickMarkFormatter: jstTick },
         localization: { timeFormatter: jstFmt },
         handleScroll:true, handleScale:true,
       });
