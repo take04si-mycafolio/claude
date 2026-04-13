@@ -325,14 +325,12 @@ def fetch_and_store_all(pairs=None, timeframes=None) -> dict:
             logger.info("Fetching %s %s ...", pair, tf)
 
             if tf == "daily":
-                # 日足は Alpha Vantage を優先（正確な OHLCV）
+                # 日足は Alpha Vantage のみ（yfinance は使わない）
                 df = fetch_alphavantage_daily(pair)
-                if df is None or df.empty:
-                    logger.warning("Alpha Vantage 失敗、yfinance にフォールバック: %s daily", pair)
-                    df = fetch_yfinance(pair, tf)
                 # Alpha Vantage は 5req/分制限 → ペア間で待機
                 time.sleep(15)
             else:
+                # 日足以外は yfinance
                 df = fetch_yfinance(pair, tf)
 
             if df is not None and not df.empty:
