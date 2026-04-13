@@ -156,18 +156,14 @@ def resample_to_4hr(df_1hr: pd.DataFrame) -> pd.DataFrame:
 
 def save_price_data(pair: str, timeframe: str, df: pd.DataFrame) -> int:
     """DataFrameをDBのprice_dataテーブルに保存。
-    最新足（まだ完成していない可能性）は上書き更新、それ以外は重複スキップ。
+    既存レコードは値が異なる場合に上書き更新（取得タイミングによる欠損値修正に対応）。
+    新規レコードは INSERT。
     """
     from app import db
     from app.models.price_data import PriceData
-    from datetime import datetime, timedelta
 
-    # タイムフレームごとの足の長さ（分）
-    tf_minutes = {"5min": 5, "15min": 15, "30min": 30, "1hr": 60, "4hr": 240, "daily": 1440}
-    bar_minutes = tf_minutes.get(timeframe, 15)
-    # 現在時刻より bar_minutes 以内のタイムスタンプは「未完成の可能性あり」→ 上書き
-    now_utc = datetime.utcnow()
-    incomplete_cutoff = now_utc - timedelta(minutes=bar_minutes)
+    def _round(v: float) -> float:
+        return round(float(v), 6)
 
     saved = 0
     for _, row in df.iterrows():
@@ -177,6 +173,12 @@ def save_price_data(pair: str, timeframe: str, df: pd.DataFrame) -> int:
         if hasattr(ts, "tzinfo") and ts.tzinfo is not None:
             ts = ts.replace(tzinfo=None)
 
+        new_open   = _round(row["open"])
+        new_high   = _round(row["high"])
+        new_low    = _round(row["low"])
+        new_close  = _round(row["close"])
+        new_volume = int(row.get("volume", 0))
+
         existing = PriceData.query.filter_by(
             currency_pair=pair,
             timeframe=timeframe,
@@ -184,13 +186,18 @@ def save_price_data(pair: str, timeframe: str, df: pd.DataFrame) -> int:
         ).first()
 
         if existing:
-            # 未完成の可能性がある最新足のみ上書き更新
-            if ts >= incomplete_cutoff:
-                existing.open   = float(row["open"])
-                existing.high   = float(row["high"])
-                existing.low    = float(row["low"])
-                existing.close  = float(row["close"])
-                existing.volume = int(row.get("volume", 0))
+            # 値が異なる場合のみ上書き更新
+            if (
+                _round(existing.open)  != new_open  or
+                _round(existing.high)  != new_high  or
+                _round(existing.low)   != new_low   or
+                _round(existing.close) != new_close
+            ):
+                existing.open   = new_open
+                existing.high   = new_high
+                existing.low    = new_low
+                existing.close  = new_close
+                existing.volume = new_volume
                 saved += 1
             continue
 
@@ -198,11 +205,11 @@ def save_price_data(pair: str, timeframe: str, df: pd.DataFrame) -> int:
             currency_pair=pair,
             timeframe=timeframe,
             timestamp=ts,
-            open=float(row["open"]),
-            high=float(row["high"]),
-            low=float(row["low"]),
-            close=float(row["close"]),
-            volume=int(row.get("volume", 0)),
+            open=new_open,
+            high=new_high,
+            low=new_low,
+            close=new_close,
+            volume=new_volume,
         )
         db.session.add(record)
         saved += 1
