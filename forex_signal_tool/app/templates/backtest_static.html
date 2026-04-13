@@ -137,19 +137,6 @@
   </button>
 </div>
 
-<!-- ③ 分析・考察 -->
-<div class="section-card" id="section-analysis">
-  <div class="section-title"><i class="bi bi-lightbulb-fill text-info me-2"></i>分析・考察</div>
-  {% if content_analysis %}
-  <div class="analysis-body">{{ content_analysis | safe }}</div>
-  {% else %}
-  <div class="rk-placeholder">
-    <i class="bi bi-pencil-square fs-3"></i>
-    <p>管理画面 → SEO管理 → コンテンツ管理 から分析・考察を入力してください。<br>週次でAIが分析した内容が表示されます。</p>
-  </div>
-  {% endif %}
-</div>
-
 <!-- ④ 手法別おすすめ -->
 {%- macro render_method_recs(panel_id, recs) %}
 {%- set pair_defs = [('USDJPY','USD/JPY'),('GBPJPY','GBP/JPY'),('EURJPY','EUR/JPY')] %}
@@ -368,12 +355,48 @@
 </div>
 {% endif %}
 
+<!-- ③ 分析・考察（最下部） -->
+<div class="section-card" id="section-analysis">
+  <div class="section-title"><i class="bi bi-lightbulb-fill text-info me-2"></i>分析・考察</div>
+  {% if content_analysis %}
+  <div class="analysis-body">{{ content_analysis | safe }}</div>
+  {% else %}
+  <div class="rk-placeholder">
+    <i class="bi bi-pencil-square fs-3"></i>
+    <p>管理画面 → SEO管理 → コンテンツ管理 から分析・考察を入力してください。<br>週次でAIが分析した内容が表示されます。</p>
+  </div>
+  {% endif %}
+</div>
+
 {% else %}
 <div class="empty-state-page">
   <i class="bi bi-bar-chart fs-1 text-muted"></i>
   <p class="mt-3">バックテストデータがありません</p>
 </div>
 {% endif %}
+
+<!-- 通貨ペアバナー -->
+{% set pair_ja = {'USDJPY': 'ドル円', 'GBPJPY': 'ポン円', 'EURJPY': 'ユロ円'} %}
+{% set pair_en = {'USDJPY': 'USD/JPY', 'GBPJPY': 'GBP/JPY', 'EURJPY': 'EUR/JPY'} %}
+{% set pair_desc = {
+  'USDJPY': '世界最大の取引量を誇る主要通貨ペア。日米金融政策の動向に注目。',
+  'GBPJPY': '値動きの大きさが特徴のクロス円。ロンドン時間に特に活発。',
+  'EURJPY': '欧州経済と日本円の相関が強いクロス円。流動性が高く取引しやすい。'
+} %}
+{% set pair_color = {'USDJPY': 'pbn-blue', 'GBPJPY': 'pbn-red', 'EURJPY': 'pbn-green'} %}
+<div class="pbn-wrap">
+  <div class="pbn-title">通貨ペア別リアルタイムシグナル</div>
+  <div class="pbn-grid">
+    {% for pair, filename in pair_pages.items() %}
+    <a href="/{{ filename }}" class="pbn-card {{ pair_color.get(pair, '') }}">
+      <div class="pbn-pair">{{ pair_en.get(pair, pair) }}</div>
+      <div class="pbn-ja">{{ pair_ja.get(pair, '') }}</div>
+      <div class="pbn-desc">{{ pair_desc.get(pair, '') }}</div>
+      <div class="pbn-cta">シグナルを見る <i class="bi bi-arrow-right"></i></div>
+    </a>
+    {% endfor %}
+  </div>
+</div>
 
 <div class="section-card" style="font-size:0.72rem;color:#94a3b8;text-align:center;padding:8px 16px;">
   最終更新: {{ updated_at }}
@@ -752,5 +775,29 @@ function switchPur(btn, panelId) {
 .mt-trend .mt-header{background:#eff6ff}.mt-trend .mt-header-icon{color:#3b82f6}.mt-trend .mt-label{color:#1e40af}.mt-trend .mt-badge{background:#dbeafe;color:#1d4ed8}
 .mt-range .mt-header{background:#f0fdf4}.mt-range .mt-header-icon{color:#22c55e}.mt-range .mt-label{color:#166534}.mt-range .mt-badge{background:#dcfce7;color:#15803d}
 .mt-cards{padding:6px 0}
+
+/* ===== 通貨ペアバナー ===== */
+.pbn-wrap{padding:16px 16px 0}
+.pbn-title{font-size:11px;font-weight:700;color:#64748b;letter-spacing:.06em;text-transform:uppercase;margin-bottom:10px}
+.pbn-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+@media(max-width:560px){.pbn-grid{grid-template-columns:1fr}}
+.pbn-card{display:block;border-radius:12px;padding:14px 16px;text-decoration:none;transition:transform .15s,box-shadow .15s;border:1px solid transparent}
+.pbn-card:hover{transform:translateY(-2px);box-shadow:0 6px 20px rgba(0,0,0,.12);text-decoration:none}
+.pbn-pair{font-size:18px;font-weight:800;margin-bottom:2px;line-height:1.2}
+.pbn-ja{font-size:11px;font-weight:600;margin-bottom:8px;opacity:.75}
+.pbn-desc{font-size:11px;line-height:1.6;margin-bottom:10px;opacity:.8}
+.pbn-cta{font-size:11px;font-weight:700;display:flex;align-items:center;gap:4px}
+/* ブルー（ドル円） */
+.pbn-blue{background:linear-gradient(135deg,#1e3a5f,#1d4ed8);color:#e0eaff;border-color:#2563eb}
+.pbn-blue .pbn-pair{color:#93c5fd}
+.pbn-blue .pbn-cta{color:#60a5fa}
+/* レッド（ポン円） */
+.pbn-red{background:linear-gradient(135deg,#4c1020,#be123c);color:#ffe4e6;border-color:#e11d48}
+.pbn-red .pbn-pair{color:#fca5a5}
+.pbn-red .pbn-cta{color:#fda4af}
+/* グリーン（ユロ円） */
+.pbn-green{background:linear-gradient(135deg,#14532d,#15803d);color:#dcfce7;border-color:#16a34a}
+.pbn-green .pbn-pair{color:#86efac}
+.pbn-green .pbn-cta{color:#4ade80}
 </style>
 {% endblock %}
