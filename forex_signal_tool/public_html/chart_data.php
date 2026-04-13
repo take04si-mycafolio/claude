@@ -59,7 +59,7 @@ $valid_tfs   = ['5min', '15min', '30min', '1hr', '4hr', 'daily'];
 if (!in_array($pair, $valid_pairs, true)) $pair = 'USDJPY';
 if (!in_array($tf,   $valid_tfs,   true)) $tf   = '15min';
 
-$limits = ['5min' => 2000, '15min' => 4500, '30min' => 2500, '1hr' => 13000, '4hr' => 3500, 'daily' => 600];
+$limits = ['5min' => 2000, '15min' => 4500, '30min' => 2500, '1hr' => 13000, '4hr' => 3500, 'daily' => 2000];
 $limit  = $limits[$tf];
 
 // ---- DBからローソク足を取得 ----

@@ -34,14 +34,14 @@ YF_INTERVAL_MAP = {
     "daily": "1d",
 }
 
-# yfinance で取得できる期間の上限
-YF_PERIOD_MAP = {
-    "5min":  "7d",
-    "15min": "60d",
-    "30min": "60d",
-    "1hr":   "730d",
-    "4hr":   "730d",
-    "daily": "2y",
+# タイムフレームごとの取得日数
+# 短期足はyfinance APIの制約あり、長期足はできる限り遡る
+YF_DAYS_BACK = {
+    "5min":  7,      # yfinance制約: 5m は最大7日
+    "15min": 60,     # yfinance制約: 15m は最大60日
+    "30min": 60,     # yfinance制約: 30m は最大60日
+    "1hr":   730,    # 1h は最大730日程度
+    "daily": 1825,   # 日足は5年分取得
 }
 
 
@@ -62,15 +62,21 @@ def fetch_yfinance(pair: str, timeframe: str) -> Optional[pd.DataFrame]:
     # 4hrは1hで取得してリサンプリング
     fetch_tf = "1hr" if timeframe == "4hr" else timeframe
     interval = YF_INTERVAL_MAP.get(fetch_tf)
-    period = YF_PERIOD_MAP.get(fetch_tf)
+    days_back = YF_DAYS_BACK.get(fetch_tf, 60)
 
     if not interval:
         logger.error("Unknown timeframe: %s", timeframe)
         return None
 
+    # period文字列ではなくstart/end日付で指定（FXペアで確実に取得するため）
+    end_dt   = datetime.now(timezone.utc)
+    start_dt = end_dt - timedelta(days=days_back)
+    start_str = start_dt.strftime("%Y-%m-%d")
+    end_str   = end_dt.strftime("%Y-%m-%d")
+
     try:
         ticker = yf.Ticker(ticker_symbol)
-        df = ticker.history(period=period, interval=interval, auto_adjust=True)
+        df = ticker.history(start=start_str, end=end_str, interval=interval, auto_adjust=True)
 
         if df.empty:
             logger.warning("No data returned for %s %s", pair, timeframe)
