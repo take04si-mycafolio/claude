@@ -1,9 +1,10 @@
 """
 為替データ取得サービス
-- yfinance（Yahoo Finance）を主として使用（無料・APIキー不要）
-- Alpha Vantage はオプション（無料プランはFXデータ非対応のため現在は未使用）
+- yfinance（Yahoo Finance）: 短期足（5分〜4時間）
+- Stooq: 日足（無料・登録不要・長期履歴あり）
 """
 
+import io
 import logging
 import time
 from datetime import datetime, timedelta, timezone
@@ -225,10 +226,70 @@ def save_price_data(pair: str, timeframe: str, df: pd.DataFrame) -> int:
     return saved
 
 
+# Stooq 通貨ペアマッピング（日足専用）
+STOOQ_PAIR_MAP = {
+    "USDJPY": "usdjpy",
+    "GBPJPY": "gbpjpy",
+    "EURJPY": "eurjpy",
+}
+
+
+def fetch_stooq_daily(pair: str) -> Optional[pd.DataFrame]:
+    """
+    Stooq から日足データを取得する（無料・登録不要・長期履歴対応）。
+    yfinance では取得しきれない過去データを補完するために使用。
+    """
+    symbol = STOOQ_PAIR_MAP.get(pair)
+    if not symbol:
+        logger.error("Stooq: Unknown pair: %s", pair)
+        return None
+
+    url = f"https://stooq.com/q/d/l/?s={symbol}&i=d"
+    try:
+        resp = requests.get(
+            url, timeout=30,
+            headers={"User-Agent": "Mozilla/5.0 (compatible; FXSignalBot/1.0)"},
+        )
+        resp.raise_for_status()
+
+        df = pd.read_csv(io.StringIO(resp.text))
+        if df.empty:
+            logger.warning("Stooq: empty response for %s", pair)
+            return None
+
+        # カラム名を小文字に統一
+        df.columns = [c.lower() for c in df.columns]
+        if "date" not in df.columns:
+            logger.warning("Stooq: unexpected columns %s", df.columns.tolist())
+            return None
+
+        df = df.rename(columns={"date": "timestamp"})
+        df["timestamp"] = pd.to_datetime(df["timestamp"])
+
+        needed = [c for c in ["timestamp", "open", "high", "low", "close", "volume"] if c in df.columns]
+        df = df[needed]
+        if "volume" not in df.columns:
+            df["volume"] = 0
+
+        # タイムゾーンなし（MySQL 用）
+        df["timestamp"] = df["timestamp"].dt.tz_localize(None)
+        df = df.sort_values("timestamp").reset_index(drop=True)
+
+        logger.info("Stooq: %s daily %d rows (%s〜%s)",
+                    pair, len(df),
+                    df["timestamp"].iloc[0].date() if not df.empty else "?",
+                    df["timestamp"].iloc[-1].date() if not df.empty else "?")
+        return df
+
+    except Exception as exc:
+        logger.error("Stooq fetch error for %s: %s", pair, exc)
+        return None
+
+
 def fetch_and_store_all(pairs=None, timeframes=None) -> dict:
     """
     全通貨ペア・タイムフレームのデータを取得してDBに保存する。
-    yfinance を使用（無料・APIキー不要）
+    日足: Stooq（長期履歴）、その他: yfinance
     """
     if pairs is None:
         pairs = Config.CURRENCY_PAIRS
@@ -241,7 +302,16 @@ def fetch_and_store_all(pairs=None, timeframes=None) -> dict:
         results[pair] = {}
         for tf in timeframes:
             logger.info("Fetching %s %s ...", pair, tf)
-            df = fetch_yfinance(pair, tf)
+
+            # 日足は Stooq を優先（yfinance では長期履歴が取れないため）
+            if tf == "daily":
+                df = fetch_stooq_daily(pair)
+                if df is None or df.empty:
+                    logger.warning("Stooq failed, falling back to yfinance for %s daily", pair)
+                    df = fetch_yfinance(pair, tf)
+            else:
+                df = fetch_yfinance(pair, tf)
+
             if df is not None and not df.empty:
                 saved = save_price_data(pair, tf, df)
                 results[pair][tf] = saved
