@@ -553,7 +553,7 @@ tr.trade-row.sim-active td{background:rgba(59,130,246,.10)!important}
             markers.push({
               time: ts,
               position: signal === 'BUY' ? 'belowBar' : 'aboveBar',
-              color: signal === 'BUY' ? '#26a69a' : '#ef5350',
+              color: '#eab308',
               shape: signal === 'BUY' ? 'arrowUp' : 'arrowDown',
               text: 'IN', size: 1.5,
             });
@@ -564,8 +564,8 @@ tr.trade-row.sim-active td{background:rgba(59,130,246,.10)!important}
             markers.push({
               time: exitTs,
               position: outAbove ? 'aboveBar' : 'belowBar',
-              color: isWin ? '#22c55e' : '#ef5350',
-              shape: outAbove ? 'arrowUp' : 'arrowDown',
+              color: isWin ? '#f97316' : '#3b82f6',
+              shape: outAbove ? 'arrowDown' : 'arrowUp',
               text: 'OUT', size: 1.5,
             });
           }
