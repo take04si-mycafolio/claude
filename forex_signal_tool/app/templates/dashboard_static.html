@@ -615,6 +615,7 @@ document.addEventListener('DOMContentLoaded', () => {
   async function openTradeModal(row) {
     const tf      = row.dataset.tf || '1hr';
     const ts      = parseInt(row.dataset.entryTs) || 0;
+    const exitTs  = parseInt(row.dataset.exitTs) || 0;
     const signal  = row.dataset.signal || '';
     const outcome = row.dataset.outcome || '';
     const entryP  = parseFloat(row.dataset.entryPrice) || 0;
@@ -653,7 +654,31 @@ document.addEventListener('DOMContentLoaded', () => {
         const d = cacheData;
         const candles = d.candles || [];
         mCs.setData(candles);
-        mCs.setMarkers(d.trades && d.trades.length ? d.trades : []);
+
+        /* クリックしたトレードの IN / OUT マーカーを生成 */
+        const markers = [];
+        if (ts) {
+          markers.push({
+            time: ts,
+            position: signal === 'BUY' ? 'belowBar' : 'aboveBar',
+            color: signal === 'BUY' ? '#26a69a' : '#ef5350',
+            shape: signal === 'BUY' ? 'arrowUp' : 'arrowDown',
+            text: 'IN', size: 1.5,
+          });
+        }
+        if (exitTs && outcome && outcome !== 'OPEN') {
+          const isWin = outcome === 'WIN';
+          markers.push({
+            time: exitTs,
+            position: isWin ? (signal === 'BUY' ? 'aboveBar' : 'belowBar')
+                             : (signal === 'BUY' ? 'belowBar' : 'aboveBar'),
+            color: isWin ? '#22c55e' : '#ef5350',
+            shape: 'circle',
+            text: 'OUT', size: 1.5,
+          });
+        }
+        markers.sort((a, b) => a.time - b.time);
+        mCs.setMarkers(markers);
 
         /* 価格ライン（エントリー・TP・SL） */
         ['_plEp','_plTp','_plSl'].forEach(k => {
