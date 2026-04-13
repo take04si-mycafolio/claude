@@ -629,7 +629,8 @@ document.addEventListener('DOMContentLoaded', () => {
           cacheKey = key; cacheData = d;
         }
         const d = cacheData;
-        mCs.setData(d.candles || []);
+        const candles = d.candles || [];
+        mCs.setData(candles);
         mCs.setMarkers(d.trades && d.trades.length ? d.trades : []);
 
         /* 価格ライン（エントリー・TP・SL） */
@@ -643,10 +644,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
         loading.style.display = 'none';
 
-        /* 該当バーにジャンプ */
-        if (ts) {
+        /* 該当バーにジャンプ（tsがデータ範囲内の場合のみ） */
+        const firstTs = candles.length > 0 ? candles[0].time : 0;
+        const lastTs  = candles.length > 0 ? candles[candles.length-1].time : 0;
+        if (ts && candles.length >= 5 && ts >= firstTs && ts <= lastTs) {
           const bar = TF_SECS[tf] || 3600;
-          mChart.timeScale().setVisibleRange({ from: ts - 30*bar, to: ts + 50*bar });
+          mChart.timeScale().setVisibleRange({ from: ts - 15*bar, to: ts + 20*bar });
         } else {
           mChart.timeScale().fitContent();
         }
