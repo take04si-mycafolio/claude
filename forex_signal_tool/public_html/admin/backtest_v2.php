@@ -146,6 +146,23 @@ h2{font-size:20px;font-weight:700;color:#f1f5f9;margin-bottom:6px}
 .modal-btn.cancel{background:#334155;color:#94a3b8}
 .modal-btn.confirm{background:#3b82f6;color:#fff}
 
+/* ===== signal registration panel ===== */
+.signal-panel{background:#1e293b;border:1px solid #334155;border-radius:12px;padding:20px;margin-bottom:20px}
+.signal-panel h3{font-size:13px;font-weight:600;color:#94a3b8;margin-bottom:14px}
+.signal-badge{display:inline-flex;align-items:center;gap:8px;padding:10px 18px;border-radius:9px;font-size:16px;font-weight:700;margin-bottom:16px}
+.signal-badge.buy{background:rgba(74,222,128,.12);border:1px solid #4ade80;color:#4ade80}
+.signal-badge.sell{background:rgba(248,113,113,.12);border:1px solid #f87171;color:#f87171}
+.signal-badge.neutral{background:rgba(100,116,139,.12);border:1px solid #64748b;color:#64748b}
+.signal-info-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:16px}
+.signal-info-item{background:#0f172a;border:1px solid #1e293b;border-radius:8px;padding:10px 12px;text-align:center}
+.signal-info-item .si-label{font-size:10px;color:#64748b;margin-bottom:3px;text-transform:uppercase;letter-spacing:.4px}
+.signal-info-item .si-val{font-size:14px;font-weight:700;color:#e2e8f0}
+.btn-signal{background:#0e7490;color:#fff;border:none;border-radius:9px;padding:10px 24px;font-size:13px;font-weight:600;cursor:pointer;transition:background .2s}
+.btn-signal:hover{background:#0891b2}
+.btn-signal:disabled{opacity:.5;cursor:not-allowed}
+.signal-status-txt{font-size:12px;color:#64748b;margin-left:12px}
+.signal-hint{font-size:11px;color:#475569;margin-top:10px;line-height:1.5}
+
 /* ===== action buttons ===== */
 .actions{display:flex;gap:12px;align-items:center;margin-top:8px}
 .btn-run{background:#3b82f6;color:#fff;border:none;border-radius:9px;padding:12px 32px;font-size:14px;font-weight:600;cursor:pointer;transition:background .2s}
@@ -535,6 +552,8 @@ h2{font-size:20px;font-weight:700;color:#f1f5f9;margin-bottom:6px}
     <div id="section-chart"></div>
     <!-- 10f trade table -->
     <div id="section-trades"></div>
+    <!-- 13: リアルタイムシグナル登録 -->
+    <div id="section-signal" style="display:none"></div>
   </div>
 
   <!-- 最適化設定 -->
@@ -1687,9 +1706,11 @@ async function runBacktest() {
     renderChart(_lastOhlcv, r.chart_data || {});
     renderEquityCurve(_lastTrades, _lastInitialCapital);
     renderTrades(_lastTrades);
+    renderSignalPanel(pairs[0], timeframe, strategy, r.metrics || {});
   } else {
     _multiResults = results;
     renderMultiPairResults(results, timeframe);
+    document.getElementById('section-signal').style.display = 'none';
   }
 
   document.getElementById('result-wrap').classList.add('show');
@@ -1902,6 +1923,153 @@ function renderTrades(trades) {
       <div id="trade-tab-content"></div>
     </div>`;
   renderTradesTo(trades, document.getElementById('trade-tab-content'));
+}
+
+/* =====================================================================
+   13: リアルタイムシグナル連携
+   ===================================================================== */
+
+let _signalStrategyConfig = null;
+let _signalPair           = 'USDJPY';
+let _signalTimeframe      = '1hr';
+let _signalMetrics        = {};
+
+/* シグナルパネルを描画（バックテスト完了後に呼ばれる） */
+function renderSignalPanel(pair, timeframe, strategy, metrics) {
+  _signalPair           = pair;
+  _signalTimeframe      = timeframe;
+  _signalStrategyConfig = strategy;
+  _signalMetrics        = metrics;
+
+  const wr    = metrics.win_rate != null ? (metrics.win_rate * 100).toFixed(1) + '%' : '-';
+  const pf    = metrics.profit_factor != null
+    ? (isFinite(metrics.profit_factor) ? metrics.profit_factor.toFixed(2) : '∞') : '-';
+  const total = metrics.total_trades ?? '-';
+
+  const el = document.getElementById('section-signal');
+  el.style.display = 'block';
+  el.innerHTML = `
+    <div class="signal-panel">
+      <h3>リアルタイムシグナル連携</h3>
+      <p style="font-size:12px;color:#64748b;margin-bottom:14px">
+        現在の戦略設定を使って最新ローソク足でシグナルを評価します。<br>
+        条件成立時は <code style="background:#0f172a;padding:1px 5px;border-radius:3px;font-size:11px">trading_signals</code> テーブルに登録され、公開サイトのシグナル一覧に反映されます。
+      </p>
+      <div class="signal-info-grid">
+        <div class="signal-info-item"><div class="si-label">通貨ペア</div><div class="si-val">${pair}</div></div>
+        <div class="signal-info-item"><div class="si-label">タイムフレーム</div><div class="si-val">${timeframe}</div></div>
+        <div class="signal-info-item"><div class="si-label">BT 勝率 / PF</div><div class="si-val">${wr} / ${pf}</div></div>
+        <div class="signal-info-item"><div class="si-label">BT 取引数</div><div class="si-val">${total}回</div></div>
+        <div class="signal-info-item"><div class="si-label">方向</div><div class="si-val">${strategy.direction || 'BOTH'}</div></div>
+        <div class="signal-info-item"><div class="si-label">条件数</div><div class="si-val">${(strategy.entry_conditions?.conditions || []).length}件</div></div>
+      </div>
+      <div id="signal-result-area"></div>
+      <div style="display:flex;align-items:center;gap:12px;margin-top:4px">
+        <button class="btn-signal" id="btn-check-signal" onclick="checkAndRegisterSignal()">
+          現在のシグナルを確認・登録
+        </button>
+        <span id="signal-status-txt" class="signal-status-txt"></span>
+      </div>
+      <div class="signal-hint">
+        ※ 保存した戦略を定期的にシグナル生成するには、<code style="background:#0f172a;padding:1px 4px;border-radius:3px">run_v2_signal.py</code> を cron で実行してください。<br>
+        ※ シグナルの有効期限: 5min=1h / 1hr=6h / 4hr=24h / daily=72h
+      </div>
+    </div>`;
+}
+
+/* シグナルを評価してDBに登録 */
+async function checkAndRegisterSignal() {
+  if (!_signalStrategyConfig) return;
+
+  const btn    = document.getElementById('btn-check-signal');
+  const status = document.getElementById('signal-status-txt');
+  btn.disabled = true;
+  status.textContent = '評価中...';
+  document.getElementById('signal-result-area').innerHTML = '';
+
+  // 戦略名を取得（保存済み選択があればそれを使用、なければ無名）
+  const savedSel = document.getElementById('saved-select');
+  const savedOpt = savedSel.selectedIndex > 0 ? savedSel.options[savedSel.selectedIndex].text : null;
+  const strategyName = savedOpt || `v2_${_signalPair}_${_signalTimeframe}`;
+
+  const payload = {
+    action:          'bt_v2_signal',
+    pair:            _signalPair,
+    timeframe:       _signalTimeframe,
+    limit:           parseInt(document.getElementById('limit').value, 10),
+    strategy_config: _signalStrategyConfig,
+    strategy_name:   strategyName,
+    win_rate:        _signalMetrics.win_rate  ?? null,
+    total_trades:    _signalMetrics.total_trades ?? 0,
+  };
+
+  try {
+    const res = await fetch('/admin/api.php', {
+      method:  'POST',
+      headers: {'Content-Type':'application/json'},
+      body:    JSON.stringify(payload),
+    }).then(r => r.json());
+
+    btn.disabled = false;
+
+    if (!res.ok) {
+      status.textContent = '❌ ' + (res.error || 'エラー');
+      document.getElementById('signal-result-area').innerHTML =
+        `<div style="background:#7f1d1d;border:1px solid #ef4444;border-radius:8px;padding:10px 14px;font-size:12px;color:#fca5a5;margin-bottom:12px;white-space:pre-wrap">${res.error || 'エラー'}${res.detail ? '\n\n' + res.detail : ''}</div>`;
+      return;
+    }
+
+    status.textContent = '✅ 完了';
+    renderSignalResult(res);
+
+  } catch(e) {
+    btn.disabled = false;
+    status.textContent = '❌ ' + e.message;
+  }
+}
+
+/* シグナル評価結果を描画 */
+function renderSignalResult(res) {
+  const area  = document.getElementById('signal-result-area');
+  const fired = res.signal_fired;
+  const stype = res.signal_type;   // "BUY" / "SELL" / null
+
+  const badgeCls  = stype === 'BUY' ? 'buy' : stype === 'SELL' ? 'sell' : 'neutral';
+  const badgeTxt  = stype ? `▲ ${stype}` : '— シグナルなし（NEUTRAL）';
+  const priceStr  = res.current_price != null ? res.current_price.toFixed(3) : '-';
+  const slStr     = res.sl_price != null ? res.sl_price.toFixed(3) + (res.sl_pips ? ` (${res.sl_pips.toFixed(1)}p)` : '') : '-';
+  const tpStr     = res.tp_price != null ? res.tp_price.toFixed(3) + (res.tp_pips ? ` (${res.tp_pips.toFixed(1)}p)` : '') : '-';
+  const confStr   = res.confidence != null ? res.confidence.toFixed(1) : '-';
+  const matchStr  = (res.conditions_matched || []).join(', ') || '-';
+  const idStr     = res.signal_id ? `#${res.signal_id}` : '-';
+  const newStr    = res.signal_id ? (res.is_new ? '新規登録' : '更新済み') : '登録なし';
+
+  let regInfo = '';
+  if (fired && res.signal_id) {
+    regInfo = `<div style="background:rgba(74,222,128,.07);border:1px solid rgba(74,222,128,.3);border-radius:8px;padding:10px 14px;font-size:12px;color:#86efac;margin-bottom:12px">
+      ✅ シグナル ID ${idStr} を trading_signals に${res.is_new ? '登録' : '更新'}しました（戦略名: ${escHtml(res.strategy_name)}）
+    </div>`;
+  } else if (!fired) {
+    regInfo = `<div style="background:rgba(100,116,139,.1);border:1px solid #334155;border-radius:8px;padding:10px 14px;font-size:12px;color:#94a3b8;margin-bottom:12px">
+      条件不成立のため新規シグナルは登録されませんでした。既存シグナルがあれば無効化されます。
+    </div>`;
+  }
+
+  area.innerHTML = `
+    ${regInfo}
+    <div class="signal-badge ${badgeCls}" style="margin-bottom:12px">${badgeTxt}</div>
+    <div class="signal-info-grid" style="grid-template-columns:repeat(3,1fr);margin-bottom:12px">
+      <div class="signal-info-item"><div class="si-label">現在価格</div><div class="si-val">${priceStr}</div></div>
+      <div class="signal-info-item"><div class="si-label">SL</div><div class="si-val" style="font-size:12px">${slStr}</div></div>
+      <div class="signal-info-item"><div class="si-label">TP</div><div class="si-val" style="font-size:12px">${tpStr}</div></div>
+      <div class="signal-info-item"><div class="si-label">信頼度スコア</div><div class="si-val">${confStr}</div></div>
+      <div class="signal-info-item"><div class="si-label">成立条件 ID</div><div class="si-val" style="font-size:11px">${escHtml(matchStr)}</div></div>
+      <div class="signal-info-item"><div class="si-label">DB 状態</div><div class="si-val" style="font-size:12px">${idStr} / ${newStr}</div></div>
+    </div>`;
+}
+
+function escHtml(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
 }
 
 /* ---------- 起動時初期化 ---------- */
