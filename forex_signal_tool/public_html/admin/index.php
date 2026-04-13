@@ -110,7 +110,8 @@ main{max-width:900px;margin:0 auto;padding:28px 20px}
   <?php if ($isLoggedIn): ?>
   <nav class="nav">
     <a href="/admin/" class="active">ダッシュボード</a>
-    <a href="/admin/backtest.php">バックテストツール</a>
+    <a href="/admin/backtest.php">バックテスト v1</a>
+    <a href="/admin/backtest_v2.php">バックテスト v2</a>
     <a href="/admin/export.php">CSVエクスポート</a>
     <a href="/admin/seo.php">SEO管理</a>
     <a href="/admin/settings.php">設定 &amp; 診断</a>
@@ -201,12 +202,21 @@ main{max-width:900px;margin:0 auto;padding:28px 20px}
 
   <div class="section">
     <div class="section-title">ユーザー向けツール</div>
-    <div class="tool-card">
-      <div class="info">
-        <h3>カスタムバックテストツール</h3>
-        <p>通貨ペア・期間・資金・RR比・指標を自由に設定してバックテストを実行できます</p>
+    <div style="display:flex;flex-direction:column;gap:12px">
+      <div class="tool-card">
+        <div class="info">
+          <h3>カスタムバックテスト v1</h3>
+          <p>通貨ペア・期間・資金・RR比・指標を自由に設定してバックテストを実行できます</p>
+        </div>
+        <a href="/admin/backtest.php">ツールを開く →</a>
       </div>
-      <a href="/admin/backtest.php">ツールを開く →</a>
+      <div class="tool-card" style="border-color:#7c3aed">
+        <div class="info">
+          <h3>マルチ条件バックテスト v2</h3>
+          <p>複数テクニカル条件・フィルター・複数ペア同時検証・パラメータ最適化に対応</p>
+        </div>
+        <a href="/admin/backtest_v2.php" style="background:#7c3aed">ツールを開く →</a>
+      </div>
     </div>
   </div>
 </main>
