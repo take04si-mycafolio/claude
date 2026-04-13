@@ -526,6 +526,13 @@ CATEGORY_INFO = {
         "seo_description": "RSI+MACD・トリプルオシレーターなど複数指標の組み合わせによるコンボシグナルの勝率を検証。ダマシを減らした高精度エントリーを分析。",
         "description":     "RSI・MACD・ストキャスティクスなど複数指標が同一方向を示したときのみシグナルを発生させる複合指標群です。単独指標よりダマシが少なく、確度の高い局面だけを厳選してトレードできます。",
     },
+    "BBバンド損切り": {
+        "slug":            "bbsl",
+        "display":         "BBバンド損切りバリアント",
+        "seo_title":       "BBバンド損切り戦略の勝率｜動的SL/TPの精度を検証",
+        "seo_description": "ボリンジャーバンドをSL/TPに使用した動的損切り戦略の勝率を検証。各テクニカル指標のBBバンド版パフォーマンスをデータで比較分析。",
+        "description":     "固定pipsではなくボリンジャーバンドの上下バンドをTP/SLとして使用するバリアント指標群です。相場のボラティリティに合わせてSL/TPが自動調整されるため、荒い相場での損失を抑えやすい特徴があります。",
+    },
 }
 
 # カテゴリ名 → スラッグ の逆引きマップ
@@ -571,6 +578,48 @@ INDICATOR_SEO = {
 for _k, _seo in INDICATOR_SEO.items():
     if _k in INDICATOR_INFO:
         INDICATOR_INFO[_k].update(_seo)
+
+# ---- BBバンド損切りバリアント（_BBSL）を自動生成 ----
+# backtester.py の bb_sl_modules と対応（oscillator + trend + composite）
+_BBSL_BASE_INDICATORS = [
+    # オシレーター
+    "RSI_14", "MACD_12_26_9", "Stochastic_14_3", "CCI_20", "Williams_R_14",
+    # トレンド
+    "SMA_20", "SMA_50", "SMA_Cross_20_50", "EMA_Cross_9_21", "EMA_21",
+    "BollingerBands_20_2", "BB_Squeeze", "Ichimoku_Cloud",
+    # コンポジット
+    "RSI_MACD_Combo", "RSI_Stoch_Combo", "MACD_Stoch_Combo",
+    "Triple_OSC_Combo", "All_AND_Consensus",
+]
+for _base in _BBSL_BASE_INDICATORS:
+    _bi = INDICATOR_INFO.get(_base)
+    if not _bi:
+        continue
+    _bbsl_key  = f"{_base}_BBSL"
+    _bbsl_slug = f"{_bi['slug']}_bbsl"
+    _disp      = _bi["display"]
+    INDICATOR_INFO[_bbsl_key] = {
+        "slug":            _bbsl_slug,
+        "url_slug":        _bbsl_slug,
+        "category":        "BBバンド損切り",
+        "display":         f"{_disp}（BBバンド損切り）",
+        "description":     (
+            f"{_bi['description']}"
+            " ボリンジャーバンドの上下バンドをTP/SLとして使用するバリアントで、"
+            "ボラティリティに応じた動的な損切り・利確が可能です。"
+        ),
+        "feature":         (
+            f"{_bi.get('feature', '')} "
+            "TP=BB上バンド、SL=BB下バンド（売りの場合は逆）で動的に設定。"
+        ),
+        "good":            _bi.get("good", []) + ["ボラティリティが変動しやすい相場での動的SL/TP設定"],
+        "bad":             _bi.get("bad", []) + ["バンド幅が極端に広い高ボラティリティ時の過大リスク"],
+        "seo_title":       f"{_disp}（BBバンド損切り）の勝率を検証｜動的SL/TP分析",
+        "seo_description": (
+            f"ボリンジャーバンドをSL/TPに使用した{_disp}の勝率をバックテストで検証。"
+            "動的損切り設定での精度をデータで分析。"
+        ),
+    }
 
 
 def _to_unix(ts) -> int:
