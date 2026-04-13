@@ -509,18 +509,22 @@ for _k, _seo in INDICATOR_SEO.items():
 
 
 def _to_unix(ts) -> int:
-    """datetime / str / timestamp → Unix秒"""
+    """datetime / str / timestamp → Unix秒 (UTC固定)"""
+    from datetime import datetime, timezone
     if isinstance(ts, (int, float)):
         return int(ts)
     if isinstance(ts, str):
-        from datetime import datetime
         for fmt in ("%Y-%m-%dT%H:%M:%S", "%Y-%m-%d %H:%M:%S", "%Y-%m-%d"):
             try:
-                return int(datetime.strptime(ts[:19], fmt).timestamp())
+                dt = datetime.strptime(ts[:19], fmt)
+                return int(dt.replace(tzinfo=timezone.utc).timestamp())
             except ValueError:
                 pass
         return 0
     if hasattr(ts, "timestamp"):
+        # naive datetime はUTCとして扱う（DBはUTC保存）
+        if getattr(ts, "tzinfo", None) is None:
+            return int(ts.replace(tzinfo=timezone.utc).timestamp())
         return int(ts.timestamp())
     return 0
 
