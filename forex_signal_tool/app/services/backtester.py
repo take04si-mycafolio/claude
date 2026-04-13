@@ -532,9 +532,9 @@ def save_backtest_results(results: list) -> int:
             .all()
         )
 
-        sl_pips_val  = r["sl_pips"]
-        tp_pips_val  = r["tp_pips"]
-        prev_capital = float(r["initial_capital"])
+        sl_pips_preset = r["sl_pips"]
+        tp_pips_preset = r["tp_pips"]
+        prev_capital   = float(r["initial_capital"])
 
         for t in r.get("trades", []):
             entry_ts = _parse_trade_dt(t.get("entry_ts"))
@@ -550,6 +550,13 @@ def save_backtest_results(results: list) -> int:
             profit_loss   = round(capital_after - prev_capital, 2)
             prev_capital  = capital_after
 
+            # 実際の価格差からpipsを計算（BBモードで変動するケースに対応）
+            _ep  = float(t.get("entry_price") or 0)
+            _tpp = t.get("tp_price")
+            _slp = t.get("sl_price")
+            actual_tp_pips = round(abs(float(_tpp) - _ep) / 0.01, 2) if _tpp and _ep else tp_pips_preset
+            actual_sl_pips = round(abs(_ep - float(_slp)) / 0.01, 2) if _slp and _ep else sl_pips_preset
+
             db.session.add(SimulationTrade(
                 backtest_result_id=record.id,
                 currency_pair=pair,
@@ -562,8 +569,8 @@ def save_backtest_results(results: list) -> int:
                 exit_price=t.get("exit_price"),
                 tp_price=t.get("tp_price"),
                 sl_price=t.get("sl_price"),
-                sl_pips=sl_pips_val,
-                tp_pips=tp_pips_val,
+                sl_pips=actual_sl_pips,
+                tp_pips=actual_tp_pips,
                 outcome=t.get("outcome"),
                 profit_loss=profit_loss,
                 capital_after=capital_after,

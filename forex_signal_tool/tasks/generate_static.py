@@ -376,9 +376,15 @@ def get_pair_data(pair: str) -> dict:
                 bucket = sim_trades_by_tf.setdefault(tf, [])
                 if len(bucket) >= 15:
                     continue
-                sl_v = float(t.sl_pips) if t.sl_pips else sl_pips
-                tp_v = float(t.tp_pips) if t.tp_pips else tp_pips
-                pips = tp_v if t.outcome == "WIN" else (-sl_v if t.outcome == "LOSS" else 0)
+                entry_p = float(t.entry_price) if t.entry_price else None
+                exit_p  = float(t.exit_price)  if t.exit_price  else None
+                if entry_p is not None and exit_p is not None:
+                    raw_diff = (exit_p - entry_p) if (t.direction or "") == "BUY" else (entry_p - exit_p)
+                    pips = round(raw_diff / 0.01, 1)
+                else:
+                    sl_v = float(t.sl_pips) if t.sl_pips else sl_pips
+                    tp_v = float(t.tp_pips) if t.tp_pips else tp_pips
+                    pips = tp_v if t.outcome == "WIN" else (-sl_v if t.outcome == "LOSS" else 0)
                 trade_dict = {
                     "indicator":     t.indicator_name,
                     "timeframe":     tf,
