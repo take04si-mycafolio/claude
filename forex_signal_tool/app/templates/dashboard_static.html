@@ -684,7 +684,7 @@ document.addEventListener('DOMContentLoaded', () => {
         ['_plEp','_plTp','_plSl'].forEach(k => {
           try { if(mCs[k]) mCs.removePriceLine(mCs[k]); } catch(e) {}
         });
-        const ec = signal === 'BUY' ? '#26a69a' : '#ef5350';
+        const ec = '#eab308';
         if (entryP) mCs._plEp = mCs.createPriceLine({price:entryP,color:ec,     lineWidth:1,lineStyle:0,axisLabelVisible:true,title:'Entry'});
         if (tpP)    mCs._plTp = mCs.createPriceLine({price:tpP,  color:'#26a69a',lineWidth:1,lineStyle:2,axisLabelVisible:true,title:'TP'});
         if (slP)    mCs._plSl = mCs.createPriceLine({price:slP,  color:'#ef5350',lineWidth:1,lineStyle:2,axisLabelVisible:true,title:'SL'});
