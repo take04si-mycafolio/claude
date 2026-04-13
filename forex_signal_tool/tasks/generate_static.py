@@ -1621,12 +1621,15 @@ def main():
         for r in all_bt:
             r["url"] = ind_url_map.get(r.get("indicator_name", ""), "")
 
+        # ランキングページ用: BBバンド損切りバリアントを除外（単体シグナルのみ表示）
+        all_bt_ranked = [r for r in all_bt if not r.get("indicator_name", "").endswith("_BBSL")]
+
         # 3軸ランキングデータ生成
         purpose_ranking  = []
         timezone_ranking = []
         market_ranking   = []
         try:
-            purpose_ranking  = get_purpose_ranking(all_bt, ind_url_map)
+            purpose_ranking  = get_purpose_ranking(all_bt_ranked, ind_url_map)
         except Exception as _e:
             logger.warning("purpose_ranking failed: %s", _e)
         try:
@@ -1680,7 +1683,7 @@ def main():
         except Exception as _e:
             logger.warning("bt trade count failed: %s", _e)
 
-        results_json   = json.dumps(all_bt,    cls=_DecEncoder, ensure_ascii=False)
+        results_json   = json.dumps(all_bt_ranked, cls=_DecEncoder, ensure_ascii=False)
         tf_labels_json = json.dumps(TF_LABELS, ensure_ascii=False)
 
         from app.models.settings import Setting as _Setting
@@ -1689,7 +1692,7 @@ def main():
         html = render_html(app, "backtest_static.html", {
             "pairs":            pairs,
             "pair_pages":       pair_pages,
-            "results":          all_bt,
+            "results":          all_bt_ranked,
             "results_json":     results_json,
             "tf_labels_json":   tf_labels_json,
             "ind_url_map":      ind_url_map,
