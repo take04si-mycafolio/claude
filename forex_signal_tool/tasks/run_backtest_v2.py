@@ -85,10 +85,13 @@ def main():
                 print(json.dumps({"ok": False, "error": "OHLCVデータが取得できません"}))
                 return
 
-            # チャート用 OHLCV リスト（datetime index → ISO 文字列）
+            # チャート用 OHLCV リスト
+            # get_candles() は timestamp をカラムとして返す（インデックスは整数）
+            use_ts_col = "timestamp" in df.columns
             ohlcv = []
-            for i, ts in enumerate(df.index):
-                t = ts.isoformat() if hasattr(ts, "isoformat") else str(ts)
+            for i in range(len(df)):
+                ts = df["timestamp"].iloc[i] if use_ts_col else df.index[i]
+                t  = ts.isoformat() if hasattr(ts, "isoformat") else str(ts)
                 ohlcv.append({
                     "timestamp": t,
                     "open":  float(df["open"].iloc[i]),

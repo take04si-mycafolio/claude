@@ -40,8 +40,14 @@ _DEFAULT_MAX_BARS = 200
 # ---------------------------------------------------------------------------
 
 def _bar_time(df: pd.DataFrame, idx: int) -> str:
-    """bar[idx] のタイムスタンプを ISO 8601 UTC 文字列で返す。"""
-    ts = df.index[idx]
+    """bar[idx] のタイムスタンプを ISO 8601 UTC 文字列で返す。
+    get_candles() は timestamp をカラムとして返す（インデックスは整数）ため
+    カラムを優先し、なければインデックスにフォールバックする。
+    """
+    if "timestamp" in df.columns:
+        ts = df["timestamp"].iloc[idx]
+    else:
+        ts = df.index[idx]
     if hasattr(ts, "isoformat"):
         return ts.isoformat()
     return str(ts)
