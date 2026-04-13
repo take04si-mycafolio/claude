@@ -50,6 +50,24 @@ main{max-width:900px;margin:0 auto;padding:28px 20px}
 .tool-link-card .info p{font-size:12px;color:#64748b}
 .tool-link-card a{background:#3b82f6;color:#fff;text-decoration:none;padding:9px 20px;border-radius:8px;font-size:13px;font-weight:600;white-space:nowrap}
 .tool-link-card a:hover{background:#2563eb}
+/* DB Usage */
+.db-summary{display:flex;align-items:center;gap:20px;background:#1e293b;border:1px solid #334155;border-radius:10px;padding:14px 18px;margin-bottom:14px}
+.db-total{font-size:24px;font-weight:700;color:#f1f5f9}
+.db-total span{font-size:13px;font-weight:400;color:#64748b;margin-left:4px}
+.db-table{width:100%;border-collapse:collapse;font-size:13px}
+.db-table th{text-align:left;padding:8px 12px;color:#64748b;font-weight:600;font-size:11px;text-transform:uppercase;border-bottom:1px solid #334155;white-space:nowrap}
+.db-table td{padding:8px 12px;border-bottom:1px solid #1e293b;color:#e2e8f0;white-space:nowrap}
+.db-table tr:last-child td{border-bottom:none}
+.db-table tr:hover td{background:#1e293b}
+.db-table .num{text-align:right;font-family:'Courier New',monospace;color:#94a3b8}
+.db-table .bar-cell{width:120px;padding-right:16px}
+.db-bar-bg{background:#0f172a;border-radius:3px;height:6px;overflow:hidden}
+.db-bar-fill{height:6px;border-radius:3px;background:#3b82f6;transition:width .3s}
+.db-table .tname{color:#60a5fa;font-family:'Courier New',monospace}
+.tf-grid{display:grid;grid-template-columns:repeat(6,1fr);gap:8px;margin-top:12px}
+.tf-card{background:#0f172a;border:1px solid #334155;border-radius:7px;padding:10px;text-align:center}
+.tf-card .tf-label{font-size:11px;color:#64748b;margin-bottom:4px}
+.tf-card .tf-count{font-size:16px;font-weight:700;color:#f1f5f9}
 /* Spinner */
 @keyframes spin{to{transform:rotate(360deg)}}
 .spinner{display:inline-block;width:14px;height:14px;border:2px solid #ffffff44;border-top-color:#fff;border-radius:50%;animation:spin .7s linear infinite;vertical-align:middle;margin-right:6px}
@@ -88,8 +106,12 @@ main{max-width:900px;margin:0 auto;padding:28px 20px}
     <div class="section-title">最終実行日時</div>
     <div class="run-times">
       <div class="run-row">
-        <span class="run-label">データ取得</span>
+        <span class="run-label">短期足データ取得（yfinance）</span>
         <span class="run-time" id="rt-fetch">{{ last_fetch }}</span>
+      </div>
+      <div class="run-row">
+        <span class="run-label">日足データ取得（Alpha Vantage）</span>
+        <span class="run-time" id="rt-daily">{{ last_daily_fetch }}</span>
       </div>
       <div class="run-row">
         <span class="run-label">バックテスト</span>
@@ -125,6 +147,61 @@ main{max-width:900px;margin:0 auto;padding:28px 20px}
         <div class="result-msg" id="msg-signals"></div>
       </div>
     </div>
+  </div>
+
+  <!-- DB 使用量 -->
+  <div class="section">
+    <div class="section-title">データベース使用量</div>
+    <div class="db-summary">
+      <div>
+        <div class="db-total">{{ db_total_mb }}<span>MB 合計</span></div>
+      </div>
+    </div>
+    {% if db_tables %}
+    {% set max_mb = db_tables[0].total_mb if db_tables[0].total_mb > 0 else 1 %}
+    <table class="db-table">
+      <thead>
+        <tr>
+          <th>テーブル</th>
+          <th class="num">行数（推定）</th>
+          <th class="num">データ</th>
+          <th class="num">インデックス</th>
+          <th class="num">合計</th>
+          <th class="bar-cell"></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for t in db_tables %}
+        <tr>
+          <td class="tname">{{ t.name }}</td>
+          <td class="num">{{ "{:,}".format(t.rows) }}</td>
+          <td class="num">{{ t.data_mb }} MB</td>
+          <td class="num">{{ t.idx_mb }} MB</td>
+          <td class="num">{{ t.total_mb }} MB</td>
+          <td class="bar-cell">
+            <div class="db-bar-bg">
+              <div class="db-bar-fill" style="width:{{ [((t.total_mb / max_mb) * 100)|int, 100]|min }}%"></div>
+            </div>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% endif %}
+
+    {% if price_by_tf %}
+    <div style="margin-top:16px">
+      <div style="font-size:12px;color:#64748b;margin-bottom:8px">price_data タイムフレーム別件数</div>
+      <div class="tf-grid">
+        {% for item in price_by_tf %}
+        <div class="tf-card">
+          <div class="tf-label">{{ item.tf }}</div>
+          <div class="tf-count">{{ "{:,}".format(item.count) }}</div>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+    {% endif %}
   </div>
 
   <!-- バックテストツールへのリンク -->

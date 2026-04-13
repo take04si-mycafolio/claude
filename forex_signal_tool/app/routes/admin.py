@@ -93,10 +93,13 @@ def dashboard():
     from app.models.price_data import PriceData
     from app.models.signal import TradingSignal
     from app.models.backtest import BacktestResult
+    from app import db
+    from sqlalchemy import text
 
-    last_fetch  = Setting.get("last_data_fetch_at",    "未実行")
-    last_bt     = Setting.get("last_backtest_at",      "未実行")
-    last_signal = Setting.get("last_signal_update_at", "未実行")
+    last_fetch       = Setting.get("last_data_fetch_at",    "未実行")
+    last_daily_fetch = Setting.get("last_daily_fetch_at",   "未実行")
+    last_bt          = Setting.get("last_backtest_at",      "未実行")
+    last_signal      = Setting.get("last_signal_update_at", "未実行")
 
     stats = {
         "price_rows":   PriceData.query.count(),
@@ -104,12 +107,54 @@ def dashboard():
         "bt_count":     BacktestResult.query.count(),
     }
 
+    # ---- DB 使用量内訳 ----
+    db_tables = []
+    try:
+        rows = db.session.execute(text("""
+            SELECT
+                table_name,
+                COALESCE(table_rows, 0)                                       AS row_est,
+                ROUND(data_length  / 1024 / 1024, 2)                          AS data_mb,
+                ROUND(index_length / 1024 / 1024, 2)                          AS idx_mb,
+                ROUND((data_length + index_length) / 1024 / 1024, 2)          AS total_mb
+            FROM information_schema.tables
+            WHERE table_schema = DATABASE()
+            ORDER BY (data_length + index_length) DESC
+        """)).fetchall()
+        for r in rows:
+            db_tables.append({
+                "name":     r[0],
+                "rows":     int(r[1]),
+                "data_mb":  float(r[2] or 0),
+                "idx_mb":   float(r[3] or 0),
+                "total_mb": float(r[4] or 0),
+            })
+    except Exception:
+        pass
+
+    # price_data のタイムフレーム別内訳
+    price_by_tf = []
+    try:
+        tf_order = ["5min", "15min", "30min", "1hr", "4hr", "daily"]
+        for tf in tf_order:
+            count = PriceData.query.filter_by(timeframe=tf).count()
+            price_by_tf.append({"tf": tf, "count": count})
+    except Exception:
+        pass
+
+    # DB 合計サイズ
+    db_total_mb = round(sum(t["total_mb"] for t in db_tables), 2)
+
     return render_template(
         "admin/dashboard.html",
         last_fetch=last_fetch,
+        last_daily_fetch=last_daily_fetch,
         last_bt=last_bt,
         last_signal=last_signal,
         stats=stats,
+        db_tables=db_tables,
+        price_by_tf=price_by_tf,
+        db_total_mb=db_total_mb,
     )
 
 
