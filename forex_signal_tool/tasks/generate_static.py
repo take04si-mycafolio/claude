@@ -1097,7 +1097,8 @@ def main():
             )
             for name, info in INDICATOR_INFO.items()
         }
-        slug_map = {name: info["slug"] for name, info in INDICATOR_INFO.items()}
+        slug_map    = {name: info["slug"]    for name, info in INDICATOR_INFO.items()}
+        display_map = {name: info["display"] for name, info in INDICATOR_INFO.items()}
 
         # TOP ページ（記事コンテンツ）
         content_db_top = load_content_db()
@@ -1250,6 +1251,7 @@ def main():
                 "data": data,
                 "slug_map": slug_map,
                 "ind_url_map": ind_url_map,
+                "display_map": display_map,
                 "updated_at": updated_at,
                 "active_page": "home",
             })

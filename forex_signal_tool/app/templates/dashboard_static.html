@@ -108,7 +108,7 @@
           {{ '買い' if s.signal_type == 'BUY' else '売り' }}
         </span>
         <div class="signal-item-info">
-          <div class="signal-name">{{ s.indicator_name }}</div>
+          <div class="signal-name">{{ display_map.get(s.indicator_name, s.indicator_name) }}</div>
           <div class="signal-tf text-muted">{{ s.timeframe }} · 勝率 {{ "%.1f"|format(s.win_rate) if s.win_rate else '--' }}%</div>
           {% if s.signal_time_jst %}
           <div class="signal-time-jst">{{ s.signal_time_jst }}</div>
@@ -147,7 +147,7 @@
   <div class="bt-item">
   {% endif %}
     <div class="bt-item-left">
-      <div class="bt-name">{{ r.indicator_name }}</div>
+      <div class="bt-name">{{ display_map.get(r.indicator_name, r.indicator_name) }}</div>
       <div class="bt-meta text-muted">{{ r.timeframe }} · {{ r.total_trades }}トレード</div>
     </div>
     <div class="bt-item-right">
@@ -219,7 +219,7 @@
            data-entry-label="{{ t.entry_ts_jst }}">
         <div class="sim-trade-header">
           <span class="signal-type-badge {% if t.signal == 'BUY' %}buy{% else %}sell{% endif %}">{{ '買い' if t.signal == 'BUY' else '売り' }}</span>
-          <span class="sim-ind-name">{{ t.indicator }}</span>
+          <span class="sim-ind-name">{{ display_map.get(t.indicator, t.indicator) }}</span>
           <span class="sim-tf-badge">{{ data.tf_labels[tf] or tf }}</span>
           <span class="sim-outcome {% if t.outcome == 'WIN' %}win{% elif t.outcome == 'LOSS' %}loss{% else %}open{% endif %}">
             {% if t.outcome == 'WIN' %}WIN +{{ t.pips|int }}p
