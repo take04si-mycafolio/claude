@@ -622,6 +622,336 @@ for _base in _BBSL_BASE_INDICATORS:
     }
 
 
+# ============================================================
+# 用途別ランキング定義
+# ============================================================
+IND_ONE_LINERS = {
+    "SMA_20":               "短期トレンドの方向をひとめで確認",
+    "SMA_50":               "中長期の流れを把握するシンプルな基準線",
+    "SMA_Cross_20_50":      "ゴールデン/デッドクロスでトレンド転換を確認",
+    "EMA_Cross_9_21":       "素早い反応でトレンドの初動を捉える",
+    "EMA_21":               "価格との位置関係でトレンド方向を判断",
+    "Ichimoku_Cloud":       "雲・転換線・基準線で相場全体を総合判断",
+    "RSI_14":               "過熱感を数値化し、反転タイミングを狙う",
+    "Stochastic_14_3":      "売られすぎ/買われすぎゾーンからの反転",
+    "CCI_20":               "価格乖離を計測し、転換点を早期に察知",
+    "Williams_R_14":        "RSIより素早い反応の逆張り指標",
+    "BollingerBands_20_2":  "バンドタッチで逆張りエントリーのタイミング",
+    "Hammer":               "下ヒゲ長い足が底値圏の反転を示唆",
+    "Inverted_Hammer":      "上ヒゲ長い足が天井圏の反転を示唆",
+    "Doji":                 "十字線で売買拮抗、転換の前兆を読む",
+    "Bullish_Engulfing":    "大陽線が示す強い買い圧力の発生",
+    "Bearish_Engulfing":    "大陰線が示す強い売り圧力の発生",
+    "Pin_Bar":              "ヒゲで価格拒絶を確認、反転狙い",
+    "MACD_12_26_9":         "クロスでトレンド転換の初動を捉える",
+    "BB_Squeeze":           "バンド収縮後のブレイクアウトを先取り",
+    "Three_White_Soldiers": "3連続陽線でトレンド継続の強さを確認",
+    "Three_Black_Crows":    "3連続陰線でトレンド継続の強さを確認",
+    "Pivot_Classic":        "前日の値動きから重要な価格水準を算出",
+    "Fibonacci_Retracement":"黄金比で押し目・戻りの目標値を設定",
+    "Support_Resistance":   "過去の節目を自動検出してTP/SLに活用",
+    "ATR_14":               "ボラティリティに応じた動的SL/TPを設定",
+    "Volatility_Index":     "BBバンド幅でボラティリティの変化を捉える",
+    "RSI_MACD_Combo":       "RSI×MACDの一致でダマシを大幅に削減",
+    "RSI_Stoch_Combo":      "RSI×ストキャスで逆張り精度を向上",
+    "MACD_Stoch_Combo":     "MACDとストキャスで押し目タイミングを精緻化",
+    "Triple_OSC_Combo":     "3指標一致の高精度・低頻度シグナル",
+    "All_AND_Consensus":    "全指標が揃った時だけの最高精度シグナル",
+}
+
+PURPOSE_GROUPS = [
+    {
+        "key":   "trend",
+        "label": "方向判断（トレンド）",
+        "icon":  "bi-compass",
+        "color": "pur-blue",
+        "desc":  "相場が上昇・下降どちらかを判断するのに有効な指標群",
+        "note":  "トレンドが明確な相場で特に力を発揮します",
+        "indicators": ["SMA_Cross_20_50", "EMA_Cross_9_21", "EMA_21",
+                       "SMA_20", "SMA_50", "Ichimoku_Cloud"],
+    },
+    {
+        "key":   "entry",
+        "label": "エントリータイミング",
+        "icon":  "bi-crosshair",
+        "color": "pur-green",
+        "desc":  "押し目・底値圏での買いや天井圏での売りタイミングを捉える指標群",
+        "note":  "レンジ・逆張りに強く、反転シグナルの精度が高い",
+        "indicators": ["RSI_14", "Stochastic_14_3", "CCI_20", "Williams_R_14",
+                       "BollingerBands_20_2", "Hammer", "Inverted_Hammer",
+                       "Doji", "Bullish_Engulfing", "Bearish_Engulfing", "Pin_Bar"],
+    },
+    {
+        "key":   "breakout",
+        "label": "ブレイク・継続",
+        "icon":  "bi-lightning-charge",
+        "color": "pur-amber",
+        "desc":  "ブレイクアウトやトレンド継続を検知するのに適した指標群",
+        "note":  "相場が動き出す初動を捉えるのが得意",
+        "indicators": ["MACD_12_26_9", "BB_Squeeze",
+                       "Three_White_Soldiers", "Three_Black_Crows"],
+    },
+    {
+        "key":   "line",
+        "label": "利確・損切りライン",
+        "icon":  "bi-rulers",
+        "color": "pur-purple",
+        "desc":  "TP（利確）・SL（損切り）の価格水準設定に使う指標群",
+        "note":  "重要な価格水準を客観的に算出できる",
+        "indicators": ["Pivot_Classic", "Fibonacci_Retracement", "Support_Resistance"],
+    },
+    {
+        "key":   "volatility",
+        "label": "ボラティリティ管理",
+        "icon":  "bi-activity",
+        "color": "pur-red",
+        "desc":  "相場の値動きの大きさを測定するリスク管理に活用する指標群",
+        "note":  "ポジションサイジングやSL設定の基準として活用",
+        "indicators": ["ATR_14", "Volatility_Index"],
+    },
+    {
+        "key":   "composite",
+        "label": "コンポジット（複合）",
+        "icon":  "bi-diagram-3",
+        "color": "pur-cyan",
+        "desc":  "複数の指標が一致したときのみシグナルを出す、精度重視の複合指標群",
+        "note":  "シグナル頻度は低いが、精度と信頼度が高い",
+        "indicators": ["RSI_MACD_Combo", "RSI_Stoch_Combo", "MACD_Stoch_Combo",
+                       "Triple_OSC_Combo", "All_AND_Consensus"],
+    },
+]
+
+
+def _pur_score(wr: float, pf: float, trades: int) -> float:
+    """用途別・時間帯別・相場タイプ別の簡易スコア（0〜100）"""
+    wr_s = min(wr, 100) * 0.45
+    pf_s = min(max(pf - 1.0, 0) * 25, 25) * 0.35
+    n_s  = min(trades / 200 * 100, 100) * 0.20
+    return round(wr_s + pf_s + n_s, 1)
+
+
+def _ind_card(ind_name: str, bt_best: dict, url_map: dict) -> dict:
+    """指標 1 件分のカードデータを生成"""
+    info = INDICATOR_INFO.get(ind_name, {})
+    disp = info.get("display", ind_name)
+    wr   = float(bt_best.get("win_rate")      or 0)
+    pf   = float(bt_best.get("profit_factor") or 0)
+    n    = int(bt_best.get("total_trades")    or 0)
+    return {
+        "indicator":  ind_name,
+        "display":    disp,
+        "short":      disp.split("（")[0],
+        "one_liner":  IND_ONE_LINERS.get(ind_name, ""),
+        "win_rate":   round(wr, 1),
+        "pf":         round(pf, 2),
+        "trades":     n,
+        "pair":       bt_best.get("currency_pair", ""),
+        "tf":         TF_LABELS.get(bt_best.get("timeframe", ""), bt_best.get("timeframe", "")),
+        "score":      _pur_score(wr, pf, n),
+        "url":        url_map.get(ind_name, ""),
+    }
+
+
+def get_purpose_ranking(all_bt: list, url_map: dict) -> list:
+    """用途別ランキングデータを生成"""
+    best_by_ind: dict = {}
+    for r in all_bt:
+        ind = r.get("indicator_name", "")
+        wr  = float(r.get("win_rate") or 0)
+        if ind not in best_by_ind or wr > float(best_by_ind[ind].get("win_rate") or 0):
+            best_by_ind[ind] = r
+
+    result = []
+    for grp in PURPOSE_GROUPS:
+        cards = []
+        for ind in grp["indicators"]:
+            bt = best_by_ind.get(ind)
+            if bt:
+                cards.append(_ind_card(ind, bt, url_map))
+        cards.sort(key=lambda x: x["score"], reverse=True)
+        result.append({**grp, "ranking": cards[:5]})
+    return result
+
+
+def get_timezone_ranking(url_map: dict) -> list:
+    """時間帯別ランキング。simulation_trades の entry_at（UTC）をJSTに変換して集計"""
+    import sqlalchemy
+    from app.config import Config
+
+    sql = """
+        SELECT
+            indicator_name,
+            CASE
+                WHEN HOUR(DATE_ADD(entry_at, INTERVAL 9 HOUR)) >= 8
+                 AND HOUR(DATE_ADD(entry_at, INTERVAL 9 HOUR)) < 15  THEN 'japan'
+                WHEN HOUR(DATE_ADD(entry_at, INTERVAL 9 HOUR)) >= 15
+                 AND HOUR(DATE_ADD(entry_at, INTERVAL 9 HOUR)) < 21  THEN 'london'
+                ELSE 'ny'
+            END AS session,
+            COUNT(*)              AS total,
+            SUM(outcome = 'WIN')  AS wins,
+            AVG(profit_loss)      AS avg_pnl
+        FROM simulation_trades
+        WHERE outcome IN ('WIN', 'LOSS')
+        GROUP BY indicator_name, session
+        HAVING total >= 5
+        ORDER BY indicator_name, session
+    """
+    try:
+        engine = sqlalchemy.create_engine(Config.SQLALCHEMY_DATABASE_URI)
+        with engine.connect() as conn:
+            rows = conn.execute(sqlalchemy.text(sql)).fetchall()
+    except Exception as e:
+        logger.warning("timezone_ranking query failed: %s", e)
+        return []
+
+    SESSIONS = [
+        {"key": "japan",  "label": "東京時間（9〜15時）",    "icon": "bi-brightness-high", "color": "tz-red",    "hours": "JST 09:00〜15:00"},
+        {"key": "london", "label": "ロンドン時間（15〜21時）","icon": "bi-cloud-sun",       "color": "tz-blue",   "hours": "JST 15:00〜21:00"},
+        {"key": "ny",     "label": "NY時間（21〜翌9時）",     "icon": "bi-moon-stars",      "color": "tz-purple", "hours": "JST 21:00〜09:00"},
+    ]
+    sess_data: dict = {s["key"]: [] for s in SESSIONS}
+
+    for row in rows:
+        ind, sess = row[0], row[1]
+        total, wins = int(row[2]), int(row[3])
+        avg_pnl = float(row[4] or 0)
+        if sess not in sess_data:
+            continue
+        info = INDICATOR_INFO.get(ind, {})
+        if not info:
+            continue
+        wr = round(wins / total * 100, 1) if total > 0 else 0
+        sess_data[sess].append({
+            "indicator": ind,
+            "display":   info.get("display", ind),
+            "short":     info.get("display", ind).split("（")[0],
+            "one_liner": IND_ONE_LINERS.get(ind, ""),
+            "win_rate":  wr,
+            "trades":    total,
+            "avg_pnl":   round(avg_pnl, 0),
+            "score":     _pur_score(wr, 1.0, total),
+            "url":       url_map.get(ind, ""),
+        })
+
+    result = []
+    for s in SESSIONS:
+        cards = sorted(sess_data[s["key"]], key=lambda x: x["score"], reverse=True)
+        result.append({**s, "ranking": cards[:5]})
+    return result
+
+
+def get_market_type_ranking(url_map: dict) -> list:
+    """
+    相場タイプ別ランキング。
+    BB幅の大小（広い=トレンド、狭い=レンジ）で各取引を分類し集計。
+    """
+    import sqlalchemy
+    import numpy as np
+    import pandas as pd
+    from app.config import Config
+    from app.services.data_fetcher import get_candles
+
+    try:
+        engine = sqlalchemy.create_engine(Config.SQLALCHEMY_DATABASE_URI)
+        with engine.connect() as conn:
+            trades_df = pd.read_sql(
+                sqlalchemy.text(
+                    "SELECT indicator_name, currency_pair, timeframe, "
+                    "entry_at, outcome FROM simulation_trades "
+                    "WHERE outcome IN ('WIN','LOSS') LIMIT 15000"
+                ),
+                conn,
+                parse_dates=["entry_at"],
+            )
+    except Exception as e:
+        logger.warning("market_type: trades load failed: %s", e)
+        return []
+
+    if trades_df.empty:
+        return []
+
+    # pair+TF ごとに BB幅タイムスタンプ配列を事前構築
+    bb_cache: dict = {}
+    for (pair, tf), _ in trades_df.groupby(["currency_pair", "timeframe"]):
+        try:
+            df = get_candles(pair, tf, limit=2000)
+            if df is None or df.empty:
+                continue
+            df = df.sort_values("timestamp").reset_index(drop=True)
+            close   = df["close"].astype(float)
+            bb_mid  = close.rolling(20).mean()
+            bb_std  = close.rolling(20).std()
+            bb_wid  = (4 * bb_std) / bb_mid.replace(0, np.nan)
+            avg_wid = bb_wid.rolling(50).mean()
+            cats = np.where(
+                bb_wid.isna() | avg_wid.isna(), "unknown",
+                np.where(bb_wid > avg_wid * 1.05, "trend",
+                np.where(bb_wid < avg_wid * 0.95, "range", "mixed"))
+            )
+            ts = pd.to_datetime(df["timestamp"])
+            if ts.dt.tz is not None:
+                ts = ts.dt.tz_localize(None)
+            bb_cache[(pair, tf)] = (ts.values.astype("datetime64[ns]"), cats)
+        except Exception as ex:
+            logger.debug("market_type: BB failed %s %s: %s", pair, tf, ex)
+
+    def _classify(row):
+        key = (row["currency_pair"], row["timeframe"])
+        if key not in bb_cache:
+            return "unknown"
+        ts_arr, cat_arr = bb_cache[key]
+        try:
+            ent = np.datetime64(pd.Timestamp(row["entry_at"]).replace(tzinfo=None), "ns")
+            idx = int(np.searchsorted(ts_arr, ent, side="right")) - 1
+            return cat_arr[idx] if idx >= 0 else "unknown"
+        except Exception:
+            return "unknown"
+
+    trades_df["market_type"] = trades_df.apply(_classify, axis=1)
+    valid = trades_df[trades_df["market_type"].isin(["trend", "range"])]
+    if valid.empty:
+        return []
+
+    agg = (valid.groupby(["indicator_name", "market_type"])
+           .apply(lambda g: pd.Series({
+               "total": len(g),
+               "wins":  (g["outcome"] == "WIN").sum(),
+           }))
+           .reset_index())
+    agg["win_rate"] = (agg["wins"] / agg["total"] * 100).round(1)
+
+    MARKET_TYPES = [
+        {"key": "trend", "label": "トレンド相場",  "icon": "bi-graph-up-arrow",
+         "color": "mt-blue",  "desc": "BB幅が広がり、EMAが傾いている局面", "badge": "順張り向き"},
+        {"key": "range", "label": "レンジ相場",    "icon": "bi-arrows-expand",
+         "color": "mt-green", "desc": "BB幅が収縮し、EMAが横ばいの局面",  "badge": "逆張り向き"},
+    ]
+    result = []
+    for mt in MARKET_TYPES:
+        sub   = agg[agg["market_type"] == mt["key"]]
+        cards = []
+        for _, row in sub[sub["total"] >= 5].iterrows():
+            ind  = row["indicator_name"]
+            info = INDICATOR_INFO.get(ind, {})
+            if not info:
+                continue
+            wr = float(row["win_rate"])
+            cards.append({
+                "indicator": ind,
+                "display":   info.get("display", ind),
+                "short":     info.get("display", ind).split("（")[0],
+                "one_liner": IND_ONE_LINERS.get(ind, ""),
+                "win_rate":  wr,
+                "trades":    int(row["total"]),
+                "score":     _pur_score(wr, 1.0, int(row["total"])),
+                "url":       url_map.get(ind, ""),
+            })
+        cards.sort(key=lambda x: x["score"], reverse=True)
+        result.append({**mt, "ranking": cards[:8]})
+    return result
+
+
 def _to_unix(ts) -> int:
     """datetime / str / timestamp → Unix秒 (UTC固定)"""
     from datetime import datetime, timezone
@@ -1291,6 +1621,23 @@ def main():
         for r in all_bt:
             r["url"] = ind_url_map.get(r.get("indicator_name", ""), "")
 
+        # 3軸ランキングデータ生成
+        purpose_ranking  = []
+        timezone_ranking = []
+        market_ranking   = []
+        try:
+            purpose_ranking  = get_purpose_ranking(all_bt, ind_url_map)
+        except Exception as _e:
+            logger.warning("purpose_ranking failed: %s", _e)
+        try:
+            timezone_ranking = get_timezone_ranking(ind_url_map)
+        except Exception as _e:
+            logger.warning("timezone_ranking failed: %s", _e)
+        try:
+            market_ranking   = get_market_type_ranking(ind_url_map)
+        except Exception as _e:
+            logger.warning("market_type_ranking failed: %s", _e)
+
         # 検証条件データを抽出
         bt_sl_pips = bt_tp_pips = bt_rr_ratio = bt_timeframes = ""
         if all_bt:
@@ -1361,6 +1708,9 @@ def main():
             "bt_period":        bt_period,
             "updated_at":       updated_at,
             "active_page":      "backtest",
+            "purpose_ranking":  purpose_ranking,
+            "timezone_ranking": timezone_ranking,
+            "market_ranking":   market_ranking,
         })
         save("technical-ranking/index.html", html)
 
