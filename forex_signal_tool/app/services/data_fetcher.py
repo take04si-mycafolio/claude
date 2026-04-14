@@ -397,8 +397,15 @@ def get_candles(pair: str, timeframe: str, limit: int = 200,
 
     rows = [r.to_dict() for r in records]
     df = pd.DataFrame(rows)
-    # timezone-aware な文字列（"+00:00" / "+09:00" 等）を UTC naive に統一
-    df["timestamp"] = pd.to_datetime(df["timestamp"], utc=True).dt.tz_convert(None)
+    # タイムスタンプを UTC naive に統一（naive/aware どちらの DB 返値にも対応）
+    # utc=True は pandas バージョンによって FutureWarning を出すため使わない
+    _ts = pd.to_datetime(df["timestamp"])
+    if _ts.dt.tz is not None:
+        # timezone-aware の場合: UTC に変換してからタイムゾーン情報を除去
+        df["timestamp"] = _ts.dt.tz_convert("UTC").dt.tz_localize(None)
+    else:
+        # naive の場合: DB は UTC 保存なのでそのまま使用
+        df["timestamp"] = _ts
     df = df.sort_values("timestamp").reset_index(drop=True)
 
     # ---- Python 側フィルタ（JST ベース・確実）----

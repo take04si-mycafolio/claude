@@ -12,7 +12,12 @@ import os
 import json
 import math
 import traceback
+import warnings
 from datetime import timedelta
+
+# PHP が exec() で 2>&1 キャプチャするため、警告が stdout に混入すると JSON がパース不能になる
+# pandas FutureWarning 等をすべて抑制する
+warnings.filterwarnings("ignore")
 
 SCRIPT_DIR   = os.path.dirname(os.path.abspath(__file__))
 PROJECT_ROOT = os.path.dirname(SCRIPT_DIR)
