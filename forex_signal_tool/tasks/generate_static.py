@@ -1283,11 +1283,11 @@ def get_indicator_page_data(indicator_name: str, app) -> dict | None:
         """naive UTC datetime → Unix timestamp"""
         if dt is None:
             return None
+        import datetime as _dt
         from datetime import timezone as _tz
-        if hasattr(dt, "replace"):
+        if isinstance(dt, _dt.datetime):
             return int(dt.replace(tzinfo=_tz.utc).timestamp())
         # string fallback
-        import datetime as _dt
         try:
             return int(_dt.datetime.fromisoformat(str(dt)).replace(tzinfo=_tz.utc).timestamp())
         except Exception:
