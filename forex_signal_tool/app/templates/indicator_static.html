@@ -54,6 +54,14 @@
 .ind-tf-tabs .nav-link { font-size: 11px; padding: 4px 10px; color: #64748b; }
 .ind-tf-tabs .nav-link.active { color: #3b82f6; }
 
+/* AI改善ルール 折りたたみ */
+.ai-collapse-wrap{margin-top:8px;border-radius:10px;overflow:hidden;border:1px solid #e2e8f0}
+.ai-collapse-btn{width:100%;display:flex;align-items:center;justify-content:space-between;background:#f1f5f9;border:none;padding:12px 16px;font-size:13px;font-weight:600;color:#334155;cursor:pointer;text-align:left;gap:8px;transition:background .15s}
+.ai-collapse-btn:hover{background:#e2e8f0}
+.ai-collapse-chev{font-size:14px;color:#64748b;transition:transform .2s;flex-shrink:0}
+.ai-collapse-btn[aria-expanded="true"] .ai-collapse-chev{transform:rotate(180deg)}
+.ai-collapse-body{display:none;padding:12px 14px;background:#fff;border-top:1px solid #e2e8f0}
+
 /* シミュレーショントレード モーダル */
 tr.trade-row.sim-active td{background:rgba(59,130,246,.10)!important}
 #tradeModal .modal-content{background:#131722;border:1px solid #1e293b;border-radius:12px}
@@ -217,6 +225,54 @@ tr.trade-row.sim-active td{background:rgba(59,130,246,.10)!important}
     {% endif %}
   </div>
 
+  <!-- AI改善ルール 検証結果（折りたたみ） -->
+  {% if linked_strategies %}
+  <div class="ai-collapse-wrap">
+    <button class="ai-collapse-btn" onclick="toggleAiSection(this)" aria-expanded="false">
+      <span>📊 AI分析による改善ルールの検証結果を見る</span>
+      <i class="bi bi-chevron-down ai-collapse-chev"></i>
+    </button>
+    <div class="ai-collapse-body">
+      {% for s in linked_strategies %}
+      {% set per = s.bt_result.get('per_pair', {}) %}
+      <div class="ai-cmp-card">
+        <div class="ai-cmp-head">
+          <div class="ai-cmp-name">{{ s.name }}</div>
+          <div class="ai-cmp-meta">検証日: {{ s.bt_ran_at }}</div>
+        </div>
+        {% if per %}
+        <div class="ind-results-table-wrap">
+          <table class="ind-results-table">
+            <thead>
+              <tr><th>ペア / TF</th><th>勝率</th><th>取引数</th><th style="white-space:nowrap">損益</th><th>PF</th></tr>
+            </thead>
+            <tbody>
+              {% for key, m in per.items() %}
+              {% set wr_pct = m.win_rate * 100 if m.win_rate is not none else 0 %}
+              <tr>
+                <td style="white-space:nowrap">{{ key.replace('_', ' ') }}</td>
+                <td class="fw-bold {% if wr_pct >= 60 %}text-success{% elif wr_pct >= 50 %}text-warning{% else %}text-muted{% endif %}">
+                  {{ "%.1f"|format(wr_pct) }}%
+                </td>
+                <td>{{ m.total_trades or 0 }}</td>
+                <td style="white-space:nowrap" class="{% if (m.total_profit or 0) >= 0 %}text-success{% else %}text-danger{% endif %}">
+                  ¥{{ "{:,.0f}".format(m.total_profit or 0) }}
+                </td>
+                <td>{{ "%.2f"|format(m.profit_factor) if m.profit_factor else '-' }}</td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+        {% else %}
+        <div class="empty-state small">詳細データなし</div>
+        {% endif %}
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+  {% endif %}
+
   <!-- トレードシミュレーション（通貨ペア別タブ・15分足） -->
   <div class="section-card">
     <h2 class="ind-section-title">
@@ -333,6 +389,80 @@ tr.trade-row.sim-active td{background:rgba(59,130,246,.10)!important}
     </div>
   </div>
 
+  <!-- AI改善トレード実績（折りたたみ） -->
+  {% if linked_strategies %}
+  {% set _has_trades = linked_strategies | selectattr('bt_result') | list %}
+  <div class="ai-collapse-wrap">
+    <button class="ai-collapse-btn" onclick="toggleAiSection(this)" aria-expanded="false">
+      <span>📈 AI分析で改善したトレード実績を見る</span>
+      <i class="bi bi-chevron-down ai-collapse-chev"></i>
+    </button>
+    <div class="ai-collapse-body">
+      {% set _TF_LBL = {"5min":"5分足","15min":"15分足","30min":"30分足","1hr":"1時間足","4hr":"4時間足","daily":"日足"} %}
+      {% for s in linked_strategies %}
+      {% set trades_by_key = s.bt_result.get('trades_by_key', {}) %}
+      {% if trades_by_key %}
+      <div class="ai-cmp-card" style="margin-top:8px">
+        <div class="ai-cmp-head">
+          <div class="ai-cmp-name">{{ s.name }}</div>
+          <div class="ai-cmp-meta">検証日: {{ s.bt_ran_at }}</div>
+        </div>
+        {% for key, trades in trades_by_key.items() %}
+        {% set parts = key.rsplit('_', 1) %}
+        <div style="font-size:11px;font-weight:600;color:#64748b;margin:10px 0 4px">
+          {{ parts[0] }} {{ _TF_LBL.get(parts[1], parts[1]) if parts|length > 1 else key }}
+        </div>
+        <div class="ind-trades-table-wrap">
+          <table class="ind-trades-table">
+            <thead>
+              <tr>
+                <th style="white-space:nowrap">エントリー (UTC)</th>
+                <th>種別</th>
+                <th>エントリー</th>
+                <th>TP</th>
+                <th>SL</th>
+                <th style="white-space:nowrap">結果・損益</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for t in trades %}
+              {% set is_buy = t.direction == 'BUY' %}
+              {% set win = t.exit_reason == 'TP' or t.pnl_pips > 0 %}
+              <tr>
+                <td class="ind-trade-time" style="white-space:nowrap">{{ t.entry_time | string | truncate(16, True, '') }}</td>
+                <td><span class="signal-type-badge {% if is_buy %}buy{% else %}sell{% endif %}">{{ '買い' if is_buy else '売り' }}</span></td>
+                <td class="font-mono">{{ "%.3f"|format(t.entry_price) if t.entry_price else '-' }}</td>
+                <td class="font-mono text-success">{{ "%.3f"|format(t.tp_price) if t.tp_price else '-' }}</td>
+                <td class="font-mono text-danger">{{ "%.3f"|format(t.sl_price) if t.sl_price else '-' }}</td>
+                <td style="white-space:nowrap">
+                  {% if t.exit_reason == 'TP' %}
+                  <span class="ind-outcome win">✓利確</span>
+                  <span class="fw-bold text-success ms-1">+¥{{ "{:,.0f}".format(t.pnl_currency | abs) }}</span>
+                  {% elif t.exit_reason == 'SL' %}
+                  <span class="ind-outcome loss">✗損切</span>
+                  <span class="fw-bold text-danger ms-1">-¥{{ "{:,.0f}".format(t.pnl_currency | abs) }}</span>
+                  {% else %}
+                  <span class="ind-outcome neutral">{{ t.exit_reason or '-' }}</span>
+                  {% endif %}
+                </td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+        {% endfor %}
+      </div>
+      {% else %}
+      <div class="ai-cmp-card" style="margin-top:8px">
+        <div class="ai-cmp-name">{{ s.name }}</div>
+        <div class="empty-state small" style="margin-top:6px">トレードデータなし（再保存すると表示されます）</div>
+      </div>
+      {% endif %}
+      {% endfor %}
+    </div>
+  </div>
+  {% endif %}
+
   <!-- SEO記事 -->
   {% if indicator_article %}
   <div style="background:#fff;padding:0 1.2rem;border-bottom:3px solid #1a1a1a;margin-bottom:2.5rem">
@@ -340,14 +470,9 @@ tr.trade-row.sim-active td{background:rgba(59,130,246,.10)!important}
   </div>
   {% endif %}
 
-  {% if linked_strategies %}
-  <!-- AI提案条件 比較バックテスト -->
+  {% if false %}
+  <!-- AI提案条件 比較バックテスト（以下は廃止：折りたたみセクションに移行） -->
   <div class="section-card" id="ai-comparison">
-    <h2 class="ind-section-title"><i class="bi bi-cpu me-2"></i>AI提案条件との比較バックテスト</h2>
-    <p style="font-size:13px;color:#64748b;margin-bottom:16px">
-      {{ info.display }} 単体シグナルに対し、AI が提案した追加フィルター条件でバックテストした結果を掲載しています。
-      条件の詳細は管理画面のバックテストツール2で確認できます。
-    </p>
     <div class="ai-cmp-list">
       {% for s in linked_strategies %}
       {% set agg = s.bt_result.get('aggregate', {}) %}
@@ -687,6 +812,14 @@ tr.trade-row.sim-active td{background:rgba(59,130,246,.10)!important}
       openTradeModal(row);
     });
   })();
+
+  /* ===== AI折りたたみセクション ===== */
+  function toggleAiSection(btn) {
+    const body = btn.nextElementSibling;
+    const open = btn.getAttribute('aria-expanded') === 'true';
+    btn.setAttribute('aria-expanded', open ? 'false' : 'true');
+    body.style.display = open ? 'none' : 'block';
+  }
 </script>
 </body>
 </html>
