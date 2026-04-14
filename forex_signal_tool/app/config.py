@@ -71,5 +71,5 @@ class Config:
     MIN_TRADES_COUNT = 3        # 最低取引数
     HIGH_CONFIDENCE_THRESHOLD = 70.0
 
-    # Pip value for JPY pairs (standard lot)
-    JPY_PAIR_PIP_VALUE = 1000   # 1pip = ¥1,000 (1標準ロット)
+    # Pip value for JPY pairs (1万通貨)
+    JPY_PAIR_PIP_VALUE = 100    # 1pip = ¥100 (1万通貨)

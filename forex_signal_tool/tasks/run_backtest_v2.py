@@ -83,7 +83,7 @@ def main():
                 "timeframe":         timeframe,
                 "initial_capital":   float(sim_raw.get("initial_capital", 1_000_000)),
                 "lot_size":          float(sim_raw.get("lot_size",         1.0)),
-                "pip_value":         float(sim_raw.get("pip_value",        1_000.0)),
+                "pip_value":         float(sim_raw.get("pip_value",          100.0)),
                 "max_bars_to_exit":  int(sim_raw.get("max_bars_to_exit",   200)),
             }
 
