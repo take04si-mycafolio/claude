@@ -177,6 +177,13 @@ $ibt_tp    = $ibt_first ? (int)($ibt_first['tp_pips'] ?? 40) : 40;
     <div class="editor-actions">
       <button class="save-btn" id="save-btn" onclick="saveContent()">保存する</button>
       <span id="save-status" class="save-status"></span>
+<?php if ($is_indicator && $indicator_name): ?>
+      <a class="csv-btn"
+         href="/admin/api.php?action=indicator_csv&ind=<?= urlencode($indicator_name) ?>"
+         style="margin-left:8px">
+        📥 バックテストCSV（ZIP）
+      </a>
+<?php endif; ?>
     </div>
     <div class="info-banner">
       ℹ️ 保存後、管理画面の <strong>バックテスト</strong> または <strong>SEO管理 → ランキング管理</strong> から

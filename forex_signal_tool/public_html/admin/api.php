@@ -729,21 +729,25 @@ switch ($action) {
 
     case 'indicator_csv':
         require_login();
-        $slug = preg_replace('/[^a-z0-9_]/', '', strtolower(trim($_GET['slug'] ?? '')));
 
-        // slug → indicator_name マッピング読み込み
-        $mapFile = __DIR__ . '/indicator_slugs.json';
-        if (!file_exists($mapFile)) {
-            json_out(['status' => 'error', 'message' => 'indicator_slugs.json が見つかりません。generate_static.py を実行してください。']);
+        // indicator_name を直接受け取る（推奨）or slug から JSON ルックアップ（後方互換）
+        $indicatorName = '';
+        $slug = '';
+        if (!empty($_GET['ind'])) {
+            $indicatorName = preg_replace('/[^A-Za-z0-9_]/', '', trim($_GET['ind']));
+            $slug = strtolower(preg_replace('/[^a-z0-9]/i', '_', $indicatorName));
+        } else {
+            $slug = preg_replace('/[^a-z0-9_]/', '', strtolower(trim($_GET['slug'] ?? '')));
+            $mapFile = __DIR__ . '/indicator_slugs.json';
+            if (file_exists($mapFile)) {
+                $slugMap = json_decode(file_get_contents($mapFile), true) ?? [];
+                $indicatorName = $slugMap[$slug] ?? '';
+            }
+        }
+        if (!$indicatorName) {
+            json_out(['status' => 'error', 'message' => '指標名が指定されていません']);
             break;
         }
-        $slugMap = json_decode(file_get_contents($mapFile), true) ?? [];
-        if (!isset($slugMap[$slug])) {
-            json_out(['status' => 'error', 'message' => "指標スラッグ '{$slug}' が見つかりません"]);
-            break;
-        }
-
-        $indicatorName = $slugMap[$slug];
         $pdo    = get_pdo();
         $suffix = date('YmdHis') . '_' . getmypid();
         $tmpDir = sys_get_temp_dir();
