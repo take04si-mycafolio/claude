@@ -35,6 +35,17 @@ from .trend import (
     compute_bb_width,
 )
 from .volatility import compute_atr
+from .patterns import (
+    compute_hammer,
+    compute_inverted_hammer,
+    compute_doji,
+    compute_bullish_engulfing,
+    compute_bearish_engulfing,
+    compute_three_white_soldiers,
+    compute_three_black_crows,
+    compute_bullish_pin_bar,
+    compute_bearish_pin_bar,
+)
 
 
 def _close(df: pd.DataFrame, _params: dict) -> pd.Series:
@@ -77,6 +88,16 @@ _REGISTRY: dict[str, callable] = {
     "OPEN":         _open,
     "HIGH":         _high,
     "LOW":          _low,
+    # ローソク足パターン（検出=1.0, 未検出=0.0）
+    "HAMMER":               compute_hammer,
+    "INVERTED_HAMMER":      compute_inverted_hammer,
+    "DOJI":                 compute_doji,
+    "BULLISH_ENGULFING":    compute_bullish_engulfing,
+    "BEARISH_ENGULFING":    compute_bearish_engulfing,
+    "THREE_WHITE_SOLDIERS": compute_three_white_soldiers,
+    "THREE_BLACK_CROWS":    compute_three_black_crows,
+    "BULLISH_PIN_BAR":      compute_bullish_pin_bar,
+    "BEARISH_PIN_BAR":      compute_bearish_pin_bar,
 }
 
 

@@ -129,10 +129,21 @@ def evaluate_condition(cond: StrategyCondition, df: pd.DataFrame, idx: int) -> b
     if pd.isna(current_val):
         return False
 
-    # スカラー比較
+    # スカラー比較 or 別指標との大小比較（例: CLOSE > EMA(21)）
     if comparison in ("less_than", "greater_than", "less_than_or_equal",
                       "greater_than_or_equal", "equals"):
-        threshold = cond["value"]
+        compare_ind = cond.get("compare_to_indicator")
+        if compare_ind is not None:
+            # 別指標の値をしきい値として使用
+            cmp_series = compute_series(compare_ind, cond.get("compare_to_params") or {}, df)
+            if idx < 0 or idx >= len(cmp_series):
+                return False
+            threshold = cmp_series.iloc[idx]
+            if pd.isna(threshold):
+                return False
+            threshold = float(threshold)
+        else:
+            threshold = cond["value"]
         if threshold is None:
             return False
         if comparison == "less_than":

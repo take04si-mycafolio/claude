@@ -223,3 +223,138 @@ def calculate_patterns(df: pd.DataFrame) -> dict:
     }
 
     return results
+
+
+# ===========================================================================
+# バックテストv2用 ベクトル化パターン系列（compute.py から呼ばれる）
+# 各関数は df 全体を受け取り、各バーでの検出結果を 0.0/1.0 の pd.Series で返す
+# ===========================================================================
+
+def compute_hammer(df: pd.DataFrame, params: dict = None) -> pd.Series:
+    """ハンマー: 下ヒゲ ≥ 実体×2 かつ 上ヒゲ ≤ 実体×0.3"""
+    o = df["open"].astype(float)
+    h = df["high"].astype(float)
+    l = df["low"].astype(float)
+    c = df["close"].astype(float)
+    body  = (c - o).abs()
+    upper = h - np.maximum(o.values, c.values)
+    lower = np.minimum(o.values, c.values) - l.values
+    det   = (body.values > 0) & (lower >= body.values * 2) & (upper <= body.values * 0.3)
+    return pd.Series(det.astype(float), index=df.index)
+
+
+def compute_inverted_hammer(df: pd.DataFrame, params: dict = None) -> pd.Series:
+    """逆ハンマー: 上ヒゲ ≥ 実体×2 かつ 下ヒゲ ≤ 実体×0.3"""
+    o = df["open"].astype(float)
+    h = df["high"].astype(float)
+    l = df["low"].astype(float)
+    c = df["close"].astype(float)
+    body  = (c - o).abs()
+    upper = h.values - np.maximum(o.values, c.values)
+    lower = np.minimum(o.values, c.values) - l.values
+    det   = (body.values > 0) & (upper >= body.values * 2) & (lower <= body.values * 0.3)
+    return pd.Series(det.astype(float), index=df.index)
+
+
+def compute_doji(df: pd.DataFrame, params: dict = None) -> pd.Series:
+    """十字線: 実体 ≤ レンジ×0.1"""
+    o = df["open"].astype(float)
+    h = df["high"].astype(float)
+    l = df["low"].astype(float)
+    c = df["close"].astype(float)
+    body = (c - o).abs()
+    rng  = h - l
+    det  = (rng > 0) & (body / rng.replace(0, np.nan) < 0.1)
+    return det.fillna(False).astype(float)
+
+
+def compute_bullish_engulfing(df: pd.DataFrame, params: dict = None) -> pd.Series:
+    """強気の包み足: 前足陰線を現足陽線が完全に包む"""
+    o = df["open"].astype(float)
+    c = df["close"].astype(float)
+    prev_o = o.shift(1)
+    prev_c = c.shift(1)
+    det = (
+        (prev_c < prev_o) &   # 前足: 陰線
+        (c > o) &              # 現足: 陽線
+        (o < prev_c) &         # 現足始値 < 前足終値
+        (c > prev_o)           # 現足終値 > 前足始値
+    )
+    return det.fillna(False).astype(float)
+
+
+def compute_bearish_engulfing(df: pd.DataFrame, params: dict = None) -> pd.Series:
+    """弱気の包み足: 前足陽線を現足陰線が完全に包む"""
+    o = df["open"].astype(float)
+    c = df["close"].astype(float)
+    prev_o = o.shift(1)
+    prev_c = c.shift(1)
+    det = (
+        (prev_c > prev_o) &   # 前足: 陽線
+        (c < o) &              # 現足: 陰線
+        (o > prev_c) &         # 現足始値 > 前足終値
+        (c < prev_o)           # 現足終値 < 前足始値
+    )
+    return det.fillna(False).astype(float)
+
+
+def compute_three_white_soldiers(df: pd.DataFrame, params: dict = None) -> pd.Series:
+    """三白兵: 3本連続で実体 ≥ レンジ×0.6 の陽線かつ bar[i] > bar[i-1] > bar[i-2]"""
+    o = df["open"].astype(float)
+    h = df["high"].astype(float)
+    l = df["low"].astype(float)
+    c = df["close"].astype(float)
+    body = (c - o).abs()
+    rng  = h - l
+    strong_bull = (c > o) & (rng > 0) & (body / rng.replace(0, np.nan) >= 0.6)
+    # 3本の終値が順番に切り上がる（bar[i] > bar[i-1] > bar[i-2]）
+    rising_seq = (c > c.shift(1)) & (c.shift(1) > c.shift(2))
+    det = (strong_bull
+           & strong_bull.shift(1).fillna(False)
+           & strong_bull.shift(2).fillna(False)
+           & rising_seq.fillna(False))
+    return det.fillna(False).astype(float)
+
+
+def compute_three_black_crows(df: pd.DataFrame, params: dict = None) -> pd.Series:
+    """三羽烏: 3本連続で実体 ≥ レンジ×0.6 の陰線かつ bar[i] < bar[i-1] < bar[i-2]"""
+    o = df["open"].astype(float)
+    h = df["high"].astype(float)
+    l = df["low"].astype(float)
+    c = df["close"].astype(float)
+    body = (c - o).abs()
+    rng  = h - l
+    strong_bear = (c < o) & (rng > 0) & (body / rng.replace(0, np.nan) >= 0.6)
+    # 3本の終値が順番に切り下がる
+    falling_seq = (c < c.shift(1)) & (c.shift(1) < c.shift(2))
+    det = (strong_bear
+           & strong_bear.shift(1).fillna(False)
+           & strong_bear.shift(2).fillna(False)
+           & falling_seq.fillna(False))
+    return det.fillna(False).astype(float)
+
+
+def compute_bullish_pin_bar(df: pd.DataFrame, params: dict = None) -> pd.Series:
+    """陽線ピンバー: 下ヒゲ ≥ レンジ×0.6 かつ 実体 ≤ レンジ×0.3"""
+    o = df["open"].astype(float)
+    h = df["high"].astype(float)
+    l = df["low"].astype(float)
+    c = df["close"].astype(float)
+    body  = (c - o).abs()
+    lower = np.minimum(o.values, c.values) - l.values
+    rng   = (h - l).values
+    det   = (rng > 0) & (lower >= rng * 0.6) & (body.values <= rng * 0.3)
+    return pd.Series(det.astype(float), index=df.index)
+
+
+def compute_bearish_pin_bar(df: pd.DataFrame, params: dict = None) -> pd.Series:
+    """陰線ピンバー: 上ヒゲ ≥ レンジ×0.6 かつ 実体 ≤ レンジ×0.3"""
+    o = df["open"].astype(float)
+    h = df["high"].astype(float)
+    l = df["low"].astype(float)
+    c = df["close"].astype(float)
+    body  = (c - o).abs()
+    upper = h.values - np.maximum(o.values, c.values)
+    rng   = (h - l).values
+    det   = (rng > 0) & (upper >= rng * 0.6) & (body.values <= rng * 0.3)
+    return pd.Series(det.astype(float), index=df.index)

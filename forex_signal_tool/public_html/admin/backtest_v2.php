@@ -999,6 +999,16 @@ const IND = {
   CLOSE:       { label:'終値 (CLOSE)', params:[] },
   HIGH:        { label:'高値 (HIGH)',  params:[] },
   LOW:         { label:'安値 (LOW)',   params:[] },
+  // ローソク足パターン（戻り値: 検出=1, 未検出=0）→ 比較は「≥ 1」を推奨
+  BULLISH_ENGULFING:    { label:'強気の包み足',     params:[], is_pattern:true },
+  BEARISH_ENGULFING:    { label:'弱気の包み足',     params:[], is_pattern:true },
+  HAMMER:               { label:'ハンマー',         params:[], is_pattern:true },
+  INVERTED_HAMMER:      { label:'逆ハンマー',       params:[], is_pattern:true },
+  DOJI:                 { label:'十字線（ドジ）',   params:[], is_pattern:true },
+  THREE_WHITE_SOLDIERS: { label:'三白兵',           params:[], is_pattern:true },
+  THREE_BLACK_CROWS:    { label:'三羽烏',           params:[], is_pattern:true },
+  BULLISH_PIN_BAR:      { label:'ピンバー（陽線）', params:[], is_pattern:true },
+  BEARISH_PIN_BAR:      { label:'ピンバー（陰線）', params:[], is_pattern:true },
 };
 
 const COMPARISONS = [
@@ -1010,6 +1020,23 @@ const COMPARISONS = [
   { v:'crosses_above',         l:'↑ クロスアップ' },
   { v:'crosses_below',         l:'↓ クロスダウン' },
 ];
+
+/* ---------- 指標セレクト用 optgroup HTML ---------- */
+function buildIndOptions(excludePatterns) {
+  const techKeys = ['RSI','EMA','SMA','MACD_HIST','MACD_LINE','MACD_SIGNAL',
+                    'STOCH_K','STOCH_D','CCI','WILLIAMS_R','ATR',
+                    'BB_UPPER','BB_LOWER','BB_MID','CLOSE','HIGH','LOW'];
+  const patKeys  = ['BULLISH_ENGULFING','BEARISH_ENGULFING','HAMMER','INVERTED_HAMMER',
+                    'DOJI','THREE_WHITE_SOLDIERS','THREE_BLACK_CROWS',
+                    'BULLISH_PIN_BAR','BEARISH_PIN_BAR'];
+  const techOpts = techKeys.filter(k => IND[k])
+    .map(k => `<option value="${k}">${IND[k].label}</option>`).join('');
+  if (excludePatterns) return `<optgroup label="テクニカル指標">${techOpts}</optgroup>`;
+  const patOpts = patKeys.filter(k => IND[k])
+    .map(k => `<option value="${k}">${IND[k].label}</option>`).join('');
+  return `<optgroup label="テクニカル指標">${techOpts}</optgroup>
+          <optgroup label="ローソク足パターン (検出=1)">${patOpts}</optgroup>`;
+}
 
 let _condSeq = 0;
 let _logic = 'AND';
@@ -1033,7 +1060,7 @@ function addCondition() {
     <div class="form-group">
       <label>指標</label>
       <select onchange="onIndChange(this, '${id}')">
-        ${Object.entries(IND).map(([k,v]) => `<option value="${k}">${v.label}</option>`).join('')}
+        ${buildIndOptions(false)}
       </select>
     </div>
     <div class="form-group" id="${id}-params">
@@ -1046,7 +1073,7 @@ function addCondition() {
       </select>
     </div>
     <div class="form-group" id="${id}-rhs">
-      ${buildRhsScalar(id)}
+      ${buildRhsCross(id)}
     </div>
     <div>
       <label style="visibility:hidden">削除</label>
@@ -1066,8 +1093,15 @@ function removeCondition(id) {
 
 /* ---------- 指標変更 → パラメータ再描画 ---------- */
 function onIndChange(sel, rowId) {
-  document.getElementById(rowId + '-params').innerHTML =
-    buildParamInputs(sel.value, rowId);
+  const indKey = sel.value;
+  document.getElementById(rowId + '-params').innerHTML = buildParamInputs(indKey, rowId);
+  // パターン指標: 比較を「≥ 1」に自動設定（0/1 値のため）
+  if ((IND[indKey] || {}).is_pattern) {
+    const cmpSel = document.getElementById(rowId + '-cmp');
+    if (cmpSel) { cmpSel.value = 'greater_than_or_equal'; onCmpChange(rowId); }
+    const valEl = document.getElementById(rowId + '-val');
+    if (valEl) valEl.value = '1';
+  }
 }
 
 /* ---------- パラメータ入力 HTML 生成 ---------- */
@@ -1083,40 +1117,41 @@ function buildParamInputs(indKey, rowId) {
   return `<label>パラメータ</label><div style="display:flex;gap:6px;flex-wrap:wrap">${inputs}</div>`;
 }
 
-/* ---------- 比較変更 → RHS 再描画 ---------- */
+/* ---------- 比較変更 → RHS 再描画（全比較タイプで統一） ---------- */
 function onCmpChange(rowId) {
-  const cmp = document.getElementById(rowId + '-cmp').value;
-  const isCross = cmp === 'crosses_above' || cmp === 'crosses_below';
-  document.getElementById(rowId + '-rhs').innerHTML = isCross
-    ? buildRhsCross(rowId)
-    : buildRhsScalar(rowId);
+  document.getElementById(rowId + '-rhs').innerHTML = buildRhsCross(rowId);
 }
 
-/* ---------- RHS: スカラー値 ---------- */
-function buildRhsScalar(rowId) {
-  return `<label>比較値</label>
-    <input type="number" id="${rowId}-val" value="30" step="0.1" style="width:100%">`;
-}
-
-/* ---------- RHS: クロス比較先指標 ---------- */
+/* ---------- RHS: 固定値 または 別指標（全比較タイプ共通） ---------- */
 function buildRhsCross(rowId) {
-  const opts = Object.entries(IND).map(([k,v]) =>
-    `<option value="${k}">${v.label}</option>`).join('');
-  return `<label>比較先指標</label>
+  return `<label>比較値</label>
     <select id="${rowId}-cmp-ind" onchange="onCmpIndChange('${rowId}')">
-      <option value="">--- スカラー値 ---</option>
-      ${opts}
+      <option value="">--- 固定値 ---</option>
+      ${buildIndOptions(true)}
     </select>
-    <div id="${rowId}-cross-val" style="margin-top:6px">
-      <input type="number" id="${rowId}-val" value="0" step="0.1" placeholder="閾値" style="width:100%">
-    </div>`;
+    <div id="${rowId}-cross-val" style="margin-top:4px">
+      <input type="number" id="${rowId}-val" value="0" step="0.1" style="width:100%">
+    </div>
+    <div id="${rowId}-cmp-ind-params" style="margin-top:4px"></div>`;
 }
 
-/* ---------- クロス比較先指標変更 → 閾値表示切り替え ---------- */
+/* ---------- 比較先指標変更 → 固定値入力の表示切り替え + パラメータ描画 ---------- */
 function onCmpIndChange(rowId) {
   const sel = document.getElementById(rowId + '-cmp-ind');
   const valDiv = document.getElementById(rowId + '-cross-val');
+  const paramsDiv = document.getElementById(rowId + '-cmp-ind-params');
   if (valDiv) valDiv.style.display = sel.value ? 'none' : 'block';
+  if (paramsDiv) {
+    if (sel.value) {
+      const ps = (IND[sel.value] || {}).params || [];
+      paramsDiv.innerHTML = ps.length ? ps.map(p =>
+        `<div style="display:flex;align-items:center;gap:6px;margin-top:2px">
+           <span style="font-size:10px;color:#64748b;min-width:32px">${p.l}</span>
+           <input type="number" id="${rowId}-cind-p-${p.n}" value="${p.d}"
+                  step="${p.n==='std'?0.1:1}" style="width:60px">
+         </div>`).join('') : '';
+    } else { paramsDiv.innerHTML = ''; }
+  }
 }
 
 /* ---------- 実行ボタン表示制御 ---------- */
@@ -1136,7 +1171,6 @@ function buildConditions() {
     const indKey   = indSel ? indSel.value : 'RSI';
     const rowId    = row.id;
     const cmpVal   = document.getElementById(rowId + '-cmp')?.value || 'less_than';
-    const isCross  = cmpVal === 'crosses_above' || cmpVal === 'crosses_below';
 
     // params
     const ps = (IND[indKey] || {}).params || [];
@@ -1146,25 +1180,20 @@ function buildConditions() {
       if (el) params[p.n] = parseFloat(el.value);
     });
 
-    // value / compare_to_indicator
+    // value / compare_to_indicator（全比較タイプで共通処理）
     let value = null;
     let compare_to_indicator = null;
     let compare_to_params    = null;
 
-    if (isCross) {
-      const cmpIndSel = document.getElementById(rowId + '-cmp-ind');
-      if (cmpIndSel && cmpIndSel.value) {
-        compare_to_indicator = cmpIndSel.value;
-        const cps = (IND[cmpIndSel.value] || {}).params || [];
-        compare_to_params = {};
-        cps.forEach(p => {
-          const el = document.getElementById(rowId + '-p-' + p.n);
-          compare_to_params[p.n] = el ? parseFloat(el.value) : p.d;
-        });
-      } else {
-        const valEl = document.getElementById(rowId + '-val');
-        value = valEl ? parseFloat(valEl.value) : null;
-      }
+    const cmpIndSel = document.getElementById(rowId + '-cmp-ind');
+    if (cmpIndSel && cmpIndSel.value) {
+      compare_to_indicator = cmpIndSel.value;
+      const cps = (IND[cmpIndSel.value] || {}).params || [];
+      compare_to_params = {};
+      cps.forEach(p => {
+        const el = document.getElementById(rowId + '-cind-p-' + p.n);
+        compare_to_params[p.n] = el ? parseFloat(el.value) : p.d;
+      });
     } else {
       const valEl = document.getElementById(rowId + '-val');
       value = valEl ? parseFloat(valEl.value) : null;
@@ -1454,11 +1483,15 @@ function addConditionFromPreset(cond) {
   const cmpSel = document.getElementById(rowId + '-cmp');
   if (cmpSel && cond.comparison) { cmpSel.value = cond.comparison; onCmpChange(rowId); }
 
-  // RHS
-  const isCross = ['crosses_above','crosses_below'].includes(cond.comparison);
-  if (isCross && cond.compare_to_indicator) {
+  // RHS（全比較タイプで共通）
+  if (cond.compare_to_indicator) {
     const cmpIndSel = document.getElementById(rowId + '-cmp-ind');
     if (cmpIndSel) { cmpIndSel.value = cond.compare_to_indicator; onCmpIndChange(rowId); }
+    // 比較先指標のパラメータを復元
+    Object.entries(cond.compare_to_params || {}).forEach(([k, v]) => {
+      const el = document.getElementById(rowId + '-cind-p-' + k);
+      if (el) el.value = v;
+    });
   } else {
     const valEl = document.getElementById(rowId + '-val');
     if (valEl && cond.value !== null && cond.value !== undefined) valEl.value = cond.value;
