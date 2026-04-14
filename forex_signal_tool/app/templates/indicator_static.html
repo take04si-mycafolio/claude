@@ -145,6 +145,15 @@ tr.trade-row.sim-active td{background:rgba(59,130,246,.10)!important}
         <i class="bi bi-info-circle" style="font-size:0.9rem;color:#94a3b8;cursor:pointer"></i>
       </span>
     </h2>
+    {% if page_bt_start_date or page_bt_end_date %}
+    <div style="display:inline-flex;align-items:center;gap:6px;background:#0d2235;border:1px solid #1e4a6e;border-radius:6px;padding:4px 10px;font-size:11px;color:#67e8f9;margin-bottom:10px">
+      <i class="bi bi-calendar-check"></i>
+      テクニカルページ専用検証:
+      {% if page_bt_start_date %}{{ page_bt_start_date }}{% else %}―{% endif %}
+      〜
+      {% if page_bt_end_date %}{{ page_bt_end_date }}{% else %}最新{% endif %}
+    </div>
+    {% endif %}
     {% if results %}
     <ul class="nav nav-tabs ind-pair-tabs mb-2" id="btTab" role="tablist">
       {% for pair in pairs %}

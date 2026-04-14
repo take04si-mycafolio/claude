@@ -1182,26 +1182,87 @@ def load_content_db() -> dict:
 
 
 def get_indicator_page_data(indicator_name: str, app) -> dict | None:
-    """インジケーター個別ページのデータを取得"""
+    """インジケーター個別ページのデータを取得
+
+    indicator_page_bt_results に独自バックテストがある場合はそちらを優先。
+    なければ従来の backtest_results にフォールバックする。
+    """
     from app.models.backtest import BacktestResult
     from app.models.simulation_trade import SimulationTrade
     from app.models.settings import Setting
     from app.config import Config
+    from app import db
+    from sqlalchemy import text as _text
+    from types import SimpleNamespace
 
     info = INDICATOR_INFO.get(indicator_name)
     if not info:
         return None
 
-    results = (BacktestResult.query
-               .filter_by(indicator_name=indicator_name)
-               .order_by(BacktestResult.win_rate.desc())
-               .all())
-    if not results:
-        return None
+    # ---- テクニカルページ専用バックテストを優先 ----
+    _use_page_bt = False
+    _page_bt_start = None
+    _page_bt_end   = None
+    try:
+        _ibt_rows = db.session.execute(
+            _text("SELECT * FROM indicator_page_bt_results "
+                  "WHERE indicator_name = :ind ORDER BY win_rate DESC"),
+            {"ind": indicator_name}
+        ).fetchall()
+        if _ibt_rows:
+            _use_page_bt = True
+            _r0 = dict(_ibt_rows[0]._mapping)
+            _page_bt_start = str(_r0.get("start_date") or "")
+            _page_bt_end   = str(_r0.get("end_date")   or "")
+    except Exception:
+        _ibt_rows = []
 
-    best = results[0]
-    sl = Setting.get_float("sl_pips", 20)
-    tp = Setting.get_float("tp_pips", 40)
+    if _use_page_bt:
+        # indicator_page_bt_results を BacktestResult.to_dict() 互換の dict に変換
+        def _ibt_to_dict(r):
+            d = dict(r._mapping)
+            return {
+                "id":               d.get("id"),
+                "currency_pair":    d.get("currency_pair"),
+                "timeframe":        d.get("timeframe"),
+                "indicator_name":   d.get("indicator_name"),
+                "indicator_category": None,
+                "signal_direction": d.get("signal_direction", "BOTH"),
+                "win_rate":         float(d.get("win_rate") or 0),
+                "total_trades":     d.get("total_trades", 0),
+                "winning_trades":   d.get("winning_trades", 0),
+                "losing_trades":    d.get("losing_trades", 0),
+                "total_profit":     float(d.get("total_profit") or 0),
+                "initial_capital":  float(d.get("initial_capital") or 1_000_000),
+                "final_capital":    float(d.get("final_capital")   or 1_000_000),
+                "sl_pips":          float(d.get("sl_pips") or 20),
+                "tp_pips":          float(d.get("tp_pips") or 40),
+                "backtest_hours":   None,
+                "max_drawdown":     float(d.get("max_drawdown") or 0) or None,
+                "profit_factor":    float(d.get("profit_factor") or 0) or None,
+                "calculated_at":    str(d.get("calculated_at") or ""),
+            }
+        results_dicts = [_ibt_to_dict(r) for r in _ibt_rows]
+        best_dict = results_dicts[0]
+        sl = float(dict(_ibt_rows[0]._mapping).get("sl_pips") or 20)
+        tp = float(dict(_ibt_rows[0]._mapping).get("tp_pips") or 40)
+    else:
+        # 従来テーブルにフォールバック
+        results_orm = (BacktestResult.query
+                       .filter_by(indicator_name=indicator_name)
+                       .order_by(BacktestResult.win_rate.desc())
+                       .all())
+        if not results_orm:
+            return None
+        results_dicts = [r.to_dict() for r in results_orm]
+        best_dict = results_dicts[0]
+        sl = Setting.get_float("sl_pips", 20)
+        tp = Setting.get_float("tp_pips", 40)
+
+    best = SimpleNamespace(**best_dict)
+    if not _use_page_bt:
+        sl = Setting.get_float("sl_pips", 20)
+        tp = Setting.get_float("tp_pips", 40)
     bt_period = Setting.get("backtest_period", "")
 
     def _to_unix(dt):
@@ -1209,7 +1270,14 @@ def get_indicator_page_data(indicator_name: str, app) -> dict | None:
         if dt is None:
             return None
         from datetime import timezone as _tz
-        return int(dt.replace(tzinfo=_tz.utc).timestamp())
+        if hasattr(dt, "replace"):
+            return int(dt.replace(tzinfo=_tz.utc).timestamp())
+        # string fallback
+        import datetime as _dt
+        try:
+            return int(_dt.datetime.fromisoformat(str(dt)).replace(tzinfo=_tz.utc).timestamp())
+        except Exception:
+            return None
 
     def _fmt_trade(t):
         sl_v = float(t.sl_pips) if t.sl_pips else sl
@@ -1232,24 +1300,40 @@ def get_indicator_page_data(indicator_name: str, app) -> dict | None:
     all_pairs = Config.CURRENCY_PAIRS  # ['USDJPY', 'GBPJPY', 'EURJPY']
     results_by_pair = {}
     for pair in all_pairs:
-        results_by_pair[pair] = [r.to_dict() for r in results if r.currency_pair == pair]
+        results_by_pair[pair] = [r for r in results_dicts if r["currency_pair"] == pair]
 
     # 通貨ペアごとの最良バックテスト結果（ヒーロー3カラム用）
     best_by_pair = {}
     for pair in all_pairs:
-        pair_bests = [r for r in results if r.currency_pair == pair]
+        pair_bests = [r for r in results_dicts if r["currency_pair"] == pair]
         if pair_bests:
-            best_by_pair[pair] = max(pair_bests, key=lambda r: r.win_rate).to_dict()
+            best_by_pair[pair] = max(pair_bests, key=lambda r: r["win_rate"])
 
     # 全TF・通貨ペアごとのトレードシミュレーション（各TF最新20件）
     trades_by_pair_tf = {}
     for pair in all_pairs:
         trades_by_pair_tf[pair] = {}
         for tf in TF_ORDER:
-            raw = (SimulationTrade.query
-                   .filter_by(indicator_name=indicator_name, currency_pair=pair, timeframe=tf)
-                   .order_by(SimulationTrade.entry_at.desc())
-                   .limit(20).all())
+            if _use_page_bt:
+                _trows = db.session.execute(
+                    _text(
+                        "SELECT * FROM indicator_page_sim_trades "
+                        "WHERE indicator_name=:ind AND currency_pair=:pair AND timeframe=:tf "
+                        "ORDER BY entry_at DESC LIMIT 20"
+                    ),
+                    {"ind": indicator_name, "pair": pair, "tf": tf},
+                ).fetchall()
+                raw = [
+                    SimpleNamespace(**{
+                        k: v for k, v in dict(r._mapping).items()
+                    })
+                    for r in _trows
+                ]
+            else:
+                raw = (SimulationTrade.query
+                       .filter_by(indicator_name=indicator_name, currency_pair=pair, timeframe=tf)
+                       .order_by(SimulationTrade.entry_at.desc())
+                       .limit(20).all())
             if raw:
                 trades_by_pair_tf[pair][tf] = [_fmt_trade(t) for t in raw]
 
@@ -1301,20 +1385,22 @@ def get_indicator_page_data(indicator_name: str, app) -> dict | None:
     related = related[:8]
 
     return {
-        "info":               info,
-        "category_slug":      CATEGORY_SLUGS.get(info["category"], ""),
-        "results":            [r.to_dict() for r in results],
-        "results_by_pair":    results_by_pair,
-        "best_by_pair":       best_by_pair,
-        "trades_by_pair_tf":  trades_by_pair_tf,
-        "tf_labels":          TF_LABELS,
-        "pairs":              all_pairs,
-        "best":               best.to_dict(),
-        "sl":                 int(sl),
-        "tp":                 int(tp),
-        "bt_period":          bt_period,
-        "related":            related,
-        "linked_strategies":  linked_strategies,
+        "info":                 info,
+        "category_slug":        CATEGORY_SLUGS.get(info["category"], ""),
+        "results":              results_dicts,
+        "results_by_pair":      results_by_pair,
+        "best_by_pair":         best_by_pair,
+        "trades_by_pair_tf":    trades_by_pair_tf,
+        "tf_labels":            TF_LABELS,
+        "pairs":                all_pairs,
+        "best":                 best_dict,
+        "sl":                   int(sl),
+        "tp":                   int(tp),
+        "bt_period":            bt_period,
+        "related":              related,
+        "linked_strategies":    linked_strategies,
+        "page_bt_start_date":   _page_bt_start or "",
+        "page_bt_end_date":     _page_bt_end   or "",
     }
 
 

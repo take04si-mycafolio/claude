@@ -107,9 +107,30 @@ main{max-width:960px;margin:0 auto;padding:28px 16px}
 <?php
 $is_indicator = (bool)preg_match('/^indicator_article_/', $article['key']);
 $ind_slug = '';
+$indicator_name = '';
+$current_page_bt = null;  // indicator_page_bt_results の現在設定
 if ($is_indicator) {
     preg_match('/^indicator_article_([a-z0-9_]+)$/', $article['key'], $sm);
     $ind_slug = $sm[1] ?? '';
+    // slug → indicator_name マッピング
+    $slugMapFile = __DIR__ . '/indicator_slugs.json';
+    if ($ind_slug && file_exists($slugMapFile)) {
+        $slugMap = json_decode(file_get_contents($slugMapFile), true) ?? [];
+        $indicator_name = $slugMap[$ind_slug] ?? '';
+    }
+    // テクニカルページ専用バックテストの現在設定を取得
+    if ($indicator_name) {
+        try {
+            $pdo = get_pdo();
+            $stmt = $pdo->prepare(
+                'SELECT * FROM indicator_page_bt_results
+                 WHERE indicator_name = ?
+                 ORDER BY win_rate DESC LIMIT 1'
+            );
+            $stmt->execute([$indicator_name]);
+            $current_page_bt = $stmt->fetch(PDO::FETCH_ASSOC) ?: null;
+        } catch (Exception $e) { /* テーブル未作成時はスキップ */ }
+    }
 }
 ?>
 
@@ -154,6 +175,141 @@ if ($is_indicator) {
       <strong>generate_static</strong> を実行すると公開ページに反映されます。
     </div>
   </div>
+
+<?php if ($is_indicator && $indicator_name): ?>
+<style>
+.ind-bt-card{background:#0b1a2b;border:1px solid #1e3a5f;border-radius:10px;padding:18px 20px;margin-top:16px}
+.ind-bt-card h3{font-size:12px;font-weight:600;color:#38bdf8;text-transform:uppercase;letter-spacing:.05em;margin-bottom:4px}
+.ind-bt-card .current-badge{display:inline-block;background:#0d2137;border:1px solid #1e4976;border-radius:6px;padding:6px 12px;font-size:12px;color:#94a3b8;margin-bottom:12px}
+.ind-bt-card .current-badge strong{color:#e2e8f0}
+.ind-bt-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:10px;margin-bottom:12px}
+.ind-bt-grid label{display:flex;flex-direction:column;gap:3px;font-size:12px;color:#94a3b8}
+.ind-bt-grid input,.ind-bt-grid select{background:#0f172a;border:1px solid #334155;border-radius:6px;color:#e2e8f0;padding:6px 8px;font-size:13px}
+.ind-bt-chk-row{display:flex;flex-wrap:wrap;gap:10px;margin-bottom:10px}
+.ind-bt-chk-row label{display:flex;align-items:center;gap:5px;font-size:12px;color:#cbd5e1;cursor:pointer}
+.ind-bt-run{background:#0e7490;color:#fff;border:none;border-radius:8px;padding:9px 22px;font-size:13px;font-weight:600;cursor:pointer;transition:background .15s}
+.ind-bt-run:hover{background:#0891b2}
+.ind-bt-run:disabled{background:#374151;cursor:not-allowed}
+#ind-bt-log{margin-top:10px;font-size:12px;color:#94a3b8;min-height:20px}
+#ind-bt-result-table{width:100%;border-collapse:collapse;font-size:12px;margin-top:10px;display:none}
+#ind-bt-result-table th{background:#0d2137;color:#67e8f9;padding:5px 8px;text-align:left}
+#ind-bt-result-table td{padding:4px 8px;border-bottom:1px solid #1e293b;color:#cbd5e1}
+</style>
+
+<div class="ind-bt-card">
+  <h3>🔬 テクニカルページ専用バックテスト</h3>
+  <p style="font-size:12px;color:#64748b;margin-bottom:10px">
+    ランキング用バックテストとは独立して保存されます。AIの検証データ期間に合わせた日付範囲を設定することで、テクニカルページに表示するバックテスト結果を統一できます。
+  </p>
+
+  <?php if ($current_page_bt): ?>
+  <div class="current-badge">
+    現在の設定: <strong><?= htmlspecialchars($current_page_bt['start_date'] ?? '指定なし') ?></strong>
+    〜 <strong><?= htmlspecialchars($current_page_bt['end_date'] ?? '指定なし') ?></strong>
+    &nbsp;|&nbsp; SL <strong><?= (int)($current_page_bt['sl_pips'] ?? 20) ?>pips</strong>
+    / TP <strong><?= (int)($current_page_bt['tp_pips'] ?? 40) ?>pips</strong>
+    &nbsp;|&nbsp; 最終更新: <?= substr($current_page_bt['calculated_at'] ?? '', 0, 10) ?>
+  </div>
+  <?php endif; ?>
+
+  <div style="font-size:12px;color:#64748b;margin-bottom:6px">通貨ペア</div>
+  <div class="ind-bt-chk-row">
+    <label><input type="checkbox" class="ibt-pair" value="USDJPY" checked> USD/JPY</label>
+    <label><input type="checkbox" class="ibt-pair" value="GBPJPY" checked> GBP/JPY</label>
+    <label><input type="checkbox" class="ibt-pair" value="EURJPY" checked> EUR/JPY</label>
+  </div>
+  <div style="font-size:12px;color:#64748b;margin-bottom:6px">時間足</div>
+  <div class="ind-bt-chk-row">
+    <label><input type="checkbox" class="ibt-tf" value="5min"> 5分足</label>
+    <label><input type="checkbox" class="ibt-tf" value="15min"> 15分足</label>
+    <label><input type="checkbox" class="ibt-tf" value="30min"> 30分足</label>
+    <label><input type="checkbox" class="ibt-tf" value="1hr" checked> 1時間足</label>
+    <label><input type="checkbox" class="ibt-tf" value="4hr" checked> 4時間足</label>
+    <label><input type="checkbox" class="ibt-tf" value="daily" checked> 日足</label>
+  </div>
+  <div class="ind-bt-grid">
+    <label>SL (pips)<input type="number" id="ibt-sl" value="20" min="1" max="200"></label>
+    <label>TP (pips)<input type="number" id="ibt-tp" value="40" min="1" max="500"></label>
+    <label>開始日（JST）<input type="date" id="ibt-start" value="<?= date('Y-m-d', strtotime('-1 year')) ?>"></label>
+    <label>終了日（JST）<input type="date" id="ibt-end" value="<?= date('Y-m-d') ?>"></label>
+  </div>
+  <button class="ind-bt-run" id="ind-bt-run-btn" onclick="runIndicatorPageBt()">バックテスト実行</button>
+  <div id="ind-bt-log"></div>
+  <table id="ind-bt-result-table">
+    <thead><tr><th>通貨ペア</th><th>時間足</th><th>勝率</th><th>PF</th><th>総トレード</th><th>損益(円)</th></tr></thead>
+    <tbody id="ind-bt-result-body"></tbody>
+  </table>
+</div>
+
+<script>
+const IND_BT_INDICATOR = <?= json_encode($indicator_name) ?>;
+
+function runIndicatorPageBt() {
+  const pairs = [...document.querySelectorAll('.ibt-pair:checked')].map(el => el.value);
+  const tfs   = [...document.querySelectorAll('.ibt-tf:checked')].map(el => el.value);
+  if (!pairs.length || !tfs.length) { alert('通貨ペアと時間足を1つ以上選択してください'); return; }
+
+  const sl    = parseFloat(document.getElementById('ibt-sl').value) || 20;
+  const tp    = parseFloat(document.getElementById('ibt-tp').value) || 40;
+  const start = document.getElementById('ibt-start').value || null;
+  const end   = document.getElementById('ibt-end').value   || null;
+
+  const btn = document.getElementById('ind-bt-run-btn');
+  btn.disabled = true;
+  document.getElementById('ind-bt-log').textContent = '実行中...（しばらくお待ちください）';
+  document.getElementById('ind-bt-result-table').style.display = 'none';
+
+  fetch('/admin/api.php?action=run_indicator_page_bt', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({
+      indicator_name: IND_BT_INDICATOR,
+      pairs, timeframes: tfs,
+      sl_pips: sl, tp_pips: tp,
+      start_date: start, end_date: end,
+    })
+  })
+  .then(r => r.json())
+  .then(d => {
+    btn.disabled = false;
+    if (!d.ok) {
+      document.getElementById('ind-bt-log').textContent = 'エラー: ' + (d.error || JSON.stringify(d));
+      return;
+    }
+    document.getElementById('ind-bt-log').textContent =
+      '完了！generate_static を実行するとテクニカルページに反映されます。';
+    const tbody = document.getElementById('ind-bt-result-body');
+    tbody.innerHTML = '';
+    const tfLabels = {
+      '5min':'5分足','15min':'15分足','30min':'30分足',
+      '1hr':'1時間足','4hr':'4時間足','daily':'日足'
+    };
+    for (const [pair, tfsData] of Object.entries(d.summary || {})) {
+      for (const [tf, r] of Object.entries(tfsData)) {
+        const tr = document.createElement('tr');
+        if (!r.ok) {
+          tr.innerHTML = `<td>${pair}</td><td>${tfLabels[tf]||tf}</td><td colspan="4" style="color:#ef4444">${r.error}</td>`;
+        } else {
+          const wr = r.win_rate;
+          const col = wr >= 55 ? '#4ade80' : wr >= 40 ? '#facc15' : '#ef4444';
+          tr.innerHTML = `<td>${pair}</td><td>${tfLabels[tf]||tf}</td>
+            <td style="color:${col};font-weight:600">${wr}%</td>
+            <td>${r.profit_factor}</td>
+            <td>${r.total_trades}</td>
+            <td style="color:${r.total_profit>=0?'#4ade80':'#ef4444'}">${r.total_profit?.toLocaleString()}円</td>`;
+        }
+        tbody.appendChild(tr);
+      }
+    }
+    document.getElementById('ind-bt-result-table').style.display = 'table';
+  })
+  .catch(e => {
+    btn.disabled = false;
+    document.getElementById('ind-bt-log').textContent = 'ネットワークエラー: ' + e;
+  });
+}
+</script>
+<?php endif; ?>
 
 <?php if ($is_indicator && $ind_slug): ?>
   <div class="csv-card">
