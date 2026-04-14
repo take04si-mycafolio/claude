@@ -1203,6 +1203,7 @@ def get_indicator_page_data(indicator_name: str, app) -> dict | None:
     _use_page_bt = False
     _page_bt_start = None
     _page_bt_end   = None
+    _page_bt_tf_dates = {}   # {tf: {"start": "YYYY-MM-DD", "end": "YYYY-MM-DD"}}
     try:
         _ibt_rows = db.session.execute(
             _text("SELECT * FROM indicator_page_bt_results "
@@ -1214,6 +1215,19 @@ def get_indicator_page_data(indicator_name: str, app) -> dict | None:
             _r0 = dict(_ibt_rows[0]._mapping)
             _page_bt_start = str(_r0.get("start_date") or "")
             _page_bt_end   = str(_r0.get("end_date")   or "")
+            # TF別の日付範囲を収集（TF_ORDER順に並び替え）
+            _raw_tf_dates = {}
+            for _row in _ibt_rows:
+                _rd = dict(_row._mapping)
+                _tf = _rd.get("timeframe", "")
+                if _tf:
+                    _raw_tf_dates[_tf] = {
+                        "start": str(_rd.get("start_date") or ""),
+                        "end":   str(_rd.get("end_date")   or ""),
+                    }
+            for _tf in TF_ORDER:
+                if _tf in _raw_tf_dates:
+                    _page_bt_tf_dates[_tf] = _raw_tf_dates[_tf]
     except Exception:
         _ibt_rows = []
 
@@ -1401,6 +1415,7 @@ def get_indicator_page_data(indicator_name: str, app) -> dict | None:
         "linked_strategies":    linked_strategies,
         "page_bt_start_date":   _page_bt_start or "",
         "page_bt_end_date":     _page_bt_end   or "",
+        "page_bt_tf_dates":     _page_bt_tf_dates,
     }
 
 
