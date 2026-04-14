@@ -1378,6 +1378,9 @@ def get_indicator_page_data(indicator_name: str, app) -> dict | None:
         logger.debug("linked_strategies fetch failed: %s", _le)
 
     # trades_by_key の各トレードに unix timestamp・JST ラベルを付与（チャートモーダル用）
+    # NOTE: TradeLog.entry_time / exit_time は _bar_time() が JST で格納しているため
+    #       UTC unix に変換する際は 9時間（32400秒）を差し引く必要がある。
+    _JST_OFFSET_SECS = 9 * 3600
     for _ls in linked_strategies:
         for _key, _trades in _ls["bt_result"].get("trades_by_key", {}).items():
             _kp = _key.split("_", 1)
@@ -1385,11 +1388,15 @@ def get_indicator_page_data(indicator_name: str, app) -> dict | None:
             _tf_k   = _kp[1] if len(_kp) > 1 else ""
             for _t in _trades:
                 if "entry_ts_unix" not in _t:
-                    _t["entry_ts_unix"] = _to_unix(_t.get("entry_time", "")) or 0
+                    _raw = _to_unix(_t.get("entry_time", ""))
+                    _t["entry_ts_unix"] = (_raw - _JST_OFFSET_SECS) if _raw else 0
                 if "exit_ts_unix" not in _t:
-                    _t["exit_ts_unix"]  = _to_unix(_t.get("exit_time",  "")) or 0
+                    _raw2 = _to_unix(_t.get("exit_time", ""))
+                    _t["exit_ts_unix"] = (_raw2 - _JST_OFFSET_SECS) if _raw2 else 0
                 if "entry_ts_jst" not in _t:
-                    _t["entry_ts_jst"]  = utc_str_to_jst(_t.get("entry_time", ""))
+                    # entry_time はすでに JST なのでそのままフォーマットする
+                    _et = str(_t.get("entry_time", ""))[:16].replace("T", " ")
+                    _t["entry_ts_jst"] = _et.replace("-", "/") if _et else ""
                 _t.setdefault("pair", _pair_k)
                 _t.setdefault("tf",   _tf_k)
 
