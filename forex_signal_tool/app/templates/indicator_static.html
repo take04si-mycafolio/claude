@@ -97,7 +97,7 @@ tr.trade-row.sim-active td{background:rgba(59,130,246,.10)!important}
         <div class="ind-pair-hero-name">{{ pair_ja.get(pair, pair) }}</div>
         {% if pb %}
         <div class="ind-pair-hero-tf">（{{ tf_labels.get(pb.timeframe, pb.timeframe) }}）</div>
-        <div class="ind-pair-hero-wr">勝率 {{ "%.1f"|format(pb.win_rate) }}%</div>
+        <div class="ind-pair-hero-wr">勝率<br>{{ "%.1f"|format(pb.win_rate) }}%</div>
         {% else %}
         <div class="ind-pair-hero-tf">データなし</div>
         {% endif %}
