@@ -396,72 +396,432 @@ function resetIndicatorPageBt() {
 
 <?php if ($is_indicator && $ind_slug): ?>
 <style>
-.bt2-ai-card{background:#0b1a2b;border:1px solid #1e3a5f;border-radius:10px;padding:18px 20px;margin-top:16px}
-.bt2-ai-card h3{font-size:12px;font-weight:600;color:#38bdf8;text-transform:uppercase;letter-spacing:.05em;margin-bottom:12px}
-.bt2-ai-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px}
-@media(max-width:640px){.bt2-ai-grid{grid-template-columns:1fr}}
-.bt2-section{background:#0d2137;border:1px solid #1e4976;border-radius:8px;padding:14px}
-.bt2-section-lbl{font-size:11px;font-weight:600;color:#64748b;text-transform:uppercase;letter-spacing:.05em;margin-bottom:8px}
-.bt2-open-btn{display:inline-flex;align-items:center;gap:6px;background:#0e7490;color:#fff;border:none;border-radius:7px;padding:8px 18px;font-size:13px;font-weight:600;text-decoration:none;transition:background .15s;cursor:pointer}
-.bt2-open-btn:hover{background:#0891b2;color:#fff;text-decoration:none}
-.bt2-note{font-size:11px;color:#475569;margin-top:8px;line-height:1.6}
-.ai-feedback-ta{width:100%;background:#0f172a;border:1px solid #334155;border-radius:6px;color:#e2e8f0;padding:10px;font-size:12px;line-height:1.6;resize:vertical;min-height:130px;font-family:inherit;outline:none}
+/* ===== BT2 inline card ===== */
+.bt2-inline-card{background:#0b1a2b;border:1px solid #1e3a5f;border-radius:10px;padding:18px 20px;margin-top:16px}
+.bt2-inline-card h3{font-size:12px;font-weight:600;color:#38bdf8;text-transform:uppercase;letter-spacing:.05em;margin-bottom:4px}
+.bt2-section-hdr{font-size:12px;font-weight:600;color:#64748b;margin-bottom:6px;margin-top:12px}
+/* condition builder */
+.bt2-cond-row{background:#0f172a;border:1px solid #334155;border-radius:9px;padding:10px 12px;display:grid;grid-template-columns:1.6fr 1fr 1.3fr 1.6fr auto;gap:8px;align-items:end;margin-bottom:8px}
+.bt2-fg{display:flex;flex-direction:column;gap:3px}
+.bt2-fg label,.bt2-fg .bt2-lbl{font-size:10px;color:#64748b;font-weight:500;text-transform:uppercase;letter-spacing:.4px;display:block}
+.bt2-fg select,.bt2-fg input[type=number],.bt2-fg input[type=text]{background:#0d1f2d;border:1px solid #334155;border-radius:6px;color:#e2e8f0;padding:6px 8px;font-size:12px;outline:none;width:100%}
+.bt2-fg select:focus,.bt2-fg input:focus{border-color:#0e7490}
+.bt2-logic-row{display:flex;gap:6px;margin-bottom:10px;align-items:center}
+.bt2-lb{background:#0f172a;border:1px solid #475569;color:#94a3b8;border-radius:6px;padding:4px 12px;font-size:11px;font-weight:600;cursor:pointer;transition:all .15s}
+.bt2-lb.active{background:#1e3a5f;border-color:#3b82f6;color:#60a5fa}
+.bt2-add-cond{background:none;border:1px dashed #334155;color:#475569;border-radius:7px;padding:7px 14px;font-size:12px;cursor:pointer;width:100%;transition:all .15s;margin-bottom:12px}
+.bt2-add-cond:hover{border-color:#0e7490;color:#67e8f9}
+.bt2-del-cond{background:none;border:1px solid #334155;color:#475569;border-radius:6px;padding:5px 8px;font-size:11px;cursor:pointer;transition:all .15s;white-space:nowrap}
+.bt2-del-cond:hover{border-color:#ef4444;color:#ef4444}
+/* run/result */
+.bt2-run-btn{background:#0e7490;color:#fff;border:none;border-radius:8px;padding:9px 22px;font-size:13px;font-weight:600;cursor:pointer;transition:background .15s}
+.bt2-run-btn:hover:not(:disabled){background:#0891b2}
+.bt2-run-btn:disabled{background:#374151;color:#6b7280;cursor:not-allowed}
+.bt2-result-tbl{width:100%;border-collapse:collapse;font-size:12px;margin-top:10px;display:none}
+.bt2-result-tbl th{background:#0d2137;color:#67e8f9;padding:5px 8px;text-align:left}
+.bt2-result-tbl td{padding:4px 8px;border-bottom:1px solid #1e293b;color:#cbd5e1}
+/* ai feedback */
+.ai-feedback-ta{width:100%;background:#0f172a;border:1px solid #334155;border-radius:6px;color:#e2e8f0;padding:10px;font-size:12px;line-height:1.6;resize:vertical;min-height:120px;font-family:inherit;outline:none}
 .ai-feedback-ta:focus{border-color:#0e7490}
 .ai-feedback-ta::placeholder{color:#334155}
-.ai-fb-actions{display:flex;align-items:center;gap:10px;margin-top:8px}
 .ai-fb-save-btn{background:#0f766e;color:#fff;border:none;border-radius:6px;padding:6px 16px;font-size:12px;font-weight:600;cursor:pointer;transition:background .15s}
 .ai-fb-save-btn:hover{background:#0d9488}
 .ai-fb-save-btn:disabled{background:#334155;cursor:not-allowed}
 .ai-fb-status{font-size:11px}
 .ai-fb-status.ok{color:#22c55e}
 .ai-fb-status.err{color:#ef4444}
-.ai-fb-updated{font-size:11px;color:#475569;margin-top:4px}
-/* リンク済み戦略 */
-.linked-strategy-item{background:#0f172a;border:1px solid #1e293b;border-radius:5px;padding:7px 10px;font-size:12px;margin-bottom:6px}
-.linked-strategy-item:last-child{margin-bottom:0}
-.ls-name{color:#e2e8f0;font-weight:600;margin-bottom:3px}
-.ls-meta{color:#475569;font-size:11px;display:flex;gap:10px;flex-wrap:wrap}
+/* linked strategies */
+.ls-item{background:#0f172a;border:1px solid #1e293b;border-radius:5px;padding:6px 10px;font-size:12px;margin-bottom:5px}
+.ls-name{color:#e2e8f0;font-weight:600;margin-bottom:2px}
+.ls-meta{color:#475569;font-size:11px;display:flex;gap:8px;flex-wrap:wrap}
 .ls-wr{color:#4ade80;font-weight:600}
 </style>
 
-<div class="bt2-ai-card">
-  <h3>⚙️ バックテストツール2 &amp; AIフィードバック</h3>
-  <div class="bt2-ai-grid">
+<div class="bt2-inline-card">
+  <h3>⚙️ マルチ条件バックテスト（BT2）</h3>
+  <p style="font-size:12px;color:#64748b;margin-bottom:14px">
+    改善条件を設定して各時間足でバックテストを実行します。結果はAIへの入力として活用できます。
+  </p>
 
-    <!-- 左：BT2 + リンク済み戦略 -->
-    <div>
-      <div class="bt2-section" style="margin-bottom:12px">
-        <div class="bt2-section-lbl">バックテストツール2</div>
-        <a class="bt2-open-btn"
-           href="/admin/backtest_v2.php?linked_ind=<?= urlencode($indicator_name) ?>"
-           target="_blank">
-          ⚙️ バックテストツール2で検証
-        </a>
-        <div class="bt2-note">
-          新しいタブで開きます。「この設定を保存」で保存すると<br>
-          改善対象指標に <strong style="color:#e2e8f0"><?= htmlspecialchars($indicator_name) ?></strong> が自動選択されます。
-        </div>
-      </div>
-      <div class="bt2-section">
-        <div class="bt2-section-lbl">リンク済み保存戦略</div>
-        <div id="linked-strategies-wrap"><span style="font-size:12px;color:#475569">読み込み中...</span></div>
-      </div>
+  <!-- エントリー条件 -->
+  <div class="bt2-section-hdr">エントリー条件</div>
+  <div class="bt2-logic-row">
+    <span style="font-size:11px;color:#475569">結合論理:</span>
+    <button class="bt2-lb active" id="bt2-logic-and" onclick="bt2SetLogic('AND')">AND（全条件一致）</button>
+    <button class="bt2-lb" id="bt2-logic-or" onclick="bt2SetLogic('OR')">OR（いずれか一致）</button>
+  </div>
+  <div id="bt2-cond-list"></div>
+  <button class="bt2-add-cond" onclick="addBt2Cond()">＋ 条件を追加</button>
+
+  <!-- 方向 / SL / TP -->
+  <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;max-width:360px;margin-bottom:12px">
+    <div class="bt2-fg">
+      <label>エントリー方向</label>
+      <select id="bt2-direction">
+        <option value="BUY">BUY（買い）</option>
+        <option value="SELL">SELL（売り）</option>
+        <option value="BOTH" selected>BOTH（両方）</option>
+      </select>
     </div>
-
-    <!-- 右：AIフィードバック -->
-    <div class="bt2-section">
-      <div class="bt2-section-lbl">🤖 AIフィードバック</div>
-      <textarea id="ai-feedback-ta" class="ai-feedback-ta"
-        placeholder="AIからの分析・改善提案をここに貼り付けてください...&#10;&#10;例）RSIが30以下かつEMA21が上向きの場合、反発の信頼性が上がる。&#10;バックテストツール2で「RSI &lt; 30 AND EMA(21)クロスアップ」を検証推奨。"></textarea>
-      <div class="ai-fb-actions">
-        <button class="ai-fb-save-btn" onclick="saveAiFeedback()">保存</button>
-        <span id="ai-fb-status" class="ai-fb-status"></span>
-      </div>
-      <div id="ai-fb-updated" class="ai-fb-updated"></div>
+    <div class="bt2-fg">
+      <label>SL (pips)</label>
+      <input type="number" id="bt2-sl" value="<?= $ibt_sl ?>" min="1" max="200">
     </div>
+    <div class="bt2-fg">
+      <label>TP (pips)</label>
+      <input type="number" id="bt2-tp" value="<?= $ibt_tp ?>" min="1" max="500">
+    </div>
+  </div>
 
+  <!-- 通貨ペア -->
+  <div class="bt2-section-hdr" style="margin-top:4px">通貨ペア</div>
+  <div class="ind-bt-chk-row" style="margin-bottom:10px">
+    <label><input type="checkbox" class="bt2-pair" value="USDJPY" checked> USD/JPY</label>
+    <label><input type="checkbox" class="bt2-pair" value="GBPJPY" checked> GBP/JPY</label>
+    <label><input type="checkbox" class="bt2-pair" value="EURJPY" checked> EUR/JPY</label>
+  </div>
+
+  <!-- 時間足 & 期間設定 -->
+  <div class="bt2-section-hdr">時間足 &amp; 期間設定</div>
+  <table class="ibt-tf-table" style="margin-bottom:14px">
+    <thead><tr>
+      <th style="width:26px"></th>
+      <th>時間足</th>
+      <th>開始日</th>
+      <th>終了日</th>
+    </tr></thead>
+    <tbody>
+<?php foreach ($tf_defs as $tf => $def):
+  $saved  = $page_bt_by_tf[$tf] ?? null;
+  $fstart = $saved ? ($saved['start_date'] ?? $def['start']) : $def['start'];
+  $fend   = $saved ? ($saved['end_date']   ?? $today)        : $today;
+  $chk    = ($saved !== null) ? true : $def['checked'];
+?>
+      <tr>
+        <td><input type="checkbox" class="bt2-tf" value="<?= $tf ?>"<?= $chk ? ' checked' : '' ?>></td>
+        <td class="tf-label"><?= $def['label'] ?></td>
+        <td><input type="date" class="bt2-tf-start" value="<?= htmlspecialchars($fstart) ?>"></td>
+        <td><input type="date" class="bt2-tf-end"   value="<?= htmlspecialchars($fend) ?>"></td>
+      </tr>
+<?php endforeach; ?>
+    </tbody>
+  </table>
+
+  <!-- 実行ボタン -->
+  <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:10px">
+    <button class="bt2-run-btn" id="bt2-run-btn" onclick="runBt2Inline()">バックテスト実行</button>
+    <span id="bt2-log" style="font-size:12px;color:#94a3b8"></span>
+  </div>
+
+  <!-- 結果テーブル -->
+  <table class="bt2-result-tbl" id="bt2-result-tbl">
+    <thead><tr>
+      <th>通貨ペア</th><th>時間足</th><th>勝率</th><th>PF</th><th>総取引</th><th>損益(円)</th><th>期間</th>
+    </tr></thead>
+    <tbody id="bt2-result-body"></tbody>
+  </table>
+
+  <!-- リンク済み保存戦略 -->
+  <div style="margin-top:14px;border-top:1px solid #1e293b;padding-top:12px">
+    <div class="bt2-section-hdr" style="margin-top:0">リンク済み保存戦略（BT2で保存済み）</div>
+    <div id="linked-strategies-wrap"><span style="font-size:12px;color:#475569">読み込み中...</span></div>
+  </div>
+
+  <!-- AIフィードバック -->
+  <div style="margin-top:14px;border-top:1px solid #1e293b;padding-top:12px">
+    <div class="bt2-section-hdr" style="margin-top:0">🤖 AIフィードバック</div>
+    <textarea id="ai-feedback-ta" class="ai-feedback-ta"
+      placeholder="AIからの分析・改善提案をここに貼り付けてください...&#10;&#10;例）RSIが30以下かつEMA21が上向きの場合、反発の信頼性が上がる。"></textarea>
+    <div style="display:flex;align-items:center;gap:10px;margin-top:6px">
+      <button class="ai-fb-save-btn" onclick="saveAiFeedback()">保存</button>
+      <span id="ai-fb-status" class="ai-fb-status"></span>
+    </div>
+    <div id="ai-fb-updated" style="font-size:11px;color:#475569;margin-top:4px"></div>
   </div>
 </div>
+
+<script>
+/* ===== BT2 inline condition builder ===== */
+const BT2_IND = {
+  RSI:         { label:'RSI',          params:[{n:'period',l:'期間',d:14}] },
+  EMA:         { label:'EMA',          params:[{n:'period',l:'期間',d:21}] },
+  SMA:         { label:'SMA',          params:[{n:'period',l:'期間',d:20}] },
+  MACD_HIST:   { label:'MACD ヒスト',  params:[{n:'fast',l:'Fast',d:12},{n:'slow',l:'Slow',d:26},{n:'signal',l:'Sig',d:9}] },
+  MACD_LINE:   { label:'MACD ライン',  params:[{n:'fast',l:'Fast',d:12},{n:'slow',l:'Slow',d:26},{n:'signal',l:'Sig',d:9}] },
+  MACD_SIGNAL: { label:'MACD シグナル',params:[{n:'fast',l:'Fast',d:12},{n:'slow',l:'Slow',d:26},{n:'signal',l:'Sig',d:9}] },
+  STOCH_K:     { label:'Stoch %K',     params:[{n:'k_period',l:'K期間',d:14},{n:'d_period',l:'D期間',d:3},{n:'smooth_k',l:'平滑K',d:3}] },
+  STOCH_D:     { label:'Stoch %D',     params:[{n:'k_period',l:'K期間',d:14},{n:'d_period',l:'D期間',d:3},{n:'smooth_k',l:'平滑K',d:3}] },
+  CCI:         { label:'CCI',          params:[{n:'period',l:'期間',d:20}] },
+  WILLIAMS_R:  { label:'Williams %R',  params:[{n:'period',l:'期間',d:14}] },
+  ATR:         { label:'ATR',          params:[{n:'period',l:'期間',d:14}] },
+  BB_UPPER:    { label:'BB 上バンド',  params:[{n:'period',l:'期間',d:20},{n:'std',l:'σ',d:2.0}] },
+  BB_LOWER:    { label:'BB 下バンド',  params:[{n:'period',l:'期間',d:20},{n:'std',l:'σ',d:2.0}] },
+  BB_MID:      { label:'BB 中央',      params:[{n:'period',l:'期間',d:20}] },
+  CLOSE:       { label:'終値',         params:[] },
+  HIGH:        { label:'高値',         params:[] },
+  LOW:         { label:'安値',         params:[] },
+  BULLISH_ENGULFING:    { label:'強気の包み足', params:[], is_pattern:true },
+  BEARISH_ENGULFING:    { label:'弱気の包み足', params:[], is_pattern:true },
+  HAMMER:               { label:'ハンマー',     params:[], is_pattern:true },
+  INVERTED_HAMMER:      { label:'逆ハンマー',   params:[], is_pattern:true },
+  DOJI:                 { label:'十字線',        params:[], is_pattern:true },
+  THREE_WHITE_SOLDIERS: { label:'三白兵',        params:[], is_pattern:true },
+  THREE_BLACK_CROWS:    { label:'三羽烏',        params:[], is_pattern:true },
+  BULLISH_PIN_BAR:      { label:'ピンバー(陽)',  params:[], is_pattern:true },
+  BEARISH_PIN_BAR:      { label:'ピンバー(陰)',  params:[], is_pattern:true },
+};
+
+const BT2_COMPS = [
+  { v:'less_than',             l:'< 小さい' },
+  { v:'less_than_or_equal',    l:'≤ 以下' },
+  { v:'greater_than',          l:'> 大きい' },
+  { v:'greater_than_or_equal', l:'≥ 以上' },
+  { v:'equals',                l:'= 等しい' },
+  { v:'crosses_above',         l:'↑ クロスアップ' },
+  { v:'crosses_below',         l:'↓ クロスダウン' },
+];
+
+function bt2IndOpts(excludePatterns) {
+  const tech = ['RSI','EMA','SMA','MACD_HIST','MACD_LINE','MACD_SIGNAL',
+                'STOCH_K','STOCH_D','CCI','WILLIAMS_R','ATR',
+                'BB_UPPER','BB_LOWER','BB_MID','CLOSE','HIGH','LOW'];
+  const pat  = ['BULLISH_ENGULFING','BEARISH_ENGULFING','HAMMER','INVERTED_HAMMER',
+                'DOJI','THREE_WHITE_SOLDIERS','THREE_BLACK_CROWS',
+                'BULLISH_PIN_BAR','BEARISH_PIN_BAR'];
+  const techOpts = tech.map(k => `<option value="${k}">${BT2_IND[k].label}</option>`).join('');
+  if (excludePatterns) return `<optgroup label="テクニカル指標">${techOpts}</optgroup>`;
+  const patOpts = pat.map(k => `<option value="${k}">${BT2_IND[k].label}</option>`).join('');
+  return `<optgroup label="テクニカル指標">${techOpts}</optgroup>
+          <optgroup label="ローソク足パターン (検出=1)">${patOpts}</optgroup>`;
+}
+
+let _bt2Seq = 0;
+let _bt2Logic = 'AND';
+
+function bt2SetLogic(v) {
+  _bt2Logic = v;
+  document.getElementById('bt2-logic-and').classList.toggle('active', v === 'AND');
+  document.getElementById('bt2-logic-or' ).classList.toggle('active', v === 'OR');
+}
+
+function bt2ParamInputs(indKey, rowId) {
+  const ps = (BT2_IND[indKey] || {}).params || [];
+  if (!ps.length) return '<span class="bt2-lbl">パラメータ</span><div style="color:#475569;font-size:11px;padding:7px 0">なし</div>';
+  const inps = ps.map(p =>
+    `<div style="display:flex;flex-direction:column;gap:2px">
+       <span style="font-size:10px;color:#64748b">${p.l}</span>
+       <input type="number" id="${rowId}-p-${p.n}" value="${p.d}" step="${p.n==='std'?0.1:1}"
+              style="width:56px;background:#0d1f2d;border:1px solid #334155;border-radius:5px;color:#e2e8f0;padding:4px 5px;font-size:12px;outline:none">
+     </div>`
+  ).join('');
+  return `<span class="bt2-lbl">パラメータ</span><div style="display:flex;gap:4px;flex-wrap:wrap">${inps}</div>`;
+}
+
+function bt2RhsHtml(rowId) {
+  return `<span class="bt2-lbl">比較値</span>
+    <select id="${rowId}-cmp-ind" onchange="bt2OnCmpIndChange('${rowId}')"
+      style="background:#0d1f2d;border:1px solid #334155;border-radius:6px;color:#e2e8f0;padding:5px 6px;font-size:11px;width:100%;outline:none;margin-bottom:3px">
+      <option value="">--- 固定値 ---</option>
+      ${bt2IndOpts(true)}
+    </select>
+    <div id="${rowId}-rhs-val">
+      <input type="number" id="${rowId}-val" value="0" step="0.1"
+             style="background:#0d1f2d;border:1px solid #334155;border-radius:5px;color:#e2e8f0;padding:4px 6px;font-size:12px;width:100%;outline:none">
+    </div>
+    <div id="${rowId}-rhs-ind-params"></div>`;
+}
+
+function bt2OnCmpIndChange(rowId) {
+  const sel      = document.getElementById(rowId + '-cmp-ind');
+  const valDiv   = document.getElementById(rowId + '-rhs-val');
+  const paramsDiv= document.getElementById(rowId + '-rhs-ind-params');
+  if (valDiv)    valDiv.style.display = sel.value ? 'none' : 'block';
+  if (paramsDiv) {
+    if (sel.value) {
+      const ps = (BT2_IND[sel.value] || {}).params || [];
+      paramsDiv.innerHTML = ps.map(p =>
+        `<div style="display:flex;align-items:center;gap:4px;margin-top:2px">
+           <span style="font-size:10px;color:#64748b;min-width:26px">${p.l}</span>
+           <input type="number" id="${rowId}-cind-p-${p.n}" value="${p.d}"
+                  step="${p.n==='std'?0.1:1}"
+                  style="width:54px;background:#0d1f2d;border:1px solid #334155;border-radius:5px;color:#e2e8f0;padding:3px 5px;font-size:11px;outline:none">
+         </div>`
+      ).join('');
+    } else { paramsDiv.innerHTML = ''; }
+  }
+}
+
+function addBt2Cond() {
+  const id = 'bt2c-' + (++_bt2Seq);
+  const row = document.createElement('div');
+  row.className = 'bt2-cond-row';
+  row.id = id;
+  row.dataset.id = 'c' + _bt2Seq;
+  row.innerHTML = `
+    <div class="bt2-fg">
+      <label>指標</label>
+      <select onchange="bt2OnIndChange(this, '${id}')">
+        ${bt2IndOpts(false)}
+      </select>
+    </div>
+    <div class="bt2-fg" id="${id}-params">${bt2ParamInputs('RSI', id)}</div>
+    <div class="bt2-fg">
+      <label>比較</label>
+      <select id="${id}-cmp">
+        ${BT2_COMPS.map(c => `<option value="${c.v}">${c.l}</option>`).join('')}
+      </select>
+    </div>
+    <div class="bt2-fg" id="${id}-rhs">${bt2RhsHtml(id)}</div>
+    <div>
+      <label style="visibility:hidden;font-size:10px">削除</label>
+      <button class="bt2-del-cond" onclick="this.closest('.bt2-cond-row').remove()">✕</button>
+    </div>`;
+  document.getElementById('bt2-cond-list').appendChild(row);
+}
+
+function bt2OnIndChange(sel, rowId) {
+  const k = sel.value;
+  document.getElementById(rowId + '-params').innerHTML = bt2ParamInputs(k, rowId);
+  if ((BT2_IND[k] || {}).is_pattern) {
+    const cmpSel = document.getElementById(rowId + '-cmp');
+    if (cmpSel) cmpSel.value = 'greater_than_or_equal';
+    const valEl = document.getElementById(rowId + '-val');
+    if (valEl) valEl.value = '1';
+  }
+}
+
+function bt2BuildConds() {
+  const conds = [];
+  for (const row of document.querySelectorAll('#bt2-cond-list .bt2-cond-row')) {
+    const condId = row.dataset.id;
+    const indKey = row.querySelector('select').value;
+    const rowId  = row.id;
+    const cmpVal = document.getElementById(rowId + '-cmp')?.value || 'less_than';
+    const params = {};
+    ((BT2_IND[indKey] || {}).params || []).forEach(p => {
+      const el = document.getElementById(rowId + '-p-' + p.n);
+      if (el) params[p.n] = parseFloat(el.value);
+    });
+    let value = null, compare_to_indicator = null, compare_to_params = null;
+    const cmpIndSel = document.getElementById(rowId + '-cmp-ind');
+    if (cmpIndSel && cmpIndSel.value) {
+      compare_to_indicator = cmpIndSel.value;
+      compare_to_params = {};
+      ((BT2_IND[cmpIndSel.value] || {}).params || []).forEach(p => {
+        const el = document.getElementById(rowId + '-cind-p-' + p.n);
+        compare_to_params[p.n] = el ? parseFloat(el.value) : p.d;
+      });
+    } else {
+      const valEl = document.getElementById(rowId + '-val');
+      value = valEl ? parseFloat(valEl.value) : null;
+    }
+    conds.push({ id: condId, indicator: indKey, params, comparison: cmpVal,
+                 value, compare_to_indicator, compare_to_params });
+  }
+  return conds;
+}
+
+async function runBt2Inline() {
+  const pairs = [...document.querySelectorAll('.bt2-pair:checked')].map(el => el.value);
+  if (!pairs.length) { alert('通貨ペアを1つ以上選択してください'); return; }
+
+  const tfRanges = {};
+  document.querySelectorAll('.bt2-tf:checked').forEach(el => {
+    const row = el.closest('tr');
+    tfRanges[el.value] = {
+      start: row.querySelector('.bt2-tf-start').value || null,
+      end:   row.querySelector('.bt2-tf-end').value   || null,
+    };
+  });
+  if (!Object.keys(tfRanges).length) { alert('時間足を1つ以上選択してください'); return; }
+
+  const conds = bt2BuildConds();
+  if (!conds.length) { alert('条件を1つ以上追加してください'); return; }
+
+  const strategy = {
+    strategy_version: '1.0',
+    direction: document.getElementById('bt2-direction').value,
+    entry_conditions: { logic: _bt2Logic, conditions: conds },
+    filters: null,
+    sl_config: {
+      type: 'fixed', pips: parseFloat(document.getElementById('bt2-sl').value) || 20,
+      lookback_bars: null, buffer_pips: null, atr_period: null, atr_multiplier: null,
+    },
+    tp_config: {
+      type: 'fixed', pips: parseFloat(document.getElementById('bt2-tp').value) || 40,
+      rr_ratio: null, atr_period: null, atr_multiplier: null,
+    },
+    trailing_config: { enabled: false, type: null, trail_pips: null },
+  };
+  const simParams = { initial_capital: 1000000, pip_value: 100, max_bars_to_exit: 200 };
+
+  const btn   = document.getElementById('bt2-run-btn');
+  const log   = document.getElementById('bt2-log');
+  const tbl   = document.getElementById('bt2-result-tbl');
+  const tbody = document.getElementById('bt2-result-body');
+  btn.disabled = true;
+  tbody.innerHTML = '';
+  tbl.style.display = 'none';
+
+  const tfs   = Object.keys(tfRanges);
+  const total = pairs.length * tfs.length;
+  let done    = 0;
+  const TF_LBL = {'5min':'5分足','15min':'15分足','30min':'30分足','1hr':'1時間足','4hr':'4時間足','daily':'日足'};
+
+  for (const tf of tfs) {
+    const rng = tfRanges[tf];
+    for (const pair of pairs) {
+      done++;
+      log.textContent = `実行中 (${done}/${total}): ${pair} ${TF_LBL[tf]||tf}...`;
+      const tr = document.createElement('tr');
+      try {
+        const payload = {
+          action: 'bt_v2', pair, timeframe: tf,
+          strategy_config: strategy, sim_params: simParams,
+        };
+        if (rng.start && rng.end) {
+          payload.start_date = rng.start;
+          payload.end_date   = rng.end;
+        } else {
+          payload.limit = 500;
+        }
+        const res = await fetch('/admin/api.php', {
+          method: 'POST', headers: {'Content-Type': 'application/json'},
+          body:   JSON.stringify(payload),
+        }).then(r => r.json());
+
+        if (!res.ok) {
+          tr.innerHTML = `<td>${pair}</td><td>${TF_LBL[tf]||tf}</td>
+            <td colspan="5" style="color:#ef4444;font-size:11px">${res.error||'APIエラー'}</td>`;
+        } else {
+          const m  = res.metrics || {};
+          const wr = m.win_rate != null ? (m.win_rate * 100).toFixed(1) : null;
+          const wc = m.win_rate >= 0.55 ? '#4ade80' : m.win_rate >= 0.40 ? '#facc15' : '#f87171';
+          const pf = m.profit_factor != null ? (isFinite(m.profit_factor) ? m.profit_factor.toFixed(2) : '∞') : '-';
+          const tp = m.total_profit  != null ? Math.round(m.total_profit).toLocaleString() : '-';
+          const period = [rng.start, rng.end].filter(Boolean).join('〜') || `${m.total_trades||0}本`;
+          tr.innerHTML = `<td>${pair}</td><td>${TF_LBL[tf]||tf}</td>
+            <td style="color:${wr!=null?wc:'#64748b'};font-weight:600">${wr!=null?wr+'%':'-'}</td>
+            <td>${pf}</td><td>${m.total_trades||0}件</td>
+            <td style="color:${m.total_profit>=0?'#4ade80':'#f87171'}">${tp}円</td>
+            <td style="font-size:11px;color:#64748b">${period}</td>`;
+        }
+      } catch(e) {
+        tr.innerHTML = `<td>${pair}</td><td>${TF_LBL[tf]||tf}</td>
+          <td colspan="5" style="color:#ef4444;font-size:11px">${e.message}</td>`;
+      }
+      tbody.appendChild(tr);
+      tbl.style.display = 'table';
+    }
+  }
+
+  btn.disabled = false;
+  log.textContent = `完了（${total}件実行）`;
+}
+
+// 初期条件を1つ追加
+addBt2Cond();
+</script>
 <?php endif; ?>
 </main>
 
@@ -544,7 +904,7 @@ async function loadLinkedStrategies() {
       const pf  = s.pf        != null ? `<span>PF ${parseFloat(s.pf).toFixed(2)}</span>` : '';
       const tr  = s.trades    != null ? `<span>${s.trades}件</span>` : '';
       const ran = s.bt_ran_at ? s.bt_ran_at.slice(0,10) : '未実行';
-      return `<div class="linked-strategy-item">
+      return `<div class="ls-item">
         <div class="ls-name">${s.name.replace(/</g,'&lt;')}</div>
         <div class="ls-meta">${wr}${pf}${tr}<span>${ran}</span></div>
       </div>`;
