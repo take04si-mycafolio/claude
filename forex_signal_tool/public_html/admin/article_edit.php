@@ -413,6 +413,25 @@ function resetIndicatorPageBt() {
 .bt2-add-cond:hover{border-color:#0e7490;color:#67e8f9}
 .bt2-del-cond{background:none;border:1px solid #334155;color:#475569;border-radius:6px;padding:5px 8px;font-size:11px;cursor:pointer;transition:all .15s;white-space:nowrap}
 .bt2-del-cond:hover{border-color:#ef4444;color:#ef4444}
+/* filter block */
+.bt2-filter-block{margin-bottom:14px;padding-bottom:14px;border-bottom:1px solid #0f172a}
+.bt2-filter-block:last-child{border-bottom:none;margin-bottom:0;padding-bottom:0}
+.bt2-filter-title{font-size:11px;font-weight:600;color:#475569;margin-bottom:8px;text-transform:uppercase;letter-spacing:.4px}
+.bt2-hint{font-size:11px;color:#475569;margin-top:3px}
+/* weekday buttons */
+.bt2-wd-btns{display:flex;gap:5px;flex-wrap:wrap}
+.bt2-wd-btn{background:#0f172a;border:1px solid #334155;color:#475569;border-radius:6px;padding:4px 10px;font-size:11px;font-weight:600;cursor:pointer;transition:all .15s;user-select:none}
+.bt2-wd-btn.active{background:#1e3a5f;border-color:#3b82f6;color:#60a5fa}
+/* SL/TP type panels */
+.bt2-type-panel{display:none}
+.bt2-type-panel.active{display:flex;gap:10px;flex-wrap:wrap}
+/* trailing toggle */
+.bt2-toggle-sw{position:relative;width:36px;height:20px;cursor:pointer;flex-shrink:0}
+.bt2-toggle-sw input{opacity:0;width:0;height:0;position:absolute}
+.bt2-toggle-track{position:absolute;inset:0;background:#334155;border-radius:10px;transition:background .2s}
+.bt2-toggle-sw input:checked + .bt2-toggle-track{background:#3b82f6}
+.bt2-toggle-thumb{position:absolute;top:2px;left:2px;width:16px;height:16px;background:#fff;border-radius:50%;transition:transform .2s}
+.bt2-toggle-sw input:checked ~ .bt2-toggle-thumb{transform:translateX(16px)}
 /* run/result */
 .bt2-run-btn{background:#0e7490;color:#fff;border:none;border-radius:8px;padding:9px 22px;font-size:13px;font-weight:600;cursor:pointer;transition:background .15s}
 .bt2-run-btn:hover:not(:disabled){background:#0891b2}
@@ -453,23 +472,178 @@ function resetIndicatorPageBt() {
   <div id="bt2-cond-list"></div>
   <button class="bt2-add-cond" onclick="addBt2Cond()">＋ 条件を追加</button>
 
-  <!-- 方向 / SL / TP -->
-  <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;max-width:360px;margin-bottom:12px">
+  <!-- エントリー方向 -->
+  <div style="display:grid;grid-template-columns:max-content;margin-bottom:14px">
     <div class="bt2-fg">
       <label>エントリー方向</label>
-      <select id="bt2-direction">
-        <option value="BUY">BUY（買い）</option>
-        <option value="SELL">SELL（売り）</option>
+      <select id="bt2-direction" style="width:200px">
+        <option value="BUY">BUY（買いのみ）</option>
+        <option value="SELL">SELL（売りのみ）</option>
         <option value="BOTH" selected>BOTH（両方）</option>
       </select>
     </div>
-    <div class="bt2-fg">
-      <label>SL (pips)</label>
-      <input type="number" id="bt2-sl" value="<?= $ibt_sl ?>" min="1" max="200">
+  </div>
+
+  <!-- フィルター設定 -->
+  <div class="bt2-section-hdr">フィルター設定（任意）</div>
+  <div style="background:#0d1a27;border:1px solid #1e293b;border-radius:8px;padding:14px 16px;margin-bottom:14px">
+
+    <!-- 時間帯 -->
+    <div class="bt2-filter-block">
+      <div class="bt2-filter-title">時間帯（JST）</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:8px">
+        <div class="bt2-fg">
+          <label>セッション プリセット</label>
+          <select id="bt2-f-session" onchange="bt2OnSession()">
+            <option value="">-- フィルターなし --</option>
+            <option value="tokyo">東京 (07:00〜16:00 JST)</option>
+            <option value="london">ロンドン (17:00〜02:00 JST)</option>
+            <option value="ny">ニューヨーク (22:00〜07:00 JST)</option>
+            <option value="custom">カスタム</option>
+          </select>
+        </div>
+      </div>
+      <div id="bt2-custom-time" style="display:none;grid-template-columns:1fr 1fr;gap:10px">
+        <div class="bt2-fg">
+          <label>開始時刻 (JST・時)</label>
+          <input type="number" id="bt2-f-start-hour" value="9" min="0" max="23" step="1">
+        </div>
+        <div class="bt2-fg">
+          <label>終了時刻 (JST・時)</label>
+          <input type="number" id="bt2-f-end-hour" value="17" min="0" max="23" step="1">
+          <div class="bt2-hint">終了 &lt; 開始 の場合は日をまたぐ（例: 22〜7）</div>
+        </div>
+      </div>
     </div>
-    <div class="bt2-fg">
-      <label>TP (pips)</label>
-      <input type="number" id="bt2-tp" value="<?= $ibt_tp ?>" min="1" max="500">
+
+    <!-- 曜日 -->
+    <div class="bt2-filter-block">
+      <div class="bt2-filter-title">曜日（全選択 = フィルターなし）</div>
+      <div class="bt2-wd-btns" id="bt2-wd-btns">
+        <button class="bt2-wd-btn active" data-wd="0" onclick="bt2ToggleWd(this)">月</button>
+        <button class="bt2-wd-btn active" data-wd="1" onclick="bt2ToggleWd(this)">火</button>
+        <button class="bt2-wd-btn active" data-wd="2" onclick="bt2ToggleWd(this)">水</button>
+        <button class="bt2-wd-btn active" data-wd="3" onclick="bt2ToggleWd(this)">木</button>
+        <button class="bt2-wd-btn active" data-wd="4" onclick="bt2ToggleWd(this)">金</button>
+        <button class="bt2-wd-btn" data-wd="5" onclick="bt2ToggleWd(this)">土</button>
+        <button class="bt2-wd-btn" data-wd="6" onclick="bt2ToggleWd(this)">日</button>
+      </div>
+    </div>
+
+    <!-- ATR ボラティリティ -->
+    <div class="bt2-filter-block">
+      <div class="bt2-filter-title">ボラティリティ（ATR フィルター）</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px">
+        <div class="bt2-fg">
+          <label>ATR 期間</label>
+          <input type="number" id="bt2-f-atr-period" value="14" min="1" step="1">
+        </div>
+        <div class="bt2-fg">
+          <label>最小 pips</label>
+          <input type="number" id="bt2-f-atr-min" value="0" min="0" step="1">
+          <div class="bt2-hint">0 = 無効</div>
+        </div>
+        <div class="bt2-fg">
+          <label>最大 pips</label>
+          <input type="number" id="bt2-f-atr-max" value="0" min="0" step="1">
+          <div class="bt2-hint">0 = 無制限</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- リスク管理 -->
+  <div class="bt2-section-hdr">リスク管理（SL / TP / トレーリング）</div>
+  <div style="background:#0d1a27;border:1px solid #1e293b;border-radius:8px;padding:14px 16px;margin-bottom:14px">
+
+    <!-- SL -->
+    <div style="margin-bottom:16px">
+      <div style="font-size:11px;font-weight:600;color:#94a3b8;margin-bottom:8px">◆ ストップロス (SL)</div>
+      <div class="bt2-fg" style="margin-bottom:8px;max-width:200px">
+        <label>SL タイプ</label>
+        <select id="bt2-sl-type" onchange="bt2OnSlType()">
+          <option value="fixed">固定 pips</option>
+          <option value="recentHighLow">直近高値/安値</option>
+          <option value="atr">ATR 倍数</option>
+        </select>
+      </div>
+      <div class="bt2-type-panel active" id="bt2-sl-fixed">
+        <div class="bt2-fg"><label>SL pips</label>
+          <input type="number" id="bt2-sl-pips" value="<?= $ibt_sl ?>" min="1" step="1" style="width:90px">
+        </div>
+      </div>
+      <div class="bt2-type-panel" id="bt2-sl-recentHighLow">
+        <div class="bt2-fg"><label>ルックバック本数</label>
+          <input type="number" id="bt2-sl-lookback" value="10" min="1" step="1" style="width:90px">
+        </div>
+        <div class="bt2-fg"><label>バッファ pips</label>
+          <input type="number" id="bt2-sl-buffer" value="3" min="0" step="0.5" style="width:90px">
+        </div>
+      </div>
+      <div class="bt2-type-panel" id="bt2-sl-atr">
+        <div class="bt2-fg"><label>ATR 期間</label>
+          <input type="number" id="bt2-sl-atr-period" value="14" min="1" step="1" style="width:90px">
+        </div>
+        <div class="bt2-fg"><label>ATR 倍数</label>
+          <input type="number" id="bt2-sl-atr-mult" value="1.5" min="0.1" step="0.1" style="width:90px">
+        </div>
+      </div>
+    </div>
+
+    <!-- TP -->
+    <div style="margin-bottom:16px">
+      <div style="font-size:11px;font-weight:600;color:#94a3b8;margin-bottom:8px">◆ テイクプロフィット (TP)</div>
+      <div class="bt2-fg" style="margin-bottom:8px;max-width:200px">
+        <label>TP タイプ</label>
+        <select id="bt2-tp-type" onchange="bt2OnTpType()">
+          <option value="rr">RR 比率（SL × 倍率）</option>
+          <option value="fixed">固定 pips</option>
+          <option value="atr">ATR 倍数</option>
+        </select>
+      </div>
+      <div class="bt2-type-panel active" id="bt2-tp-rr">
+        <div class="bt2-fg"><label>RR 比率</label>
+          <select id="bt2-tp-rr-ratio" style="width:110px;background:#0d1f2d;border:1px solid #334155;border-radius:6px;color:#e2e8f0;padding:6px 8px;font-size:12px;outline:none">
+            <option value="1.0">1 : 1.0</option>
+            <option value="1.5" selected>1 : 1.5</option>
+            <option value="2.0">1 : 2.0</option>
+            <option value="2.5">1 : 2.5</option>
+            <option value="3.0">1 : 3.0</option>
+          </select>
+        </div>
+      </div>
+      <div class="bt2-type-panel" id="bt2-tp-fixed">
+        <div class="bt2-fg"><label>TP pips</label>
+          <input type="number" id="bt2-tp-pips" value="<?= $ibt_tp ?>" min="1" step="1" style="width:90px">
+        </div>
+      </div>
+      <div class="bt2-type-panel" id="bt2-tp-atr">
+        <div class="bt2-fg"><label>ATR 期間</label>
+          <input type="number" id="bt2-tp-atr-period" value="14" min="1" step="1" style="width:90px">
+        </div>
+        <div class="bt2-fg"><label>ATR 倍数</label>
+          <input type="number" id="bt2-tp-atr-mult" value="3.0" min="0.1" step="0.1" style="width:90px">
+        </div>
+      </div>
+    </div>
+
+    <!-- トレーリング -->
+    <div>
+      <div style="font-size:11px;font-weight:600;color:#94a3b8;margin-bottom:8px">◆ トレーリングストップ</div>
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px">
+        <label class="bt2-toggle-sw">
+          <input type="checkbox" id="bt2-trailing-on" onchange="bt2OnTrailing()">
+          <div class="bt2-toggle-track"></div>
+          <div class="bt2-toggle-thumb"></div>
+        </label>
+        <span id="bt2-trailing-lbl" style="font-size:12px;color:#64748b">OFF</span>
+      </div>
+      <div id="bt2-trailing-fields" style="display:none">
+        <div class="bt2-fg" style="max-width:160px">
+          <label>トレール幅 (pips)</label>
+          <input type="number" id="bt2-trail-pips" value="10" min="1" step="1">
+        </div>
+      </div>
     </div>
   </div>
 
@@ -721,6 +895,107 @@ function bt2BuildConds() {
   return conds;
 }
 
+/* ===== フィルター ===== */
+const BT2_SESSION_PRESETS = {
+  tokyo:  { start: 7,  end: 16 },
+  london: { start: 17, end: 2  },
+  ny:     { start: 22, end: 7  },
+};
+function bt2OnSession() {
+  const val = document.getElementById('bt2-f-session').value;
+  const ct  = document.getElementById('bt2-custom-time');
+  ct.style.display = val === 'custom' ? 'grid' : 'none';
+  if (val && val !== 'custom') {
+    const p = BT2_SESSION_PRESETS[val];
+    document.getElementById('bt2-f-start-hour').value = p.start;
+    document.getElementById('bt2-f-end-hour').value   = p.end;
+  }
+}
+function bt2ToggleWd(btn) { btn.classList.toggle('active'); }
+
+function bt2BuildFilters() {
+  const conds = [];
+  const session = document.getElementById('bt2-f-session').value;
+  if (session) {
+    const start = parseInt(document.getElementById('bt2-f-start-hour').value, 10);
+    const end   = parseInt(document.getElementById('bt2-f-end-hour').value, 10);
+    conds.push({ id:'f-time', indicator:'TIME_RANGE',
+                 params:{start_hour:start, end_hour:end},
+                 comparison:'filter_pass', value:null,
+                 compare_to_indicator:null, compare_to_params:null });
+  }
+  const activeDays = [...document.querySelectorAll('#bt2-wd-btns .bt2-wd-btn.active')]
+                       .map(b => parseInt(b.dataset.wd, 10));
+  if (activeDays.length > 0 && activeDays.length < 7) {
+    conds.push({ id:'f-weekday', indicator:'WEEKDAY',
+                 params:{days:activeDays},
+                 comparison:'filter_pass', value:null,
+                 compare_to_indicator:null, compare_to_params:null });
+  }
+  const atrMin = parseFloat(document.getElementById('bt2-f-atr-min').value) || 0;
+  const atrMax = parseFloat(document.getElementById('bt2-f-atr-max').value) || 0;
+  if (atrMin > 0 || atrMax > 0) {
+    conds.push({ id:'f-atr', indicator:'ATR_THRESHOLD',
+                 params:{ period: parseInt(document.getElementById('bt2-f-atr-period').value,10),
+                          min_pips: atrMin, max_pips: atrMax > 0 ? atrMax : null },
+                 comparison:'filter_pass', value:null,
+                 compare_to_indicator:null, compare_to_params:null });
+  }
+  return conds.length ? { logic:'AND', conditions:conds } : null;
+}
+
+/* ===== SL / TP / トレーリング ===== */
+function bt2OnSlType() {
+  const t = document.getElementById('bt2-sl-type').value;
+  ['fixed','recentHighLow','atr'].forEach(k => {
+    document.getElementById('bt2-sl-' + k).classList.toggle('active', k === t);
+  });
+}
+function bt2OnTpType() {
+  const t = document.getElementById('bt2-tp-type').value;
+  ['rr','fixed','atr'].forEach(k => {
+    document.getElementById('bt2-tp-' + k).classList.toggle('active', k === t);
+  });
+}
+function bt2OnTrailing() {
+  const on = document.getElementById('bt2-trailing-on').checked;
+  document.getElementById('bt2-trailing-lbl').textContent = on ? 'ON' : 'OFF';
+  document.getElementById('bt2-trailing-fields').style.display = on ? 'block' : 'none';
+}
+
+function bt2BuildSl() {
+  const t = document.getElementById('bt2-sl-type').value;
+  if (t === 'fixed')
+    return { type:'fixed', pips:parseFloat(document.getElementById('bt2-sl-pips').value)||20,
+             lookback_bars:null, buffer_pips:null, atr_period:null, atr_multiplier:null };
+  if (t === 'recentHighLow')
+    return { type:'recentHighLow', pips:null,
+             lookback_bars:parseInt(document.getElementById('bt2-sl-lookback').value),
+             buffer_pips:parseFloat(document.getElementById('bt2-sl-buffer').value),
+             atr_period:null, atr_multiplier:null };
+  return { type:'atr', pips:null, lookback_bars:null, buffer_pips:null,
+           atr_period:parseInt(document.getElementById('bt2-sl-atr-period').value),
+           atr_multiplier:parseFloat(document.getElementById('bt2-sl-atr-mult').value) };
+}
+function bt2BuildTp() {
+  const t = document.getElementById('bt2-tp-type').value;
+  if (t === 'rr')
+    return { type:'rr', pips:null,
+             rr_ratio:parseFloat(document.getElementById('bt2-tp-rr-ratio').value),
+             atr_period:null, atr_multiplier:null };
+  if (t === 'fixed')
+    return { type:'fixed', pips:parseFloat(document.getElementById('bt2-tp-pips').value)||40,
+             rr_ratio:null, atr_period:null, atr_multiplier:null };
+  return { type:'atr', pips:null, rr_ratio:null,
+           atr_period:parseInt(document.getElementById('bt2-tp-atr-period').value),
+           atr_multiplier:parseFloat(document.getElementById('bt2-tp-atr-mult').value) };
+}
+function bt2BuildTrailing() {
+  const on = document.getElementById('bt2-trailing-on').checked;
+  return { enabled:on, type:on?'fixedTrailing':null,
+           trail_pips:on?parseFloat(document.getElementById('bt2-trail-pips').value):null };
+}
+
 async function runBt2Inline() {
   const pairs = [...document.querySelectorAll('.bt2-pair:checked')].map(el => el.value);
   if (!pairs.length) { alert('通貨ペアを1つ以上選択してください'); return; }
@@ -740,18 +1015,12 @@ async function runBt2Inline() {
 
   const strategy = {
     strategy_version: '1.0',
-    direction: document.getElementById('bt2-direction').value,
+    direction:        document.getElementById('bt2-direction').value,
     entry_conditions: { logic: _bt2Logic, conditions: conds },
-    filters: null,
-    sl_config: {
-      type: 'fixed', pips: parseFloat(document.getElementById('bt2-sl').value) || 20,
-      lookback_bars: null, buffer_pips: null, atr_period: null, atr_multiplier: null,
-    },
-    tp_config: {
-      type: 'fixed', pips: parseFloat(document.getElementById('bt2-tp').value) || 40,
-      rr_ratio: null, atr_period: null, atr_multiplier: null,
-    },
-    trailing_config: { enabled: false, type: null, trail_pips: null },
+    filters:          bt2BuildFilters(),
+    sl_config:        bt2BuildSl(),
+    tp_config:        bt2BuildTp(),
+    trailing_config:  bt2BuildTrailing(),
   };
   const simParams = { initial_capital: 1000000, pip_value: 100, max_bars_to_exit: 200 };
 
