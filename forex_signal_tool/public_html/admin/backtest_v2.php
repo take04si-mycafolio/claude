@@ -1799,7 +1799,7 @@ async function runBacktest() {
     _lastMetrics = r.metrics || {};
     _lastOhlcv   = r.ohlcv   || [];
     _lastInitialCapital = simParams.initial_capital;
-    renderMetrics(r.metrics, r.bars_used);
+    renderMetrics(r.metrics, r.bars_used, r.data_from, r.data_to);
     renderChart(_lastOhlcv, r.chart_data || {});
     renderEquityCurve(_lastTrades, _lastInitialCapital);
     renderTrades(_lastTrades);
@@ -2003,7 +2003,7 @@ function hideErr() { document.getElementById('err-banner').style.display = 'none
    10f: メトリクス & トレードログ表示
    ===================================================================== */
 
-function renderMetrics(m, barsUsed) {
+function renderMetrics(m, barsUsed, dataFrom, dataTo) {
   const wr = m.win_rate != null ? (m.win_rate * 100).toFixed(1) : '-';
   const wrCls = m.win_rate >= 0.5 ? 'green' : 'red';
   const pf = m.profit_factor == null ? '-' : (isFinite(m.profit_factor) ? m.profit_factor.toFixed(2) : '∞');
@@ -2011,10 +2011,14 @@ function renderMetrics(m, barsUsed) {
   const net = m.net_profit_pips != null ? (m.net_profit_pips >= 0 ? '+' : '') + m.net_profit_pips.toFixed(1) + ' pips' : '-';
   const netCls = m.net_profit_pips >= 0 ? 'green' : 'red';
   const dd = m.max_drawdown_pips != null ? m.max_drawdown_pips.toFixed(1) + ' pips' : '-';
+  const rangeTxt = (dataFrom && dataTo) ? `${dataFrom} 〜 ${dataTo}` : `${barsUsed} bar`;
 
   document.getElementById('section-metrics').innerHTML = `
+    <div style="font-size:11px;color:#64748b;margin-bottom:8px;padding:6px 10px;background:#1e293b;border-radius:6px;display:inline-block">
+      📅 検証期間: <strong style="color:#94a3b8">${rangeTxt}</strong>（${barsUsed} bar）
+    </div>
     <div class="metrics-grid">
-      ${mc('総取引数', m.total_trades + '回 / ' + barsUsed + 'bar', '')}
+      ${mc('総取引数', m.total_trades + '回', '')}
       ${mc('勝率',     wr + '%', wrCls)}
       ${mc('純損益',   net, netCls)}
       ${mc('最大DD',   dd, 'yellow')}

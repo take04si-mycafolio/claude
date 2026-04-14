@@ -121,11 +121,28 @@ def main():
 
             metrics_safe = {k: _safe(v) for k, v in metrics.items()}
 
+            # 実際に使用したデータ期間（UTC → JST 変換して返す）
+            _JST = timedelta(hours=9)
+            def _ts_to_jst_date(ts_val):
+                try:
+                    import pandas as _pd
+                    ts = _pd.Timestamp(ts_val)
+                    if ts.tzinfo is not None:
+                        ts = ts.tz_convert(None)
+                    return (ts + _JST).strftime("%Y-%m-%d")
+                except Exception:
+                    return str(ts_val)[:10]
+
+            data_from = _ts_to_jst_date(df["timestamp"].iloc[0])  if not df.empty else ""
+            data_to   = _ts_to_jst_date(df["timestamp"].iloc[-1]) if not df.empty else ""
+
             result = {
                 "ok":         True,
                 "pair":       pair,
                 "timeframe":  timeframe,
                 "bars_used":  len(df),
+                "data_from":  data_from,
+                "data_to":    data_to,
                 "metrics":    metrics_safe,
                 "trades":     trades,
                 "chart_data": chart_data,

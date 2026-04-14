@@ -365,17 +365,22 @@ def get_candles(pair: str, timeframe: str, limit: int = 200,
 
     start_date / end_date (YYYY-MM-DD 形式) を指定した場合はその期間で全件取得。
     どちらも None の場合は limit 本分を最新から取得する。
+    日付は UTC 基準で比較する（DBは UTC 保存）。
     """
     from app.models.price_data import PriceData
+    from datetime import datetime as _dt, time as _time
 
     q = PriceData.query.filter_by(currency_pair=pair, timeframe=timeframe)
 
     if start_date or end_date:
         if start_date:
-            q = q.filter(PriceData.timestamp >= start_date)
+            # 文字列を datetime オブジェクトに変換してから比較（SQLAlchemy の型安全性確保）
+            _start = _dt.strptime(start_date, "%Y-%m-%d")
+            q = q.filter(PriceData.timestamp >= _start)
         if end_date:
-            # end_date 当日の末尾まで含める
-            q = q.filter(PriceData.timestamp <= end_date + " 23:59:59")
+            # end_date の 23:59:59 まで含める
+            _end = _dt.combine(_dt.strptime(end_date, "%Y-%m-%d"), _time(23, 59, 59))
+            q = q.filter(PriceData.timestamp <= _end)
         records = q.order_by(PriceData.timestamp.asc()).all()
     else:
         records = (
@@ -389,6 +394,7 @@ def get_candles(pair: str, timeframe: str, limit: int = 200,
 
     rows = [r.to_dict() for r in records]
     df = pd.DataFrame(rows)
-    df["timestamp"] = pd.to_datetime(df["timestamp"])
+    # timezone-aware な文字列（"+00:00" / "+09:00" 等）を UTC naive に統一
+    df["timestamp"] = pd.to_datetime(df["timestamp"], utc=True).dt.tz_convert(None)
     df = df.sort_values("timestamp").reset_index(drop=True)
     return df
