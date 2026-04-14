@@ -716,6 +716,18 @@ function resetIndicatorPageBt() {
     <tbody id="bt2-result-body"></tbody>
   </table>
 
+  <!-- 保存セクション（実行後に表示） -->
+  <div id="bt2-save-wrap" style="display:none;margin-top:12px;padding:12px 14px;background:#0a1628;border:1px solid #1e3a5f;border-radius:8px">
+    <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+      <input type="text" id="bt2-save-name"
+             placeholder="戦略名を入力（例: RSI逆張り改良版）"
+             style="flex:1;min-width:180px;background:#0f172a;border:1px solid #334155;border-radius:6px;color:#e2e8f0;padding:7px 10px;font-size:13px;outline:none">
+      <button class="bt2-run-btn" id="bt2-save-btn" onclick="saveBt2InlineStrategy()"
+              style="background:#0f766e;padding:8px 18px;font-size:13px">💾 戦略を保存</button>
+      <span id="bt2-save-status" style="font-size:12px;color:#94a3b8"></span>
+    </div>
+  </div>
+
   <!-- リンク済み保存戦略 -->
   <div style="margin-top:14px;border-top:1px solid #1e293b;padding-top:12px">
     <div class="bt2-section-hdr" style="margin-top:0">リンク済み保存戦略（BT2で保存済み）</div>
@@ -737,6 +749,8 @@ function resetIndicatorPageBt() {
 
 <script>
 /* ===== BT2 inline condition builder ===== */
+let _bt2InlineResults = [];  // 最終実行の pair×TF 結果を蓄積（保存用）
+
 const BT2_IND = {
   RSI:         { label:'RSI',          params:[{n:'period',l:'期間',d:14}] },
   EMA:         { label:'EMA',          params:[{n:'period',l:'期間',d:21}] },
@@ -1053,9 +1067,12 @@ async function runBt2Inline() {
   const log   = document.getElementById('bt2-log');
   const tbl   = document.getElementById('bt2-result-tbl');
   const tbody = document.getElementById('bt2-result-body');
+  const saveWrap = document.getElementById('bt2-save-wrap');
   btn.disabled = true;
   tbody.innerHTML = '';
   tbl.style.display = 'none';
+  saveWrap.style.display = 'none';
+  _bt2InlineResults = [];
 
   const tfs   = Object.keys(tfRanges);
   const total = pairs.length * tfs.length;
@@ -1099,6 +1116,8 @@ async function runBt2Inline() {
             <td>${pf}</td><td>${m.total_trades||0}件</td>
             <td style="color:${m.total_profit>=0?'#4ade80':'#f87171'}">${tp}円</td>
             <td style="font-size:11px;color:#64748b">${period}</td>`;
+          // 保存用に結果を蓄積
+          _bt2InlineResults.push({ pair, tf, metrics: m });
         }
       } catch(e) {
         tr.innerHTML = `<td>${pair}</td><td>${TF_LBL[tf]||tf}</td>
@@ -1111,6 +1130,87 @@ async function runBt2Inline() {
 
   btn.disabled = false;
   log.textContent = `完了（${total}件実行）`;
+
+  // 成功した結果が1件以上あれば保存セクションを表示
+  if (_bt2InlineResults.length > 0) {
+    saveWrap.style.display = 'block';
+    document.getElementById('bt2-save-status').textContent = '';
+  }
+}
+
+async function saveBt2InlineStrategy() {
+  const name = document.getElementById('bt2-save-name').value.trim();
+  if (!name) { alert('戦略名を入力してください'); return; }
+  if (!_bt2InlineResults.length) { alert('先にバックテストを実行してください'); return; }
+
+  const btn  = document.getElementById('bt2-save-btn');
+  const stat = document.getElementById('bt2-save-status');
+  btn.disabled = true;
+  stat.textContent = '保存中...';
+  stat.style.color = '#94a3b8';
+
+  try {
+    // 全結果から集計サマリーを作成
+    let totalTrades = 0, totalWins = 0, totalPf = 0, pfCount = 0;
+    for (const r of _bt2InlineResults) {
+      const m = r.metrics;
+      totalTrades += (m.total_trades || 0);
+      totalWins   += Math.round((m.win_rate || 0) * (m.total_trades || 0));
+      if (m.profit_factor != null && isFinite(m.profit_factor)) {
+        totalPf += m.profit_factor; pfCount++;
+      }
+    }
+    const btResult = {
+      win_rate:      totalTrades > 0 ? totalWins / totalTrades : null,
+      profit_factor: pfCount > 0 ? totalPf / pfCount : null,
+      total_trades:  totalTrades,
+      per_pair:      Object.fromEntries(_bt2InlineResults.map(r => [`${r.pair}_${r.tf}`, r.metrics])),
+    };
+
+    const config = {
+      strategy:   {
+        strategy_version: '1.0',
+        direction:        document.getElementById('bt2-direction').value,
+        entry_conditions: { logic: _bt2Logic, conditions: bt2BuildConds() },
+        filters:          bt2BuildFilters(),
+        sl_config:        bt2BuildSl(),
+        tp_config:        bt2BuildTp(),
+        trailing_config:  bt2BuildTrailing(),
+      },
+      sim_params: {
+        initial_capital:  parseFloat(document.getElementById('bt2-capital').value)   || 1000000,
+        pip_value:        parseFloat(document.getElementById('bt2-pip-value').value)  || 100,
+        max_bars_to_exit: parseInt(document.getElementById('bt2-max-bars').value, 10) || 200,
+      },
+    };
+
+    const res = await fetch('/admin/api.php', {
+      method: 'POST', headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({
+        action:            'save_strategy',
+        name,
+        config,
+        linked_indicator:  <?= json_encode($indicator_name ?: '') ?>,
+        bt_result:         btResult,
+      }),
+    }).then(r => r.json());
+
+    if (!res.ok) {
+      stat.textContent = '❌ ' + (res.error || '保存エラー');
+      stat.style.color = '#ef4444';
+    } else {
+      stat.textContent = '✅ 保存しました';
+      stat.style.color = '#4ade80';
+      document.getElementById('bt2-save-name').value = '';
+      await loadLinkedStrategies();
+      setTimeout(() => { stat.textContent = ''; }, 4000);
+    }
+  } catch(e) {
+    stat.textContent = '❌ ' + e.message;
+    stat.style.color = '#ef4444';
+  } finally {
+    btn.disabled = false;
+  }
 }
 
 // 初期条件を1つ追加
