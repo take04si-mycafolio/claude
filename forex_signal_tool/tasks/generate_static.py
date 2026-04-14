@@ -1479,6 +1479,28 @@ def main():
                 .all()
             )
 
+            # 指標ごとの最高勝率ペア・時間軸を取得
+            _best_rows = (
+                _BT.query
+                .with_entities(
+                    _BT.indicator_name,
+                    _BT.currency_pair,
+                    _BT.timeframe,
+                    _BT.win_rate,
+                )
+                .filter(_BT.total_trades >= 5)
+                .order_by(_BT.indicator_name, _BT.win_rate.desc())
+                .all()
+            )
+            _best_combo: dict = {}
+            for _br in _best_rows:
+                if _br.indicator_name not in _best_combo:
+                    _best_combo[_br.indicator_name] = {
+                        "pair": _br.currency_pair,
+                        "tf":   _br.timeframe,
+                        "wr":   float(_br.win_rate or 0),
+                    }
+
             def _wr_cls(wr):
                 if wr >= 55: return "b-up"
                 if wr >= 45: return "b-mid"
@@ -1513,12 +1535,14 @@ def main():
                         _short = _short.split(_cut)[0].strip()
                         break
 
+                _bc = _best_combo.get(_r.indicator_name, {})
                 _scored.append({
                     "ind":          _r.indicator_name,
                     "display":      _info.get("display", _r.indicator_name),
                     "short_name":   _short,
                     "category":     _info.get("category", ""),
                     "feature":      _info.get("feature", ""),
+                    "url":          ind_url_map.get(_r.indicator_name, ""),
                     "wr_class":     _wr_cls(_avg_wr),
                     "wr_label":     f"{_min_wr:.0f}〜{_max_wr:.0f}%",
                     "avg_wr":       _avg_wr,
@@ -1527,6 +1551,9 @@ def main():
                     "dd_label":     f"{abs(_avg_dd)/max(_avg_cp,1)*100:.1f}%",
                     "total_trades": _total,
                     "score":        _score_top(_avg_wr, _avg_pf, _total, _avg_sl, _avg_tp, _avg_dd, _avg_cp),
+                    "best_pair":    _bc.get("pair", ""),
+                    "best_tf":      _bc.get("tf",   ""),
+                    "best_wr":      _bc.get("wr",   _avg_wr),
                 })
 
             # TOPページ勝率一覧（固定順で最大7指標を表示）

@@ -249,14 +249,18 @@
     <div class="rank-item {% if loop.index == 1 %}top{% endif %}">
       <div class="rank-num {{ ['gold','silver','bronze','',''][loop.index0 if loop.index0 < 3 else 3] }}">{{ loop.index }}</div>
       <div class="rank-body">
-        <div class="rank-name">{{ row.display }}</div>
+        <div class="rank-name">
+          {% if row.url %}<a href="{{ row.url }}" style="color:inherit;text-decoration:none;border-bottom:1px solid var(--color-border)">{{ row.display }}</a>{% else %}{{ row.display }}{% endif %}
+        </div>
         <div class="rank-meta">
           <span class="badge {{ row.wr_class }}">勝率 {{ row.wr_label }}</span>
           <span class="badge b-blue">PF {{ row.pf_label }}</span>
           <span class="badge b-gray">スコア {{ row.score }}点</span>
+          {% if row.best_pair %}<span class="badge b-gray">{{ row.best_pair }} / {{ row.best_tf }}</span>{% endif %}
         </div>
         <div class="rank-desc">
           {{ row.category }}系。{{ "{:,}".format(row.total_trades) }}回のバックテストに基づく集計値（USD/JPY・GBP/JPY・EUR/JPY、全時間軸）。
+          {% if row.url %}<a href="{{ row.url }}" style="font-size:12px;color:var(--color-primary,#0070f3);white-space:nowrap">詳細ページへ →</a>{% endif %}
         </div>
       </div>
     </div>
