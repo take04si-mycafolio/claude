@@ -134,6 +134,15 @@ h2{font-size:20px;font-weight:700;color:#f1f5f9;margin-bottom:6px}
 .preset-btn{padding:6px 14px;border-radius:7px;font-size:12px;font-weight:600;cursor:pointer;border:1px solid #3b82f6;background:#1e3a5f;color:#60a5fa;transition:background .15s;white-space:nowrap}
 .preset-btn:hover{background:#1e40af}
 
+/* ===== range mode toggle ===== */
+.range-toggle{display:flex;gap:0;border:1px solid #475569;border-radius:7px;overflow:hidden;margin-bottom:8px}
+.range-btn{flex:1;padding:5px 0;font-size:11px;font-weight:600;cursor:pointer;background:#0f172a;color:#64748b;border:none;transition:all .15s}
+.range-btn.active{background:#1e3a5f;color:#60a5fa}
+.date-pair{display:flex;gap:6px;align-items:center}
+.date-pair input[type=date]{flex:1;background:#0f172a;border:1px solid #475569;border-radius:7px;color:#e2e8f0;padding:7px 8px;font-size:12px;outline:none;min-width:0}
+.date-pair input[type=date]:focus{border-color:#3b82f6}
+.date-pair span{color:#64748b;font-size:12px;white-space:nowrap}
+
 /* ===== save modal ===== */
 .modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.78);z-index:400;display:flex;align-items:center;justify-content:center}
 .modal-box{background:#1e293b;border:1px solid #334155;border-radius:14px;padding:28px 24px;width:440px;max-width:90vw}
@@ -319,9 +328,23 @@ h2{font-size:20px;font-weight:700;color:#f1f5f9;margin-bottom:6px}
         </select>
       </div>
       <div class="form-group">
-        <label>取得バー数</label>
-        <input type="number" id="limit" value="500" min="100" max="5000" step="100">
-        <div class="form-hint">多いほど精度↑・実行時間↑</div>
+        <label>検証期間</label>
+        <div class="range-toggle">
+          <button id="range-btn-limit" class="range-btn active" onclick="setRangeMode('limit')">本数指定</button>
+          <button id="range-btn-date"  class="range-btn"        onclick="setRangeMode('date')">日時指定</button>
+        </div>
+        <div id="range-limit-wrap">
+          <input type="number" id="limit" value="500" min="100" max="5000" step="100">
+          <div class="form-hint">多いほど精度↑・実行時間↑</div>
+        </div>
+        <div id="range-date-wrap" style="display:none">
+          <div class="date-pair">
+            <input type="date" id="date-start">
+            <span>〜</span>
+            <input type="date" id="date-end">
+          </div>
+          <div class="form-hint">DB内の存在期間のみ有効</div>
+        </div>
       </div>
     </div>
     <div class="form-row col4">
@@ -1448,6 +1471,27 @@ function addConditionFromPreset(cond) {
 
 let _savedList = [];
 
+/* --- 期間モード切替 --- */
+function setRangeMode(mode) {
+  const isDate = mode === 'date';
+  document.getElementById('range-btn-limit').classList.toggle('active', !isDate);
+  document.getElementById('range-btn-date' ).classList.toggle('active',  isDate);
+  document.getElementById('range-limit-wrap').style.display = isDate ? 'none'  : '';
+  document.getElementById('range-date-wrap' ).style.display = isDate ? ''      : 'none';
+}
+
+function getRangeParams() {
+  const isDate = document.getElementById('range-btn-date').classList.contains('active');
+  if (isDate) {
+    const s = document.getElementById('date-start').value;
+    const e = document.getElementById('date-end').value;
+    if (!s || !e) throw new Error('開始日・終了日を両方入力してください');
+    if (s > e)    throw new Error('開始日は終了日より前にしてください');
+    return { start_date: s, end_date: e, limit: null };
+  }
+  return { limit: parseInt(document.getElementById('limit').value, 10), start_date: null, end_date: null };
+}
+
 /* --- 保存済みリストを取得してドロップダウンを更新 --- */
 async function loadSavedStrategies() {
   try {
@@ -1514,10 +1558,14 @@ async function confirmSave() {
 
   let config;
   try {
+    const rp = getRangeParams();
     config = {
       pairs:      getSelectedPairs(),
       timeframe:  document.getElementById('timeframe').value,
-      limit:      parseInt(document.getElementById('limit').value, 10),
+      range_mode: rp.start_date ? 'date' : 'limit',
+      limit:      rp.limit ?? parseInt(document.getElementById('limit').value, 10),
+      start_date: rp.start_date || null,
+      end_date:   rp.end_date   || null,
       sim_params: {
         initial_capital:  parseFloat(document.getElementById('initial_capital').value),
         pip_value:        parseFloat(document.getElementById('pip_value').value),
@@ -1613,8 +1661,16 @@ function restoreFromConfig(cfg) {
     cb.checked = (cfg.pairs || ['USDJPY']).includes(cb.value);
   });
   // 基本設定
-  if (cfg.timeframe) document.getElementById('timeframe').value             = cfg.timeframe;
-  if (cfg.limit)     document.getElementById('limit').value                 = cfg.limit;
+  if (cfg.timeframe) document.getElementById('timeframe').value = cfg.timeframe;
+  // 期間モード復元
+  if (cfg.range_mode === 'date' && cfg.start_date) {
+    setRangeMode('date');
+    document.getElementById('date-start').value = cfg.start_date || '';
+    document.getElementById('date-end'  ).value = cfg.end_date   || '';
+  } else {
+    setRangeMode('limit');
+    if (cfg.limit) document.getElementById('limit').value = cfg.limit;
+  }
   if (cfg.sim_params) {
     document.getElementById('initial_capital').value  = cfg.sim_params.initial_capital  || 1000000;
     document.getElementById('pip_value').value        = cfg.sim_params.pip_value        || 100;
@@ -1666,15 +1722,22 @@ function getSelectedPairs() {
 }
 
 /* ---------- 1ペア分 API 呼び出し ---------- */
-async function fetchOnePair(pair, timeframe, limit, strategy, simParams) {
+async function fetchOnePair(pair, timeframe, rangeParams, strategy, simParams) {
+  const payload = {
+    action: 'bt_v2', pair, timeframe,
+    strategy_config: strategy,
+    sim_params: simParams,
+  };
+  if (rangeParams.start_date) {
+    payload.start_date = rangeParams.start_date;
+    payload.end_date   = rangeParams.end_date;
+  } else {
+    payload.limit = rangeParams.limit;
+  }
   const res = await fetch('/admin/api.php', {
     method:  'POST',
     headers: {'Content-Type':'application/json'},
-    body:    JSON.stringify({
-      action: 'bt_v2', pair, timeframe, limit,
-      strategy_config: strategy,
-      sim_params: simParams,
-    }),
+    body:    JSON.stringify(payload),
   }).then(r => r.json());
   if (!res.ok) throw new Error(`[${pair}] ${res.error || 'APIエラー'}`);
   return res;
@@ -1698,7 +1761,10 @@ async function runBacktest() {
   catch(e) { showErr(e.message); return; }
 
   const timeframe = document.getElementById('timeframe').value;
-  const limit     = parseInt(document.getElementById('limit').value, 10);
+  let rangeParams;
+  try { rangeParams = getRangeParams(); }
+  catch(e) { showErr(e.message); return; }
+
   const simParams = {
     initial_capital:  parseFloat(document.getElementById('initial_capital').value),
     pip_value:        parseFloat(document.getElementById('pip_value').value),
@@ -1715,7 +1781,7 @@ async function runBacktest() {
     const pair = pairs[i];
     showOverlay('バックテスト実行中...', `${pair} (${i + 1} / ${pairs.length})`);
     try {
-      results[pair] = await fetchOnePair(pair, timeframe, limit, strategy, simParams);
+      results[pair] = await fetchOnePair(pair, timeframe, rangeParams, strategy, simParams);
     } catch(e) {
       hideOverlay();
       document.getElementById('btn-run').disabled = false;
@@ -2131,6 +2197,16 @@ function escHtml(s) {
 }
 
 /* ---------- 起動時初期化 ---------- */
+(function initDateDefaults() {
+  const today = new Date();
+  const yyyy  = today.getFullYear();
+  const mm    = String(today.getMonth() + 1).padStart(2, '0');
+  const dd    = String(today.getDate()).padStart(2, '0');
+  const todayStr = `${yyyy}-${mm}-${dd}`;
+  const oneYearAgo = `${yyyy - 1}-${mm}-${dd}`;
+  document.getElementById('date-end').value   = todayStr;
+  document.getElementById('date-start').value = oneYearAgo;
+})();
 loadSavedStrategies();
 </script>
 

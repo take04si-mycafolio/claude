@@ -359,16 +359,31 @@ def get_latest_price(pair: str) -> Optional[dict]:
     return None
 
 
-def get_candles(pair: str, timeframe: str, limit: int = 200) -> pd.DataFrame:
-    """DBから指定通貨ペア・タイムフレームのローソク足を取得してDataFrameで返す"""
+def get_candles(pair: str, timeframe: str, limit: int = 200,
+                start_date: str = None, end_date: str = None) -> pd.DataFrame:
+    """DBから指定通貨ペア・タイムフレームのローソク足を取得してDataFrameで返す
+
+    start_date / end_date (YYYY-MM-DD 形式) を指定した場合はその期間で全件取得。
+    どちらも None の場合は limit 本分を最新から取得する。
+    """
     from app.models.price_data import PriceData
 
-    records = (
-        PriceData.query.filter_by(currency_pair=pair, timeframe=timeframe)
-        .order_by(PriceData.timestamp.desc())
-        .limit(limit)
-        .all()
-    )
+    q = PriceData.query.filter_by(currency_pair=pair, timeframe=timeframe)
+
+    if start_date or end_date:
+        if start_date:
+            q = q.filter(PriceData.timestamp >= start_date)
+        if end_date:
+            # end_date 当日の末尾まで含める
+            q = q.filter(PriceData.timestamp <= end_date + " 23:59:59")
+        records = q.order_by(PriceData.timestamp.asc()).all()
+    else:
+        records = (
+            q.order_by(PriceData.timestamp.desc())
+            .limit(limit)
+            .all()
+        )
+
     if not records:
         return pd.DataFrame()
 

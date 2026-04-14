@@ -51,11 +51,13 @@ def main():
             from app.services.trade_log_builder import build_chart_data
             from app.config import Config
 
-            pair      = body.get("pair", "USDJPY")
-            timeframe = body.get("timeframe", "1hr")
-            limit     = int(body.get("limit", 500))
-            strategy  = body.get("strategy_config")
-            sim_raw   = body.get("sim_params") or {}
+            pair       = body.get("pair", "USDJPY")
+            timeframe  = body.get("timeframe", "1hr")
+            limit      = int(body.get("limit", 500))
+            start_date = body.get("start_date") or None   # "YYYY-MM-DD" or None
+            end_date   = body.get("end_date")   or None   # "YYYY-MM-DD" or None
+            strategy   = body.get("strategy_config")
+            sim_raw    = body.get("sim_params") or {}
 
             # バリデーション
             if pair not in Config.CURRENCY_PAIRS:
@@ -80,8 +82,11 @@ def main():
                 "max_bars_to_exit":  int(sim_raw.get("max_bars_to_exit",   200)),
             }
 
-            # データ取得
-            df = get_candles(pair, timeframe, limit=limit)
+            # データ取得（日時指定 or 本数指定）
+            if start_date or end_date:
+                df = get_candles(pair, timeframe, start_date=start_date, end_date=end_date)
+            else:
+                df = get_candles(pair, timeframe, limit=limit)
             if df is None or df.empty:
                 print(json.dumps({"ok": False, "error": "OHLCVデータが取得できません"}))
                 return
