@@ -235,26 +235,44 @@ def run_backtest_for_indicator(
             fl = float(future_bar["low"])
 
             if signal == "BUY":
-                if fh >= tp_price:
+                sl_hit = fl <= sl_price
+                tp_hit = fh >= tp_price
+                if sl_hit and tp_hit:
+                    # 同一バーで両到達 → SL優先（v2エンジンと統一・保守的評価）
+                    outcome = "LOSS"
+                    exit_price = sl_price
+                    exit_ts = future_bar["timestamp"]
+                    exit_bar_idx = j
+                    break
+                elif tp_hit:
                     outcome = "WIN"
                     exit_price = tp_price
                     exit_ts = future_bar["timestamp"]
                     exit_bar_idx = j
                     break
-                if fl <= sl_price:
+                elif sl_hit:
                     outcome = "LOSS"
                     exit_price = sl_price
                     exit_ts = future_bar["timestamp"]
                     exit_bar_idx = j
                     break
             else:  # SELL
-                if fl <= tp_price:
+                sl_hit = fh >= sl_price
+                tp_hit = fl <= tp_price
+                if sl_hit and tp_hit:
+                    # 同一バーで両到達 → SL優先（v2エンジンと統一・保守的評価）
+                    outcome = "LOSS"
+                    exit_price = sl_price
+                    exit_ts = future_bar["timestamp"]
+                    exit_bar_idx = j
+                    break
+                elif tp_hit:
                     outcome = "WIN"
                     exit_price = tp_price
                     exit_ts = future_bar["timestamp"]
                     exit_bar_idx = j
                     break
-                if fh >= sl_price:
+                elif sl_hit:
                     outcome = "LOSS"
                     exit_price = sl_price
                     exit_ts = future_bar["timestamp"]
