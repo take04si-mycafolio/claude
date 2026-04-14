@@ -108,7 +108,7 @@ main{max-width:960px;margin:0 auto;padding:28px 16px}
 $is_indicator = (bool)preg_match('/^indicator_article_/', $article['key']);
 $ind_slug = '';
 $indicator_name = '';
-$current_page_bt = null;  // indicator_page_bt_results の現在設定
+$page_bt_by_tf = [];   // TF別の現在設定 ['1hr' => [...], '4hr' => [...], ...]
 if ($is_indicator) {
     preg_match('/^indicator_article_([a-z0-9_]+)$/', $article['key'], $sm);
     $ind_slug = $sm[1] ?? '';
@@ -118,20 +118,28 @@ if ($is_indicator) {
         $slugMap = json_decode(file_get_contents($slugMapFile), true) ?? [];
         $indicator_name = $slugMap[$ind_slug] ?? '';
     }
-    // テクニカルページ専用バックテストの現在設定を取得
+    // テクニカルページ専用バックテストの現在設定をTF別に取得
     if ($indicator_name) {
         try {
             $pdo = get_pdo();
             $stmt = $pdo->prepare(
-                'SELECT * FROM indicator_page_bt_results
+                'SELECT timeframe, start_date, end_date, sl_pips, tp_pips,
+                        win_rate, total_trades, calculated_at
+                 FROM indicator_page_bt_results
                  WHERE indicator_name = ?
-                 ORDER BY win_rate DESC LIMIT 1'
+                 ORDER BY FIELD(timeframe,\'5min\',\'15min\',\'30min\',\'1hr\',\'4hr\',\'daily\')'
             );
             $stmt->execute([$indicator_name]);
-            $current_page_bt = $stmt->fetch(PDO::FETCH_ASSOC) ?: null;
+            while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
+                $page_bt_by_tf[$row['timeframe']] = $row;
+            }
         } catch (Exception $e) { /* テーブル未作成時はスキップ */ }
     }
 }
+// 現在設定からSL/TPを取得（フォームのデフォルト値）
+$ibt_first = $page_bt_by_tf ? reset($page_bt_by_tf) : null;
+$ibt_sl    = $ibt_first ? (int)($ibt_first['sl_pips'] ?? 20) : 20;
+$ibt_tp    = $ibt_first ? (int)($ibt_first['tp_pips'] ?? 40) : 40;
 ?>
 
 <?php if ($is_indicator): ?>
@@ -180,16 +188,29 @@ if ($is_indicator) {
 <style>
 .ind-bt-card{background:#0b1a2b;border:1px solid #1e3a5f;border-radius:10px;padding:18px 20px;margin-top:16px}
 .ind-bt-card h3{font-size:12px;font-weight:600;color:#38bdf8;text-transform:uppercase;letter-spacing:.05em;margin-bottom:4px}
-.ind-bt-card .current-badge{display:inline-block;background:#0d2137;border:1px solid #1e4976;border-radius:6px;padding:6px 12px;font-size:12px;color:#94a3b8;margin-bottom:12px}
-.ind-bt-card .current-badge strong{color:#e2e8f0}
-.ind-bt-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:10px;margin-bottom:12px}
+.ind-bt-card .saved-badge{background:#0d2137;border:1px solid #1e4976;border-radius:6px;padding:6px 12px;font-size:11px;color:#94a3b8;margin-bottom:12px;line-height:1.8}
+.ind-bt-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:10px;margin-bottom:12px}
 .ind-bt-grid label{display:flex;flex-direction:column;gap:3px;font-size:12px;color:#94a3b8}
-.ind-bt-grid input,.ind-bt-grid select{background:#0f172a;border:1px solid #334155;border-radius:6px;color:#e2e8f0;padding:6px 8px;font-size:13px}
+.ind-bt-grid input{background:#0f172a;border:1px solid #334155;border-radius:6px;color:#e2e8f0;padding:6px 8px;font-size:13px}
 .ind-bt-chk-row{display:flex;flex-wrap:wrap;gap:10px;margin-bottom:10px}
 .ind-bt-chk-row label{display:flex;align-items:center;gap:5px;font-size:12px;color:#cbd5e1;cursor:pointer}
+/* TF別期間テーブル */
+.ibt-tf-table{width:100%;border-collapse:collapse;margin-bottom:12px;font-size:12px}
+.ibt-tf-table thead th{color:#475569;font-weight:600;padding:3px 8px 5px;text-align:left;border-bottom:1px solid #1e293b;white-space:nowrap}
+.ibt-tf-table tbody tr:hover{background:#0d1f30}
+.ibt-tf-table tbody td{padding:5px 8px;vertical-align:middle;border-bottom:1px solid #0f172a}
+.ibt-tf-table input[type=date]{background:#0f172a;border:1px solid #334155;border-radius:5px;color:#e2e8f0;padding:4px 6px;font-size:12px;width:130px}
+.ibt-tf-table input[type=date]:focus{outline:none;border-color:#0e7490}
+.ibt-tf-table input[type=checkbox]{width:15px;height:15px;cursor:pointer;accent-color:#0e7490}
+.ibt-tf-table .tf-label{color:#cbd5e1;width:72px}
+.ibt-tf-table .saved-info{font-size:11px;color:#475569;white-space:nowrap}
+/* ボタン */
 .ind-bt-run{background:#0e7490;color:#fff;border:none;border-radius:8px;padding:9px 22px;font-size:13px;font-weight:600;cursor:pointer;transition:background .15s}
-.ind-bt-run:hover{background:#0891b2}
-.ind-bt-run:disabled{background:#374151;cursor:not-allowed}
+.ind-bt-run:hover:not(:disabled){background:#0891b2}
+.ind-bt-run:disabled{background:#374151;color:#6b7280;cursor:not-allowed}
+.ind-bt-reset{background:transparent;color:#f87171;border:1px solid #7f1d1d;border-radius:8px;padding:9px 18px;font-size:13px;font-weight:600;cursor:pointer;transition:all .15s}
+.ind-bt-reset:hover:not(:disabled){background:#7f1d1d;color:#fff}
+.ind-bt-reset:disabled{opacity:.35;cursor:not-allowed}
 #ind-bt-log{margin-top:10px;font-size:12px;color:#94a3b8;min-height:20px}
 #ind-bt-result-table{width:100%;border-collapse:collapse;font-size:12px;margin-top:10px;display:none}
 #ind-bt-result-table th{background:#0d2137;color:#67e8f9;padding:5px 8px;text-align:left}
@@ -199,16 +220,20 @@ if ($is_indicator) {
 <div class="ind-bt-card">
   <h3>🔬 テクニカルページ専用バックテスト</h3>
   <p style="font-size:12px;color:#64748b;margin-bottom:10px">
-    ランキング用バックテストとは独立して保存されます。AIの検証データ期間に合わせた日付範囲を設定することで、テクニカルページに表示するバックテスト結果を統一できます。
+    ランキング用バックテストとは独立して保存されます。足ごとに期間を設定し、AIの検証データ期間に合わせた結果をテクニカルページに表示できます。
   </p>
 
-  <?php if ($current_page_bt): ?>
-  <div class="current-badge">
-    現在の設定: <strong><?= htmlspecialchars($current_page_bt['start_date'] ?? '指定なし') ?></strong>
-    〜 <strong><?= htmlspecialchars($current_page_bt['end_date'] ?? '指定なし') ?></strong>
-    &nbsp;|&nbsp; SL <strong><?= (int)($current_page_bt['sl_pips'] ?? 20) ?>pips</strong>
-    / TP <strong><?= (int)($current_page_bt['tp_pips'] ?? 40) ?>pips</strong>
-    &nbsp;|&nbsp; 最終更新: <?= substr($current_page_bt['calculated_at'] ?? '', 0, 10) ?>
+  <?php if ($page_bt_by_tf): ?>
+  <div class="saved-badge">
+    保存済み:
+    <?php foreach ($page_bt_by_tf as $tf => $r): ?>
+      <span style="margin-right:12px">
+        <strong style="color:#e2e8f0"><?= htmlspecialchars($tf) ?></strong>
+        <?= htmlspecialchars($r['start_date'] ?? '?') ?>〜<?= htmlspecialchars($r['end_date'] ?? '最新') ?>
+        <span style="color:#64748b">（勝率<?= round($r['win_rate'] ?? 0, 1) ?>%）</span>
+      </span>
+    <?php endforeach; ?>
+    <span style="color:#475569;margin-left:4px">最終更新: <?= substr($ibt_first['calculated_at'] ?? '', 0, 10) ?></span>
   </div>
   <?php endif; ?>
 
@@ -218,25 +243,64 @@ if ($is_indicator) {
     <label><input type="checkbox" class="ibt-pair" value="GBPJPY" checked> GBP/JPY</label>
     <label><input type="checkbox" class="ibt-pair" value="EURJPY" checked> EUR/JPY</label>
   </div>
-  <div style="font-size:12px;color:#64748b;margin-bottom:6px">時間足</div>
-  <div class="ind-bt-chk-row">
-    <label><input type="checkbox" class="ibt-tf" value="5min"> 5分足</label>
-    <label><input type="checkbox" class="ibt-tf" value="15min"> 15分足</label>
-    <label><input type="checkbox" class="ibt-tf" value="30min"> 30分足</label>
-    <label><input type="checkbox" class="ibt-tf" value="1hr" checked> 1時間足</label>
-    <label><input type="checkbox" class="ibt-tf" value="4hr" checked> 4時間足</label>
-    <label><input type="checkbox" class="ibt-tf" value="daily" checked> 日足</label>
+
+  <div style="font-size:12px;color:#64748b;margin-bottom:6px;margin-top:8px">時間足 &amp; 期間設定</div>
+  <table class="ibt-tf-table">
+    <thead><tr>
+      <th style="width:26px"></th>
+      <th>時間足</th>
+      <th>開始日</th>
+      <th>終了日</th>
+      <th>保存済み</th>
+    </tr></thead>
+    <tbody>
+<?php
+$tf_defs = [
+  '5min'  => ['label'=>'5分足',   'start'=>date('Y-m-d',strtotime('-3 months')), 'checked'=>false],
+  '15min' => ['label'=>'15分足',  'start'=>date('Y-m-d',strtotime('-6 months')), 'checked'=>false],
+  '30min' => ['label'=>'30分足',  'start'=>date('Y-m-d',strtotime('-6 months')), 'checked'=>false],
+  '1hr'   => ['label'=>'1時間足', 'start'=>date('Y-m-d',strtotime('-1 year')),   'checked'=>true],
+  '4hr'   => ['label'=>'4時間足', 'start'=>date('Y-m-d',strtotime('-2 years')),  'checked'=>true],
+  'daily' => ['label'=>'日足',    'start'=>date('Y-m-d',strtotime('-5 years')),  'checked'=>true],
+];
+$today = date('Y-m-d');
+foreach ($tf_defs as $tf => $def):
+  $saved   = $page_bt_by_tf[$tf] ?? null;
+  $checked = ($saved !== null) ? true : $def['checked'];
+  $fstart  = $saved ? ($saved['start_date'] ?? $def['start']) : $def['start'];
+  $fend    = $saved ? ($saved['end_date']   ?? $today)        : $today;
+?>
+      <tr data-tf="<?= $tf ?>">
+        <td><input type="checkbox" class="ibt-tf" value="<?= $tf ?>"<?= $checked ? ' checked' : '' ?>></td>
+        <td class="tf-label"><?= $def['label'] ?></td>
+        <td><input type="date" class="ibt-tf-start" value="<?= htmlspecialchars($fstart) ?>"></td>
+        <td><input type="date" class="ibt-tf-end"   value="<?= htmlspecialchars($fend) ?>"></td>
+        <td class="saved-info">
+          <?php if ($saved): ?>
+            <?= htmlspecialchars(substr($saved['start_date']??'',0,10)) ?>〜<?= htmlspecialchars(substr($saved['end_date']??'',0,10)) ?>
+            (<?= round($saved['win_rate']??0,1) ?>% / <?= (int)($saved['total_trades']??0) ?>件)
+          <?php else: ?>
+            <span style="color:#334155">未実行</span>
+          <?php endif; ?>
+        </td>
+      </tr>
+<?php endforeach; ?>
+    </tbody>
+  </table>
+
+  <div class="ind-bt-grid" style="max-width:300px">
+    <label>SL (pips)<input type="number" id="ibt-sl" value="<?= $ibt_sl ?>" min="1" max="200"></label>
+    <label>TP (pips)<input type="number" id="ibt-tp" value="<?= $ibt_tp ?>" min="1" max="500"></label>
   </div>
-  <div class="ind-bt-grid">
-    <label>SL (pips)<input type="number" id="ibt-sl" value="20" min="1" max="200"></label>
-    <label>TP (pips)<input type="number" id="ibt-tp" value="40" min="1" max="500"></label>
-    <label>開始日（JST）<input type="date" id="ibt-start" value="<?= date('Y-m-d', strtotime('-1 year')) ?>"></label>
-    <label>終了日（JST）<input type="date" id="ibt-end" value="<?= date('Y-m-d') ?>"></label>
+
+  <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:12px">
+    <button class="ind-bt-run" id="ind-bt-run-btn" onclick="runIndicatorPageBt()">バックテスト実行</button>
+    <button class="ind-bt-reset" id="ind-bt-reset-btn" onclick="resetIndicatorPageBt()"
+            <?= $page_bt_by_tf ? '' : 'disabled' ?>>リセット</button>
   </div>
-  <button class="ind-bt-run" id="ind-bt-run-btn" onclick="runIndicatorPageBt()">バックテスト実行</button>
   <div id="ind-bt-log"></div>
   <table id="ind-bt-result-table">
-    <thead><tr><th>通貨ペア</th><th>時間足</th><th>勝率</th><th>PF</th><th>総トレード</th><th>損益(円)</th></tr></thead>
+    <thead><tr><th>通貨ペア</th><th>時間足</th><th>勝率</th><th>PF</th><th>総トレード</th><th>損益(円)</th><th>期間</th></tr></thead>
     <tbody id="ind-bt-result-body"></tbody>
   </table>
 </div>
@@ -246,14 +310,21 @@ const IND_BT_INDICATOR = <?= json_encode($indicator_name) ?>;
 
 function runIndicatorPageBt() {
   const pairs = [...document.querySelectorAll('.ibt-pair:checked')].map(el => el.value);
-  const tfs   = [...document.querySelectorAll('.ibt-tf:checked')].map(el => el.value);
-  if (!pairs.length || !tfs.length) { alert('通貨ペアと時間足を1つ以上選択してください'); return; }
+  if (!pairs.length) { alert('通貨ペアを1つ以上選択してください'); return; }
 
-  const sl    = parseFloat(document.getElementById('ibt-sl').value) || 20;
-  const tp    = parseFloat(document.getElementById('ibt-tp').value) || 40;
-  const start = document.getElementById('ibt-start').value || null;
-  const end   = document.getElementById('ibt-end').value   || null;
+  const tf_ranges = {};
+  document.querySelectorAll('.ibt-tf:checked').forEach(el => {
+    const tf  = el.value;
+    const row = el.closest('tr');
+    tf_ranges[tf] = {
+      start: row.querySelector('.ibt-tf-start').value || null,
+      end:   row.querySelector('.ibt-tf-end').value   || null,
+    };
+  });
+  if (!Object.keys(tf_ranges).length) { alert('時間足を1つ以上選択してください'); return; }
 
+  const sl  = parseFloat(document.getElementById('ibt-sl').value) || 20;
+  const tp  = parseFloat(document.getElementById('ibt-tp').value) || 40;
   const btn = document.getElementById('ind-bt-run-btn');
   btn.disabled = true;
   document.getElementById('ind-bt-log').textContent = '実行中...（しばらくお待ちください）';
@@ -262,12 +333,7 @@ function runIndicatorPageBt() {
   fetch('/admin/api.php?action=run_indicator_page_bt', {
     method: 'POST',
     headers: {'Content-Type': 'application/json'},
-    body: JSON.stringify({
-      indicator_name: IND_BT_INDICATOR,
-      pairs, timeframes: tfs,
-      sl_pips: sl, tp_pips: tp,
-      start_date: start, end_date: end,
-    })
+    body: JSON.stringify({ indicator_name: IND_BT_INDICATOR, pairs, tf_ranges, sl_pips: sl, tp_pips: tp })
   })
   .then(r => r.json())
   .then(d => {
@@ -276,37 +342,54 @@ function runIndicatorPageBt() {
       document.getElementById('ind-bt-log').textContent = 'エラー: ' + (d.error || JSON.stringify(d));
       return;
     }
-    document.getElementById('ind-bt-log').textContent =
-      '完了！generate_static を実行するとテクニカルページに反映されます。';
+    document.getElementById('ind-bt-log').textContent = '完了！generate_static を実行するとテクニカルページに反映されます。';
+    document.getElementById('ind-bt-reset-btn').disabled = false;
     const tbody = document.getElementById('ind-bt-result-body');
     tbody.innerHTML = '';
-    const tfLabels = {
-      '5min':'5分足','15min':'15分足','30min':'30分足',
-      '1hr':'1時間足','4hr':'4時間足','daily':'日足'
-    };
+    const TF_LBL = {'5min':'5分足','15min':'15分足','30min':'30分足','1hr':'1時間足','4hr':'4時間足','daily':'日足'};
     for (const [pair, tfsData] of Object.entries(d.summary || {})) {
       for (const [tf, r] of Object.entries(tfsData)) {
         const tr = document.createElement('tr');
+        const period = [r.start_date, r.end_date].filter(Boolean).join('〜') || '-';
         if (!r.ok) {
-          tr.innerHTML = `<td>${pair}</td><td>${tfLabels[tf]||tf}</td><td colspan="4" style="color:#ef4444">${r.error}</td>`;
+          tr.innerHTML = `<td>${pair}</td><td>${TF_LBL[tf]||tf}</td><td colspan="5" style="color:#ef4444">${r.error}</td>`;
         } else {
           const wr = r.win_rate;
-          const col = wr >= 55 ? '#4ade80' : wr >= 40 ? '#facc15' : '#ef4444';
-          tr.innerHTML = `<td>${pair}</td><td>${tfLabels[tf]||tf}</td>
-            <td style="color:${col};font-weight:600">${wr}%</td>
-            <td>${r.profit_factor}</td>
-            <td>${r.total_trades}</td>
-            <td style="color:${r.total_profit>=0?'#4ade80':'#ef4444'}">${r.total_profit?.toLocaleString()}円</td>`;
+          const wc = wr >= 55 ? '#4ade80' : wr >= 40 ? '#facc15' : '#ef4444';
+          tr.innerHTML = `<td>${pair}</td><td>${TF_LBL[tf]||tf}</td>
+            <td style="color:${wc};font-weight:600">${wr}%</td>
+            <td>${r.profit_factor}</td><td>${r.total_trades}</td>
+            <td style="color:${r.total_profit>=0?'#4ade80':'#ef4444'}">${(r.total_profit||0).toLocaleString()}円</td>
+            <td style="font-size:11px;color:#64748b">${period}</td>`;
         }
         tbody.appendChild(tr);
       }
     }
     document.getElementById('ind-bt-result-table').style.display = 'table';
   })
-  .catch(e => {
-    btn.disabled = false;
-    document.getElementById('ind-bt-log').textContent = 'ネットワークエラー: ' + e;
-  });
+  .catch(e => { btn.disabled = false; document.getElementById('ind-bt-log').textContent = 'ネットワークエラー: ' + e; });
+}
+
+function resetIndicatorPageBt() {
+  if (!confirm(`${IND_BT_INDICATOR} のテクニカルページ専用バックテストをリセットしますか？\nランキング用バックテストへのフォールバックに戻ります。`)) return;
+  const btn = document.getElementById('ind-bt-reset-btn');
+  btn.disabled = true;
+  document.getElementById('ind-bt-log').textContent = 'リセット中...';
+  fetch('/admin/api.php?action=reset_indicator_page_bt', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({ indicator_name: IND_BT_INDICATOR })
+  })
+  .then(r => r.json())
+  .then(d => {
+    if (d.ok) {
+      document.getElementById('ind-bt-log').textContent = 'リセット完了。generate_static を実行するとテクニカルページに反映されます。';
+    } else {
+      btn.disabled = false;
+      document.getElementById('ind-bt-log').textContent = 'エラー: ' + (d.error || JSON.stringify(d));
+    }
+  })
+  .catch(e => { btn.disabled = false; document.getElementById('ind-bt-log').textContent = 'ネットワークエラー: ' + e; });
 }
 </script>
 <?php endif; ?>

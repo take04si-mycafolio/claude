@@ -229,6 +229,26 @@ switch ($action) {
         json_out($result);
         break;
 
+    // ---- テクニカルページ専用バックテストのリセット ----
+    case 'reset_indicator_page_bt':
+        require_login();
+        $indicatorName = trim($body['indicator_name'] ?? '');
+        if (!$indicatorName) {
+            json_out(['ok' => false, 'error' => '指標名が必要']);
+            break;
+        }
+        try {
+            $pdo = get_pdo();
+            $pdo->prepare('DELETE FROM indicator_page_sim_trades WHERE indicator_name = ?')
+                ->execute([$indicatorName]);
+            $pdo->prepare('DELETE FROM indicator_page_bt_results WHERE indicator_name = ?')
+                ->execute([$indicatorName]);
+            json_out(['ok' => true]);
+        } catch (Exception $e) {
+            json_out(['ok' => false, 'error' => $e->getMessage()]);
+        }
+        break;
+
     // ---- Phase 1 マルチ条件バックテスト ----
     case 'bt_v2':
         require_login();

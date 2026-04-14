@@ -57,12 +57,20 @@ def main():
 
             indicator_name  = body.get("indicator_name", "").strip()
             pairs           = body.get("pairs")       or Config.CURRENCY_PAIRS
-            timeframes      = body.get("timeframes")  or Config.TIMEFRAMES
+            # tf_ranges: {tf: {"start": "YYYY-MM-DD", "end": "YYYY-MM-DD"}}
+            # 足ごとに個別の日付範囲を指定できる。なければ start_date/end_date にフォールバック。
+            tf_ranges       = body.get("tf_ranges")   or {}
             sl_pips         = float(body.get("sl_pips", 20))
             tp_pips         = float(body.get("tp_pips", 40))
-            start_date      = body.get("start_date") or None
+            start_date      = body.get("start_date") or None   # グローバルフォールバック
             end_date        = body.get("end_date")   or None
             initial_capital = float(body.get("initial_capital", 1_000_000))
+
+            # timeframes は tf_ranges キーから導出（後方互換: timeframes 直指定も許容）
+            if tf_ranges:
+                timeframes = [tf for tf in tf_ranges.keys() if tf in Config.TIMEFRAMES]
+            else:
+                timeframes = body.get("timeframes") or Config.TIMEFRAMES
 
             if not indicator_name:
                 print(json.dumps({"ok": False, "error": "indicator_name が必要です"}))
@@ -99,7 +107,12 @@ def main():
                     if tf not in Config.TIMEFRAMES:
                         continue
 
-                    df = get_candles(pair, tf, start_date=start_date, end_date=end_date)
+                    # TF固有の日付範囲（なければグローバルフォールバック）
+                    tf_range = tf_ranges.get(tf, {}) if tf_ranges else {}
+                    tf_start = tf_range.get("start") or start_date
+                    tf_end   = tf_range.get("end")   or end_date
+
+                    df = get_candles(pair, tf, start_date=tf_start, end_date=tf_end)
                     if df is None or df.empty or len(df) < 30:
                         summary[pair][tf] = {"ok": False, "error": "データ不足"}
                         continue
@@ -120,7 +133,7 @@ def main():
                         continue
 
                     _save_result(db, text, res, indicator_name, pair, tf,
-                                 sl_pips, tp_pips, start_date, end_date,
+                                 sl_pips, tp_pips, tf_start, tf_end,
                                  len(df), initial_capital, _parse_trade_dt)
 
                     summary[pair][tf] = {
@@ -129,13 +142,13 @@ def main():
                         "win_rate":      round(float(res["win_rate"]), 1),
                         "profit_factor": round(float(res.get("profit_factor") or 0), 2),
                         "total_profit":  round(float(res["total_profit"]), 0),
+                        "start_date":    tf_start or "",
+                        "end_date":      tf_end   or "",
                     }
 
             print(json.dumps({
                 "ok":             True,
                 "indicator_name": indicator_name,
-                "start_date":     start_date or "",
-                "end_date":       end_date   or "",
                 "sl_pips":        sl_pips,
                 "tp_pips":        tp_pips,
                 "summary":        summary,
