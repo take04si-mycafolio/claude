@@ -363,24 +363,27 @@ def get_candles(pair: str, timeframe: str, limit: int = 200,
                 start_date: str = None, end_date: str = None) -> pd.DataFrame:
     """DBから指定通貨ペア・タイムフレームのローソク足を取得してDataFrameで返す
 
-    start_date / end_date (YYYY-MM-DD 形式) を指定した場合はその期間で全件取得。
+    start_date / end_date (YYYY-MM-DD 形式、JST 基準) を指定した場合はその期間で取得。
     どちらも None の場合は limit 本分を最新から取得する。
-    日付は UTC 基準で比較する（DBは UTC 保存）。
+
+    NOTE: DB の DateTime(timezone=True) カラムへの SQL 比較は MySQL 設定に依存して
+    正しく機能しない場合があるため、DB フィルタは粗めの余裕を持たせた補助フィルタとし、
+    確実なフィルタリングは Python 側で JST ベースで行う。
     """
     from app.models.price_data import PriceData
-    from datetime import datetime as _dt, time as _time
+    from datetime import datetime as _dt, timedelta as _td
 
     q = PriceData.query.filter_by(currency_pair=pair, timeframe=timeframe)
 
     if start_date or end_date:
+        # ---- DB フィルタ（粗め・±2日の余裕あり）----
+        # MySQL の timezone 設定に依存する可能性があるため、余裕を大きく取る
         if start_date:
-            # 文字列を datetime オブジェクトに変換してから比較（SQLAlchemy の型安全性確保）
-            _start = _dt.strptime(start_date, "%Y-%m-%d")
-            q = q.filter(PriceData.timestamp >= _start)
+            _db_start = _dt.strptime(start_date, "%Y-%m-%d") - _td(days=2)
+            q = q.filter(PriceData.timestamp >= _db_start)
         if end_date:
-            # end_date の 23:59:59 まで含める
-            _end = _dt.combine(_dt.strptime(end_date, "%Y-%m-%d"), _time(23, 59, 59))
-            q = q.filter(PriceData.timestamp <= _end)
+            _db_end = _dt.strptime(end_date, "%Y-%m-%d") + _td(days=2)
+            q = q.filter(PriceData.timestamp <= _db_end)
         records = q.order_by(PriceData.timestamp.asc()).all()
     else:
         records = (
@@ -397,4 +400,18 @@ def get_candles(pair: str, timeframe: str, limit: int = 200,
     # timezone-aware な文字列（"+00:00" / "+09:00" 等）を UTC naive に統一
     df["timestamp"] = pd.to_datetime(df["timestamp"], utc=True).dt.tz_convert(None)
     df = df.sort_values("timestamp").reset_index(drop=True)
+
+    # ---- Python 側フィルタ（JST ベース・確実）----
+    # _bar_time() が UTC+9 で JST 表示するため、同じ変換でフィルタする
+    if start_date or end_date:
+        _JST = pd.Timedelta(hours=9)
+        ts_jst = df["timestamp"] + _JST          # df は UTC naive → +9h で JST
+        if start_date:
+            _s = pd.Timestamp(start_date)        # "2025-04-07 00:00 JST" 以降
+            df = df[ts_jst >= _s]
+        if end_date:
+            _e = pd.Timestamp(end_date) + pd.Timedelta(days=1)   # "翌日 00:00 JST" 未満
+            df = df[ts_jst < _e]
+        df = df.reset_index(drop=True)
+
     return df
