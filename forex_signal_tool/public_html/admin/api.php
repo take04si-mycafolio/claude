@@ -206,6 +206,28 @@ switch ($action) {
         json_out(['status' => 'started', 'message' => 'バックテストを開始しました']);
         break;
 
+    // ---- Gemini AI バックテスト分析 ----
+    case 'ai_bt_analyze':
+        require_login();
+        $suffix     = date('YmdHis') . '_' . getmypid();
+        $paramsFile = "/tmp/forex_ai_bt_{$suffix}.json";
+        file_put_contents($paramsFile, json_encode($body, JSON_UNESCAPED_UNICODE));
+
+        $py     = escapeshellarg(PYTHON_BIN);
+        $script = escapeshellarg(TASKS_DIR . '/run_ai_bt_analyze.py');
+        $pfile  = escapeshellarg($paramsFile);
+
+        exec("{$py} {$script} {$pfile} 2>&1", $lines, $ret);
+        @unlink($paramsFile);
+        $raw = implode('', $lines);
+
+        $result = json_decode($raw, true);
+        if ($result === null) {
+            json_out(['ok' => false, 'error' => 'Pythonスクリプト実行エラー', 'detail' => $raw]);
+        }
+        json_out($result);
+        break;
+
     // ---- テクニカルページ専用バックテスト ----
     case 'run_indicator_page_bt':
         require_login();
