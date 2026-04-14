@@ -3,6 +3,8 @@
  * Phase 1 マルチ条件バックテスト (v2)
  */
 require_once __DIR__ . '/_config.php';
+// URLパラメータから紐づけ先指標を取得（記事管理から遷移時に使用）
+$preset_linked_ind = preg_replace('/[^A-Za-z0-9_]/', '', $_GET['linked_ind'] ?? '');
 session_start();
 require_login();
 ?>
@@ -981,6 +983,9 @@ function buildFilters() {
 /* =====================================================================
    指標定義マップ
    ===================================================================== */
+// 記事管理ページから遷移時に紐づけ先をプリセット
+const PRESET_LINKED_IND = <?= json_encode($preset_linked_ind) ?>;
+
 const IND = {
   RSI:         { label:'RSI',          params:[{n:'period',   l:'期間',     d:14}] },
   EMA:         { label:'EMA',          params:[{n:'period',   l:'期間',     d:21}] },
@@ -1577,6 +1582,10 @@ async function showSaveModal() {
         });
       }
     } catch(_) {}
+  }
+  // URLパラメータで紐づけ先が指定されていれば自動選択
+  if (PRESET_LINKED_IND && sel.querySelector(`option[value="${PRESET_LINKED_IND}"]`)) {
+    sel.value = PRESET_LINKED_IND;
   }
   document.getElementById('save-modal').style.display = 'flex';
   setTimeout(() => document.getElementById('save-name').focus(), 80);

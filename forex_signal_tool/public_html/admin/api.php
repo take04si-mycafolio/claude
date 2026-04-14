@@ -603,7 +603,8 @@ switch ($action) {
         $value = $body['value'] ?? '';
         $allowed = ['ranking_analysis', 'ranking_short_term', 'ranking_day_trade', 'ranking_swing', 'ranking_title', 'ranking_intro', 'top_article', 'top_article_pre', 'top_article_post'];
         $is_valid = in_array($key, $allowed, true)
-            || preg_match('/^indicator_article_[a-z0-9_]+(_(css|jsonld))?$/', $key);
+            || preg_match('/^indicator_article_[a-z0-9_]+(_(css|jsonld))?$/', $key)
+            || preg_match('/^indicator_ai_notes_[a-z0-9_]+$/', $key);
         if (!$is_valid) {
             json_out(['status' => 'error', 'message' => '無効なキーです']);
         }
@@ -623,6 +624,38 @@ switch ($action) {
             json_out(['status' => 'ok', 'message' => '保存しました']);
         } catch (Exception $e) {
             json_out(['status' => 'error', 'message' => $e->getMessage()]);
+        }
+        break;
+
+    // ---- 指標に紐づく保存済み戦略を取得 ----
+    case 'get_linked_strategies':
+        require_login();
+        try {
+            $indName = trim($body['indicator_name'] ?? '');
+            if (!$indName) { json_out(['ok' => false, 'error' => '指標名が必要']); break; }
+            $pdo  = get_pdo();
+            $stmt = $pdo->prepare(
+                'SELECT id, name, bt_ran_at, bt_result_json
+                 FROM saved_strategies
+                 WHERE linked_indicator_name = ?
+                 ORDER BY COALESCE(bt_ran_at, created_at) DESC LIMIT 10'
+            );
+            $stmt->execute([$indName]);
+            $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
+            $strategies = array_map(function($r) {
+                $bt = $r['bt_result_json'] ? json_decode($r['bt_result_json'], true) : null;
+                return [
+                    'id'       => $r['id'],
+                    'name'     => $r['name'],
+                    'bt_ran_at'=> $r['bt_ran_at'] ? substr($r['bt_ran_at'],0,16) : '',
+                    'win_rate' => $bt['win_rate'] ?? null,
+                    'pf'       => $bt['profit_factor'] ?? null,
+                    'trades'   => $bt['total_trades'] ?? null,
+                ];
+            }, $rows);
+            json_out(['ok' => true, 'strategies' => $strategies]);
+        } catch (Exception $e) {
+            json_out(['ok' => false, 'error' => $e->getMessage()]);
         }
         break;
 
