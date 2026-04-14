@@ -112,11 +112,49 @@ $page_bt_by_tf = [];   // TF別の現在設定 ['1hr' => [...], '4hr' => [...], 
 if ($is_indicator) {
     preg_match('/^indicator_article_([a-z0-9_]+)$/', $article['key'], $sm);
     $ind_slug = $sm[1] ?? '';
-    // slug → indicator_name マッピング
-    $slugMapFile = __DIR__ . '/indicator_slugs.json';
-    if ($ind_slug && file_exists($slugMapFile)) {
-        $slugMap = json_decode(file_get_contents($slugMapFile), true) ?? [];
-        $indicator_name = $slugMap[$ind_slug] ?? '';
+    // slug → indicator_name マッピング（generate_static.py の INDICATOR_INFO と同期）
+    $BUILTIN_SLUG_MAP = [
+        'rsi_14'                => 'RSI_14',
+        'macd_12_26_9'          => 'MACD_12_26_9',
+        'stochastic_14_3'       => 'Stochastic_14_3',
+        'cci_20'                => 'CCI_20',
+        'williams_r_14'         => 'Williams_R_14',
+        'sma_20'                => 'SMA_20',
+        'sma_50'                => 'SMA_50',
+        'sma_cross_20_50'       => 'SMA_Cross_20_50',
+        'ema_cross_9_21'        => 'EMA_Cross_9_21',
+        'ema_21'                => 'EMA_21',
+        'bollinger_bands_20_2'  => 'BollingerBands_20_2',
+        'bb_squeeze'            => 'BB_Squeeze',
+        'pivot_classic'         => 'Pivot_Classic',
+        'fibonacci_retracement' => 'Fibonacci_Retracement',
+        'support_resistance'    => 'Support_Resistance',
+        'atr_14'                => 'ATR_14',
+        'volatility_index'      => 'Volatility_Index',
+        'hammer'                => 'Hammer',
+        'inverted_hammer'       => 'Inverted_Hammer',
+        'doji'                  => 'Doji',
+        'bullish_engulfing'     => 'Bullish_Engulfing',
+        'bearish_engulfing'     => 'Bearish_Engulfing',
+        'three_white_soldiers'  => 'Three_White_Soldiers',
+        'three_black_crows'     => 'Three_Black_Crows',
+        'pin_bar'               => 'Pin_Bar',
+        'ichimoku_cloud'        => 'Ichimoku_Cloud',
+        'rsi_macd_combo'        => 'RSI_MACD_Combo',
+        'rsi_stoch_combo'       => 'RSI_Stoch_Combo',
+        'macd_stoch_combo'      => 'MACD_Stoch_Combo',
+        'triple_osc_combo'      => 'Triple_OSC_Combo',
+        'all_and_consensus'     => 'All_AND_Consensus',
+    ];
+    if ($ind_slug) {
+        // indicator_slugs.json が存在すればそちらを優先、なければ組み込みマップを使用
+        $slugMapFile = __DIR__ . '/indicator_slugs.json';
+        if (file_exists($slugMapFile)) {
+            $slugMap = json_decode(file_get_contents($slugMapFile), true) ?? [];
+            $indicator_name = $slugMap[$ind_slug] ?? ($BUILTIN_SLUG_MAP[$ind_slug] ?? '');
+        } else {
+            $indicator_name = $BUILTIN_SLUG_MAP[$ind_slug] ?? '';
+        }
     }
     // テクニカルページ専用バックテストの現在設定をTF別に取得
     if ($indicator_name) {
