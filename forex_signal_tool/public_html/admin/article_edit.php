@@ -1333,7 +1333,7 @@ async function loadLinkedStrategies() {
       return;
     }
     wrap.innerHTML = res.strategies.map(s => {
-      const wr  = s.win_rate  != null ? `<span class="ls-wr">${parseFloat(s.win_rate).toFixed(1)}%</span>` : '';
+      const wr  = s.win_rate  != null ? `<span class="ls-wr">${(parseFloat(s.win_rate) * 100).toFixed(1)}%</span>` : '';
       const pf  = s.pf        != null ? `<span>PF ${parseFloat(s.pf).toFixed(2)}</span>` : '';
       const tr  = s.trades    != null ? `<span>${s.trades}件</span>` : '';
       const ran = s.bt_ran_at ? s.bt_ran_at.slice(0,10) : '未実行';
