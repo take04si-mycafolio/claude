@@ -1569,10 +1569,10 @@ async function showSaveModal() {
         body: JSON.stringify({action: 'get_indicators'}),
       }).then(r => r.json());
       if (res.ok && res.indicators) {
-        res.indicators.forEach(name => {
+        res.indicators.forEach(ind => {
           const opt = document.createElement('option');
-          opt.value = name;
-          opt.textContent = name;
+          opt.value = ind.name;
+          opt.textContent = ind.display || ind.name;
           sel.appendChild(opt);
         });
       }

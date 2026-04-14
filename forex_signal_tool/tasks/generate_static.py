@@ -1537,6 +1537,18 @@ def main():
     )
     logger.info("Generated: admin/indicator_slugs.json (%d entries)", len(_slug_map))
 
+    # 管理画面用 indicator_name→display_name マッピング JSON を生成
+    _disp_map = {
+        name: info["display"]
+        for name, info in INDICATOR_INFO.items()
+        if not name.endswith("_BBSL")
+    }
+    _disp_map_path = Path(PUBLIC_HTML) / "admin" / "indicator_display_names.json"
+    _disp_map_path.write_text(
+        json.dumps(_disp_map, ensure_ascii=False, indent=2), encoding="utf-8"
+    )
+    logger.info("Generated: admin/indicator_display_names.json (%d entries)", len(_disp_map))
+
     # 管理パネルに移動した設定ページの古いファイルを削除
     for obsolete in ["settings.html", "settings_data.json"]:
         p = Path(PUBLIC_HTML) / obsolete

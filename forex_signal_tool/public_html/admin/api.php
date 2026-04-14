@@ -374,13 +374,22 @@ switch ($action) {
         require_login();
         try {
             $pdo  = get_pdo();
-            $rows = $pdo->query(
+            $names = $pdo->query(
                 "SELECT DISTINCT indicator_name
                  FROM backtest_results
                  WHERE indicator_name NOT LIKE '%_BBSL'
                  ORDER BY indicator_name"
             )->fetchAll(PDO::FETCH_COLUMN);
-            json_out(['ok' => true, 'indicators' => $rows]);
+            // 日本語表示名マップを読み込む（generate_static.py が生成）
+            $dispFile = __DIR__ . '/indicator_display_names.json';
+            $dispMap  = file_exists($dispFile)
+                ? (json_decode(file_get_contents($dispFile), true) ?? [])
+                : [];
+            $indicators = array_map(fn($n) => [
+                'name'    => $n,
+                'display' => $dispMap[$n] ?? $n,
+            ], $names);
+            json_out(['ok' => true, 'indicators' => $indicators]);
         } catch (Exception $e) {
             json_out(['ok' => false, 'error' => $e->getMessage()]);
         }
