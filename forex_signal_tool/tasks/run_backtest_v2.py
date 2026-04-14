@@ -125,6 +125,9 @@ def main():
             chart_data = build_chart_data(trades)
 
             metrics_safe = {k: _safe(v) for k, v in metrics.items()}
+            # pip_value で円換算した総損益を追加
+            _pv = sim_params["pip_value"]
+            metrics_safe["total_profit"] = round((metrics_safe.get("net_profit_pips") or 0) * _pv, 0)
 
             # 実際に使用したデータ期間（UTC → JST 変換して返す）
             _JST = timedelta(hours=9)
