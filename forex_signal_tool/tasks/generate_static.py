@@ -1518,6 +1518,8 @@ def main():
 
             _scored = []
             for _r in _agg:
+                if _r.indicator_name.endswith("_BBSL"):
+                    continue
                 _info   = INDICATOR_INFO.get(_r.indicator_name, {})
                 _avg_wr = float(_r.avg_wr or 0)
                 _min_wr = float(_r.min_wr or 0)
