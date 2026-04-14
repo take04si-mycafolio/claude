@@ -472,15 +472,29 @@ function resetIndicatorPageBt() {
   <div id="bt2-cond-list"></div>
   <button class="bt2-add-cond" onclick="addBt2Cond()">＋ 条件を追加</button>
 
-  <!-- エントリー方向 -->
-  <div style="display:grid;grid-template-columns:max-content;margin-bottom:14px">
+  <!-- 基本設定 -->
+  <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:10px;margin-bottom:14px">
     <div class="bt2-fg">
       <label>エントリー方向</label>
-      <select id="bt2-direction" style="width:200px">
+      <select id="bt2-direction">
         <option value="BUY">BUY（買いのみ）</option>
         <option value="SELL">SELL（売りのみ）</option>
         <option value="BOTH" selected>BOTH（両方）</option>
       </select>
+    </div>
+    <div class="bt2-fg">
+      <label>初期資金 (円)</label>
+      <input type="number" id="bt2-capital" value="1000000" min="10000" step="10000">
+    </div>
+    <div class="bt2-fg">
+      <label>pip 価値 (円/pip)</label>
+      <input type="number" id="bt2-pip-value" value="100" min="1" step="10">
+      <div class="bt2-hint">例: 1万通貨=100円/pip</div>
+    </div>
+    <div class="bt2-fg">
+      <label>最大保有バー数</label>
+      <input type="number" id="bt2-max-bars" value="200" min="10" max="1000" step="10">
+      <div class="bt2-hint">未決済時の強制クローズ</div>
     </div>
   </div>
 
@@ -1022,7 +1036,11 @@ async function runBt2Inline() {
     tp_config:        bt2BuildTp(),
     trailing_config:  bt2BuildTrailing(),
   };
-  const simParams = { initial_capital: 1000000, pip_value: 100, max_bars_to_exit: 200 };
+  const simParams = {
+    initial_capital:  parseFloat(document.getElementById('bt2-capital').value)   || 1000000,
+    pip_value:        parseFloat(document.getElementById('bt2-pip-value').value)  || 100,
+    max_bars_to_exit: parseInt(document.getElementById('bt2-max-bars').value, 10) || 200,
+  };
 
   const btn   = document.getElementById('bt2-run-btn');
   const log   = document.getElementById('bt2-log');
