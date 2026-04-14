@@ -761,12 +761,13 @@ switch ($action) {
             fwrite($fh, "\xEF\xBB\xBF");
             fputcsv($fh, ['通貨ペア', 'TF', '指標名', 'シグナル方向', '勝率(%)', 'PF',
                           'トレード数', '勝ち', '負け', '総損益(円)', 'SL(pips)', 'TP(pips)',
-                          '最大DD(円)', '検証日時']);
+                          '最大DD(円)', '検証開始日', '検証終了日', '検証日時']);
             $stmt = $pdo->prepare(
                 'SELECT currency_pair, timeframe, indicator_name, signal_direction,
                         win_rate, profit_factor, total_trades, winning_trades, losing_trades,
-                        total_profit, sl_pips, tp_pips, max_drawdown, calculated_at
-                 FROM backtest_results WHERE indicator_name = ?
+                        total_profit, sl_pips, tp_pips, max_drawdown,
+                        start_date, end_date, calculated_at
+                 FROM indicator_page_bt_results WHERE indicator_name = ?
                  ORDER BY currency_pair, timeframe'
             );
             $stmt->execute([$indicatorName]);
@@ -787,7 +788,7 @@ switch ($action) {
                         entry_at, exit_at, direction, entry_price,
                         exit_price, tp_price, sl_price, sl_pips, tp_pips,
                         outcome, profit_loss, capital_after
-                 FROM simulation_trades WHERE indicator_name = ?
+                 FROM indicator_page_sim_trades WHERE indicator_name = ?
                  ORDER BY entry_at LIMIT ? OFFSET ?'
             );
             do {
