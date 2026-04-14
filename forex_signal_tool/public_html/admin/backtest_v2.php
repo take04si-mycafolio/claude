@@ -226,6 +226,13 @@ h2{font-size:20px;font-weight:700;color:#f1f5f9;margin-bottom:6px}
     <div class="modal-title">戦略を保存</div>
     <label style="font-size:12px;color:#64748b;display:block;margin-bottom:6px">戦略名</label>
     <input type="text" id="save-name" class="modal-input" placeholder="例: USDJPY RSI 逆張り" maxlength="100">
+    <label style="font-size:12px;color:#64748b;display:block;margin:12px 0 6px">改善対象指標（テクニカルページに比較掲載）</label>
+    <select id="save-linked-ind" class="modal-input" style="cursor:pointer">
+      <option value="">紐づけなし</option>
+    </select>
+    <div style="font-size:11px;color:#475569;margin-top:4px">
+      選択するとバックテスト結果がその指標ページの比較コンテンツとして掲載されます
+    </div>
     <div class="modal-err" id="save-err"></div>
     <div class="modal-actions">
       <button class="modal-btn cancel" onclick="closeSaveModal()">キャンセル</button>
@@ -1473,17 +1480,36 @@ async function applySavedStrategy(id) {
 }
 
 /* --- 保存モーダル --- */
-function showSaveModal() {
+async function showSaveModal() {
   document.getElementById('save-name').value = '';
   document.getElementById('save-err').textContent = '';
+  // 指標リストを取得してセレクタを更新
+  const sel = document.getElementById('save-linked-ind');
+  if (sel.options.length <= 1) {
+    try {
+      const res = await fetch('/admin/api.php', {
+        method: 'POST', headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({action: 'get_indicators'}),
+      }).then(r => r.json());
+      if (res.ok && res.indicators) {
+        res.indicators.forEach(name => {
+          const opt = document.createElement('option');
+          opt.value = name;
+          opt.textContent = name;
+          sel.appendChild(opt);
+        });
+      }
+    } catch(_) {}
+  }
   document.getElementById('save-modal').style.display = 'flex';
   setTimeout(() => document.getElementById('save-name').focus(), 80);
 }
 function closeSaveModal() { document.getElementById('save-modal').style.display = 'none'; }
 
 async function confirmSave() {
-  const name  = document.getElementById('save-name').value.trim();
-  const errEl = document.getElementById('save-err');
+  const name      = document.getElementById('save-name').value.trim();
+  const linkedInd = document.getElementById('save-linked-ind').value;
+  const errEl     = document.getElementById('save-err');
   if (!name) { errEl.textContent = '戦略名を入力してください'; return; }
 
   let config;
@@ -1503,9 +1529,13 @@ async function confirmSave() {
   } catch(e) { errEl.textContent = e.message; return; }
 
   try {
+    const body = {action: 'save_strategy', name, config};
+    if (linkedInd) body.linked_indicator = linkedInd;
+    if (_lastBtSummary) body.bt_result = _lastBtSummary;
+
     const res = await fetch('/admin/api.php', {
       method:'POST', headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({action:'save_strategy', name, config}),
+      body: JSON.stringify(body),
     }).then(r => r.json());
     if (!res.ok) { errEl.textContent = res.error || '保存エラー'; return; }
     closeSaveModal();
@@ -1654,6 +1684,7 @@ async function fetchOnePair(pair, timeframe, limit, strategy, simParams) {
 let _lastTrades   = [];
 let _lastOhlcv    = [];
 let _lastMetrics  = null;
+let _lastBtSummary = null;  // 保存用サマリー（指標ページ比較コンテンツ用）
 let _multiResults = {};
 
 async function runBacktest() {
@@ -1712,6 +1743,33 @@ async function runBacktest() {
     renderMultiPairResults(results, timeframe);
     document.getElementById('section-signal').style.display = 'none';
   }
+
+  // 保存用サマリーを更新
+  const _pairMetrics = {};
+  for (const p of pairs) {
+    const m = (results[p] || {}).metrics || {};
+    _pairMetrics[p] = {
+      win_rate:      m.win_rate      ?? null,
+      profit_factor: m.profit_factor ?? null,
+      total_trades:  m.total_trades  ?? 0,
+      total_profit:  m.total_profit  ?? null,
+      max_drawdown:  m.max_drawdown  ?? null,
+    };
+  }
+  const _allTrades = pairs.reduce((s, p) => s + ((_pairMetrics[p] || {}).total_trades || 0), 0);
+  const _allWins   = pairs.reduce((s, p) => {
+    const m = (results[p] || {}).metrics || {};
+    return s + (m.win_trades || Math.round((m.win_rate || 0) * (m.total_trades || 0)));
+  }, 0);
+  _lastBtSummary = {
+    pairs:    pairs,
+    timeframe: timeframe,
+    per_pair: _pairMetrics,
+    aggregate: {
+      win_rate:      _allTrades > 0 ? _allWins / _allTrades : null,
+      total_trades:  _allTrades,
+    },
+  };
 
   document.getElementById('result-wrap').classList.add('show');
   document.getElementById('result-wrap').scrollIntoView({behavior:'smooth', block:'start'});

@@ -331,6 +331,78 @@ tr.trade-row.sim-active td{background:rgba(59,130,246,.10)!important}
   </div>
   {% endif %}
 
+  {% if linked_strategies %}
+  <!-- AI提案条件 比較バックテスト -->
+  <div class="section-card" id="ai-comparison">
+    <h2 class="ind-section-title"><i class="bi bi-cpu me-2"></i>AI提案条件との比較バックテスト</h2>
+    <p style="font-size:13px;color:#64748b;margin-bottom:16px">
+      {{ info.display }} 単体シグナルに対し、AI が提案した追加フィルター条件でバックテストした結果を掲載しています。
+      条件の詳細は管理画面のバックテストツール2で確認できます。
+    </p>
+    <div class="ai-cmp-list">
+      {% for s in linked_strategies %}
+      {% set agg = s.bt_result.get('aggregate', {}) %}
+      {% set per = s.bt_result.get('per_pair', {}) %}
+      {% set pairs_tested = s.bt_result.get('pairs', []) %}
+      {% set tf = s.bt_result.get('timeframe', '') %}
+      <div class="ai-cmp-card">
+        <div class="ai-cmp-head">
+          <div class="ai-cmp-name">{{ s.name }}</div>
+          <div class="ai-cmp-meta">{{ pairs_tested | join(' / ') }}{% if tf %} &nbsp;|&nbsp; {{ tf }}{% endif %} &nbsp;|&nbsp; {{ s.bt_ran_at }}</div>
+        </div>
+        <div class="ai-cmp-metrics">
+          {% if agg.win_rate is not none %}
+          <div class="ai-cmp-metric">
+            <div class="ai-cmp-label">総合勝率</div>
+            <div class="ai-cmp-val {% if agg.win_rate >= 0.55 %}good{% elif agg.win_rate >= 0.50 %}mid{% else %}low{% endif %}">
+              {{ "%.1f"|format(agg.win_rate * 100) }}%
+            </div>
+          </div>
+          {% endif %}
+          <div class="ai-cmp-metric">
+            <div class="ai-cmp-label">総取引数</div>
+            <div class="ai-cmp-val">{{ agg.total_trades }}回</div>
+          </div>
+          {% for p in pairs_tested %}
+          {% set pm = per.get(p, {}) %}
+          {% if pm.win_rate is not none %}
+          <div class="ai-cmp-metric">
+            <div class="ai-cmp-label">{{ p }} 勝率</div>
+            <div class="ai-cmp-val {% if pm.win_rate >= 0.55 %}good{% elif pm.win_rate >= 0.50 %}mid{% else %}low{% endif %}">
+              {{ "%.1f"|format(pm.win_rate * 100) }}%
+            </div>
+          </div>
+          {% endif %}
+          {% if pm.profit_factor is not none %}
+          <div class="ai-cmp-metric">
+            <div class="ai-cmp-label">{{ p }} PF</div>
+            <div class="ai-cmp-val {% if pm.profit_factor >= 1.3 %}good{% elif pm.profit_factor >= 1.0 %}mid{% else %}low{% endif %}">
+              {{ "%.2f"|format(pm.profit_factor) if pm.profit_factor is not none else '-' }}
+            </div>
+          </div>
+          {% endif %}
+          {% endfor %}
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+  <style>
+  .ai-cmp-list{display:flex;flex-direction:column;gap:10px}
+  .ai-cmp-card{background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:14px 16px}
+  .ai-cmp-head{margin-bottom:10px}
+  .ai-cmp-name{font-size:14px;font-weight:600;color:#1e293b}
+  .ai-cmp-meta{font-size:11px;color:#94a3b8;margin-top:2px}
+  .ai-cmp-metrics{display:flex;flex-wrap:wrap;gap:8px}
+  .ai-cmp-metric{background:#fff;border:1px solid #e2e8f0;border-radius:7px;padding:8px 12px;min-width:80px;text-align:center}
+  .ai-cmp-label{font-size:10px;color:#64748b;margin-bottom:2px}
+  .ai-cmp-val{font-size:15px;font-weight:700;color:#334155}
+  .ai-cmp-val.good{color:#16a34a}
+  .ai-cmp-val.mid{color:#d97706}
+  .ai-cmp-val.low{color:#dc2626}
+  </style>
+  {% endif %}
+
   <!-- 関連指標リンク -->
   <div class="section-card">
     <h2 class="ind-section-title"><i class="bi bi-grid me-2"></i>他の指標を見る</h2>

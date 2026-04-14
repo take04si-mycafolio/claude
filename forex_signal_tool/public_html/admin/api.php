@@ -236,16 +236,41 @@ switch ($action) {
                 id INT AUTO_INCREMENT PRIMARY KEY,
                 name VARCHAR(255) NOT NULL,
                 config_json TEXT NOT NULL,
+                linked_indicator_name VARCHAR(80) NULL,
+                bt_result_json MEDIUMTEXT NULL,
+                bt_ran_at DATETIME NULL,
                 created_at DATETIME DEFAULT CURRENT_TIMESTAMP
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
 
-            $name   = trim($body['name'] ?? '');
-            $config = $body['config'] ?? null;
+            // カラム追加（旧テーブルとの互換）
+            foreach ([
+                "ALTER TABLE saved_strategies ADD COLUMN linked_indicator_name VARCHAR(80) NULL",
+                "ALTER TABLE saved_strategies ADD COLUMN bt_result_json MEDIUMTEXT NULL",
+                "ALTER TABLE saved_strategies ADD COLUMN bt_ran_at DATETIME NULL",
+            ] as $_sql) {
+                try { $pdo->exec($_sql); } catch (Exception $_e) { /* already exists */ }
+            }
+
+            $name        = trim($body['name'] ?? '');
+            $config      = $body['config'] ?? null;
+            $linkedInd   = trim($body['linked_indicator'] ?? '') ?: null;
+            $btResult    = isset($body['bt_result']) ? $body['bt_result'] : null;
+            $btRanAt     = $btResult ? date('Y-m-d H:i:s') : null;
+
             if (!$name)   json_out(['ok' => false, 'error' => '戦略名を入力してください']);
             if (!$config) json_out(['ok' => false, 'error' => 'config が必要です']);
 
-            $stmt = $pdo->prepare('INSERT INTO saved_strategies (name, config_json) VALUES (?, ?)');
-            $stmt->execute([$name, json_encode($config, JSON_UNESCAPED_UNICODE)]);
+            $stmt = $pdo->prepare(
+                'INSERT INTO saved_strategies (name, config_json, linked_indicator_name, bt_result_json, bt_ran_at)
+                 VALUES (?, ?, ?, ?, ?)'
+            );
+            $stmt->execute([
+                $name,
+                json_encode($config, JSON_UNESCAPED_UNICODE),
+                $linkedInd,
+                $btResult !== null ? json_encode($btResult, JSON_UNESCAPED_UNICODE) : null,
+                $btRanAt,
+            ]);
             json_out(['ok' => true, 'id' => (int)$pdo->lastInsertId()]);
         } catch (Exception $e) {
             json_out(['ok' => false, 'error' => $e->getMessage()]);
@@ -260,11 +285,16 @@ switch ($action) {
                 id INT AUTO_INCREMENT PRIMARY KEY,
                 name VARCHAR(255) NOT NULL,
                 config_json TEXT NOT NULL,
+                linked_indicator_name VARCHAR(80) NULL,
+                bt_result_json MEDIUMTEXT NULL,
+                bt_ran_at DATETIME NULL,
                 created_at DATETIME DEFAULT CURRENT_TIMESTAMP
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
 
-            $rows = $pdo->query('SELECT id, name, created_at FROM saved_strategies ORDER BY id DESC')
-                        ->fetchAll();
+            $rows = $pdo->query(
+                'SELECT id, name, linked_indicator_name, bt_ran_at, created_at
+                 FROM saved_strategies ORDER BY id DESC'
+            )->fetchAll();
             json_out(['ok' => true, 'strategies' => $rows]);
         } catch (Exception $e) {
             json_out(['ok' => false, 'error' => $e->getMessage()]);
@@ -277,11 +307,37 @@ switch ($action) {
             $pdo = get_pdo();
             $id  = (int)($body['id'] ?? 0);
             if (!$id) json_out(['ok' => false, 'error' => 'id が必要です']);
-            $stmt = $pdo->prepare('SELECT config_json FROM saved_strategies WHERE id = ?');
+            $stmt = $pdo->prepare(
+                'SELECT config_json, linked_indicator_name, bt_result_json, bt_ran_at
+                 FROM saved_strategies WHERE id = ?'
+            );
             $stmt->execute([$id]);
             $row = $stmt->fetch();
             if (!$row) json_out(['ok' => false, 'error' => '戦略が見つかりません']);
-            json_out(['ok' => true, 'config' => json_decode($row['config_json'], true)]);
+            json_out([
+                'ok'              => true,
+                'config'          => json_decode($row['config_json'], true),
+                'linked_indicator'=> $row['linked_indicator_name'],
+                'bt_result'       => $row['bt_result_json'] ? json_decode($row['bt_result_json'], true) : null,
+                'bt_ran_at'       => $row['bt_ran_at'],
+            ]);
+        } catch (Exception $e) {
+            json_out(['ok' => false, 'error' => $e->getMessage()]);
+        }
+        break;
+
+    // バックテスト済み指標の一覧（v2保存モーダル用）
+    case 'get_indicators':
+        require_login();
+        try {
+            $pdo  = get_pdo();
+            $rows = $pdo->query(
+                "SELECT DISTINCT indicator_name
+                 FROM backtest_results
+                 WHERE indicator_name NOT LIKE '%_BBSL'
+                 ORDER BY indicator_name"
+            )->fetchAll(PDO::FETCH_COLUMN);
+            json_out(['ok' => true, 'indicators' => $rows]);
         } catch (Exception $e) {
             json_out(['ok' => false, 'error' => $e->getMessage()]);
         }

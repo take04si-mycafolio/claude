@@ -1253,6 +1253,32 @@ def get_indicator_page_data(indicator_name: str, app) -> dict | None:
             if raw:
                 trades_by_pair_tf[pair][tf] = [_fmt_trade(t) for t in raw]
 
+    # AI提案の紐づきストラテジー（比較コンテンツ用）
+    linked_strategies = []
+    try:
+        from sqlalchemy import text as _text
+        from app import db as _db
+        _rows = _db.session.execute(
+            _text(
+                "SELECT id, name, bt_result_json, bt_ran_at, created_at "
+                "FROM saved_strategies "
+                "WHERE linked_indicator_name = :ind AND bt_result_json IS NOT NULL "
+                "ORDER BY bt_ran_at DESC LIMIT 5"
+            ),
+            {"ind": indicator_name},
+        ).fetchall()
+        import json as _json
+        for _r in _rows:
+            _res = _json.loads(_r.bt_result_json) if _r.bt_result_json else {}
+            linked_strategies.append({
+                "id":        _r.id,
+                "name":      _r.name,
+                "bt_result": _res,
+                "bt_ran_at": str(_r.bt_ran_at)[:16] if _r.bt_ran_at else "",
+            })
+    except Exception as _le:
+        logger.debug("linked_strategies fetch failed: %s", _le)
+
     # 関連指標（同カテゴリ優先、最大8件）
     related = []
     for name, i in INDICATOR_INFO.items():
@@ -1275,19 +1301,20 @@ def get_indicator_page_data(indicator_name: str, app) -> dict | None:
     related = related[:8]
 
     return {
-        "info":             info,
-        "category_slug":    CATEGORY_SLUGS.get(info["category"], ""),
-        "results":          [r.to_dict() for r in results],
-        "results_by_pair":  results_by_pair,
-        "best_by_pair":     best_by_pair,
-        "trades_by_pair_tf": trades_by_pair_tf,
-        "tf_labels":        TF_LABELS,
-        "pairs":            all_pairs,
-        "best":             best.to_dict(),
-        "sl":               int(sl),
-        "tp":               int(tp),
-        "bt_period":        bt_period,
-        "related":          related,
+        "info":               info,
+        "category_slug":      CATEGORY_SLUGS.get(info["category"], ""),
+        "results":            [r.to_dict() for r in results],
+        "results_by_pair":    results_by_pair,
+        "best_by_pair":       best_by_pair,
+        "trades_by_pair_tf":  trades_by_pair_tf,
+        "tf_labels":          TF_LABELS,
+        "pairs":              all_pairs,
+        "best":               best.to_dict(),
+        "sl":                 int(sl),
+        "tp":                 int(tp),
+        "bt_period":          bt_period,
+        "related":            related,
+        "linked_strategies":  linked_strategies,
     }
 
 
