@@ -395,31 +395,81 @@ function resetIndicatorPageBt() {
 <?php endif; ?>
 
 <?php if ($is_indicator && $ind_slug): ?>
-  <div class="csv-card">
-    <h3>📊 バックテストデータ &amp; 改善分析</h3>
-    <p>
-      ① CSVをダウンロードしてAIに渡し、改善ポイントを分析します。<br>
-      ② AIの提案条件を <strong>バックテストツール2</strong> に入力して同一期間で検証します。<br>
-      収録: <code>backtest_summary_<?= htmlspecialchars($ind_slug) ?>.csv</code> ・
-            <code>simulation_trades_<?= htmlspecialchars($ind_slug) ?>.csv</code>
-    </p>
-    <div style="display:flex;gap:10px;flex-wrap:wrap">
-      <a class="csv-btn"
-         href="/admin/api.php?action=indicator_csv&amp;slug=<?= urlencode($ind_slug) ?>">
-        📥 CSVをダウンロード（ZIP）
-      </a>
-      <a class="csv-btn" style="background:#0f766e"
-         href="/admin/backtest_v2.php">
-        ⚙️ バックテストツール2で開く
-      </a>
+<style>
+.bt2-ai-card{background:#0b1a2b;border:1px solid #1e3a5f;border-radius:10px;padding:18px 20px;margin-top:16px}
+.bt2-ai-card h3{font-size:12px;font-weight:600;color:#38bdf8;text-transform:uppercase;letter-spacing:.05em;margin-bottom:12px}
+.bt2-ai-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+@media(max-width:640px){.bt2-ai-grid{grid-template-columns:1fr}}
+.bt2-section{background:#0d2137;border:1px solid #1e4976;border-radius:8px;padding:14px}
+.bt2-section-lbl{font-size:11px;font-weight:600;color:#64748b;text-transform:uppercase;letter-spacing:.05em;margin-bottom:8px}
+.bt2-open-btn{display:inline-flex;align-items:center;gap:6px;background:#0e7490;color:#fff;border:none;border-radius:7px;padding:8px 18px;font-size:13px;font-weight:600;text-decoration:none;transition:background .15s;cursor:pointer}
+.bt2-open-btn:hover{background:#0891b2;color:#fff;text-decoration:none}
+.bt2-note{font-size:11px;color:#475569;margin-top:8px;line-height:1.6}
+.ai-feedback-ta{width:100%;background:#0f172a;border:1px solid #334155;border-radius:6px;color:#e2e8f0;padding:10px;font-size:12px;line-height:1.6;resize:vertical;min-height:130px;font-family:inherit;outline:none}
+.ai-feedback-ta:focus{border-color:#0e7490}
+.ai-feedback-ta::placeholder{color:#334155}
+.ai-fb-actions{display:flex;align-items:center;gap:10px;margin-top:8px}
+.ai-fb-save-btn{background:#0f766e;color:#fff;border:none;border-radius:6px;padding:6px 16px;font-size:12px;font-weight:600;cursor:pointer;transition:background .15s}
+.ai-fb-save-btn:hover{background:#0d9488}
+.ai-fb-save-btn:disabled{background:#334155;cursor:not-allowed}
+.ai-fb-status{font-size:11px}
+.ai-fb-status.ok{color:#22c55e}
+.ai-fb-status.err{color:#ef4444}
+.ai-fb-updated{font-size:11px;color:#475569;margin-top:4px}
+/* リンク済み戦略 */
+.linked-strategy-item{background:#0f172a;border:1px solid #1e293b;border-radius:5px;padding:7px 10px;font-size:12px;margin-bottom:6px}
+.linked-strategy-item:last-child{margin-bottom:0}
+.ls-name{color:#e2e8f0;font-weight:600;margin-bottom:3px}
+.ls-meta{color:#475569;font-size:11px;display:flex;gap:10px;flex-wrap:wrap}
+.ls-wr{color:#4ade80;font-weight:600}
+</style>
+
+<div class="bt2-ai-card">
+  <h3>⚙️ バックテストツール2 &amp; AIフィードバック</h3>
+  <div class="bt2-ai-grid">
+
+    <!-- 左：BT2 + リンク済み戦略 -->
+    <div>
+      <div class="bt2-section" style="margin-bottom:12px">
+        <div class="bt2-section-lbl">バックテストツール2</div>
+        <a class="bt2-open-btn"
+           href="/admin/backtest_v2.php?linked_ind=<?= urlencode($indicator_name) ?>"
+           target="_blank">
+          ⚙️ バックテストツール2で検証
+        </a>
+        <div class="bt2-note">
+          新しいタブで開きます。「この設定を保存」で保存すると<br>
+          改善対象指標に <strong style="color:#e2e8f0"><?= htmlspecialchars($indicator_name) ?></strong> が自動選択されます。
+        </div>
+      </div>
+      <div class="bt2-section">
+        <div class="bt2-section-lbl">リンク済み保存戦略</div>
+        <div id="linked-strategies-wrap"><span style="font-size:12px;color:#475569">読み込み中...</span></div>
+      </div>
     </div>
+
+    <!-- 右：AIフィードバック -->
+    <div class="bt2-section">
+      <div class="bt2-section-lbl">🤖 AIフィードバック</div>
+      <textarea id="ai-feedback-ta" class="ai-feedback-ta"
+        placeholder="AIからの分析・改善提案をここに貼り付けてください...&#10;&#10;例）RSIが30以下かつEMA21が上向きの場合、反発の信頼性が上がる。&#10;バックテストツール2で「RSI &lt; 30 AND EMA(21)クロスアップ」を検証推奨。"></textarea>
+      <div class="ai-fb-actions">
+        <button class="ai-fb-save-btn" onclick="saveAiFeedback()">保存</button>
+        <span id="ai-fb-status" class="ai-fb-status"></span>
+      </div>
+      <div id="ai-fb-updated" class="ai-fb-updated"></div>
+    </div>
+
   </div>
+</div>
 <?php endif; ?>
 </main>
 
 <script>
 const ARTICLE_KEY    = <?= json_encode($article['key']) ?>;
 const IS_INDICATOR   = <?= $is_indicator ? 'true' : 'false' ?>;
+const IND_SLUG       = <?= json_encode($ind_slug) ?>;
+const AI_NOTES_KEY   = IND_SLUG ? ('indicator_ai_notes_' + IND_SLUG) : '';
 
 async function loadContent() {
   try {
@@ -431,12 +481,76 @@ async function loadContent() {
       if (IS_INDICATOR) {
         document.getElementById('editor-css').value    = data[ARTICLE_KEY + '_css']?.value    || '';
         document.getElementById('editor-jsonld').value = data[ARTICLE_KEY + '_jsonld']?.value || '';
+        // AIフィードバックを復元
+        if (AI_NOTES_KEY && document.getElementById('ai-feedback-ta')) {
+          const notes = data[AI_NOTES_KEY];
+          if (notes?.value) {
+            document.getElementById('ai-feedback-ta').value = notes.value;
+            document.getElementById('ai-fb-updated').textContent = '最終保存: ' + (notes.updated_at || '').slice(0,16);
+          }
+        }
       }
     }
   } catch(e) {
     console.error('Failed to load content', e);
   } finally {
     document.getElementById('loading-overlay').style.display = 'none';
+  }
+  // リンク済み戦略を取得
+  if (IS_INDICATOR && <?= json_encode($indicator_name) ?>) {
+    loadLinkedStrategies();
+  }
+}
+
+async function saveAiFeedback() {
+  if (!AI_NOTES_KEY) return;
+  const val  = document.getElementById('ai-feedback-ta').value;
+  const btn  = document.querySelector('.ai-fb-save-btn');
+  const stat = document.getElementById('ai-fb-status');
+  btn.disabled = true;
+  stat.textContent = '保存中...'; stat.className = 'ai-fb-status';
+  try {
+    const res = await fetch('/admin/api.php', {
+      method: 'POST', headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({action: 'content_save', key: AI_NOTES_KEY, value: val}),
+    }).then(r => r.json());
+    if (res.status === 'ok') {
+      stat.textContent = '✓ 保存しました'; stat.className = 'ai-fb-status ok';
+      document.getElementById('ai-fb-updated').textContent = '最終保存: ' + new Date().toLocaleString('ja-JP');
+    } else {
+      stat.textContent = 'エラー: ' + (res.message || ''); stat.className = 'ai-fb-status err';
+    }
+  } catch(e) {
+    stat.textContent = 'ネットワークエラー'; stat.className = 'ai-fb-status err';
+  }
+  btn.disabled = false;
+  setTimeout(() => { stat.textContent = ''; stat.className = 'ai-fb-status'; }, 4000);
+}
+
+async function loadLinkedStrategies() {
+  const wrap = document.getElementById('linked-strategies-wrap');
+  if (!wrap) return;
+  try {
+    const res = await fetch('/admin/api.php?action=get_linked_strategies', {
+      method: 'POST', headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({indicator_name: <?= json_encode($indicator_name) ?>}),
+    }).then(r => r.json());
+    if (!res.ok || !res.strategies?.length) {
+      wrap.innerHTML = '<span style="font-size:12px;color:#334155">保存済み戦略はありません</span>';
+      return;
+    }
+    wrap.innerHTML = res.strategies.map(s => {
+      const wr  = s.win_rate  != null ? `<span class="ls-wr">${parseFloat(s.win_rate).toFixed(1)}%</span>` : '';
+      const pf  = s.pf        != null ? `<span>PF ${parseFloat(s.pf).toFixed(2)}</span>` : '';
+      const tr  = s.trades    != null ? `<span>${s.trades}件</span>` : '';
+      const ran = s.bt_ran_at ? s.bt_ran_at.slice(0,10) : '未実行';
+      return `<div class="linked-strategy-item">
+        <div class="ls-name">${s.name.replace(/</g,'&lt;')}</div>
+        <div class="ls-meta">${wr}${pf}${tr}<span>${ran}</span></div>
+      </div>`;
+    }).join('');
+  } catch(e) {
+    wrap.innerHTML = '<span style="font-size:12px;color:#475569">読み込みエラー</span>';
   }
 }
 
