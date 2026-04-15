@@ -62,10 +62,8 @@
 .ai-collapse-btn[aria-expanded="true"] .ai-collapse-chev{transform:rotate(180deg)}
 .ai-collapse-body{display:none;padding:12px 14px;background:#fff;border-top:1px solid #e2e8f0}
 
-/* AI分析ノート */
-.ai-notes-wrap{margin:0 12px 12px;border-radius:10px;overflow:hidden;border:1px solid #bfdbfe}
-.ai-notes-hdr{background:#eff6ff;padding:10px 16px;font-size:13px;font-weight:700;color:#1d4ed8;border-bottom:1px solid #bfdbfe}
-.ai-notes-body{padding:14px 16px;background:#f8faff;font-size:13px;color:#1e293b;line-height:1.8}
+/* AI分析ノート（折りたたみ内） */
+.ai-notes-body{font-size:13px;color:#1e293b;line-height:1.8}
 .ai-notes-body h2,.ai-notes-body h3{font-size:14px;font-weight:700;color:#1d4ed8;margin:12px 0 6px}
 .ai-notes-body h2:first-child,.ai-notes-body h3:first-child{margin-top:0}
 .ai-notes-body ul,.ai-notes-body ol{padding-left:1.4em;margin:6px 0}
@@ -616,13 +614,14 @@ tr.trade-row.sim-active td{background:rgba(59,130,246,.10)!important}
   </div>
   {% endif %}
 
-  <!-- AI分析ノート（管理画面のAIフィードバック欄から入力） -->
+  <!-- AI考察・分析（折りたたみ） -->
   {% if ai_notes %}
-  <div class="ai-notes-wrap">
-    <div class="ai-notes-hdr">
-      <i class="bi bi-robot me-1"></i>AI分析ノート
-    </div>
-    <div class="ai-notes-body">{{ ai_notes | safe }}</div>
+  <div class="ai-collapse-wrap" style="margin-top:8px;margin-bottom:12px">
+    <button class="ai-collapse-btn" onclick="toggleAiSection(this)" aria-expanded="false">
+      <span>🤖 バックテストをAI分析で考察・分析</span>
+      <i class="bi bi-chevron-down ai-collapse-chev"></i>
+    </button>
+    <div class="ai-collapse-body ai-notes-body">{{ ai_notes | safe }}</div>
   </div>
   {% endif %}
 
