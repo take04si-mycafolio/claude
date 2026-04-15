@@ -62,6 +62,22 @@
 .ai-collapse-btn[aria-expanded="true"] .ai-collapse-chev{transform:rotate(180deg)}
 .ai-collapse-body{display:none;padding:12px 14px;background:#fff;border-top:1px solid #e2e8f0}
 
+/* AI分析ノート */
+.ai-notes-wrap{margin:0 12px 12px;border-radius:10px;overflow:hidden;border:1px solid #bfdbfe}
+.ai-notes-hdr{background:#eff6ff;padding:10px 16px;font-size:13px;font-weight:700;color:#1d4ed8;border-bottom:1px solid #bfdbfe}
+.ai-notes-body{padding:14px 16px;background:#f8faff;font-size:13px;color:#1e293b;line-height:1.8}
+.ai-notes-body h2,.ai-notes-body h3{font-size:14px;font-weight:700;color:#1d4ed8;margin:12px 0 6px}
+.ai-notes-body h2:first-child,.ai-notes-body h3:first-child{margin-top:0}
+.ai-notes-body ul,.ai-notes-body ol{padding-left:1.4em;margin:6px 0}
+.ai-notes-body li{margin-bottom:3px}
+.ai-notes-body table{width:100%;border-collapse:collapse;font-size:12px;margin:8px 0}
+.ai-notes-body th{background:#dbeafe;color:#1d4ed8;padding:5px 10px;text-align:left;border:1px solid #bfdbfe}
+.ai-notes-body td{padding:5px 10px;border:1px solid #e2e8f0}
+.ai-notes-body tr:nth-child(even) td{background:#f1f5f9}
+.ai-notes-body strong{color:#1d4ed8}
+.ai-notes-body code{background:#e0e7ff;color:#3730a3;padding:1px 5px;border-radius:3px;font-size:11px}
+.ai-notes-body blockquote{border-left:3px solid #3b82f6;margin:8px 0;padding:6px 12px;background:#eff6ff;color:#1e40af;font-size:12px}
+
 /* シミュレーショントレード モーダル */
 tr.trade-row.sim-active td{background:rgba(59,130,246,.10)!important}
 #tradeModal .modal-content{background:#131722;border:1px solid #1e293b;border-radius:12px}
@@ -597,6 +613,16 @@ tr.trade-row.sim-active td{background:rgba(59,130,246,.10)!important}
       {% endfor %}
       </div>
     </div>
+  </div>
+  {% endif %}
+
+  <!-- AI分析ノート（管理画面のAIフィードバック欄から入力） -->
+  {% if ai_notes %}
+  <div class="ai-notes-wrap">
+    <div class="ai-notes-hdr">
+      <i class="bi bi-robot me-1"></i>AI分析ノート
+    </div>
+    <div class="ai-notes-body">{{ ai_notes | safe }}</div>
   </div>
   {% endif %}
 

@@ -2001,6 +2001,7 @@ def main():
                     "indicator_article":        content_db.get(article_key, ""),
                     "indicator_article_css":    scope_article_css(raw_css),
                     "indicator_article_jsonld": raw_jsonld,
+                    "ai_notes":                 content_db.get(f"indicator_ai_notes_{url_slug}", ""),
                     "updated_at": updated_at,
                     "active_page": "backtest",
                 })

@@ -779,9 +779,17 @@ function resetIndicatorPageBt() {
 
   <!-- AIフィードバック -->
   <div style="margin-top:14px;border-top:1px solid #1e293b;padding-top:12px">
-    <div class="bt2-section-hdr" style="margin-top:0">🤖 AIフィードバック</div>
+    <div class="bt2-section-hdr" style="margin-top:0">🤖 AIフィードバック
+      <span style="font-size:10px;font-weight:400;color:#67e8f9;margin-left:6px">HTMLタグ使用可 / 公開ページに表示されます</span>
+    </div>
+    <div style="display:flex;gap:6px;margin-bottom:6px">
+      <button class="ai-fb-tab-btn active" onclick="aiFbTab('edit',this)" style="background:#0e7490;color:#fff;border:none;border-radius:4px;padding:4px 12px;font-size:11px;cursor:pointer">編集</button>
+      <button class="ai-fb-tab-btn" onclick="aiFbTab('preview',this)" style="background:#1e293b;color:#94a3b8;border:none;border-radius:4px;padding:4px 12px;font-size:11px;cursor:pointer">プレビュー</button>
+    </div>
     <textarea id="ai-feedback-ta" class="ai-feedback-ta"
-      placeholder="AIからの分析・改善提案をここに貼り付けてください...&#10;&#10;例）RSIが30以下かつEMA21が上向きの場合、反発の信頼性が上がる。"></textarea>
+      placeholder="HTMLタグが使えます。公開ページの「AI分析ノート」欄に表示されます。&#10;&#10;例）&lt;h3&gt;改善ポイント&lt;/h3&gt;&lt;ul&gt;&lt;li&gt;RSIが30以下かつEMA21が上向きの場合...&lt;/li&gt;&lt;/ul&gt;"
+      oninput="aiFbSyncPreview()"></textarea>
+    <div id="ai-fb-preview" style="display:none;background:#f8faff;border:1px solid #bfdbfe;border-radius:6px;padding:12px;font-size:12px;color:#1e293b;line-height:1.8;min-height:80px;max-height:400px;overflow-y:auto"></div>
     <div style="display:flex;align-items:center;gap:10px;margin-top:6px">
       <button class="ai-fb-save-btn" onclick="saveAiFeedback()">保存</button>
       <span id="ai-fb-status" class="ai-fb-status"></span>
@@ -1326,6 +1334,30 @@ async function saveAiFeedback() {
   }
   btn.disabled = false;
   setTimeout(() => { stat.textContent = ''; stat.className = 'ai-fb-status'; }, 4000);
+}
+
+function aiFbTab(mode, btn) {
+  const ta  = document.getElementById('ai-feedback-ta');
+  const pre = document.getElementById('ai-fb-preview');
+  document.querySelectorAll('.ai-fb-tab-btn').forEach(b => {
+    b.style.background = '#1e293b'; b.style.color = '#94a3b8';
+  });
+  btn.style.background = '#0e7490'; btn.style.color = '#fff';
+  if (mode === 'preview') {
+    pre.innerHTML = ta.value;
+    ta.style.display  = 'none';
+    pre.style.display = 'block';
+  } else {
+    ta.style.display  = 'block';
+    pre.style.display = 'none';
+  }
+}
+
+function aiFbSyncPreview() {
+  const pre = document.getElementById('ai-fb-preview');
+  if (pre.style.display !== 'none') {
+    pre.innerHTML = document.getElementById('ai-feedback-ta').value;
+  }
 }
 
 async function loadLinkedStrategies() {
