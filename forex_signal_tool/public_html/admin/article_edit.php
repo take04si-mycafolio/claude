@@ -74,6 +74,14 @@ main{max-width:960px;margin:0 auto;padding:28px 16px}
 .csv-card p{font-size:12px;color:#94a3b8;line-height:1.7;margin-bottom:12px}
 .csv-btn{display:inline-flex;align-items:center;gap:6px;background:#0e7490;color:#fff;border:none;border-radius:8px;padding:9px 20px;font-size:13px;font-weight:600;text-decoration:none;cursor:pointer;transition:background .15s}
 .csv-btn:hover{background:#0891b2;color:#fff;text-decoration:none}
+.rebuild-btn{display:inline-flex;align-items:center;gap:6px;background:#1d4ed8;color:#fff;border:none;border-radius:8px;padding:9px 20px;font-size:13px;font-weight:600;cursor:pointer;transition:background .15s;margin-left:8px}
+.rebuild-btn:hover{background:#2563eb}
+.rebuild-btn:disabled{background:#1e3a5f;color:#64748b;cursor:not-allowed}
+.rebuild-status{font-size:12px;margin-left:8px}
+.rebuild-status.ok{color:#22c55e}
+.rebuild-status.err{color:#ef4444}
+.rebuild-status.running{color:#64748b}
+.rebuild-log{background:#0f172a;border:1px solid #1e3a5f;border-radius:6px;padding:10px 12px;font-size:11px;color:#64748b;font-family:monospace;line-height:1.6;white-space:pre-wrap;margin-top:8px;display:none;max-height:180px;overflow-y:auto}
 </style>
 </head>
 <body>
@@ -222,10 +230,21 @@ $ibt_tp    = $ibt_first ? (int)($ibt_first['tp_pips'] ?? 40) : 40;
         📥 バックテストCSV（ZIP）
       </a>
 <?php endif; ?>
+<?php if ($is_indicator && $ind_slug): ?>
+      <button class="rebuild-btn" id="rebuild-btn" onclick="rebuildPage()">🔄 公開ページを更新</button>
+      <span class="rebuild-status" id="rebuild-status"></span>
+<?php endif; ?>
     </div>
+<?php if ($is_indicator && $ind_slug): ?>
+    <div id="rebuild-log" class="rebuild-log"></div>
+<?php endif; ?>
     <div class="info-banner">
+<?php if ($is_indicator && $ind_slug): ?>
+      💡 <strong>公開ページを更新</strong> ボタンで保存内容をすぐに反映できます。SSHは不要です。
+<?php else: ?>
       ℹ️ 保存後、管理画面の <strong>バックテスト</strong> または <strong>SEO管理 → ランキング管理</strong> から
       <strong>generate_static</strong> を実行すると公開ページに反映されます。
+<?php endif; ?>
     </div>
   </div>
 
@@ -1443,6 +1462,50 @@ async function saveContent() {
   } catch(e) {
     st.textContent = '❌ ネットワークエラー';
     st.className   = 'save-status err';
+  } finally {
+    btn.disabled = false;
+  }
+}
+
+async function rebuildPage() {
+  const btn  = document.getElementById('rebuild-btn');
+  const stat = document.getElementById('rebuild-status');
+  const log  = document.getElementById('rebuild-log');
+  if (!btn || !IND_SLUG) return;
+  btn.disabled   = true;
+  stat.textContent = 'ビルド中...';
+  stat.className   = 'rebuild-status running';
+  if (log) { log.textContent = ''; log.style.display = 'none'; }
+  try {
+    const res = await fetch('/admin/api.php?action=rebuild_indicator_page', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ slug: IND_SLUG }),
+    });
+    const data = await res.json();
+    if (data.ok) {
+      stat.textContent = '✅ 更新完了';
+      stat.className   = 'rebuild-status ok';
+      setTimeout(() => { stat.textContent = ''; stat.className = 'rebuild-status'; }, 5000);
+    } else {
+      stat.textContent = '❌ 失敗';
+      stat.className   = 'rebuild-status err';
+      if (log && data.output) {
+        log.textContent = data.output;
+        log.style.display = 'block';
+      }
+    }
+    if (log && data.output && data.ok) {
+      // 成功時も最終行だけ小さく表示
+      const lastLine = data.output.trim().split('\n').pop();
+      if (lastLine) {
+        log.textContent = lastLine;
+        log.style.display = 'block';
+      }
+    }
+  } catch(e) {
+    stat.textContent = '❌ ネットワークエラー';
+    stat.className   = 'rebuild-status err';
   } finally {
     btn.disabled = false;
   }

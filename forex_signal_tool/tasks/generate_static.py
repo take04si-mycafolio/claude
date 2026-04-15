@@ -1560,6 +1560,75 @@ def main():
     from app import create_app
     from app.config import Config
 
+    # --slug オプション: 指定した場合は該当指標ページのみ再生成（高速）
+    import argparse as _argp
+    _ap = _argp.ArgumentParser()
+    _ap.add_argument('--slug', default='', help='この url_slug の指標ページのみ再生成')
+    _args, _ = _ap.parse_known_args()
+    target_slug = _args.slug.strip().lower()
+
+    if target_slug:
+        # ---- 単一ページ高速ビルド ----
+        app = create_app()
+        with app.app_context():
+            updated_at = datetime.now(JST).strftime("%Y/%m/%d %H:%M")
+            pairs      = Config.CURRENCY_PAIRS
+            pair_pages = {
+                "USDJPY": "usdjpy/index.html",
+                "GBPJPY": "gbpjpy/index.html",
+                "EURJPY": "eurjpy/index.html",
+            }
+            ind_url_map = {
+                name: "/{}/{}/".format(
+                    CATEGORY_SLUGS.get(info["category"], "indicators"),
+                    info.get("url_slug", info["slug"])
+                )
+                for name, info in INDICATOR_INFO.items()
+            }
+            slug_map    = {name: info["slug"]    for name, info in INDICATOR_INFO.items()}
+            display_map = {name: info["display"] for name, info in INDICATOR_INFO.items()}
+            content_db  = load_content_db()
+            seo_db      = load_seo_db()
+            built = False
+            for ind_name, ind_info in INDICATOR_INFO.items():
+                url_slug = ind_info.get("url_slug", ind_info["slug"])
+                if url_slug != target_slug:
+                    continue
+                try:
+                    page_data = get_indicator_page_data(ind_name, app)
+                    if page_data is None:
+                        logger.warning("No page data for %s", ind_name)
+                        continue
+                    db_key = f"indicator:{url_slug}"
+                    if db_key in seo_db and seo_db[db_key]["title"]:
+                        page_data["info"]["seo_title"] = seo_db[db_key]["title"]
+                    if db_key in seo_db and seo_db[db_key]["meta_description"]:
+                        page_data["info"]["seo_description"] = seo_db[db_key]["meta_description"]
+                    article_key = f"indicator_article_{url_slug}"
+                    raw_css     = content_db.get(f"{article_key}_css", "")
+                    raw_jsonld  = content_db.get(f"{article_key}_jsonld", "")
+                    html = render_html(app, "indicator_static.html", {
+                        **page_data,
+                        "indicator_article":        content_db.get(article_key, ""),
+                        "indicator_article_css":    scope_article_css(raw_css),
+                        "indicator_article_jsonld": raw_jsonld,
+                        "ai_notes":                 content_db.get(f"indicator_ai_notes_{url_slug}", ""),
+                        "updated_at": updated_at,
+                        "active_page": "backtest",
+                    })
+                    cat_slug = CATEGORY_SLUGS.get(ind_info["category"], "indicators")
+                    save(f"{cat_slug}/{url_slug}/index.html", html)
+                    logger.info("Single page built: /%s/%s/", cat_slug, url_slug)
+                    built = True
+                except Exception as e:
+                    logger.error("Indicator page error %s: %s", ind_name, e)
+                    raise
+            if not built:
+                logger.error("Unknown slug: %s", target_slug)
+                sys.exit(1)
+        return
+
+    # ---- 通常フルビルド ----
     # PHP/.htaccess を public_html に同期
     deploy_static_files()
 

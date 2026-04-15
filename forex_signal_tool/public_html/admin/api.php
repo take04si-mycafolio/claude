@@ -839,6 +839,20 @@ switch ($action) {
         }
         break;
 
+    // ---- 指標ページ HTML 再生成（generate_static.py --slug） ----
+    case 'rebuild_indicator_page':
+        require_login();
+        $slug = preg_replace('/[^a-z0-9_\-]/', '', strtolower(trim($body['slug'] ?? '')));
+        if (!$slug) { json_out(['ok' => false, 'error' => 'slug が必要です']); break; }
+        $py      = escapeshellarg(PYTHON_BIN);
+        $script  = escapeshellarg(TASKS_DIR . '/generate_static.py');
+        $slugArg = escapeshellarg('--slug=' . $slug);
+        exec("{$py} {$script} {$slugArg} 2>&1", $lines, $ret);
+        // 最後の30行のみ返す（ログが長くなる場合に備え）
+        $output = implode("\n", array_slice($lines, -30));
+        json_out(['ok' => $ret === 0, 'output' => $output]);
+        break;
+
     case 'indicator_csv':
         require_login();
 
