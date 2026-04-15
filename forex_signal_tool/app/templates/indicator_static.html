@@ -411,133 +411,156 @@ tr.trade-row.sim-active td{background:rgba(59,130,246,.10)!important}
 
   <!-- AI改善トレード実績（折りたたみ） -->
   {% if linked_strategies %}
-  {% set _ai_t = linked_strategies[0] %}
-  {% set _ai_tbk = _ai_t.bt_result.get('trades_by_key', {}) %}
   {% set _TF_LBL3 = {"5min":"5分足","15min":"15分足","30min":"30分足","1hr":"1時間足","4hr":"4時間足","daily":"日足"} %}
-  {# ペア一覧を抽出 #}
-  {% set ns2 = namespace(at_pairs=[]) %}
-  {% for key in _ai_tbk.keys() %}
-    {% set _p2 = key.split('_')[0] %}
-    {% if _p2 not in ns2.at_pairs %}{% set ns2.at_pairs = ns2.at_pairs + [_p2] %}{% endif %}
-  {% endfor %}
   <div class="ai-collapse-wrap" style="margin-top:8px;margin-bottom:12px">
     <button class="ai-collapse-btn" onclick="toggleAiSection(this)" aria-expanded="false">
       <span>📈 AI分析で改善したトレード実績を見る</span>
       <i class="bi bi-chevron-down ai-collapse-chev"></i>
     </button>
     <div class="ai-collapse-body">
-      {% if _ai_tbk %}
-      {# ペアタブ #}
-      <ul class="nav nav-tabs ind-pair-tabs mb-2" role="tablist">
-        {% for _p2 in ns2.at_pairs %}
+      {# 複数戦略がある場合は戦略セレクタタブを表示 #}
+      {% if linked_strategies|length > 1 %}
+      <ul class="nav nav-tabs ind-pair-tabs mb-2" role="tablist" style="gap:4px">
+        {% for _ls in linked_strategies %}
         <li class="nav-item" role="presentation">
           <button class="nav-link {% if loop.first %}active{% endif %}"
                   data-bs-toggle="tab"
-                  data-bs-target="#ai-tr-{{ _p2.lower() }}"
-                  type="button" role="tab">
-            {{ _p2[:3] }}/{{ _p2[3:] }}
+                  data-bs-target="#ais-{{ _ls.id }}"
+                  type="button" role="tab"
+                  style="font-size:11px;padding:4px 10px">
+            {{ _ls.name }}
           </button>
         </li>
         {% endfor %}
       </ul>
-      <div class="tab-content">
-        {% for _p2 in ns2.at_pairs %}
-        <div class="tab-pane fade {% if loop.first %}show active{% endif %}"
-             id="ai-tr-{{ _p2.lower() }}" role="tabpanel">
-          {# このペアのTF一覧 #}
-          {% set ns3 = namespace(ai_tfs=[]) %}
-          {% for key in _ai_tbk.keys() %}
-            {% if key.split('_')[0] == _p2 %}
-              {% set _tf3 = key.split('_')[1:] | join('_') %}
-              {% if _tf3 not in ns3.ai_tfs %}{% set ns3.ai_tfs = ns3.ai_tfs + [_tf3] %}{% endif %}
-            {% endif %}
-          {% endfor %}
-          {# TFサブタブ #}
-          {% if ns3.ai_tfs | length > 1 %}
-          <ul class="nav nav-tabs ind-tf-tabs mb-2" role="tablist">
-            {% for _tf3 in ns3.ai_tfs %}
-            <li class="nav-item" role="presentation">
-              <button class="nav-link {% if loop.first %}active{% endif %}"
-                      data-bs-toggle="tab"
-                      data-bs-target="#ai-tr-{{ _p2.lower() }}-{{ _tf3 }}"
-                      type="button" role="tab">
-                {{ _TF_LBL3.get(_tf3, _tf3) }}
-              </button>
-            </li>
-            {% endfor %}
-          </ul>
-          {% endif %}
-          <div class="tab-content">
-            {% set ns4 = namespace(first_tf=false) %}
-            {% for _tf3 in ns3.ai_tfs %}
-            {% set _key3 = _p2 ~ '_' ~ _tf3 %}
-            {% set _trades3 = _ai_tbk.get(_key3, []) %}
-            <div class="tab-pane fade {% if not ns4.first_tf %}show active{% endif %}"
-                 id="ai-tr-{{ _p2.lower() }}-{{ _tf3 }}" role="tabpanel">
-              {% set ns4.first_tf = true %}
-              <div class="ind-trades-table-wrap">
-                <table class="ind-trades-table">
-                  <thead>
-                    <tr>
-                      <th style="white-space:nowrap">エントリー (JST)</th>
-                      <th style="white-space:nowrap">種別</th>
-                      <th>エントリー</th>
-                      <th>TP</th>
-                      <th>SL</th>
-                      <th style="white-space:nowrap">結果・損益</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {% for t in _trades3 %}
-                    {% set _is_buy3 = t.direction == 'BUY' %}
-                    {% set _outcome3 = 'WIN' if t.exit_reason == 'TP' else ('LOSS' if t.exit_reason in ('SL','TRAILING_SL') else 'OPEN') %}
-                    <tr class="trade-row"
-                        data-pair="{{ t.pair or _p2 }}"
-                        data-tf="{{ t.tf or _tf3 }}"
-                        data-entry-ts="{{ t.entry_ts_unix or '' }}"
-                        data-exit-ts="{{ t.exit_ts_unix or '' }}"
-                        data-entry-price="{{ t.entry_price or '' }}"
-                        data-tp-price="{{ t.tp_price or '' }}"
-                        data-sl-price="{{ t.sl_price or '' }}"
-                        data-signal="{{ t.direction }}"
-                        data-outcome="{{ _outcome3 }}"
-                        data-pnl="{{ t.pnl_currency or '' }}"
-                        data-entry-label="{{ t.entry_ts_jst or (t.entry_time | string)[:16] }}"
-                        style="cursor:pointer">
-                      <td class="ind-trade-time" style="white-space:nowrap">{{ t.entry_ts_jst or (t.entry_time | string)[:16] }}</td>
-                      <td style="white-space:nowrap">
-                        <span class="signal-type-badge {% if _is_buy3 %}buy{% else %}sell{% endif %}">
-                          {{ '買い' if _is_buy3 else '売り' }}
-                        </span>
-                      </td>
-                      <td class="font-mono">{{ "%.3f"|format(t.entry_price) if t.entry_price else '-' }}</td>
-                      <td class="font-mono text-success">{{ "%.3f"|format(t.tp_price) if t.tp_price else '-' }}</td>
-                      <td class="font-mono text-danger">{{ "%.3f"|format(t.sl_price) if t.sl_price else '-' }}</td>
-                      <td style="white-space:nowrap">
-                        {% if _outcome3 == 'WIN' %}
-                        <span class="ind-outcome win">✓利確</span>
-                        <span class="fw-bold text-success ms-1">+¥{{ "{:,.0f}".format(t.pnl_currency | abs) }}</span>
-                        {% elif _outcome3 == 'LOSS' %}
-                        <span class="ind-outcome loss">✗損切</span>
-                        <span class="fw-bold text-danger ms-1">-¥{{ "{:,.0f}".format(t.pnl_currency | abs) }}</span>
-                        {% else %}
-                        <span class="ind-outcome neutral">-</span>
-                        {% endif %}
-                      </td>
-                    </tr>
-                    {% endfor %}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-            {% endfor %}
-          </div>
-        </div>
-        {% endfor %}
-      </div>
-      {% else %}
-      <div class="empty-state small">トレードデータなし（再保存すると表示されます）</div>
       {% endif %}
+      <div class="tab-content">
+      {% for _ai_t in linked_strategies %}
+      {% set _sid = _ai_t.id %}
+      {% set _ai_tbk = _ai_t.bt_result.get('trades_by_key', {}) %}
+      {# このストラテジーのペア一覧を抽出 #}
+      {% set ns2 = namespace(at_pairs=[]) %}
+      {% for key in _ai_tbk.keys() %}
+        {% set _p2 = key.split('_')[0] %}
+        {% if _p2 not in ns2.at_pairs %}{% set ns2.at_pairs = ns2.at_pairs + [_p2] %}{% endif %}
+      {% endfor %}
+      <div class="tab-pane fade {% if loop.first %}show active{% endif %}"
+           id="ais-{{ _sid }}" role="tabpanel">
+        {% if _ai_tbk %}
+        {# ペアタブ #}
+        <ul class="nav nav-tabs ind-pair-tabs mb-2" role="tablist">
+          {% for _p2 in ns2.at_pairs %}
+          <li class="nav-item" role="presentation">
+            <button class="nav-link {% if loop.first %}active{% endif %}"
+                    data-bs-toggle="tab"
+                    data-bs-target="#aip-{{ _sid }}-{{ _p2.lower() }}"
+                    type="button" role="tab">
+              {{ _p2[:3] }}/{{ _p2[3:] }}
+            </button>
+          </li>
+          {% endfor %}
+        </ul>
+        <div class="tab-content">
+          {% for _p2 in ns2.at_pairs %}
+          <div class="tab-pane fade {% if loop.first %}show active{% endif %}"
+               id="aip-{{ _sid }}-{{ _p2.lower() }}" role="tabpanel">
+            {# このペアのTF一覧 #}
+            {% set ns3 = namespace(ai_tfs=[]) %}
+            {% for key in _ai_tbk.keys() %}
+              {% if key.split('_')[0] == _p2 %}
+                {% set _tf3 = key.split('_')[1:] | join('_') %}
+                {% if _tf3 not in ns3.ai_tfs %}{% set ns3.ai_tfs = ns3.ai_tfs + [_tf3] %}{% endif %}
+              {% endif %}
+            {% endfor %}
+            {# TFサブタブ #}
+            {% if ns3.ai_tfs | length > 1 %}
+            <ul class="nav nav-tabs ind-tf-tabs mb-2" role="tablist">
+              {% for _tf3 in ns3.ai_tfs %}
+              <li class="nav-item" role="presentation">
+                <button class="nav-link {% if loop.first %}active{% endif %}"
+                        data-bs-toggle="tab"
+                        data-bs-target="#aitf-{{ _sid }}-{{ _p2.lower() }}-{{ _tf3 }}"
+                        type="button" role="tab">
+                  {{ _TF_LBL3.get(_tf3, _tf3) }}
+                </button>
+              </li>
+              {% endfor %}
+            </ul>
+            {% endif %}
+            <div class="tab-content">
+              {% set ns4 = namespace(first_tf=false) %}
+              {% for _tf3 in ns3.ai_tfs %}
+              {% set _key3 = _p2 ~ '_' ~ _tf3 %}
+              {% set _trades3 = _ai_tbk.get(_key3, []) %}
+              <div class="tab-pane fade {% if not ns4.first_tf %}show active{% endif %}"
+                   id="aitf-{{ _sid }}-{{ _p2.lower() }}-{{ _tf3 }}" role="tabpanel">
+                {% set ns4.first_tf = true %}
+                <div class="ind-trades-table-wrap">
+                  <table class="ind-trades-table">
+                    <thead>
+                      <tr>
+                        <th style="white-space:nowrap">エントリー (JST)</th>
+                        <th style="white-space:nowrap">種別</th>
+                        <th>エントリー</th>
+                        <th>TP</th>
+                        <th>SL</th>
+                        <th style="white-space:nowrap">結果・損益</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {% for t in _trades3 %}
+                      {% set _is_buy3 = t.direction == 'BUY' %}
+                      {% set _outcome3 = 'WIN' if t.exit_reason == 'TP' else ('LOSS' if t.exit_reason in ('SL','TRAILING_SL') else 'OPEN') %}
+                      <tr class="trade-row"
+                          data-pair="{{ t.pair or _p2 }}"
+                          data-tf="{{ t.tf or _tf3 }}"
+                          data-entry-ts="{{ t.entry_ts_unix or '' }}"
+                          data-exit-ts="{{ t.exit_ts_unix or '' }}"
+                          data-entry-price="{{ t.entry_price or '' }}"
+                          data-tp-price="{{ t.tp_price or '' }}"
+                          data-sl-price="{{ t.sl_price or '' }}"
+                          data-signal="{{ t.direction }}"
+                          data-outcome="{{ _outcome3 }}"
+                          data-pnl="{{ t.pnl_currency or '' }}"
+                          data-entry-label="{{ t.entry_ts_jst or (t.entry_time | string)[:16] }}"
+                          style="cursor:pointer">
+                        <td class="ind-trade-time" style="white-space:nowrap">{{ t.entry_ts_jst or (t.entry_time | string)[:16] }}</td>
+                        <td style="white-space:nowrap">
+                          <span class="signal-type-badge {% if _is_buy3 %}buy{% else %}sell{% endif %}">
+                            {{ '買い' if _is_buy3 else '売り' }}
+                          </span>
+                        </td>
+                        <td class="font-mono">{{ "%.3f"|format(t.entry_price) if t.entry_price else '-' }}</td>
+                        <td class="font-mono text-success">{{ "%.3f"|format(t.tp_price) if t.tp_price else '-' }}</td>
+                        <td class="font-mono text-danger">{{ "%.3f"|format(t.sl_price) if t.sl_price else '-' }}</td>
+                        <td style="white-space:nowrap">
+                          {% if _outcome3 == 'WIN' %}
+                          <span class="ind-outcome win">✓利確</span>
+                          <span class="fw-bold text-success ms-1">+¥{{ "{:,.0f}".format(t.pnl_currency | abs) }}</span>
+                          {% elif _outcome3 == 'LOSS' %}
+                          <span class="ind-outcome loss">✗損切</span>
+                          <span class="fw-bold text-danger ms-1">-¥{{ "{:,.0f}".format(t.pnl_currency | abs) }}</span>
+                          {% else %}
+                          <span class="ind-outcome neutral">-</span>
+                          {% endif %}
+                        </td>
+                      </tr>
+                      {% endfor %}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+              {% endfor %}
+            </div>
+          </div>
+          {% endfor %}
+        </div>
+        {% else %}
+        <div class="empty-state small">トレードデータなし（再保存すると表示されます）</div>
+        {% endif %}
+      </div>
+      {% endfor %}
+      </div>
     </div>
   </div>
   {% endif %}

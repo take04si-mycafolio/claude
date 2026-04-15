@@ -495,10 +495,13 @@ function resetIndicatorPageBt() {
 .ai-fb-status.ok{color:#22c55e}
 .ai-fb-status.err{color:#ef4444}
 /* linked strategies */
-.ls-item{background:#0f172a;border:1px solid #1e293b;border-radius:5px;padding:6px 10px;font-size:12px;margin-bottom:5px}
+.ls-item{background:#0f172a;border:1px solid #1e293b;border-radius:5px;padding:6px 10px;font-size:12px;margin-bottom:5px;display:flex;align-items:flex-start;gap:8px}
+.ls-body{flex:1;min-width:0}
 .ls-name{color:#e2e8f0;font-weight:600;margin-bottom:2px}
 .ls-meta{color:#475569;font-size:11px;display:flex;gap:8px;flex-wrap:wrap}
 .ls-wr{color:#4ade80;font-weight:600}
+.ls-del{background:none;border:none;color:#475569;cursor:pointer;font-size:14px;padding:0 2px;line-height:1;flex-shrink:0;margin-top:1px}
+.ls-del:hover{color:#f87171}
 </style>
 
 <div class="bt2-inline-card">
@@ -1341,12 +1344,29 @@ async function loadLinkedStrategies() {
       const tr  = s.trades    != null ? `<span>${s.trades}件</span>` : '';
       const ran = s.bt_ran_at ? s.bt_ran_at.slice(0,10) : '未実行';
       return `<div class="ls-item">
-        <div class="ls-name">${s.name.replace(/</g,'&lt;')}</div>
-        <div class="ls-meta">${wr}${pf}${tr}<span>${ran}</span></div>
+        <div class="ls-body">
+          <div class="ls-name">${s.name.replace(/</g,'&lt;')}</div>
+          <div class="ls-meta">${wr}${pf}${tr}<span>${ran}</span></div>
+        </div>
+        <button class="ls-del" title="削除" onclick="deleteStrategy(${s.id})">×</button>
       </div>`;
     }).join('');
   } catch(e) {
     wrap.innerHTML = '<span style="font-size:12px;color:#475569">読み込みエラー</span>';
+  }
+}
+
+async function deleteStrategy(id) {
+  if (!confirm('この戦略を削除しますか？\n（generate_static.py を再実行するまで公開ページには反映されません）')) return;
+  try {
+    const res = await fetch('/admin/api.php?action=delete_strategy', {
+      method: 'POST', headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({id}),
+    }).then(r => r.json());
+    if (!res.ok) { alert('削除失敗: ' + (res.error || '')); return; }
+    await loadLinkedStrategies();
+  } catch(e) {
+    alert('エラー: ' + e.message);
   }
 }
 
