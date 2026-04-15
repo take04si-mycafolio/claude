@@ -727,6 +727,118 @@ switch ($action) {
         }
         break;
 
+    // ---- BT2 保存済み戦略のトレード履歴を CSV/ZIP でダウンロード ----
+    case 'bt2_csv':
+        require_login();
+        $id = (int)($_GET['id'] ?? $body['id'] ?? 0);
+        if (!$id) { json_out(['status'=>'error','message'=>'id が必要です']); break; }
+
+        try {
+            $pdo  = get_pdo();
+            $stmt = $pdo->prepare('SELECT name, bt_result_json FROM saved_strategies WHERE id = ?');
+            $stmt->execute([$id]);
+            $row  = $stmt->fetch();
+            if (!$row || !$row['bt_result_json']) {
+                json_out(['status'=>'error','message'=>'データが見つかりません（バックテストを実行してから保存してください）']);
+                break;
+            }
+
+            $btResult = json_decode($row['bt_result_json'], true) ?? [];
+            $safeName = preg_replace('/[^a-zA-Z0-9_\-]/', '_', $row['name']);
+            $suffix   = date('YmdHis') . '_' . getmypid();
+            $tmpDir   = sys_get_temp_dir();
+            $tmpFiles = [];
+
+            // ① サマリーCSV（per_pair メトリクス）
+            $sumFile  = "{$tmpDir}/bt2_summary_{$suffix}.csv";
+            $tmpFiles[] = $sumFile;
+            $fh = fopen($sumFile, 'w');
+            fwrite($fh, "\xEF\xBB\xBF");
+            fputcsv($fh, ['通貨ペア','TF','トレード数','勝率(%)','PF',
+                          '純損益(pips)','総損益(円)','最大DD(pips)',
+                          '平均勝ち(pips)','平均負け(pips)','期待値(pips)',
+                          '最大連勝','最大連敗','ロング勝率(%)','ショート勝率(%)']);
+            foreach ($btResult['per_pair'] ?? [] as $key => $m) {
+                $parts = explode('_', $key, 2);
+                fputcsv($fh, [
+                    $parts[0], $parts[1] ?? '',
+                    $m['total_trades']    ?? '',
+                    isset($m['win_rate'])        ? round($m['win_rate']        * 100, 1) : '',
+                    $m['profit_factor']   ?? '',
+                    $m['net_profit_pips'] ?? '',
+                    $m['total_profit']    ?? '',
+                    $m['max_drawdown_pips'] ?? '',
+                    $m['avg_win_pips']    ?? '',
+                    $m['avg_loss_pips']   ?? '',
+                    $m['expectancy_pips'] ?? '',
+                    $m['max_win_streak']  ?? '',
+                    $m['max_loss_streak'] ?? '',
+                    isset($m['long_win_rate'])  ? round($m['long_win_rate']  * 100, 1) : '',
+                    isset($m['short_win_rate']) ? round($m['short_win_rate'] * 100, 1) : '',
+                ]);
+            }
+            fclose($fh);
+
+            // ② トレードCSV（trades_by_key — 全ペア・TF）
+            $tradeFile  = "{$tmpDir}/bt2_trades_{$suffix}.csv";
+            $tmpFiles[] = $tradeFile;
+            $fh2 = fopen($tradeFile, 'w');
+            fwrite($fh2, "\xEF\xBB\xBF");
+            fputcsv($fh2, ['通貨ペア','TF','エントリー日時(JST)','エグジット日時(JST)',
+                           '方向','エントリー価格','エグジット価格','TP価格','SL価格',
+                           '損益(pips)','損益(円)','資金残高(円)','終了理由','エントリー条件']);
+            foreach ($btResult['trades_by_key'] ?? [] as $key => $trades) {
+                $parts = explode('_', $key, 2);
+                $pair  = $parts[0];
+                $tf    = $parts[1] ?? '';
+                foreach ((array)$trades as $t) {
+                    $reasons = isset($t['entry_reasons'])
+                        ? implode(' / ', (array)$t['entry_reasons'])
+                        : '';
+                    fputcsv($fh2, [
+                        $pair, $tf,
+                        $t['entry_time']      ?? '',
+                        $t['exit_time']       ?? '',
+                        $t['direction']       ?? '',
+                        $t['entry_price']     ?? '',
+                        $t['exit_price']      ?? '',
+                        $t['tp_price']        ?? '',
+                        $t['sl_price']        ?? '',
+                        $t['pnl_pips']        ?? '',
+                        $t['pnl_currency']    ?? '',
+                        $t['running_capital'] ?? '',
+                        $t['exit_reason']     ?? '',
+                        $reasons,
+                    ]);
+                }
+            }
+            fclose($fh2);
+
+            // ③ ZIP にまとめてダウンロード
+            $zipFile = "{$tmpDir}/bt2_{$safeName}_{$suffix}.zip";
+            $zip = new ZipArchive();
+            if ($zip->open($zipFile, ZipArchive::CREATE) !== true) {
+                throw new Exception('ZIP作成に失敗しました');
+            }
+            $zip->addFile($sumFile,   "summary_{$safeName}.csv");
+            $zip->addFile($tradeFile, "trades_{$safeName}.csv");
+            $zip->close();
+            foreach ($tmpFiles as $f) { @unlink($f); }
+
+            header('Content-Type: application/zip');
+            header('Content-Disposition: attachment; filename="bt2_' . $safeName . '_' . date('Ymd') . '.zip"');
+            header('Content-Length: ' . filesize($zipFile));
+            header('Cache-Control: no-cache');
+            readfile($zipFile);
+            unlink($zipFile);
+            exit;
+
+        } catch (Exception $e) {
+            foreach ($tmpFiles as $f) { @unlink($f); }
+            json_out(['status' => 'error', 'message' => $e->getMessage()]);
+        }
+        break;
+
     case 'indicator_csv':
         require_login();
 

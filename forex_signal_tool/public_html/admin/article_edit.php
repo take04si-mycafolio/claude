@@ -502,6 +502,8 @@ function resetIndicatorPageBt() {
 .ls-wr{color:#4ade80;font-weight:600}
 .ls-del{background:none;border:none;color:#475569;cursor:pointer;font-size:14px;padding:0 2px;line-height:1;flex-shrink:0;margin-top:1px}
 .ls-del:hover{color:#f87171}
+.ls-dl{background:none;border:none;color:#38bdf8;cursor:pointer;font-size:12px;padding:0 2px;line-height:1;flex-shrink:0;margin-top:1px;text-decoration:none}
+.ls-dl:hover{color:#7dd3fc;text-decoration:none}
 </style>
 
 <div class="bt2-inline-card">
@@ -1348,6 +1350,9 @@ async function loadLinkedStrategies() {
           <div class="ls-name">${s.name.replace(/</g,'&lt;')}</div>
           <div class="ls-meta">${wr}${pf}${tr}<span>${ran}</span></div>
         </div>
+        <a class="ls-dl" title="CSVダウンロード"
+           href="/admin/api.php?action=bt2_csv&id=${s.id}"
+           target="_blank">⬇</a>
         <button class="ls-del" title="削除" onclick="deleteStrategy(${s.id})">×</button>
       </div>`;
     }).join('');
