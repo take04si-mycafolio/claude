@@ -285,8 +285,14 @@ def _save_result(db, text, res, indicator_name, pair, tf,
         WHERE indicator_name=:ind AND currency_pair=:pair AND timeframe=:tf
     """), {"ind": indicator_name, "pair": pair, "tf": tf})
 
-    trades = res.get("trades", [])[-TRADE_LIMIT:]
-    prev_cap = float(initial_capital)
+    trades_all = res.get("trades", [])
+    trades = trades_all[-TRADE_LIMIT:]
+    # TRADE_LIMIT 件に切り詰めた場合、先頭トレードの損益が「全累積損益」になるバグを修正:
+    # 保存ウィンドウの直前トレードの capital_after を基点にする
+    if len(trades_all) > TRADE_LIMIT:
+        prev_cap = float(trades_all[-(TRADE_LIMIT + 1)]["capital_after"])
+    else:
+        prev_cap = float(initial_capital)
     for t in trades:
         entry_ts = _parse_dt(t.get("entry_ts"))
         exit_ts  = _parse_dt(t.get("exit_ts"))
