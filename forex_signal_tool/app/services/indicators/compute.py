@@ -29,6 +29,7 @@ from .oscillators import (
 from .trend import (
     compute_sma,
     compute_ema,
+    compute_ema_slope,
     compute_bb_upper,
     compute_bb_lower,
     compute_bb_mid,
@@ -77,6 +78,7 @@ _REGISTRY: dict[str, callable] = {
     # トレンド
     "SMA":          compute_sma,
     "EMA":          compute_ema,
+    "EMA_SLOPE":    compute_ema_slope,
     "BB_UPPER":     compute_bb_upper,
     "BB_LOWER":     compute_bb_lower,
     "BB_MID":       compute_bb_mid,

@@ -266,6 +266,17 @@ def compute_ema(df: pd.DataFrame, params: dict = None) -> pd.Series:
     return df["close"].astype(float).ewm(span=p.get("period", 21), adjust=False).mean()
 
 
+def compute_ema_slope(df: pd.DataFrame, params: dict = None) -> pd.Series:
+    """EMA の向き。現在足の EMA が前足より大きければ +1、小さければ -1、同値なら 0。
+    params: {"period"} (default 21)
+    使い方: EMA_SLOPE(75) >= 1 → EMA が上向き / EMA_SLOPE(75) <= -1 → 下向き
+    """
+    p = params or {}
+    ema = df["close"].astype(float).ewm(span=p.get("period", 21), adjust=False).mean()
+    diff = ema.diff()
+    return diff.map(lambda x: 1.0 if x > 0 else (-1.0 if x < 0 else 0.0))
+
+
 def compute_bb_upper(df: pd.DataFrame, params: dict = None) -> pd.Series:
     """Bollinger 上バンド系列。params: {"period", "std"} (defaults 20, 2.0)"""
     p = params or {}

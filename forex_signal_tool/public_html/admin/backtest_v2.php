@@ -989,6 +989,7 @@ const PRESET_LINKED_IND = <?= json_encode($preset_linked_ind) ?>;
 const IND = {
   RSI:         { label:'RSI',          params:[{n:'period',   l:'期間',     d:14}] },
   EMA:         { label:'EMA',          params:[{n:'period',   l:'期間',     d:21}] },
+  EMA_SLOPE:   { label:'EMA 向き',     params:[{n:'period',   l:'期間',     d:21}], hint:'上向き≥1 / 下向き≤-1' },
   SMA:         { label:'SMA',          params:[{n:'period',   l:'期間',     d:20}] },
   MACD_HIST:   { label:'MACD ヒスト',  params:[{n:'fast',l:'Fast',d:12},{n:'slow',l:'Slow',d:26},{n:'signal',l:'Sig',d:9}] },
   MACD_LINE:   { label:'MACD ライン',  params:[{n:'fast',l:'Fast',d:12},{n:'slow',l:'Slow',d:26},{n:'signal',l:'Sig',d:9}] },
@@ -1028,7 +1029,7 @@ const COMPARISONS = [
 
 /* ---------- 指標セレクト用 optgroup HTML ---------- */
 function buildIndOptions(excludePatterns) {
-  const techKeys = ['RSI','EMA','SMA','MACD_HIST','MACD_LINE','MACD_SIGNAL',
+  const techKeys = ['RSI','EMA','EMA_SLOPE','SMA','MACD_HIST','MACD_LINE','MACD_SIGNAL',
                     'STOCH_K','STOCH_D','CCI','WILLIAMS_R','ATR',
                     'BB_UPPER','BB_LOWER','BB_MID','CLOSE','HIGH','LOW'];
   const patKeys  = ['BULLISH_ENGULFING','BEARISH_ENGULFING','HAMMER','INVERTED_HAMMER',
@@ -1107,6 +1108,13 @@ function onIndChange(sel, rowId) {
     const valEl = document.getElementById(rowId + '-val');
     if (valEl) valEl.value = '1';
   }
+  // EMA_SLOPE: 比較を「≥」、値を「1」に自動設定（上向き＝デフォルト）
+  if (indKey === 'EMA_SLOPE') {
+    const cmpSel = document.getElementById(rowId + '-cmp');
+    if (cmpSel) { cmpSel.value = 'greater_than_or_equal'; onCmpChange(rowId); }
+    const valEl = document.getElementById(rowId + '-val');
+    if (valEl) valEl.value = '1';
+  }
 }
 
 /* ---------- パラメータ入力 HTML 生成 ---------- */
@@ -1119,7 +1127,9 @@ function buildParamInputs(indKey, rowId) {
        <input type="number" id="${rowId}-p-${p.n}" value="${p.d}" step="${p.n==='std'?0.1:1}" style="width:62px">
      </div>`
   ).join('');
-  return `<label>パラメータ</label><div style="display:flex;gap:6px;flex-wrap:wrap">${inputs}</div>`;
+  const hint = (IND[indKey] || {}).hint || '';
+  const hintHtml = hint ? `<div class="form-hint" style="margin-top:4px">${hint}</div>` : '';
+  return `<label>パラメータ</label><div style="display:flex;gap:6px;flex-wrap:wrap">${inputs}</div>${hintHtml}`;
 }
 
 /* ---------- 比較変更 → RHS 再描画（全比較タイプで統一） ---------- */
