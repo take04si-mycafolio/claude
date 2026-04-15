@@ -1307,7 +1307,7 @@ def get_indicator_page_data(indicator_name: str, app) -> dict | None:
             "tp_price":      float(t.tp_price) if t.tp_price else None,
             "sl_price":      float(t.sl_price) if t.sl_price else None,
             "outcome":       t.outcome,
-            "pnl":           (tp_v * 1000) if is_win else -(sl_v * 1000),
+            "pnl":           float(t.profit_loss) if t.profit_loss is not None else ((tp_v * 100) if is_win else -(sl_v * 100)),
         }
 
     # 通貨ペアごとのバックテスト結果
