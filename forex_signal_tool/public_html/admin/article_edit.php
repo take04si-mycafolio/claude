@@ -792,6 +792,7 @@ let _bt2InlineResults = [];  // 最終実行の pair×TF 結果を蓄積（保�
 const BT2_IND = {
   RSI:         { label:'RSI',          params:[{n:'period',l:'期間',d:14}] },
   EMA:         { label:'EMA',          params:[{n:'period',l:'期間',d:21}] },
+  EMA_SLOPE:   { label:'EMA 向き',     params:[{n:'period',l:'期間',d:21}], hint:'上向き≥1 / 下向き≤-1' },
   SMA:         { label:'SMA',          params:[{n:'period',l:'期間',d:20}] },
   MACD_HIST:   { label:'MACD ヒスト',  params:[{n:'fast',l:'Fast',d:12},{n:'slow',l:'Slow',d:26},{n:'signal',l:'Sig',d:9}] },
   MACD_LINE:   { label:'MACD ライン',  params:[{n:'fast',l:'Fast',d:12},{n:'slow',l:'Slow',d:26},{n:'signal',l:'Sig',d:9}] },
@@ -829,7 +830,7 @@ const BT2_COMPS = [
 ];
 
 function bt2IndOpts(excludePatterns) {
-  const tech = ['RSI','EMA','SMA','MACD_HIST','MACD_LINE','MACD_SIGNAL',
+  const tech = ['RSI','EMA','EMA_SLOPE','SMA','MACD_HIST','MACD_LINE','MACD_SIGNAL',
                 'STOCH_K','STOCH_D','CCI','WILLIAMS_R','ATR',
                 'BB_UPPER','BB_LOWER','BB_MID','CLOSE','HIGH','LOW'];
   const pat  = ['BULLISH_ENGULFING','BEARISH_ENGULFING','HAMMER','INVERTED_HAMMER',
@@ -861,7 +862,9 @@ function bt2ParamInputs(indKey, rowId) {
               style="width:56px;background:#0d1f2d;border:1px solid #334155;border-radius:5px;color:#e2e8f0;padding:4px 5px;font-size:12px;outline:none">
      </div>`
   ).join('');
-  return `<span class="bt2-lbl">パラメータ</span><div style="display:flex;gap:4px;flex-wrap:wrap">${inps}</div>`;
+  const hint = (BT2_IND[indKey] || {}).hint || '';
+  const hintHtml = hint ? `<div style="font-size:10px;color:#67e8f9;margin-top:3px">${hint}</div>` : '';
+  return `<span class="bt2-lbl">パラメータ</span><div style="display:flex;gap:4px;flex-wrap:wrap">${inps}</div>${hintHtml}`;
 }
 
 function bt2RhsHtml(rowId) {
@@ -929,7 +932,7 @@ function addBt2Cond() {
 function bt2OnIndChange(sel, rowId) {
   const k = sel.value;
   document.getElementById(rowId + '-params').innerHTML = bt2ParamInputs(k, rowId);
-  if ((BT2_IND[k] || {}).is_pattern) {
+  if ((BT2_IND[k] || {}).is_pattern || k === 'EMA_SLOPE') {
     const cmpSel = document.getElementById(rowId + '-cmp');
     if (cmpSel) cmpSel.value = 'greater_than_or_equal';
     const valEl = document.getElementById(rowId + '-val');
