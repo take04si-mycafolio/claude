@@ -26,7 +26,7 @@ RESULT_FILE = "/tmp/ranking_bt_result.json"
 
 SHORT_TFS = ["5min", "15min", "30min"]
 DAY_TFS   = ["1hr", "4hr"]
-SWING_TFS = ["daily"]
+SWING_TFS = []   # daily は fetch 廃止につき除外
 
 TF_LABELS = {
     "5min": "5分足", "15min": "15分足", "30min": "30分足",
@@ -262,9 +262,8 @@ def main():
                     f"[{step}/{total_steps}] {pair} {TF_LABELS.get(tf, tf)} 実行中...",
                 )
 
-                # 日足は多め、その他は5000本取得
-                limit = 2000 if tf == "daily" else 5000
-                df = get_candles(pair, tf, limit=limit)
+                # 各TF 2000本取得（統計上十分かつ処理速度優先）
+                df = get_candles(pair, tf, limit=2000)
                 if df.empty:
                     logger.warning("データなし: %s %s", pair, tf)
                     continue

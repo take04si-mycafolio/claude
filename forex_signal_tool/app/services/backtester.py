@@ -85,6 +85,251 @@ def _price_to_pips(price_diff: float, pair: str = "USDJPY") -> float:
     return price_diff / 0.01
 
 
+def _precompute_all_signals(df: pd.DataFrame) -> dict:
+    """
+    全指標の全バーシグナルをベクトル計算で一括取得。
+    バーごとに indicator_func を呼ぶ O(n²) を O(n) に削減する。
+
+    Returns: {indicator_name: np.ndarray of "BUY"/"SELL"/"NEUTRAL" strings}
+    """
+    if len(df) < 50:
+        return {}
+
+    close  = df["close"].astype(float)
+    high   = df["high"].astype(float)
+    low    = df["low"].astype(float)
+    open_  = df["open"].astype(float)
+    n      = len(df)
+
+    def _arr(buy_mask, sell_mask, nan_mask=None):
+        s = np.full(n, "NEUTRAL", dtype=object)
+        bm = buy_mask.values  if hasattr(buy_mask,  "values") else np.asarray(buy_mask)
+        sm = sell_mask.values if hasattr(sell_mask, "values") else np.asarray(sell_mask)
+        s[np.nan_to_num(bm.astype(float), nan=0).astype(bool)] = "BUY"
+        s[np.nan_to_num(sm.astype(float), nan=0).astype(bool)] = "SELL"
+        if nan_mask is not None:
+            nm = nan_mask.values if hasattr(nan_mask, "values") else np.asarray(nan_mask)
+            s[np.nan_to_num(nm.astype(float), nan=1).astype(bool)] = "NEUTRAL"
+        return s
+
+    result = {}
+
+    # ===== OSCILLATORS =====
+    delta    = close.diff()
+    avg_gain = delta.clip(lower=0).ewm(com=13, min_periods=14).mean()
+    avg_loss = (-delta.clip(upper=0)).ewm(com=13, min_periods=14).mean()
+    rsi      = 100 - 100 / (1 + avg_gain / avg_loss.replace(0, np.nan))
+    result["RSI_14"] = _arr(rsi < 30, rsi > 70, rsi.isna())
+
+    ema12     = close.ewm(span=12, adjust=False).mean()
+    ema26     = close.ewm(span=26, adjust=False).mean()
+    macd_line = ema12 - ema26
+    sig_line  = macd_line.ewm(span=9, adjust=False).mean()
+    hist      = macd_line - sig_line
+    prev_hist = hist.shift(1).fillna(0)
+    cx_buy    = (hist > 0) & (prev_hist <= 0)
+    cx_sell   = (hist < 0) & (prev_hist >= 0)
+    result["MACD_12_26_9"] = _arr(
+        cx_buy  | ((macd_line > sig_line) & ~cx_sell),
+        cx_sell | ((macd_line < sig_line) & ~cx_buy),
+        macd_line.isna() | sig_line.isna(),
+    )
+
+    lo14    = low.rolling(14).min()
+    hi14    = high.rolling(14).max()
+    sk_raw  = 100 * (close - lo14) / (hi14 - lo14).replace(0, np.nan)
+    stoch_k = sk_raw.rolling(3).mean()
+    stoch_d = stoch_k.rolling(3).mean()
+    result["Stochastic_14_3"] = _arr(
+        (stoch_k < 20) & (stoch_d < 20) & (stoch_k > stoch_d),
+        (stoch_k > 80) & (stoch_d > 80) & (stoch_k < stoch_d),
+        stoch_k.isna() | stoch_d.isna(),
+    )
+
+    tp_s  = (high + low + close) / 3
+    sma_tp = tp_s.rolling(20).mean()
+    mad    = tp_s.rolling(20).apply(lambda x: np.mean(np.abs(x - x.mean())), raw=True)
+    cci    = (tp_s - sma_tp) / (0.015 * mad)
+    pc     = cci.shift(1).fillna(0)
+    e_buy  = cci < -100;  e_sell = cci > 100
+    z_buy  = (cci > 0) & (pc <= 0) & ~e_buy & ~e_sell
+    z_sell = (cci < 0) & (pc >= 0) & ~e_buy & ~e_sell
+    result["CCI_20"] = _arr(e_buy | z_buy, e_sell | z_sell, cci.isna())
+
+    hi14w = high.rolling(14).max(); lo14w = low.rolling(14).min()
+    wr = -100 * (hi14w - close) / (hi14w - lo14w).replace(0, np.nan)
+    result["Williams_R_14"] = _arr(wr < -80, wr > -20, wr.isna())
+
+    # ===== TREND =====
+    sma20 = close.rolling(20).mean(); sma50 = close.rolling(50).mean()
+    ema9  = close.ewm(span=9,  adjust=False).mean()
+    ema21 = close.ewm(span=21, adjust=False).mean()
+    bb_mid = close.rolling(20).mean()
+    bb_std = close.rolling(20).std(ddof=1)
+    bb_upper = bb_mid + 2 * bb_std; bb_lower = bb_mid - 2 * bb_std
+
+    s20 = np.full(n, "NEUTRAL", dtype=object)
+    s20[close > sma20] = "BUY"; s20[close < sma20] = "SELL"
+    s20[sma20.isna()] = "NEUTRAL"
+    result["SMA_20"] = s20
+
+    s50 = np.full(n, "NEUTRAL", dtype=object)
+    s50[close > sma50] = "BUY"; s50[close < sma50] = "SELL"
+    s50[sma50.isna()] = "NEUTRAL"
+    result["SMA_50"] = s50
+
+    p20 = sma20.shift(1); p50 = sma50.shift(1)
+    sc  = np.full(n, "NEUTRAL", dtype=object)
+    sc[sma20 > sma50] = "BUY"; sc[sma20 < sma50] = "SELL"
+    sc[(sma20 > sma50) & (p20 <= p50)] = "BUY"
+    sc[(sma20 < sma50) & (p20 >= p50)] = "SELL"
+    sc[sma20.isna() | sma50.isna()] = "NEUTRAL"
+    result["SMA_Cross_20_50"] = sc
+
+    ec = np.full(n, "NEUTRAL", dtype=object)
+    ec[ema9 > ema21] = "BUY"; ec[ema9 < ema21] = "SELL"
+    result["EMA_Cross_9_21"] = ec
+
+    e21 = np.full(n, "NEUTRAL", dtype=object)
+    e21[close > ema21] = "BUY"; e21[close < ema21] = "SELL"
+    result["EMA_21"] = e21
+
+    bb_s = np.full(n, "NEUTRAL", dtype=object)
+    bb_s[close < bb_mid] = "BUY"; bb_s[close > bb_mid] = "SELL"
+    bb_s[close <= bb_lower] = "BUY"; bb_s[close >= bb_upper] = "SELL"
+    bb_s[bb_mid.isna()] = "NEUTRAL"
+    result["BollingerBands_20_2"] = bb_s
+
+    bb_w   = (bb_upper - bb_lower) / bb_mid.replace(0, np.nan)
+    w_sma  = bb_w.rolling(20).mean()
+    sq     = bb_w < (w_sma * 0.8)
+    sq_s   = np.full(n, "NEUTRAL", dtype=object)
+    sq_s[(sq) & (close > bb_mid)] = "BUY"
+    sq_s[(sq) & (close < bb_mid)] = "SELL"
+    sq_s[w_sma.isna()] = "NEUTRAL"
+    result["BB_Squeeze"] = sq_s
+
+    tenkan  = (high.rolling(9).max()  + low.rolling(9).min())  / 2
+    kijun   = (high.rolling(26).max() + low.rolling(26).min()) / 2
+    sa      = ((tenkan + kijun) / 2).shift(26)
+    sb      = ((high.rolling(52).max() + low.rolling(52).min()) / 2).shift(26)
+    ctop    = pd.concat([sa, sb], axis=1).max(axis=1)
+    cbot    = pd.concat([sa, sb], axis=1).min(axis=1)
+    ichi    = np.full(n, "NEUTRAL", dtype=object)
+    ichi[(close > ctop) & (tenkan >= kijun)] = "BUY"
+    ichi[(close < cbot) & (tenkan <  kijun)] = "SELL"
+    ichi[ctop.isna()] = "NEUTRAL"
+    result["Ichimoku_Cloud"] = ichi
+
+    # ===== VOLATILITY =====
+    pc2  = close.shift(1)
+    tr   = pd.concat([high - low, (high - pc2).abs(), (low - pc2).abs()], axis=1).max(axis=1)
+    atr  = tr.ewm(span=14, adjust=False).mean()
+    asma = atr.rolling(20).mean()
+    s10  = close.rolling(10).mean()
+    av_s = np.full(n, "NEUTRAL", dtype=object)
+    hv   = atr > asma * 1.2
+    av_s[hv & (close > s10)] = "BUY"
+    av_s[hv & (close < s10)] = "SELL"
+    av_s[asma.isna()] = "NEUTRAL"
+    result["ATR_14"] = av_s
+
+    vi_s = np.full(n, "NEUTRAL", dtype=object)
+    lv   = bb_w < (w_sma * 0.7)
+    vi_s[lv & (close > bb_mid)] = "BUY"
+    vi_s[lv & (close < bb_mid)] = "SELL"
+    vi_s[w_sma.isna()] = "NEUTRAL"
+    result["Volatility_Index"] = vi_s
+
+    # ===== LINES =====
+    ph = high.shift(1); pl = low.shift(1); pclose = close.shift(1)
+    piv = (ph + pl + pclose) / 3
+    r1  = 2 * piv - pl;  s1 = 2 * piv - ph
+    piv_s = np.full(n, "NEUTRAL", dtype=object)
+    piv_s[close > r1] = "BUY"; piv_s[close < s1] = "SELL"
+    mid_m = (close <= r1) & (close >= s1)
+    piv_s[mid_m & (close >= piv)] = "BUY"
+    piv_s[mid_m & (close <  piv)] = "SELL"
+    piv_s[piv.isna()] = "NEUTRAL"
+    result["Pivot_Classic"] = piv_s
+
+    rh20 = high.rolling(20).max(); rl20 = low.rolling(20).min()
+    rng20 = rh20 - rl20
+    fib5  = rh20 - rng20 * 0.5
+    fib_s = np.full(n, "NEUTRAL", dtype=object)
+    fib_s[close > fib5] = "BUY"; fib_s[close < fib5] = "SELL"
+    fib_s[rng20.isna() | (rng20 == 0)] = "NEUTRAL"
+    result["Fibonacci_Retracement"] = fib_s
+
+    rh = high.rolling(20).max(); rl = low.rolling(20).min()
+    rng_sr = (rh - rl).replace(0, np.nan)
+    d_h = (rh - close) / rng_sr; d_l = (close - rl) / rng_sr
+    sr_s = np.full(n, "NEUTRAL", dtype=object)
+    sr_s[d_l < d_h] = "BUY"; sr_s[d_h < d_l] = "SELL"
+    sr_s[rng_sr.isna()] = "NEUTRAL"
+    result["Support_Resistance"] = sr_s
+
+    # ===== PATTERNS =====
+    body  = (close - open_).abs()
+    upper = high  - pd.concat([open_, close], axis=1).max(axis=1)
+    lower = pd.concat([open_, close], axis=1).min(axis=1) - low
+    rng   = high - low
+    tup   = close > close.shift(10)   # 10本前より上 = 上昇トレンド
+
+    result["Hammer"]           = _arr(
+        (body > 0) & (lower >= body * 2) & (upper <= body * 0.3) & ~tup, pd.Series(False, index=df.index))
+    result["Inverted_Hammer"]  = _arr(
+        pd.Series(False, index=df.index),
+        (body > 0) & (upper >= body * 2) & (lower <= body * 0.3) & tup)
+    is_doji = (rng > 0) & (body / rng.replace(0, np.nan) < 0.1)
+    result["Doji"]             = _arr(is_doji & ~tup, is_doji & tup)
+
+    po2 = open_.shift(1); pc2b = close.shift(1)
+    bull_e = (pc2b < po2) & (close > open_) & (open_ < pc2b) & (close > po2)
+    bear_e = (pc2b > po2) & (close < open_) & (open_ > pc2b) & (close < po2)
+    result["Bullish_Engulfing"] = _arr(bull_e.fillna(False), pd.Series(False, index=df.index))
+    result["Bearish_Engulfing"] = _arr(pd.Series(False, index=df.index), bear_e.fillna(False))
+
+    str_bull = (close > open_) & (rng > 0) & ((close - open_) / rng.replace(0, np.nan) >= 0.6)
+    str_bear = (close < open_) & (rng > 0) & ((open_ - close) / rng.replace(0, np.nan) >= 0.6)
+    rising   = (close > close.shift(1)) & (close.shift(1) > close.shift(2))
+    falling  = (close < close.shift(1)) & (close.shift(1) < close.shift(2))
+    tws = str_bull & str_bull.shift(1).fillna(False) & str_bull.shift(2).fillna(False) & rising.fillna(False)
+    tbc = str_bear & str_bear.shift(1).fillna(False) & str_bear.shift(2).fillna(False) & falling.fillna(False)
+    result["Three_White_Soldiers"] = _arr(tws.fillna(False), pd.Series(False, index=df.index))
+    result["Three_Black_Crows"]    = _arr(pd.Series(False, index=df.index), tbc.fillna(False))
+
+    is_bp = (rng > 0) & (lower >= rng * 0.6) & (body <= rng * 0.3)
+    is_sp = (rng > 0) & (upper >= rng * 0.6) & (body <= rng * 0.3)
+    result["Pin_Bar"] = _arr(is_bp & ~is_sp, is_sp & ~is_bp)
+
+    # ===== COMPOSITE =====
+    rsi_s   = result["RSI_14"]
+    macd_s  = result["MACD_12_26_9"]
+    stoch_s = result["Stochastic_14_3"]
+
+    result["RSI_MACD_Combo"]   = _arr((rsi_s == "BUY") & (macd_s == "BUY"),
+                                      (rsi_s == "SELL") & (macd_s == "SELL"))
+    result["RSI_Stoch_Combo"]  = _arr((rsi_s == "BUY") & (stoch_s == "BUY"),
+                                      (rsi_s == "SELL") & (stoch_s == "SELL"))
+    result["MACD_Stoch_Combo"] = _arr((macd_s == "BUY") & (stoch_s == "BUY"),
+                                      (macd_s == "SELL") & (stoch_s == "SELL"))
+    result["Triple_OSC_Combo"] = _arr(
+        (rsi_s == "BUY") & (macd_s == "BUY") & (stoch_s == "BUY"),
+        (rsi_s == "SELL") & (macd_s == "SELL") & (stoch_s == "SELL"),
+    )
+
+    consensus_inds = [rsi_s, macd_s, stoch_s,
+                      result["CCI_20"], result["Williams_R_14"],
+                      result["SMA_20"], result["EMA_Cross_9_21"],
+                      result["BollingerBands_20_2"]]
+    buy_cnt  = sum((s == "BUY").astype(int)  for s in consensus_inds)
+    sell_cnt = sum((s == "SELL").astype(int) for s in consensus_inds)
+    result["All_AND_Consensus"] = _arr(buy_cnt >= 5, sell_cnt >= 5)
+
+    return result
+
+
 def run_backtest_for_indicator(
     df: pd.DataFrame,
     indicator_name: str,
@@ -98,6 +343,7 @@ def run_backtest_for_indicator(
     lot_size: int = 1,
     sl_mode: str = "pips",
     tp_mode: str = "pips",
+    precomputed_signals: Optional[np.ndarray] = None,
 ) -> Optional[dict]:
     """
     単一指標のバックテストを実行する。
@@ -165,19 +411,20 @@ def run_backtest_for_indicator(
             prev_signal = "NEUTRAL"
             continue
 
-        # 過去30本でシグナル計算
-        window = backtest_df.iloc[max(0, i - 100):i].copy()
-        if len(window) < 30:
-            continue
-
-        try:
-            indicator_result = indicator_func(window)
-        except Exception as exc:
-            logger.debug("Indicator error at %d: %s", i, exc)
-            continue
-
-        ind_data = indicator_result.get(indicator_name, {})
-        signal = ind_data.get("signal", "NEUTRAL")
+        # シグナル取得: 事前計算済み配列 (O(1)) or バーごと計算 (O(window))
+        if precomputed_signals is not None:
+            signal = precomputed_signals[i] if i < len(precomputed_signals) else "NEUTRAL"
+        else:
+            window = backtest_df.iloc[max(0, i - 100):i].copy()
+            if len(window) < 30:
+                continue
+            try:
+                indicator_result = indicator_func(window)
+            except Exception as exc:
+                logger.debug("Indicator error at %d: %s", i, exc)
+                continue
+            ind_data = indicator_result.get(indicator_name, {})
+            signal = ind_data.get("signal", "NEUTRAL")
 
         if signal == "NEUTRAL":
             prev_signal = "NEUTRAL"
@@ -370,6 +617,15 @@ def run_all_backtests(pair: str, timeframe: str, df: pd.DataFrame,
 
     results = []
 
+    # 全指標のシグナルを一括事前計算（O(n) × 指標数）
+    # これにより run_backtest_for_indicator 内のバーごと計算（O(n²)）を回避する
+    try:
+        precomputed = _precompute_all_signals(df)
+        logger.debug("シグナル事前計算完了: %d指標", len(precomputed))
+    except Exception as e:
+        logger.warning("シグナル事前計算失敗（フォールバック）: %s", e)
+        precomputed = {}
+
     # ---- 通常バックテスト（固定 pips SL/TP）----
     for func, category in indicator_modules:
         try:
@@ -388,12 +644,14 @@ def run_all_backtests(pair: str, timeframe: str, df: pd.DataFrame,
                 sl_pips=sl_pips,
                 tp_pips=tp_pips,
                 backtest_hours=backtest_hours,
+                precomputed_signals=precomputed.get(ind_name),
             )
             if result:
                 result["indicator_category"] = category
                 results.append(result)
 
     # ---- BB損切りバリアント（SL=BB下限, TP=BB上限）----
+    # BBSLはシグナルロジックは通常と同じ（SL/TP計算のみ異なる）→ 同じ事前計算を再利用
     bb_sl_modules = [
         (calculate_oscillators, "oscillator"),
         (calculate_trend, "trend"),
@@ -418,6 +676,7 @@ def run_all_backtests(pair: str, timeframe: str, df: pd.DataFrame,
                 backtest_hours=backtest_hours,
                 sl_mode="bb",
                 tp_mode="bb",
+                precomputed_signals=precomputed.get(ind_name),
             )
             if result:
                 result["indicator_name"] = ind_name + "_BBSL"
