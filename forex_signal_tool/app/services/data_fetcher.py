@@ -35,13 +35,14 @@ YF_INTERVAL_MAP = {
     "daily": "1d",
 }
 
-# タイムフレームごとの取得設定
-# 日足は period="max" で最長履歴、短期足は start/end 日付指定
-YF_DAYS_BACK = {
-    "5min":  7,    # yfinance制約: 5m は最大7日
-    "15min": 55,   # yfinance制約: 60日が上限だが境界で失敗するため55日に設定
-    "30min": 55,   # 同上
-    "1hr":   90,   # Yahoo Finance API が長期1h取得で失敗するため90日に設定
+# タイムフレームごとの取得ウィンドウ（時間単位）
+# Cron が5分ごとに動くため、直近数時間分だけ取得すれば十分
+YF_HOURS_BACK = {
+    "5min":  2,   # 直近2時間（5min×24本）
+    "15min": 6,   # 直近6時間
+    "30min": 6,   # 直近6時間
+    "1hr":   6,   # 直近6時間
+    "4hr":   12,  # 直近12時間（1hrで取得して4hrにリサンプリング）
 }
 
 
@@ -70,19 +71,16 @@ def fetch_yfinance(pair: str, timeframe: str) -> Optional[pd.DataFrame]:
     try:
         ticker = yf.Ticker(ticker_symbol)
 
-        # 日足: period="max" で最長履歴を取得（USDJPY=X は1990年代まで遡れる）
-        if fetch_tf == "daily":
-            df = ticker.history(period="max", interval=interval, auto_adjust=True)
-        else:
-            # 短期足: start/end 日付指定（yfinance API制約に従った最大期間）
-            days_back = YF_DAYS_BACK.get(fetch_tf, 60)
-            end_dt   = datetime.now(timezone.utc)
-            start_dt = end_dt - timedelta(days=days_back)
-            df = ticker.history(
-                start=start_dt.strftime("%Y-%m-%d"),
-                end=end_dt.strftime("%Y-%m-%d"),
-                interval=interval, auto_adjust=True,
-            )
+        # 短期足: 直近N時間のみ取得（Cronが5分ごとのため長期取得は不要）
+        # timeframe基準でウィンドウを決める（4hrは1hrで取得するため元のtimeframeを参照）
+        hours_back = YF_HOURS_BACK.get(timeframe, 6)
+        end_dt     = datetime.now(timezone.utc)
+        start_dt   = end_dt - timedelta(hours=hours_back)
+        df = ticker.history(
+            start=start_dt,
+            end=end_dt,
+            interval=interval, auto_adjust=True,
+        )
 
         if df.empty:
             logger.warning("No data returned for %s %s", pair, timeframe)
@@ -309,8 +307,8 @@ def fetch_alphavantage_daily(pair: str) -> Optional[pd.DataFrame]:
 def fetch_and_store_all(pairs=None, timeframes=None) -> dict:
     """
     全通貨ペア・タイムフレームのデータを取得してDBに保存する。
-    日足: Alpha Vantage（正確な OHLCV・長期履歴）
-    その他: yfinance
+    日足は廃止（Alpha Vantage API 制限のため）。
+    5min/15min/30min/1hr/4hr は yfinance で直近N時間のみ取得。
     """
     if pairs is None:
         pairs = Config.CURRENCY_PAIRS
@@ -322,16 +320,12 @@ def fetch_and_store_all(pairs=None, timeframes=None) -> dict:
     for pair in pairs:
         results[pair] = {}
         for tf in timeframes:
-            logger.info("Fetching %s %s ...", pair, tf)
-
             if tf == "daily":
-                # 日足は Alpha Vantage のみ（yfinance は使わない）
-                df = fetch_alphavantage_daily(pair)
-                # Alpha Vantage は 5req/分制限 → ペア間で待機
-                time.sleep(15)
-            else:
-                # 日足以外は yfinance
-                df = fetch_yfinance(pair, tf)
+                # 日足は廃止
+                continue
+
+            logger.info("Fetching %s %s ...", pair, tf)
+            df = fetch_yfinance(pair, tf)
 
             if df is not None and not df.empty:
                 saved = save_price_data(pair, tf, df)
@@ -340,7 +334,7 @@ def fetch_and_store_all(pairs=None, timeframes=None) -> dict:
             else:
                 results[pair][tf] = 0
                 logger.warning("  %s %s: データなし", pair, tf)
-            time.sleep(1)  # Yahoo Financeへの負荷軽減
+            time.sleep(1)  # Yahoo Finance への負荷軽減
 
     return results
 
