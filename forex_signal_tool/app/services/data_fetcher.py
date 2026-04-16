@@ -23,6 +23,9 @@ YF_PAIR_MAP = {
     "USDJPY": "USDJPY=X",
     "GBPJPY": "GBPJPY=X",
     "EURJPY": "EURJPY=X",
+    # マクロ指標（トレンドスコア用）
+    "US10Y": "^TNX",       # 米10年債利回り
+    "DXY":   "DX-Y.NYB",  # ドルインデックス
 }
 
 # yfinance インターバルマッピング
@@ -44,6 +47,10 @@ YF_HOURS_BACK = {
     "1hr":   6,   # 直近6時間
     "4hr":   12,  # 直近12時間（1hrで取得して4hrにリサンプリング）
 }
+
+# マクロ指標（US10Y / DXY）の取得対象タイムフレーム
+MACRO_PAIRS = ["US10Y", "DXY"]
+MACRO_TIMEFRAMES = ["1hr"]
 
 
 def fetch_yfinance(pair: str, timeframe: str) -> Optional[pd.DataFrame]:
@@ -336,6 +343,30 @@ def fetch_and_store_all(pairs=None, timeframes=None) -> dict:
                 logger.warning("  %s %s: データなし", pair, tf)
             time.sleep(1)  # Yahoo Finance への負荷軽減
 
+    return results
+
+
+def fetch_and_store_macro() -> dict:
+    """
+    マクロ指標（米10年債利回り US10Y / ドルインデックス DXY）の
+    1時間足データを yfinance から取得して price_data テーブルに保存する。
+
+    通貨ペアと同じテーブル・同じスキーマを使用（currency_pair = "US10Y"/"DXY"）。
+    """
+    results = {}
+    for pair in MACRO_PAIRS:
+        results[pair] = {}
+        for tf in MACRO_TIMEFRAMES:
+            logger.info("Fetching macro %s %s ...", pair, tf)
+            df = fetch_yfinance(pair, tf)
+            if df is not None and not df.empty:
+                saved = save_price_data(pair, tf, df)
+                results[pair][tf] = saved
+                logger.info("  %s %s: %d件保存", pair, tf, saved)
+            else:
+                results[pair][tf] = 0
+                logger.warning("  %s %s: データなし", pair, tf)
+            time.sleep(1)
     return results
 
 

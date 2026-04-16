@@ -50,6 +50,17 @@ def main():
     except Exception as e:
         logger.exception("データ取得 エラー: %s", e)
 
+    # ---- 1b. マクロ指標取得（US10Y / DXY 1時間足）----
+    try:
+        from app.services.data_fetcher import fetch_and_store_macro
+        with app.app_context():
+            logger.info("--- マクロ指標取得 開始 ---")
+            macro_results = fetch_and_store_macro()
+            macro_total = sum(v for tf_r in macro_results.values() for v in tf_r.values())
+            logger.info("--- マクロ指標取得 完了: %d件 ---", macro_total)
+    except Exception as e:
+        logger.exception("マクロ指標取得 エラー: %s", e)
+
     # ---- 2. シグナル更新 ----
     try:
         from app.services.signal_engine import run_signal_engine

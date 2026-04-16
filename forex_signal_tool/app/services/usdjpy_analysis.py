@@ -112,7 +112,6 @@ def get_usdjpy_trend_score() -> dict:
         return _cache["result"]
 
     from app.services.data_fetcher import get_candles
-    import yfinance as yf
 
     # --- USD/JPY キャンドル取得 ---
     df_5m = get_candles("USDJPY", "5min", limit=210)
@@ -144,20 +143,20 @@ def get_usdjpy_trend_score() -> dict:
     if math.isnan(rsi_14):
         return {"error": "RSI計算に失敗しました"}
 
-    # --- US10Y / DXY 方向判定（MA5 ベース・ノイズ除去）---
-    def _is_rising(ticker_sym: str) -> bool:
-        """直近5本の MA と現在値を比較。タイムアウト時は False（保守的デフォルト）。"""
+    # --- US10Y / DXY 方向判定（DB参照・MA5 ベース・ノイズ除去）---
+    def _is_rising(pair_key: str) -> bool:
+        """DB から直近5本の 1hr 終値を取得し MA と現在値を比較。データ不足時は False。"""
         try:
-            df = yf.Ticker(ticker_sym).history(period="5d", interval="1h", auto_adjust=True)
-            if df is None or len(df) < 5:
+            df_macro = get_candles(pair_key, "1hr", limit=10)
+            if df_macro.empty or len(df_macro) < 5:
                 return False
-            close = df["Close"].astype(float)
+            close = df_macro["close"].astype(float)
             return float(close.iloc[-1]) > float(close.iloc[-5:].mean())
         except Exception:
             return False
 
-    us10y_rising = _is_rising("^TNX")
-    dxy_rising = _is_rising("DX-Y.NYB")
+    us10y_rising = _is_rising("US10Y")
+    dxy_rising = _is_rising("DXY")
 
     result = calculate_trend_score(
         price_5m=price_5m,
