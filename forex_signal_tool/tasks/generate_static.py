@@ -409,6 +409,15 @@ def get_pair_data(pair: str) -> dict:
     except Exception as e:
         logger.warning("Sim trades error %s: %s", pair, e)
 
+    # トレンドスコア（USD/JPY 専用）
+    trend_score = None
+    if pair == "USDJPY":
+        try:
+            from app.services.usdjpy_analysis import get_usdjpy_trend_score
+            trend_score = get_usdjpy_trend_score()
+        except Exception as e:
+            logger.warning("Trend score error for %s: %s", pair, e)
+
     return {
         "pair": pair,
         "display": f"{pair[:3]}/{pair[3:]}",
@@ -429,6 +438,7 @@ def get_pair_data(pair: str) -> dict:
         "sl_pips":          sl_pips,
         "tp_pips":          tp_pips,
         "rr_ratio":         rr_ratio,
+        "trend_score":      trend_score,
     }
 
 
