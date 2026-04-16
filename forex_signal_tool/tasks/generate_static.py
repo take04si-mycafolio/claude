@@ -330,7 +330,7 @@ def get_pair_data(pair: str) -> dict:
             .filter_by(currency_pair=pair, timeframe=_tf)
             .filter(BacktestResult.total_trades >= 10)
             .order_by(BacktestResult.win_rate.desc())
-            .limit(20)
+            .limit(5)
             .all()
         )
         if rows:
