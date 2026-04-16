@@ -436,6 +436,15 @@ def get_pair_data(pair: str) -> dict:
         except Exception as e:
             logger.warning("Trend score error for %s: %s", pair, e)
 
+    # スコア帯別バックテスト実績（USD/JPY 専用）
+    score_band_stats = None
+    if pair == "USDJPY":
+        try:
+            from app.services.score_backtest import compute_score_band_stats
+            score_band_stats = compute_score_band_stats()
+        except Exception as e:
+            logger.warning("Score band stats error for %s: %s", pair, e)
+
     return {
         "pair": pair,
         "display": f"{pair[:3]}/{pair[3:]}",
@@ -459,6 +468,7 @@ def get_pair_data(pair: str) -> dict:
         "tp_pips":          tp_pips,
         "rr_ratio":         rr_ratio,
         "trend_score":      trend_score,
+        "score_band_stats": score_band_stats,
     }
 
 

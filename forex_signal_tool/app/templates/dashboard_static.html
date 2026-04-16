@@ -168,6 +168,56 @@
 </div>
 {% endif %}
 
+<!-- スコア帯別過去実績 -->
+{% if data.score_band_stats and not data.score_band_stats.error %}
+{% set sbs = data.score_band_stats %}
+<div class="section-card">
+  <div class="section-title section-title-row">
+    <div class="section-title-left">
+      <i class="bi bi-graph-up text-success me-2"></i>スコア帯別 過去実績
+      <span class="info-tip" data-tip="過去の1時間足データでスコアを遡及計算し、{{ sbs.forward_hours }}時間後の損益を集計した検証結果です。勝率は{{ sbs.forward_hours }}時間後に価格が上昇していれば勝ちと定義しています。5分足成分は1時間足MA20で近似しています。">
+        <i class="bi bi-info-circle-fill"></i>
+      </span>
+    </div>
+    <span class="signal-updated-badge">{{ sbs.period_start }}〜{{ sbs.period_end }}</span>
+  </div>
+
+  <table class="sbs-table">
+    <thead>
+      <tr>
+        <th>スコア帯</th>
+        <th>件数</th>
+        <th>勝率</th>
+        <th>平均損益</th>
+        <th>最大損失</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for b in sbs.bands %}
+      <tr{% if b.count == 0 %} class="sbs-row-empty"{% endif %}>
+        <td><span class="ts-level-badge ts-{{ b.level }}">{{ b.label }}</span></td>
+        <td class="sbs-num">{{ b.count }}件</td>
+        {% if b.win_rate is not none %}
+        <td class="sbs-num {% if b.win_rate >= 60 %}pos{% elif b.win_rate < 50 %}neg{% endif %}">
+          {{ "%.1f"|format(b.win_rate) }}%
+        </td>
+        <td class="sbs-num {% if b.avg_pips > 0 %}pos{% elif b.avg_pips < 0 %}neg{% endif %}">
+          {% if b.avg_pips > 0 %}+{% endif %}{{ b.avg_pips }}p
+        </td>
+        <td class="sbs-num neg">{{ b.max_loss_pips }}p</td>
+        {% else %}
+        <td class="sbs-num sbs-no-data" colspan="3">データなし</td>
+        {% endif %}
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  <div class="sbs-note">
+    直近{{ sbs.total_analyzed }}件の1時間足で検証 &nbsp;/&nbsp; {{ sbs.forward_hours }}時間後基準 &nbsp;/&nbsp; 1pip=0.01円 &nbsp;/&nbsp; 5分足は1時間足MA20で近似
+  </div>
+</div>
+{% endif %}
+
 <!-- シグナル一覧 -->
 <div class="section-card">
   <div class="section-title section-title-row">

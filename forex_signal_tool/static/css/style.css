@@ -1092,3 +1092,40 @@ body {
 .ts-rsi-tag.ts-rsi-ok      { background: rgba(22,163,74,0.12); color: #16a34a; }
 .ts-rsi-tag.ts-rsi-warn    { background: rgba(248,113,113,0.15); color: #ef4444; }
 .ts-rsi-tag.ts-rsi-rebound { background: rgba(167,139,250,0.15); color: #7c3aed; }
+
+/* ===== スコア帯別実績テーブル ===== */
+.sbs-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.78rem;
+  margin-bottom: 8px;
+}
+.sbs-table th {
+  font-size: 0.68rem;
+  font-weight: 600;
+  color: #94a3b8;
+  text-align: center;
+  padding: 4px 4px 8px;
+  border-bottom: 1px solid #f1f5f9;
+}
+.sbs-table th:first-child { text-align: left; }
+.sbs-table td {
+  padding: 7px 4px;
+  border-bottom: 1px solid #f8fafc;
+  vertical-align: middle;
+}
+.sbs-table tr:last-child td { border-bottom: none; }
+.sbs-num {
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+.sbs-num.pos { color: #16a34a; font-weight: 600; }
+.sbs-num.neg { color: #ef4444; font-weight: 600; }
+.sbs-row-empty td { color: #94a3b8; }
+.sbs-no-data { color: #94a3b8; }
+.sbs-note {
+  font-size: 0.62rem;
+  color: #94a3b8;
+  line-height: 1.6;
+  margin-top: 4px;
+}
