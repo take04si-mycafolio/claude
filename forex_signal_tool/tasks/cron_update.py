@@ -14,7 +14,7 @@ Xserver Cron 設定例（30分ごと）:
 import sys
 import os
 import logging
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
@@ -28,10 +28,10 @@ logger = logging.getLogger(__name__)
 def main():
     from app import create_app
     from app.models.settings import Setting
-    from datetime import datetime, timezone
+    from datetime import datetime, timezone, timedelta
 
     app = create_app()
-    now = datetime.now(timezone.utc).strftime("%Y/%m/%d %H:%M UTC")
+    now = datetime.now(timezone(timedelta(hours=9))).strftime("%Y/%m/%d %H:%M JST")
     logger.info("========== cron_update 開始 %s ==========", now)
 
     # ---- 1. データ取得（短期足のみ・日足は fetch_daily.py が担当）----
@@ -43,7 +43,7 @@ def main():
             logger.info("--- データ取得 開始（短期足: %s）---", intraday_tfs)
             results = fetch_and_store_all(timeframes=intraday_tfs)
             total = sum(v for tf_r in results.values() for v in tf_r.values())
-            now_str = datetime.now(timezone.utc).strftime("%Y/%m/%d %H:%M UTC")
+            now_str = datetime.now(timezone(timedelta(hours=9))).strftime("%Y/%m/%d %H:%M JST")
             Setting.set("last_data_fetch_at", now_str)
             Setting.set("fetch_status", "done")
             logger.info("--- データ取得 完了: %d件 ---", total)
@@ -57,7 +57,7 @@ def main():
             logger.info("--- シグナル更新 開始 ---")
             signal_results = run_signal_engine()
             total_sig = sum(v for tf_r in signal_results.values() for v in tf_r.values())
-            now_str2 = datetime.now(timezone.utc).strftime("%Y/%m/%d %H:%M UTC")
+            now_str2 = datetime.now(timezone(timedelta(hours=9))).strftime("%Y/%m/%d %H:%M JST")
             Setting.set("last_signal_update_at", now_str2)
             Setting.set("signal_status", "done")
             logger.info("--- シグナル更新 完了: %d件 ---", total_sig)

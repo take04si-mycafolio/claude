@@ -9,7 +9,7 @@
 import sys
 import os
 import logging
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
@@ -84,7 +84,7 @@ def main():
 
         logger.info("完了: 合計%d件のバックテスト結果を保存", total_saved)
 
-        now_str = datetime.now(timezone.utc).strftime("%Y/%m/%d %H:%M UTC")
+        now_str = datetime.now(timezone(timedelta(hours=9))).strftime("%Y/%m/%d %H:%M JST")
         Setting.set("last_backtest_at", now_str)
         Setting.set("backtest_status", "done")
 

@@ -28,7 +28,7 @@ def main():
     from app.models.settings import Setting
     from app.services.signal_engine import run_signal_engine
     from app.services.backtester import save_daily_snapshot
-    from datetime import datetime, timezone, date
+    from datetime import datetime, timezone, timedelta, date
 
     app = create_app()
     with app.app_context():
@@ -38,7 +38,7 @@ def main():
             for tf, count in tf_results.items():
                 logger.info("  %s %s: %d個のシグナル", pair, tf, count)
         logger.info("シグナル生成完了")
-        now_str = datetime.now(timezone.utc).strftime("%Y/%m/%d %H:%M UTC")
+        now_str = datetime.now(timezone(timedelta(hours=9))).strftime("%Y/%m/%d %H:%M JST")
         Setting.set("last_signal_update_at", now_str)
         Setting.set("signal_status", "done")
 

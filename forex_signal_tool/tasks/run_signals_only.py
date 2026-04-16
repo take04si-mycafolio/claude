@@ -26,8 +26,9 @@ def main():
     from app import create_app
     from app.models.settings import Setting
     from app.services.signal_engine import run_signal_engine
-    from datetime import datetime, timezone
+    from datetime import datetime, timezone, timedelta
 
+    JST = timezone(timedelta(hours=9))
     app = create_app()
     with app.app_context():
         logger.info("シグナル生成開始")
@@ -35,7 +36,7 @@ def main():
         for pair, tf_results in signal_results.items():
             for tf, count in tf_results.items():
                 logger.info("  %s %s: %d個のシグナル", pair, tf, count)
-        now_str = datetime.now(timezone.utc).strftime("%Y/%m/%d %H:%M UTC")
+        now_str = datetime.now(JST).strftime("%Y/%m/%d %H:%M JST")
         Setting.set("last_signal_update_at", now_str)
         Setting.set("signal_status", "done")
         logger.info("シグナル生成完了")
