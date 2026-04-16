@@ -875,7 +875,15 @@ body {
 .trade-row:active td { background: #dbeafe; }
 
 /* 通貨ペアタブ */
-.ind-pair-tabs { border-bottom: 1px solid #e2e8f0; gap: 2px; }
+.ind-pair-tabs {
+  border-bottom: 1px solid #e2e8f0;
+  gap: 2px;
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+}
+.ind-pair-tabs::-webkit-scrollbar { display: none; }
 /* 勝率ランキング用タブ: 1行固定・横スクロール */
 .rank-tf-tabs {
   border-bottom: 1px solid #e2e8f0;
@@ -902,13 +910,14 @@ body {
   border-color: #e2e8f0 #e2e8f0 #fff;
 }
 .ind-pair-tabs .nav-link {
-  font-size: 0.75rem;
+  font-size: 0.65rem;
   font-weight: 600;
-  padding: 5px 12px;
+  padding: 5px 10px;
   border-radius: 6px 6px 0 0;
   color: #64748b;
   border: 1px solid transparent;
   border-bottom: none;
+  white-space: nowrap;
 }
 .ind-pair-tabs .nav-link.active {
   color: #3b82f6;
