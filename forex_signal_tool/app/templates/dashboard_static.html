@@ -94,7 +94,7 @@
   <div class="section-title section-title-row">
     <div class="section-title-left">
       <i class="bi bi-speedometer2 text-primary me-2"></i>トレンドスコア
-      <span class="info-tip" data-tip="マルチタイムフレームのMA合流・米金利・DXY・RSIを総合した買い強度の目安です。100点満点。スコアが低い場合は売り優勢または方向感なしを意味します。">
+      <span class="info-tip" data-tip="マルチタイムフレームのMA合流・米金利・DXY・RSIを総合した方向性スコアです。+100〜-100の双方向で、正が買い・負が売り優勢。±30以内はレンジ。">
         <i class="bi bi-info-circle-fill"></i>
       </span>
     </div>
@@ -109,7 +109,9 @@
 
   <!-- スコア & レベル -->
   <div class="ts-score-row">
-    <div class="ts-score-num">{{ ts.score }}</div>
+    <div class="ts-score-num {% if ts.score > 0 %}ts-score-pos{% elif ts.score < 0 %}ts-score-neg{% endif %}">
+      {% if ts.score > 0 %}+{% endif %}{{ ts.score }}
+    </div>
     <div class="ts-score-right">
       <span class="ts-level-badge ts-{{ ts_cls }}">{{ ts.level }}</span>
       <div class="ts-message">{{ ts.message }}</div>
@@ -121,26 +123,45 @@
     <div class="ts-bd-item">
       <div class="ts-bd-label">トレンド合流</div>
       <div class="ts-bd-bar-wrap">
-        <div class="ts-bd-bar ts-bd-bar-trend" style="width:{{ [ts.breakdown.trend_score / 50 * 100, 100] | min | int }}%"></div>
+        <div class="ts-bd-bar {% if ts.breakdown.trend_score >= 0 %}ts-bd-bar-trend{% else %}ts-bd-bar-neg{% endif %}"
+             style="width:{{ [ts.breakdown.trend_score | abs / 50 * 100, 100] | min | int }}%"></div>
       </div>
-      <div class="ts-bd-val">{{ ts.breakdown.trend_score }}/50</div>
+      <div class="ts-bd-val {% if ts.breakdown.trend_score < 0 %}ts-neg{% endif %}">
+        {% if ts.breakdown.trend_score > 0 %}+{% endif %}{{ ts.breakdown.trend_score }}/50
+      </div>
     </div>
     <div class="ts-bd-item">
       <div class="ts-bd-label">外部要因</div>
       <div class="ts-bd-bar-wrap">
-        <div class="ts-bd-bar ts-bd-bar-ext" style="width:{{ [ts.breakdown.external_score / 30 * 100, 100] | min | int }}%"></div>
+        <div class="ts-bd-bar {% if ts.breakdown.external_score >= 0 %}ts-bd-bar-ext{% else %}ts-bd-bar-neg{% endif %}"
+             style="width:{{ [ts.breakdown.external_score | abs / 30 * 100, 100] | min | int }}%"></div>
       </div>
-      <div class="ts-bd-val">{{ ts.breakdown.external_score }}/30</div>
+      <div class="ts-bd-val {% if ts.breakdown.external_score < 0 %}ts-neg{% endif %}">
+        {% if ts.breakdown.external_score > 0 %}+{% endif %}{{ ts.breakdown.external_score }}/30
+      </div>
     </div>
     <div class="ts-bd-item">
       <div class="ts-bd-label">モメンタム</div>
       <div class="ts-bd-bar-wrap">
         {% if ts.breakdown.momentum_score > 0 %}
         <div class="ts-bd-bar ts-bd-bar-mom" style="width:{{ [ts.breakdown.momentum_score / 20 * 100, 100] | min | int }}%"></div>
+        {% elif ts.breakdown.momentum_score < 0 %}
+        <div class="ts-bd-bar ts-bd-bar-neg" style="width:{{ [ts.breakdown.momentum_score | abs / 20 * 100, 100] | min | int }}%"></div>
         {% endif %}
       </div>
-      <div class="ts-bd-val {% if ts.breakdown.momentum_score < 0 %}ts-neg{% endif %}">{{ ts.breakdown.momentum_score }}</div>
+      <div class="ts-bd-val {% if ts.breakdown.momentum_score < 0 %}ts-neg{% endif %}">
+        {% if ts.breakdown.momentum_score > 0 %}+{% endif %}{{ ts.breakdown.momentum_score }}
+      </div>
     </div>
+    {% if ts.breakdown.deviation_penalty < 0 %}
+    <div class="ts-bd-item">
+      <div class="ts-bd-label">乖離ペナルティ</div>
+      <div class="ts-bd-bar-wrap">
+        <div class="ts-bd-bar ts-bd-bar-neg" style="width:{{ [ts.breakdown.deviation_penalty | abs / 30 * 100, 100] | min | int }}%"></div>
+      </div>
+      <div class="ts-bd-val ts-neg">{{ ts.breakdown.deviation_penalty }}</div>
+    </div>
+    {% endif %}
   </div>
 
   <!-- 詳細チェック -->
@@ -148,7 +169,8 @@
     {% set checks = [
       ('5m MA20 上抜け', ts.detail['5m_above_ma20']),
       ('1h MA75 上抜け', ts.detail['1h_above_ma75']),
-      ('パーフェクトオーダー', ts.detail.perfect_order),
+      ('PO 上向き', ts.detail.perfect_order_up),
+      ('PO 下向き未崩れ', not ts.detail.perfect_order_down),
       ('米10年債利回り↑', ts.detail.us10y_rising),
       ('DXY↑', ts.detail.dxy_rising),
     ] %}
@@ -160,8 +182,8 @@
     <div class="ts-detail-item ts-rsi-item">
       <i class="bi bi-activity"></i>RSI {{ ts.detail.rsi }}
       {% if ts.detail.rsi_status == 'momentum' %}<span class="ts-rsi-tag ts-rsi-ok">順張り</span>
-      {% elif ts.detail.rsi_status == 'overheated' %}<span class="ts-rsi-tag ts-rsi-warn">過熱</span>
-      {% elif ts.detail.rsi_status == 'oversold_rebound' %}<span class="ts-rsi-tag ts-rsi-rebound">反発初動</span>
+      {% elif ts.detail.rsi_status == 'warning' %}<span class="ts-rsi-tag ts-rsi-warn">過熱</span>
+      {% elif ts.detail.rsi_status == 'oversold_bounce' %}<span class="ts-rsi-tag ts-rsi-rebound">反発初動</span>
       {% endif %}
     </div>
   </div>

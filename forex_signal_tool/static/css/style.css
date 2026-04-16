@@ -1020,6 +1020,8 @@ body {
   line-height: 1;
   color: #1a1a2e;
 }
+.ts-score-num.ts-score-pos { color: #16a34a; }
+.ts-score-num.ts-score-neg { color: #dc2626; }
 .ts-score-right {
   display: flex;
   flex-direction: column;
@@ -1037,7 +1039,8 @@ body {
 .ts-level-badge.ts-strong-buy { background: rgba(22,163,74,0.15); color: #16a34a; }
 .ts-level-badge.ts-buy        { background: rgba(74,222,128,0.15); color: #15803d; }
 .ts-level-badge.ts-neutral    { background: rgba(148,163,184,0.2); color: #64748b; }
-.ts-level-badge.ts-warning    { background: rgba(248,113,113,0.15); color: #ef4444; }
+.ts-level-badge.ts-sell        { background: rgba(248,113,113,0.15); color: #ef4444; }
+.ts-level-badge.ts-strong-sell { background: rgba(220,38,38,0.2);    color: #dc2626; }
 .ts-message {
   font-size: 0.78rem;
   color: #64748b;
@@ -1070,6 +1073,7 @@ body {
 .ts-bd-bar-trend { background: #3b82f6; }
 .ts-bd-bar-ext   { background: #f59e0b; }
 .ts-bd-bar-mom   { background: #a78bfa; }
+.ts-bd-bar-neg   { background: #ef4444; }
 .ts-bd-val {
   width: 34px;
   text-align: right;

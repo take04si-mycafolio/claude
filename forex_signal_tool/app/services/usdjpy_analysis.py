@@ -2,7 +2,10 @@
 USD/JPY 多角的シグナル判定エンジン
 
 マルチタイムフレームMA合流 + 外部マクロ要因 + モメンタム を
-100点満点でスコア化し、Strong Buy / Buy / Neutral / Warning レベルを返す。
+-100〜+100 のスコアで方向性を判定する。
+  正スコア: 買い優勢
+  負スコア: 売り優勢
+  ±30以内: レンジ（様子見）
 """
 
 import math
@@ -25,79 +28,121 @@ def calculate_trend_score(
     rsi_14: float,
     us10y_rising: bool,
     dxy_rising: bool,
+    rsi_prev: float = None,
 ) -> dict:
     """
     純粋関数: 入力値からトレンドスコアを計算して返す（副作用なし・テスト可能）
 
-    スコア内訳:
-        ① トレンド合流（最大 50 点）
-            - 5分足終値 > MA20(5min)       : +10
-            - 1時間足終値 > MA75(1hr)       : +20
-            - パーフェクトオーダー(1hr)      : +20
-        ② 外部要因（最大 30 点）
-            - US10Y が MA(5) より上          : +15
-            - DXY が MA(5) より上            : +15
-        ③ モメンタム（最大 +20 / 最小 -10）
-            - 50 ≤ RSI ≤ 65               : +20（順張りの勢い）
-            - RSI ≥ 75                     : -10（過熱警戒）
-            - RSI ≤ 30                     : +5 （売られすぎからの反発初動）
+    スコア範囲: -100〜+100（正=買い優勢 / 負=売り優勢 / ±30内=レンジ）
+
+    ① トレンド合流（-50〜+50）
+        - 5m終値 vs MA20   : 上抜け +10 / 下抜け -10
+        - 1h終値 vs MA75   : 上抜け +20 / 下抜け -20
+        - 1h パーフェクトオーダー上向き: +20
+        - 1h パーフェクトオーダー下向き: -20
+        - 崩れ: 0
+
+    ② 外部要因（-30〜+30）
+        - US10Y MA(5) 上抜け: +15 / 下抜け: -15
+        - DXY   MA(5) 上抜け: +15 / 下抜け: -15
+
+    ③ 乖離率ペナルティ（0 or -30）
+        - price_1h が ma20_1h から 0.5% 以上乖離: -30
+
+    ④ モメンタム（-20〜+20）
+        - RSI 50-65        : +10（順張り勢い）
+        - RSI 65-75        : -5 （過熱警戒）
+        - RSI ≥ 75         : -20（買われすぎ）
+        - RSI ≤ 30 かつ上向き（rsi_prev指定時）: +15（反発初動）
+        - RSI ≤ 30 かつ横ばい/下向き: 0
+        - その他           : 0
+
+    レベル定義:
+        ≥ +70 : Strong Buy  / +30〜+69 : Buy
+        -30〜+29: Neutral   / -70〜-31 : Sell  / ≤ -70 : Strong Sell
     """
     # ① トレンド合流
-    above_5m_ma20 = price_5m > ma20_5m
-    above_1h_ma75 = price_1h > ma75_1h
-    perfect_order = (ma20_1h > ma75_1h) and (ma75_1h > ma200_1h)
+    above_5m_ma20      = price_5m > ma20_5m
+    above_1h_ma75      = price_1h > ma75_1h
+    perfect_order_up   = (ma20_1h > ma75_1h) and (ma75_1h > ma200_1h)
+    perfect_order_down = (ma20_1h < ma75_1h) and (ma75_1h < ma200_1h)
 
     trend_score = (
-        (10 if above_5m_ma20 else 0)
-        + (20 if above_1h_ma75 else 0)
-        + (20 if perfect_order else 0)
+        (10 if above_5m_ma20 else -10)
+        + (20 if above_1h_ma75 else -20)
+        + (20 if perfect_order_up else (-20 if perfect_order_down else 0))
     )
 
     # ② 外部要因
-    external_score = (15 if us10y_rising else 0) + (15 if dxy_rising else 0)
+    external_score = (
+        (15 if us10y_rising else -15)
+        + (15 if dxy_rising else -15)
+    )
 
-    # ③ モメンタム
+    # ③ 乖離率ペナルティ
+    deviation = abs(price_1h - ma20_1h) / ma20_1h if ma20_1h else 0
+    deviation_penalty = -30 if deviation > 0.005 else 0
+
+    # ④ モメンタム
+    oversold_bounce = (
+        rsi_prev is not None
+        and not math.isnan(rsi_prev)
+        and rsi_14 <= 30
+        and rsi_14 > rsi_prev
+    )
+
     if 50 <= rsi_14 <= 65:
-        momentum_score, rsi_status = 20, "momentum"
+        momentum_score, rsi_status = 10, "momentum"
     elif rsi_14 >= 75:
-        momentum_score, rsi_status = -10, "overheated"
+        momentum_score, rsi_status = -20, "overbought"
+    elif rsi_14 >= 65:
+        momentum_score, rsi_status = -5, "warning"
+    elif oversold_bounce:
+        momentum_score, rsi_status = 15, "oversold_bounce"
     elif rsi_14 <= 30:
-        momentum_score, rsi_status = 5, "oversold_rebound"
+        momentum_score, rsi_status = 0, "oversold"
     else:
         momentum_score, rsi_status = 0, "neutral"
 
-    score = trend_score + external_score + momentum_score
+    score = trend_score + external_score + deviation_penalty + momentum_score
 
-    if score >= 90:
+    if score >= 70:
         level = "Strong Buy"
-        message = "パーフェクトオーダー＆金利同期。絶好の押し目買い局面。"
-    elif score >= 70:
+        message = "トレンド・金利・モメンタムが揃った強い買いシグナル。"
+    elif score >= 30:
         level = "Buy"
-        message = "上昇トレンド継続中。順張りを推奨。"
-    elif score >= 40:
+        message = "上昇優勢。押し目を狙った順張りが有効。"
+    elif score >= -30:
         level = "Neutral"
-        message = "方向感模索中。重要ラインの突破待ち。"
+        message = "方向感なし。レンジ継続の可能性が高い。"
+    elif score >= -70:
+        level = "Sell"
+        message = "下落優勢。戻り売りまたはショートを検討。"
     else:
-        level = "Warning"
-        message = "トレンド転換の兆し、または逆風。"
+        level = "Strong Sell"
+        message = "複数要因が下落を示唆。売り圧力が強い局面。"
 
     return {
         "score": score,
         "level": level,
         "message": message,
         "breakdown": {
-            "trend_score": trend_score,
-            "external_score": external_score,
-            "momentum_score": momentum_score,
+            "trend_score":      trend_score,
+            "external_score":   external_score,
+            "momentum_score":   momentum_score,
+            "deviation_penalty": deviation_penalty,
         },
         "detail": {
-            "5m_above_ma20": above_5m_ma20,
-            "1h_above_ma75": above_1h_ma75,
-            "perfect_order": perfect_order,
-            "us10y_rising": us10y_rising,
-            "dxy_rising": dxy_rising,
-            "rsi": round(rsi_14, 2),
-            "rsi_status": rsi_status,
+            "5m_above_ma20":      above_5m_ma20,
+            "1h_above_ma75":      above_1h_ma75,
+            "perfect_order_up":   perfect_order_up,
+            "perfect_order_down": perfect_order_down,
+            "us10y_rising":       us10y_rising,
+            "dxy_rising":         dxy_rising,
+            "rsi":                round(rsi_14, 2),
+            "rsi_status":         rsi_status,
+            "deviation_pct":      round(deviation * 100, 3),
+            "deviation_penalty":  deviation_penalty,
         },
     }
 
@@ -123,25 +168,28 @@ def get_usdjpy_trend_score() -> dict:
     close_1h = df_1h["close"].astype(float)
 
     # --- MA 計算 ---
-    price_5m = float(close_5m.iloc[-1])
-    ma20_5m = float(close_5m.rolling(20).mean().iloc[-1])
-    price_1h = float(close_1h.iloc[-1])
-    ma20_1h = float(close_1h.rolling(20).mean().iloc[-1])
-    ma75_1h = float(close_1h.rolling(75).mean().iloc[-1])
-    ma200_1h = float(close_1h.rolling(200).mean().iloc[-1])
+    price_5m  = float(close_5m.iloc[-1])
+    ma20_5m   = float(close_5m.rolling(20).mean().iloc[-1])
+    price_1h  = float(close_1h.iloc[-1])
+    ma20_1h   = float(close_1h.rolling(20).mean().iloc[-1])
+    ma75_1h   = float(close_1h.rolling(75).mean().iloc[-1])
+    ma200_1h  = float(close_1h.rolling(200).mean().iloc[-1])
 
     if any(math.isnan(v) for v in [ma20_5m, ma20_1h, ma75_1h, ma200_1h]):
         return {"error": "MA計算に必要なデータが不足しています（200本以上必要）"}
 
     # --- RSI(14) 計算（Wilder平滑化: EWM com=13）---
     delta = close_1h.diff()
-    gain = delta.clip(lower=0).ewm(com=13, adjust=False).mean()
-    loss = (-delta.clip(upper=0)).ewm(com=13, adjust=False).mean()
-    rs = gain / loss.replace(0, float("nan"))
+    gain  = delta.clip(lower=0).ewm(com=13, adjust=False).mean()
+    loss  = (-delta.clip(upper=0)).ewm(com=13, adjust=False).mean()
+    rs    = gain / loss.replace(0, float("nan"))
     rsi_series = 100 - 100 / (1 + rs)
     rsi_14 = float(rsi_series.iloc[-1])
     if math.isnan(rsi_14):
         return {"error": "RSI計算に失敗しました"}
+    rsi_prev = float(rsi_series.iloc[-2]) if len(rsi_series) >= 2 else None
+    if rsi_prev is not None and math.isnan(rsi_prev):
+        rsi_prev = None
 
     # --- US10Y / DXY 方向判定（DB参照・MA5 ベース・ノイズ除去）---
     def _is_rising(pair_key: str) -> bool:
@@ -156,7 +204,7 @@ def get_usdjpy_trend_score() -> dict:
             return False
 
     us10y_rising = _is_rising("US10Y")
-    dxy_rising = _is_rising("DXY")
+    dxy_rising   = _is_rising("DXY")
 
     result = calculate_trend_score(
         price_5m=price_5m,
@@ -168,6 +216,7 @@ def get_usdjpy_trend_score() -> dict:
         rsi_14=rsi_14,
         us10y_rising=us10y_rising,
         dxy_rising=dxy_rising,
+        rsi_prev=rsi_prev,
     )
 
     # --- データ鮮度チェック（市場閉場時・土日対策）---
@@ -177,7 +226,7 @@ def get_usdjpy_trend_score() -> dict:
     if latest_ts.tzinfo is None:
         latest_ts = latest_ts.replace(tzinfo=timezone.utc)
     data_age_hours = (datetime.now(timezone.utc) - latest_ts).total_seconds() / 3600
-    result["data_stale"] = data_age_hours > 4
+    result["data_stale"]     = data_age_hours > 4
     result["data_age_hours"] = round(data_age_hours, 1)
 
     jst = timezone(timedelta(hours=9))
@@ -185,5 +234,5 @@ def get_usdjpy_trend_score() -> dict:
 
     # キャッシュ更新
     _cache["result"] = result
-    _cache["ts"] = time.time()
+    _cache["ts"]     = time.time()
     return result

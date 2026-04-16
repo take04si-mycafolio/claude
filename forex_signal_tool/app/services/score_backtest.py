@@ -9,10 +9,11 @@ import math
 import pandas as pd
 
 SCORE_BANDS = [
-    {"label": "Strong Buy", "level": "strong-buy", "min": 90,   "max": 999},
-    {"label": "Buy",        "level": "buy",         "min": 70,   "max": 89},
-    {"label": "Neutral",    "level": "neutral",     "min": 40,   "max": 69},
-    {"label": "Warning",    "level": "warning",     "min": -999, "max": 39},
+    {"label": "Strong Buy",  "level": "strong-buy",  "min": 70,    "max": 9999,  "direction": "buy"},
+    {"label": "Buy",         "level": "buy",          "min": 30,    "max": 69,    "direction": "buy"},
+    {"label": "Neutral",     "level": "neutral",      "min": -30,   "max": 29,    "direction": "neutral"},
+    {"label": "Sell",        "level": "sell",         "min": -70,   "max": -31,   "direction": "sell"},
+    {"label": "Strong Sell", "level": "strong-sell",  "min": -9999, "max": -71,   "direction": "sell"},
 ]
 
 
@@ -117,11 +118,16 @@ def compute_score_band_stats(
         if any(math.isnan(v) for v in [ma20_v, ma75_v, ma200_v, rsi_v]):
             continue
 
+        rsi_prev_v = float(rsi.iloc[i - 1]) if i > 0 else None
+        if rsi_prev_v is not None and math.isnan(rsi_prev_v):
+            rsi_prev_v = None
+
         result = calculate_trend_score(
             price_5m=price_v,  ma20_5m=ma20_v,   # 5m は 1h MA20 で近似
             price_1h=price_v,
             ma75_1h=ma75_v,    ma20_1h=ma20_v,    ma200_1h=ma200_v,
             rsi_14=rsi_v,
+            rsi_prev=rsi_prev_v,
             us10y_rising=bool(us10y_rising_s.iloc[i]),
             dxy_rising=bool(dxy_rising_s.iloc[i]),
         )
@@ -154,7 +160,10 @@ def compute_score_band_stats(
             })
             continue
 
-        wins     = int((sub["pips"] > 0).sum())
+        if band["direction"] == "sell":
+            wins = int((sub["pips"] < 0).sum())
+        else:
+            wins = int((sub["pips"] > 0).sum())
         avg_pips = round(float(sub["pips"].mean()), 1)
         max_loss = round(float(sub["pips"].min()), 1)
 
