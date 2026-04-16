@@ -99,25 +99,47 @@
     <span class="signal-updated-badge">更新 {{ data.signal_latest_jst }}</span>
     {% endif %}
   </div>
-  {% if data.signals %}
-  <div class="signal-list">
-    {% for s in data.signals %}
-    <div class="signal-item">
-      <div class="signal-item-left">
-        <span class="signal-type-badge {% if s.signal_type == 'BUY' %}buy{% else %}sell{% endif %}">
-          {{ '買い' if s.signal_type == 'BUY' else '売り' }}
-        </span>
-        <div class="signal-item-info">
-          <div class="signal-name">{{ display_map.get(s.indicator_name, s.indicator_name) }}</div>
-          <div class="signal-tf text-muted">{{ s.timeframe }} · 勝率 {{ "%.1f"|format(s.win_rate) if s.win_rate else '--' }}%</div>
-          {% if s.signal_time_jst %}
-          <div class="signal-time-jst">{{ s.signal_time_jst }}</div>
-          {% endif %}
+
+  {% if data.signal_tf_order %}
+  <!-- TFタブ -->
+  <ul class="nav nav-tabs ind-pair-tabs mb-2" id="sigTfTab" role="tablist">
+    {% for tf in data.signal_tf_order %}
+    <li class="nav-item" role="presentation">
+      <button class="nav-link {% if loop.first %}active{% endif %}"
+              data-bs-toggle="tab"
+              data-bs-target="#sig-tf-{{ tf }}"
+              type="button" role="tab">
+        {{ data.tf_labels[tf] or tf }}
+        <span class="sig-tf-count">{{ data.signals_by_tf[tf]|length }}</span>
+      </button>
+    </li>
+    {% endfor %}
+  </ul>
+  <div class="tab-content">
+    {% for tf in data.signal_tf_order %}
+    <div class="tab-pane fade {% if loop.first %}show active{% endif %}"
+         id="sig-tf-{{ tf }}" role="tabpanel">
+      <div class="signal-list">
+        {% for s in data.signals_by_tf[tf] %}
+        <div class="signal-item">
+          <div class="signal-item-left">
+            <span class="signal-type-badge {% if s.signal_type == 'BUY' %}buy{% else %}sell{% endif %}">
+              {{ '買い' if s.signal_type == 'BUY' else '売り' }}
+            </span>
+            <div class="signal-item-info">
+              <div class="signal-name">{{ display_map.get(s.indicator_name, s.indicator_name) }}</div>
+              <div class="signal-tf text-muted">勝率 {{ "%.1f"|format(s.win_rate) if s.win_rate else '--' }}%</div>
+              {% if s.signal_time_jst %}
+              <div class="signal-time-jst">{{ s.signal_time_jst }}</div>
+              {% endif %}
+            </div>
+          </div>
+          <div class="signal-item-right">
+            <div class="signal-price">{{ "%.3f"|format(s.entry_price) if s.entry_price else '--' }}</div>
+            <div class="signal-conf">信頼度 {{ s.confidence_score|int if s.confidence_score else '--' }}</div>
+          </div>
         </div>
-      </div>
-      <div class="signal-item-right">
-        <div class="signal-price">{{ "%.3f"|format(s.entry_price) if s.entry_price else '--' }}</div>
-        <div class="signal-conf">信頼度 {{ s.confidence_score|int if s.confidence_score else '--' }}</div>
+        {% endfor %}
       </div>
     </div>
     {% endfor %}

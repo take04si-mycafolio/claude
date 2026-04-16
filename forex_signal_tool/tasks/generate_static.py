@@ -315,7 +315,7 @@ def get_pair_data(pair: str) -> dict:
         .filter(or_(TradingSignal.expired_at.is_(None),
                     TradingSignal.expired_at > now_utc))
         .order_by(TradingSignal.confidence_score.desc())
-        .limit(10).all()
+        .limit(100).all()
     )
 
     # 最新シグナル生成日時
@@ -347,12 +347,16 @@ def get_pair_data(pair: str) -> dict:
         ts = price_dict.get("timestamp")
         price_dict["timestamp_jst"] = utc_str_to_jst(ts)
 
-    # シグナルに signal_time_jst を付加
+    # シグナルに signal_time_jst を付加 + TF別グループ化
     signal_dicts = []
+    signals_by_tf: dict = {}
     for s in signals:
         d = s.to_dict()
         d["signal_time_jst"] = utc_str_to_jst(s.signal_time)
         signal_dicts.append(d)
+        tf = s.timeframe or "1hr"
+        signals_by_tf.setdefault(tf, []).append(d)
+    signal_tf_order = [tf for tf in TF_ORDER if tf in signals_by_tf]
 
     # ===== シミュレーショントレード（TF別・最大15件ずつ） =====
     sl_pips = Setting.get_float("sl_pips", Config.DEFAULT_SL_PIPS)
@@ -410,6 +414,8 @@ def get_pair_data(pair: str) -> dict:
         "display": f"{pair[:3]}/{pair[3:]}",
         "price": price_dict,
         "signals": signal_dicts,
+        "signals_by_tf": signals_by_tf,
+        "signal_tf_order": signal_tf_order,
         "signal_latest_jst": signal_latest_jst,
         "buy_count": buy_count,
         "sell_count": sell_count,

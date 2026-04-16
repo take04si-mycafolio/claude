@@ -875,6 +875,26 @@ body {
   background: #fff;
   border-color: #e2e8f0 #e2e8f0 #fff;
 }
+.sig-tf-count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 16px;
+  height: 16px;
+  padding: 0 4px;
+  margin-left: 4px;
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 1;
+  border-radius: 8px;
+  background: #e2e8f0;
+  color: #475569;
+  vertical-align: middle;
+}
+.nav-link.active .sig-tf-count {
+  background: #dbeafe;
+  color: #1d4ed8;
+}
 
 /* WIN/LOSS バッジ */
 .ind-outcome {
