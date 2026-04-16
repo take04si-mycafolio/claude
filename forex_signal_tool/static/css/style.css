@@ -887,9 +887,9 @@ body {
 }
 .rank-tf-tabs::-webkit-scrollbar { display: none; }
 .rank-tf-tabs .nav-link {
-  font-size: 0.75rem;
+  font-size: 0.65rem;
   font-weight: 600;
-  padding: 5px 14px;
+  padding: 5px 10px;
   border-radius: 6px 6px 0 0;
   color: #64748b;
   border: 1px solid transparent;
