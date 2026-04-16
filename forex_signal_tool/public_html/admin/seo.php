@@ -302,6 +302,13 @@ h2{font-size:19px;font-weight:700;color:#f1f5f9;margin-bottom:4px}
   <div class="cont-section">
     <h3 class="cont-title">バックテスト実行</h3>
     <p class="cont-sub">全通貨ペア（USD/JPY・GBP/JPY・EUR/JPY）× 全タイムフレームのバックテストを行います。<br>完了後、手法別おすすめ（ペア別トップ5）が自動生成され、静的ページが更新されます。</p>
+    <div style="margin-top:12px;padding:12px 14px;background:#1a0f0f;border:1px solid #7f1d1d;border-radius:8px;display:flex;align-items:flex-start;gap:10px">
+      <input type="checkbox" id="rk-force-full" style="margin-top:3px;width:15px;height:15px;accent-color:#ef4444;flex-shrink:0">
+      <div>
+        <label for="rk-force-full" style="font-size:13px;font-weight:600;color:#fca5a5;cursor:pointer">既存データをリセットしてフルバックテスト</label>
+        <p style="font-size:12px;color:#94a3b8;margin:3px 0 0">チェックすると既存のバックテスト結果・シミュレーショントレードをすべて削除してから実行します。SL/TP設定を変更した場合や、計算をやり直したい場合に使用してください。</p>
+      </div>
+    </div>
     <div style="display:flex;align-items:center;gap:12px;margin-top:12px;flex-wrap:wrap">
       <button class="save-btn" id="rk-run-btn" style="padding:10px 28px;font-size:14px;background:#dc2626" onclick="runRankingBt()">バックテスト実行</button>
       <span id="rk-run-status" class="cont-status"></span>
@@ -799,9 +806,14 @@ async function loadRkInfo() {
 }
 
 async function runRankingBt() {
-  const btn = document.getElementById('rk-run-btn');
-  const st  = document.getElementById('rk-run-status');
-  if (!confirm('バックテストを実行しますか？\n全ペア×全タイムフレームを処理するため、数分〜数十分かかります。')) return;
+  const btn       = document.getElementById('rk-run-btn');
+  const st        = document.getElementById('rk-run-status');
+  const forceFull = document.getElementById('rk-force-full').checked;
+
+  const confirmMsg = forceFull
+    ? 'すべての既存バックテストデータを削除してフルバックテストを実行します。\nこの操作は取り消せません。続行しますか？'
+    : 'バックテストを実行しますか？\n全ペア×全タイムフレームを処理するため、数分〜数十分かかります。';
+  if (!confirm(confirmMsg)) return;
 
   btn.disabled = true;
   st.className = 'cont-status saving';
@@ -812,6 +824,7 @@ async function runRankingBt() {
     end_date:         document.getElementById('rk-end').value,
     swing_start_date: document.getElementById('rk-swing-start').value,
     swing_end_date:   document.getElementById('rk-swing-end').value,
+    force_full:       forceFull,
   };
 
   try {

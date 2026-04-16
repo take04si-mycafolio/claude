@@ -678,12 +678,14 @@ switch ($action) {
         $endDate    = trim($body['end_date']         ?? '');
         $swingStart = trim($body['swing_start_date'] ?? '') ?: $startDate;
         $swingEnd   = trim($body['swing_end_date']   ?? '') ?: $endDate;
+        $forceFull  = !empty($body['force_full']);
 
         $params = [
             'start_date'       => $startDate,
             'end_date'         => $endDate,
             'swing_start_date' => $swingStart,
             'swing_end_date'   => $swingEnd,
+            'force_full'       => $forceFull,
         ];
         file_put_contents(RANKING_BT_PARAMS, json_encode($params, JSON_UNESCAPED_UNICODE));
         file_put_contents(RANKING_BT_RESULT, json_encode([

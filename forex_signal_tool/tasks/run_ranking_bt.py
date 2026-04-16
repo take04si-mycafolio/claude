@@ -228,8 +228,10 @@ def main():
     end_date     = params.get("end_date", "")
     swing_start  = params.get("swing_start_date") or start_date
     swing_end    = params.get("swing_end_date")   or end_date
+    force_full   = bool(params.get("force_full", False))
 
-    write_status("running", "初期化中...", {"started_at": int(time.time())})
+    init_msg = "初期化中（データリセット + フルバックテスト）..." if force_full else "初期化中..."
+    write_status("running", init_msg, {"started_at": int(time.time())})
 
     from app import create_app
     from app.config import Config
@@ -278,44 +280,57 @@ def main():
                     continue
 
                 # ---- インクリメンタルバックテスト判定 ----
+                # force_full=True のときは既存データを削除してフルバックテスト
                 # SL/TPが同じで既存トレードがある場合は新規分のみ処理する
                 incremental_from_ts = None
                 recompute_stats     = False
 
                 from app import db as _db
-                last_exit = _db.session.execute(
-                    _sa.select(_sa.func.max(SimulationTrade.exit_at)).where(
-                        SimulationTrade.currency_pair == pair,
-                        SimulationTrade.timeframe     == tf,
-                    )
-                ).scalar()
 
-                if last_exit is not None:
-                    existing_bt = BacktestResult.query.filter_by(
+                if force_full:
+                    # 既存データを削除してフルバックテスト
+                    del_trades = SimulationTrade.query.filter_by(
                         currency_pair=pair, timeframe=tf
-                    ).first()
-                    sl_tp_ok = (
-                        existing_bt is not None
-                        and abs(float(existing_bt.sl_pips or 0) - sl_pips) < 0.001
-                        and abs(float(existing_bt.tp_pips or 0) - tp_pips) < 0.001
-                    )
-                    if sl_tp_ok:
-                        # tz-naive に統一して比較
-                        le = last_exit.replace(tzinfo=None) if hasattr(last_exit, "tzinfo") and last_exit.tzinfo else last_exit
-                        latest_ts = df["timestamp"].max()
-                        if hasattr(latest_ts, "to_pydatetime"):
-                            latest_ts = latest_ts.to_pydatetime()
-                        latest_ts = latest_ts.replace(tzinfo=None) if latest_ts.tzinfo else latest_ts
+                    ).delete()
+                    del_bt = BacktestResult.query.filter_by(
+                        currency_pair=pair, timeframe=tf
+                    ).delete()
+                    _db.session.commit()
+                    logger.info("  リセット: %s %s (trades=%d件, results=%d件削除)", pair, tf, del_trades, del_bt)
+                else:
+                    last_exit = _db.session.execute(
+                        _sa.select(_sa.func.max(SimulationTrade.exit_at)).where(
+                            SimulationTrade.currency_pair == pair,
+                            SimulationTrade.timeframe     == tf,
+                        )
+                    ).scalar()
 
-                        if latest_ts <= le:
-                            logger.info("  新規キャンドルなし、スキップ: %s %s", pair, tf)
-                            continue
+                    if last_exit is not None:
+                        existing_bt = BacktestResult.query.filter_by(
+                            currency_pair=pair, timeframe=tf
+                        ).first()
+                        sl_tp_ok = (
+                            existing_bt is not None
+                            and abs(float(existing_bt.sl_pips or 0) - sl_pips) < 0.001
+                            and abs(float(existing_bt.tp_pips or 0) - tp_pips) < 0.001
+                        )
+                        if sl_tp_ok:
+                            # tz-naive に統一して比較
+                            le = last_exit.replace(tzinfo=None) if hasattr(last_exit, "tzinfo") and last_exit.tzinfo else last_exit
+                            latest_ts = df["timestamp"].max()
+                            if hasattr(latest_ts, "to_pydatetime"):
+                                latest_ts = latest_ts.to_pydatetime()
+                            latest_ts = latest_ts.replace(tzinfo=None) if latest_ts.tzinfo else latest_ts
 
-                        incremental_from_ts = le
-                        recompute_stats     = True
-                        logger.info("  インクリメンタルモード: %s %s (last_exit=%s)", pair, tf, le)
-                    else:
-                        logger.info("  SL/TP変更 or 初回: %s %s (フルBT)", pair, tf)
+                            if latest_ts <= le:
+                                logger.info("  新規キャンドルなし、スキップ: %s %s", pair, tf)
+                                continue
+
+                            incremental_from_ts = le
+                            recompute_stats     = True
+                            logger.info("  インクリメンタルモード: %s %s (last_exit=%s)", pair, tf, le)
+                        else:
+                            logger.info("  SL/TP変更 or 初回: %s %s (フルBT)", pair, tf)
 
                 results = run_all_backtests(
                     pair=pair, timeframe=tf, df=df,
