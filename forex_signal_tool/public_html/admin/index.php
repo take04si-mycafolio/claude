@@ -333,6 +333,12 @@ main{max-width:900px;margin:0 auto;padding:28px 20px}
         <button class="run-btn sig" onclick="runOp('signals')">シグナル更新を実行</button>
         <div class="result-msg" id="msg-signals"></div>
       </div>
+      <div class="op-card" style="border-color:#1e40af">
+        <h3 style="color:#93c5fd">コード更新 (git pull)</h3>
+        <p>サーバー上のコードを最新に更新します。プッシュ後にここから反映できます。</p>
+        <button class="run-btn" style="background:#1d4ed8" id="btn-gitpull" onclick="runGitPull()">git pull を実行</button>
+        <div id="git-output" style="display:none;margin-top:10px;padding:10px;background:#0f172a;border:1px solid #334155;border-radius:6px;font-family:monospace;font-size:11px;color:#94a3b8;white-space:pre-wrap;word-break:break-all;max-height:160px;overflow-y:auto"></div>
+      </div>
     </div>
   </div>
 
@@ -583,6 +589,30 @@ function runOp(op) {
     btn.disabled = false;
     btn.textContent = origText;
   });
+}
+
+async function runGitPull() {
+  const btn = document.getElementById('btn-gitpull');
+  const out = document.getElementById('git-output');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spin"></span>実行中...';
+  out.style.display = 'none';
+  try {
+    const res = await fetch('/admin/api.php?action=git_pull', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json', 'X-Requested-With': 'XMLHttpRequest'},
+    });
+    const d = await res.json();
+    out.style.display = '';
+    out.style.color = d.status === 'ok' ? '#86efac' : '#fca5a5';
+    out.textContent = d.output || '(出力なし)';
+  } catch(e) {
+    out.style.display = '';
+    out.style.color = '#fca5a5';
+    out.textContent = '通信エラー: ' + e.message;
+  }
+  btn.disabled = false;
+  btn.textContent = 'git pull を実行';
 }
 
 function pollOpStatus(op, cfg, btn, msg, origText) {

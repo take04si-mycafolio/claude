@@ -67,6 +67,17 @@ switch ($action) {
         }
         break;
 
+    // ---- コード更新 (git pull) ----
+    case 'git_pull':
+        require_login();
+        $dir = PROJECT_ROOT;
+        $out = [];
+        $ret = 0;
+        exec('git -C ' . escapeshellarg($dir) . ' pull 2>&1', $out, $ret);
+        $output = implode("\n", $out);
+        json_out(['status' => $ret === 0 ? 'ok' : 'error', 'output' => $output]);
+        break;
+
     // ---- データ操作 ----
     case 'run_fetch':
         require_login();
