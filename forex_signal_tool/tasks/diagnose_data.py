@@ -83,7 +83,7 @@ def check_yfinance():
 
     YF_MAP = {"USDJPY": "USDJPY=X", "GBPJPY": "GBPJPY=X", "EURJPY": "EURJPY=X"}
     YF_IV  = {"5min": "5m", "15min": "15m", "1hr": "60m"}
-    DAYS   = {"5min": 7, "15min": 60, "1hr": 60}
+    DAYS   = {"5min": 7, "15min": 55, "1hr": 90}
 
     print(f"{'ペア':<10} {'TF':<8} {'yfinance最新':<25} {'行数':>6}")
     print("-" * 60)
@@ -153,14 +153,14 @@ def check_gap(db_results, yf_results):
 
 def check_signals(app):
     """アクティブシグナルの最終更新を確認"""
-    from app.models.signal import Signal
+    from app.models.signal import TradingSignal
 
     print("\n" + "=" * 60)
     print("④ アクティブシグナル状況")
     print("=" * 60)
 
     with app.app_context():
-        active = Signal.query.filter_by(is_active=True).all()
+        active = TradingSignal.query.filter_by(is_active=True).all()
         print(f"アクティブシグナル総数: {len(active)}件")
         if active:
             # signal_time の最新を確認
@@ -176,7 +176,7 @@ def check_signals(app):
 
         # 最近7日間のシグナル件数（アクティブ・非アクティブ含む）
         cutoff = datetime.utcnow() - timedelta(days=7)
-        recent = Signal.query.filter(Signal.signal_time >= cutoff).count()
+        recent = TradingSignal.query.filter(TradingSignal.signal_time >= cutoff).count()
         print(f"直近7日のシグナル総数（アクティブ含む全件）: {recent}件")
 
 

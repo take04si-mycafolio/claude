@@ -39,9 +39,9 @@ YF_INTERVAL_MAP = {
 # 日足は period="max" で最長履歴、短期足は start/end 日付指定
 YF_DAYS_BACK = {
     "5min":  7,    # yfinance制約: 5m は最大7日
-    "15min": 60,   # yfinance制約: 15m は最大60日
-    "30min": 60,   # yfinance制約: 30m は最大60日
-    "1hr":   730,  # 1h は最大730日程度
+    "15min": 55,   # yfinance制約: 60日が上限だが境界で失敗するため55日に設定
+    "30min": 55,   # 同上
+    "1hr":   90,   # Yahoo Finance API が長期1h取得で失敗するため90日に設定
 }
 
 
