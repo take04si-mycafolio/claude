@@ -8,9 +8,6 @@ $ARTICLES = [
     ['key' => 'top_article_post', 'title' => 'TOPページ（後半：手法解説・まとめ）',    'page' => '/'],
     ['key' => 'ranking_intro',    'title' => 'テクニカルランキング 導入文',             'page' => '/technical-ranking/'],
     ['key' => 'ranking_analysis', 'title' => 'テクニカルランキング 分析・考察',          'page' => '/technical-ranking/'],
-    ['key' => 'pair_article_usdjpy', 'title' => 'ドル円（USD/JPY）ページ',   'page' => '/usdjpy/'],
-    ['key' => 'pair_article_gbpjpy', 'title' => 'ポンド円（GBP/JPY）ページ', 'page' => '/gbpjpy/'],
-    ['key' => 'pair_article_eurjpy', 'title' => 'ユーロ円（EUR/JPY）ページ', 'page' => '/eurjpy/'],
 ];
 
 $key = $_GET['key'] ?? '';
