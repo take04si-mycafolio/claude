@@ -335,7 +335,7 @@ def get_pair_data(pair: str) -> dict:
         )
         if rows:
             top_bt_by_tf[_tf] = [r.to_dict() for r in rows]
-    ranking_tf_order = [tf for tf in RANKING_TFS if tf in top_bt_by_tf]
+    ranking_tf_order = RANKING_TFS  # データなしのTFも常に表示
 
     # 後方互換用（既存コードが参照している場合のため残す）
     top_bt = (

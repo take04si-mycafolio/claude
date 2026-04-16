@@ -247,16 +247,17 @@
     </span>
   </div>
 
+  {% set rank_labels = {'5min': '5m', '15min': '15m', '1hr': '1H', '4hr': '4H', 'daily': '日足'} %}
+
   <!-- TFタブ -->
-  <ul class="nav nav-tabs ind-pair-tabs mb-2" id="rankTfTab" role="tablist">
+  <ul class="nav nav-tabs rank-tf-tabs mb-2" id="rankTfTab" role="tablist">
     {% for tf in data.ranking_tf_order %}
     <li class="nav-item" role="presentation">
       <button class="nav-link {% if loop.first %}active{% endif %}"
               data-bs-toggle="tab"
               data-bs-target="#rank-tf-{{ tf }}"
               type="button" role="tab">
-        {{ data.tf_labels[tf] or tf }}
-        <span class="sig-tf-count">{{ data.top_bt_by_tf[tf]|length }}</span>
+        {{ rank_labels[tf] or tf }}
       </button>
     </li>
     {% endfor %}
@@ -266,6 +267,7 @@
     {% for tf in data.ranking_tf_order %}
     <div class="tab-pane fade {% if loop.first %}show active{% endif %}"
          id="rank-tf-{{ tf }}" role="tabpanel">
+      {% if data.top_bt_by_tf[tf] %}
       {% for r in data.top_bt_by_tf[tf] %}
       {% set ind_url = ind_url_map.get(r.indicator_name) %}
       {% if ind_url %}
@@ -289,6 +291,12 @@
         </div>
       {% if ind_url %}</a>{% else %}</div>{% endif %}
       {% endfor %}
+      {% else %}
+      <div class="empty-state">
+        <i class="bi bi-hourglass-split"></i>
+        バックテストデータなし
+      </div>
+      {% endif %}
     </div>
     {% endfor %}
   </div>

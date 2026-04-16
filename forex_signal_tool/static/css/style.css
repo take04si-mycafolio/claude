@@ -876,6 +876,31 @@ body {
 
 /* 通貨ペアタブ */
 .ind-pair-tabs { border-bottom: 1px solid #e2e8f0; gap: 2px; }
+/* 勝率ランキング用タブ: 1行固定・横スクロール */
+.rank-tf-tabs {
+  border-bottom: 1px solid #e2e8f0;
+  gap: 2px;
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+}
+.rank-tf-tabs::-webkit-scrollbar { display: none; }
+.rank-tf-tabs .nav-link {
+  font-size: 0.75rem;
+  font-weight: 600;
+  padding: 5px 14px;
+  border-radius: 6px 6px 0 0;
+  color: #64748b;
+  border: 1px solid transparent;
+  border-bottom: none;
+  white-space: nowrap;
+}
+.rank-tf-tabs .nav-link.active {
+  color: #3b82f6;
+  background: #fff;
+  border-color: #e2e8f0 #e2e8f0 #fff;
+}
 .ind-pair-tabs .nav-link {
   font-size: 0.75rem;
   font-weight: 600;
