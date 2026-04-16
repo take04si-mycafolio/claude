@@ -8,6 +8,19 @@ from app.config import Config
 bp = Blueprint("api", __name__)
 
 
+# ---- USD/JPY トレンドスコア ----
+
+@bp.route("/usdjpy/trend-score")
+def usdjpy_trend_score():
+    """GET /api/usdjpy/trend-score — マルチタイムフレーム買い強度スコア"""
+    try:
+        from app.services.usdjpy_analysis import get_usdjpy_trend_score
+        result = get_usdjpy_trend_score()
+        return jsonify(result)
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
 # ---- 価格データ ----
 
 @bp.route("/prices/latest")
