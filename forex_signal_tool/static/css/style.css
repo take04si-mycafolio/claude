@@ -1081,6 +1081,7 @@ body {
   font-size: 0.7rem;
 }
 .ts-bd-val.ts-neg { color: #ef4444; }
+.ts-bd-val.ts-pos { color: #16a34a; }
 .ts-detail-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;

@@ -79,9 +79,16 @@ def calculate_trend_score(
         + (15 if dxy_rising else -15)
     )
 
-    # ③ 乖離率ペナルティ
-    deviation = abs(price_1h - ma20_1h) / ma20_1h if ma20_1h else 0
-    deviation_penalty = -30 if deviation > 0.005 else 0
+    # ③ 乖離率調整（双方向）
+    # 買い過熱（価格 > MA20 + 0.5%）: -30 で買いシグナルを抑制
+    # 売り過熱（価格 < MA20 - 0.5%）: +30 で売りシグナルを緩和（底値売りを避ける）
+    deviation_up = (price_1h - ma20_1h) / ma20_1h if ma20_1h else 0
+    if deviation_up > 0.005:
+        deviation_penalty = -30
+    elif deviation_up < -0.005:
+        deviation_penalty = +30
+    else:
+        deviation_penalty = 0
 
     # ④ モメンタム
     oversold_bounce = (
@@ -141,7 +148,7 @@ def calculate_trend_score(
             "dxy_rising":         dxy_rising,
             "rsi":                round(rsi_14, 2),
             "rsi_status":         rsi_status,
-            "deviation_pct":      round(deviation * 100, 3),
+            "deviation_pct":      round(deviation_up * 100, 3),
             "deviation_penalty":  deviation_penalty,
         },
     }

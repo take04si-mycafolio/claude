@@ -161,11 +161,13 @@ def compute_score_band_stats(
             continue
 
         if band["direction"] == "sell":
-            wins = int((sub["pips"] < 0).sum())
+            wins     = int((sub["pips"] < 0).sum())
+            avg_pips = round(-float(sub["pips"].mean()), 1)   # 売りP&L（正=利益）
+            max_loss = round(-float(sub["pips"].max()), 1)    # 売り最大損失（負値）
         else:
-            wins = int((sub["pips"] > 0).sum())
-        avg_pips = round(float(sub["pips"].mean()), 1)
-        max_loss = round(float(sub["pips"].min()), 1)
+            wins     = int((sub["pips"] > 0).sum())
+            avg_pips = round(float(sub["pips"].mean()), 1)
+            max_loss = round(float(sub["pips"].min()), 1)
 
         bands_out.append({
             **band,
