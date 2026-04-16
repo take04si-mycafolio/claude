@@ -237,30 +237,62 @@
   {% endif %}
 </div>
 
-<!-- バックテスト上位 -->
-{% if data.top_backtest %}
+<!-- 勝率ランキング（TF別タブ） -->
+{% if data.ranking_tf_order %}
 <div class="section-card">
   <div class="section-title">
     <i class="bi bi-trophy-fill text-warning me-2"></i>勝率ランキング
+    <span class="info-tip" data-tip="10トレード以上のテクニカル指標を勝率順に表示しています。PFはプロフィットファクター（総利益÷総損失）です。">
+      <i class="bi bi-info-circle-fill"></i>
+    </span>
   </div>
-  {% for r in data.top_backtest %}
-  {% set ind_url = ind_url_map.get(r.indicator_name) %}
-  {% if ind_url %}
-  <a href="{{ ind_url }}" class="bt-item bt-item-link">
-  {% else %}
-  <div class="bt-item">
-  {% endif %}
-    <div class="bt-item-left">
-      <div class="bt-name">{{ display_map.get(r.indicator_name, r.indicator_name) }}</div>
-      <div class="bt-meta text-muted">{{ r.timeframe }} · {{ r.total_trades }}トレード</div>
+
+  <!-- TFタブ -->
+  <ul class="nav nav-tabs ind-pair-tabs mb-2" id="rankTfTab" role="tablist">
+    {% for tf in data.ranking_tf_order %}
+    <li class="nav-item" role="presentation">
+      <button class="nav-link {% if loop.first %}active{% endif %}"
+              data-bs-toggle="tab"
+              data-bs-target="#rank-tf-{{ tf }}"
+              type="button" role="tab">
+        {{ data.tf_labels[tf] or tf }}
+        <span class="sig-tf-count">{{ data.top_bt_by_tf[tf]|length }}</span>
+      </button>
+    </li>
+    {% endfor %}
+  </ul>
+
+  <div class="tab-content">
+    {% for tf in data.ranking_tf_order %}
+    <div class="tab-pane fade {% if loop.first %}show active{% endif %}"
+         id="rank-tf-{{ tf }}" role="tabpanel">
+      {% for r in data.top_bt_by_tf[tf] %}
+      {% set ind_url = ind_url_map.get(r.indicator_name) %}
+      {% if ind_url %}
+      <a href="{{ ind_url }}" class="bt-item bt-item-link">
+      {% else %}
+      <div class="bt-item">
+      {% endif %}
+        <div class="bt-item-left">
+          <div class="bt-name">{{ display_map.get(r.indicator_name, r.indicator_name) }}</div>
+          <div class="bt-meta text-muted">{{ r.total_trades }}トレード</div>
+        </div>
+        <div class="bt-item-right">
+          <div class="bt-winrate {% if r.win_rate >= 70 %}high{% elif r.win_rate >= 60 %}mid{% else %}low{% endif %}">
+            {{ "%.1f"|format(r.win_rate) }}%
+          </div>
+          {% if r.profit_factor %}
+          <div class="bt-pf {% if r.profit_factor >= 1.5 %}high{% elif r.profit_factor >= 1.2 %}mid{% else %}low{% endif %}">
+            PF {{ "%.2f"|format(r.profit_factor) }}
+          </div>
+          {% endif %}
+        </div>
+      {% if ind_url %}</a>{% else %}</div>{% endif %}
+      {% endfor %}
     </div>
-    <div class="bt-item-right">
-      <div class="bt-winrate {% if r.win_rate >= 70 %}high{% elif r.win_rate >= 60 %}mid{% else %}low{% endif %}">
-        {{ "%.1f"|format(r.win_rate) }}%
-      </div>
-    </div>
-  {% if ind_url %}</a>{% else %}</div>{% endif %}
-  {% endfor %}
+    {% endfor %}
+  </div>
+
   <a href="/technical-ranking/" class="view-all-link">
     詳細を見る <i class="bi bi-chevron-right"></i>
   </a>

@@ -320,6 +320,24 @@ def get_pair_data(pair: str) -> dict:
 
     # 最新シグナル生成日時
     signal_latest_jst = utc_str_to_jst(signals[0].signal_time) if signals else ""
+
+    # 勝率ランキング（TF別・10トレード以上・勝率順）
+    RANKING_TFS = ["5min", "15min", "1hr", "4hr", "daily"]
+    top_bt_by_tf = {}
+    for _tf in RANKING_TFS:
+        rows = (
+            BacktestResult.query
+            .filter_by(currency_pair=pair, timeframe=_tf)
+            .filter(BacktestResult.total_trades >= 10)
+            .order_by(BacktestResult.win_rate.desc())
+            .limit(20)
+            .all()
+        )
+        if rows:
+            top_bt_by_tf[_tf] = [r.to_dict() for r in rows]
+    ranking_tf_order = [tf for tf in RANKING_TFS if tf in top_bt_by_tf]
+
+    # 後方互換用（既存コードが参照している場合のため残す）
     top_bt = (
         BacktestResult.query
         .filter_by(currency_pair=pair)
@@ -430,6 +448,8 @@ def get_pair_data(pair: str) -> dict:
         "sell_count": sell_count,
         "overall": overall,
         "top_backtest":     [r.to_dict() for r in top_bt],
+        "top_bt_by_tf":     top_bt_by_tf,
+        "ranking_tf_order": ranking_tf_order,
         "sim_trades":       sim_trades,
         "sim_trades_by_tf": sim_trades_by_tf,
         "sim_tf_order":     [tf for tf in TF_ORDER if tf in sim_trades_by_tf],

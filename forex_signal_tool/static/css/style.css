@@ -263,15 +263,30 @@ body {
 .bt-item:last-child { border-bottom: none; }
 .bt-name { font-size: 0.85rem; font-weight: 600; color: #1a1a2e; }
 .bt-meta { font-size: 0.72rem; }
+.bt-item-right {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 3px;
+}
 .bt-winrate {
   font-size: 1rem;
   font-weight: 700;
-  padding: 4px 10px;
+  padding: 3px 10px;
   border-radius: 8px;
 }
 .bt-winrate.high { background: #dcfce7; color: #16a34a; }
 .bt-winrate.mid { background: #fef9c3; color: #ca8a04; }
 .bt-winrate.low { background: #f1f5f9; color: #64748b; }
+.bt-pf {
+  font-size: 0.68rem;
+  font-weight: 600;
+  padding: 2px 7px;
+  border-radius: 6px;
+}
+.bt-pf.high { background: #dcfce7; color: #16a34a; }
+.bt-pf.mid  { background: #fef9c3; color: #ca8a04; }
+.bt-pf.low  { background: #f1f5f9; color: #94a3b8; }
 
 /* ===== 操作ボタン ===== */
 .action-grid {
