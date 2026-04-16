@@ -76,18 +76,20 @@ def calculate_confidence_score(win_rate: float, total_trades: int,
     return round(score, 1)
 
 
-def generate_signals_for_pair_tf(pair: str, timeframe: str, df: pd.DataFrame) -> list:
+def generate_signals_for_pair_tf(pair: str, timeframe: str, df: pd.DataFrame,
+                                   settings: dict) -> list:
     """
     特定の通貨ペア・タイムフレームの現在シグナルを生成する。
+
+    Parameters
+    ----------
+    settings : get_effective_settings() の結果（呼び出し側で1回だけ取得する）
 
     Returns
     -------
     list of dict: 生成されたシグナルのリスト
     """
     from app.services.indicators import calculate_all
-
-    settings = get_effective_settings()
-
     if df.empty or len(df) < 30:
         return []
 
@@ -170,6 +172,11 @@ def run_signal_engine() -> dict:
     - 同じ指標・方向のシグナルが継続中なら signal_time を保持（更新しない）
     - 消えたシグナルのみ is_active=False に変更
 
+    最適化:
+    - settings は最初に1回だけ取得（15回 → 1回）
+    - 既存アクティブシグナルは pair/TF ごとに1クエリで一括取得して dict 検索
+      （シグナル1件ごとの SELECT → pair/TF ごとに1回のみ）
+
     Returns
     -------
     dict: 通貨ペアごとの生成シグナル数
@@ -177,6 +184,9 @@ def run_signal_engine() -> dict:
     from app import db
     from app.models.signal import TradingSignal
     from app.services.data_fetcher import get_candles
+
+    # settings は1回だけ取得（ループ内で繰り返し呼ばない）
+    settings = get_effective_settings()
 
     results = {}
     kept_ids = set()  # 今回も有効なシグナルのID
@@ -190,19 +200,25 @@ def run_signal_engine() -> dict:
                 results[pair][tf] = 0
                 continue
 
-            signals = generate_signals_for_pair_tf(pair, tf, df)
+            signals = generate_signals_for_pair_tf(pair, tf, df, settings)
+            if not signals:
+                results[pair][tf] = 0
+                continue
+
             expiry_hours = TF_EXPIRY_HOURS.get(tf, 6)
             expired_at = datetime.now(timezone.utc) + timedelta(hours=expiry_hours)
 
+            # ---- pair/TF のアクティブシグナルを1クエリで一括取得 ----
+            existing_list = TradingSignal.query.filter_by(
+                currency_pair=pair, timeframe=tf, is_active=True
+            ).all()
+            # (indicator_name, signal_type) → TradingSignal のマップ
+            existing_map = {(e.indicator_name, e.signal_type): e for e in existing_list}
+
+            new_records = []
             for s in signals:
-                # 同じ指標・方向のアクティブシグナルが既に存在するか確認
-                existing = TradingSignal.query.filter_by(
-                    currency_pair=s["currency_pair"],
-                    timeframe=s["timeframe"],
-                    indicator_name=s["indicator_name"],
-                    signal_type=s["signal_type"],
-                    is_active=True,
-                ).first()
+                key = (s["indicator_name"], s["signal_type"])
+                existing = existing_map.get(key)
 
                 if existing:
                     # 継続シグナル: 価格・信頼度のみ更新、signal_time は保持
@@ -232,8 +248,12 @@ def run_signal_engine() -> dict:
                         expired_at=expired_at,
                     )
                     db.session.add(record)
-                    db.session.flush()
-                    kept_ids.add(record.id)
+                    new_records.append(record)
+
+            # flush で新規レコードの ID を確定してから kept_ids に追加
+            db.session.flush()
+            for record in new_records:
+                kept_ids.add(record.id)
 
             db.session.commit()
             results[pair][tf] = len(signals)
