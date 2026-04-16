@@ -10,6 +10,12 @@ $ARTICLES = [
     ['key' => 'ranking_analysis', 'title' => 'テクニカルランキング 分析・考察',          'page' => '/technical-ranking/'],
 ];
 
+$PAIR_ARTICLES = [
+    ['key' => 'pair_article_usdjpy', 'pair' => 'USDJPY', 'title' => 'ドル円（USD/JPY）ページ',   'page' => '/usdjpy/'],
+    ['key' => 'pair_article_gbpjpy', 'pair' => 'GBPJPY', 'title' => 'ポンド円（GBP/JPY）ページ', 'page' => '/gbpjpy/'],
+    ['key' => 'pair_article_eurjpy', 'pair' => 'EURJPY', 'title' => 'ユーロ円（EUR/JPY）ページ', 'page' => '/eurjpy/'],
+];
+
 $INDICATOR_ARTICLES = [
     ['key' => 'indicator_article_rsi',               'slug' => 'rsi',                'title' => 'RSI（14期間）',                      'page' => '/oscillator/rsi/'],
     ['key' => 'indicator_article_macd',              'slug' => 'macd',               'title' => 'MACD（12・26・9）',                   'page' => '/oscillator/macd/'],
@@ -158,6 +164,29 @@ h2{font-size:19px;font-weight:700;color:#f1f5f9;margin-bottom:4px}
     </tr></thead>
     <tbody>
       <?php foreach ($ARTICLES as $art): ?>
+      <tr class="art-row">
+        <td><div class="art-title"><?= htmlspecialchars($art['title']) ?></div></td>
+        <td><div class="art-page"><?= htmlspecialchars($art['page']) ?></div></td>
+        <td style="text-align:right">
+          <a href="/admin/article_edit.php?key=<?= urlencode($art['key']) ?>" class="edit-btn">編集</a>
+        </td>
+      </tr>
+      <?php endforeach; ?>
+    </tbody>
+  </table>
+
+  <!-- 通貨ペアページ -->
+  <h2>通貨ペアページ</h2>
+  <p class="subtitle">ドル円・ポンド円・ユーロ円の記事コンテンツを編集します。URL: /usdjpy/ /gbpjpy/ /eurjpy/</p>
+
+  <table class="article-table">
+    <thead><tr>
+      <th>ページ</th>
+      <th>URL</th>
+      <th style="width:80px;text-align:right">操作</th>
+    </tr></thead>
+    <tbody>
+      <?php foreach ($PAIR_ARTICLES as $art): ?>
       <tr class="art-row">
         <td><div class="art-title"><?= htmlspecialchars($art['title']) ?></div></td>
         <td><div class="art-page"><?= htmlspecialchars($art['page']) ?></div></td>

@@ -275,6 +275,15 @@
 
 <div style="height: 20px;"></div>
 
+{% if pair_article_css %}
+<style>{{ pair_article_css | safe }}</style>
+{% endif %}
+{% if pair_article %}
+<div class="pair-article-body container-fluid px-3 pb-4">
+  {{ pair_article | safe }}
+</div>
+{% endif %}
+
 <!-- トレード詳細チャートモーダル -->
 <div class="modal fade" id="tradeModal" tabindex="-1" aria-hidden="true">
   <div class="modal-dialog modal-lg modal-dialog-centered">

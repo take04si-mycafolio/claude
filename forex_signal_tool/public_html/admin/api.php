@@ -839,6 +839,22 @@ switch ($action) {
         }
         break;
 
+    // ---- 通貨ペアページ HTML 再生成（generate_static.py --pair） ----
+    case 'rebuild_pair_page':
+        require_login();
+        $pair = strtolower(trim($body['pair'] ?? ''));
+        if (!in_array($pair, ['usdjpy', 'gbpjpy', 'eurjpy'], true)) {
+            json_out(['ok' => false, 'error' => 'pair は usdjpy/gbpjpy/eurjpy のいずれかを指定してください']);
+            break;
+        }
+        $py      = escapeshellarg(PYTHON_BIN);
+        $script  = escapeshellarg(TASKS_DIR . '/generate_static.py');
+        $pairArg = escapeshellarg('--pair=' . strtoupper($pair));
+        exec("{$py} {$script} {$pairArg} 2>&1", $lines, $ret);
+        $output = implode("\n", array_slice($lines, -30));
+        json_out(['ok' => $ret === 0, 'output' => $output]);
+        break;
+
     // ---- 指標ページ HTML 再生成（generate_static.py --slug） ----
     case 'rebuild_indicator_page':
         require_login();

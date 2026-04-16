@@ -1560,12 +1560,14 @@ def main():
     from app import create_app
     from app.config import Config
 
-    # --slug オプション: 指定した場合は該当指標ページのみ再生成（高速）
+    # --slug / --pair オプション: 指定した場合は該当ページのみ再生成（高速）
     import argparse as _argp
     _ap = _argp.ArgumentParser()
     _ap.add_argument('--slug', default='', help='この url_slug の指標ページのみ再生成')
+    _ap.add_argument('--pair', default='', help='この通貨ペア(usdjpy/gbpjpy/eurjpy)のページのみ再生成')
     _args, _ = _ap.parse_known_args()
     target_slug = _args.slug.strip().lower()
+    target_pair = _args.pair.strip().upper()  # USDJPY / GBPJPY / EURJPY
 
     if target_slug:
         # ---- 単一ページ高速ビルド ----
@@ -1626,6 +1628,47 @@ def main():
             if not built:
                 logger.error("Unknown slug: %s", target_slug)
                 sys.exit(1)
+        return
+
+    if target_pair:
+        # ---- 単一通貨ペアページ高速ビルド ----
+        _pair_pages = {"USDJPY": "usdjpy/index.html", "GBPJPY": "gbpjpy/index.html", "EURJPY": "eurjpy/index.html"}
+        if target_pair not in _pair_pages:
+            logger.error("Unknown pair: %s (usdjpy/gbpjpy/eurjpy を指定)", target_pair)
+            sys.exit(1)
+        app = create_app()
+        with app.app_context():
+            from app.config import Config
+            pairs      = Config.CURRENCY_PAIRS
+            updated_at = datetime.now(JST).strftime("%Y/%m/%d %H:%M")
+            ind_url_map = {
+                name: "/{}/{}/".format(
+                    CATEGORY_SLUGS.get(info["category"], "indicators"),
+                    info.get("url_slug", info["slug"])
+                )
+                for name, info in INDICATOR_INFO.items()
+            }
+            slug_map    = {name: info["slug"]    for name, info in INDICATOR_INFO.items()}
+            display_map = {name: info["display"] for name, info in INDICATOR_INFO.items()}
+            content_db  = load_content_db()
+            _pair_key   = f"pair_article_{target_pair.lower()}"
+            _raw_css    = content_db.get(f"{_pair_key}_css", "")
+            _pair_data  = get_pair_data(target_pair)
+            html = render_html(app, "dashboard_static.html", {
+                "pairs":           pairs,
+                "pair_pages":      _pair_pages,
+                "current_pair":    target_pair,
+                "data":            _pair_data,
+                "slug_map":        slug_map,
+                "ind_url_map":     ind_url_map,
+                "display_map":     display_map,
+                "pair_article":    content_db.get(_pair_key, ""),
+                "pair_article_css": scope_article_css(_raw_css),
+                "updated_at":      updated_at,
+                "active_page":     "home",
+            })
+            save(_pair_pages[target_pair], html)
+            logger.info("Pair page built: /%s/", target_pair.lower())
         return
 
     # ---- 通常フルビルド ----
@@ -1853,6 +1896,8 @@ def main():
         # 各通貨ペアのダッシュボード
         for pair, filename in pair_pages.items():
             data = _pair_data_cache.get(pair) or get_pair_data(pair)
+            _pair_key = f"pair_article_{pair.lower()}"
+            _pair_raw_css = content_db_top.get(f"{_pair_key}_css", "")
             html = render_html(app, "dashboard_static.html", {
                 "pairs": pairs,
                 "pair_pages": pair_pages,
@@ -1861,6 +1906,8 @@ def main():
                 "slug_map": slug_map,
                 "ind_url_map": ind_url_map,
                 "display_map": display_map,
+                "pair_article":     content_db_top.get(_pair_key, ""),
+                "pair_article_css": scope_article_css(_pair_raw_css),
                 "updated_at": updated_at,
                 "active_page": "home",
             })

@@ -8,6 +8,9 @@ $ARTICLES = [
     ['key' => 'top_article_post', 'title' => 'TOPページ（後半：手法解説・まとめ）',    'page' => '/'],
     ['key' => 'ranking_intro',    'title' => 'テクニカルランキング 導入文',             'page' => '/technical-ranking/'],
     ['key' => 'ranking_analysis', 'title' => 'テクニカルランキング 分析・考察',          'page' => '/technical-ranking/'],
+    ['key' => 'pair_article_usdjpy', 'title' => 'ドル円（USD/JPY）ページ',   'page' => '/usdjpy/'],
+    ['key' => 'pair_article_gbpjpy', 'title' => 'ポンド円（GBP/JPY）ページ', 'page' => '/gbpjpy/'],
+    ['key' => 'pair_article_eurjpy', 'title' => 'ユーロ円（EUR/JPY）ページ', 'page' => '/eurjpy/'],
 ];
 
 $key = $_GET['key'] ?? '';
@@ -23,6 +26,19 @@ if (!$article && preg_match('/^indicator_article_([a-z0-9_]+)$/', $key, $m)) {
         'title' => 'テクニカル指標 SEO記事（' . $slug . '）',
         'page'  => '/' . $slug . '/',
     ];
+}
+// pair_article_{pair} キーを動的に許可
+$is_pair = false;
+$pair_slug = '';
+if (!$article && preg_match('/^pair_article_(usdjpy|gbpjpy|eurjpy)$/', $key, $m)) {
+    $pair_slug = $m[1];
+    $pair_names = ['usdjpy' => 'ドル円（USD/JPY）', 'gbpjpy' => 'ポンド円（GBP/JPY）', 'eurjpy' => 'ユーロ円（EUR/JPY）'];
+    $article = [
+        'key'   => $key,
+        'title' => ($pair_names[$pair_slug] ?? strtoupper($pair_slug)) . ' ページ',
+        'page'  => '/' . $pair_slug . '/',
+    ];
+    $is_pair = true;
 }
 if (!$article) {
     header('Location: /admin/articles.php');
@@ -211,6 +227,18 @@ $ibt_tp    = $ibt_first ? (int)($ibt_first['tp_pips'] ?? 40) : 40;
   "mainEntity": [...]
 }'></textarea>
   </div>
+<?php elseif ($is_pair): ?>
+  <!-- 通貨ペアページ：CSS + HTML -->
+  <div class="editor-card" style="margin-bottom:16px">
+    <label class="editor-label">① CSS（追加スタイル — &lt;style&gt;タグの中身のみ）</label>
+    <div style="font-size:11px;color:#475569;margin-bottom:6px">ページ固有のスタイルを記述。body{} は自動除去されます。</div>
+    <textarea id="editor-css" class="editor-textarea" style="min-height:180px" placeholder=".pair-intro { ... }"></textarea>
+  </div>
+  <div class="editor-card" style="margin-bottom:16px">
+    <label class="editor-label">② 記事 HTML（チャート・シグナル一覧の下に追記されます）</label>
+    <div style="font-size:11px;color:#475569;margin-bottom:6px">HTMLタグ使用可。ページ下部の「記事エリア」に表示されます。</div>
+    <textarea id="editor" class="editor-textarea" placeholder="<section class=&quot;pair-intro&quot;>&#10;  <h2>ドル円の特徴</h2>&#10;  <p>...</p>&#10;</section>"></textarea>
+  </div>
 <?php else: ?>
   <!-- 通常記事：HTMLのみ -->
   <div class="editor-card" style="margin-bottom:16px">
@@ -230,16 +258,16 @@ $ibt_tp    = $ibt_first ? (int)($ibt_first['tp_pips'] ?? 40) : 40;
         📥 バックテストCSV（ZIP）
       </a>
 <?php endif; ?>
-<?php if ($is_indicator && $ind_slug): ?>
+<?php if (($is_indicator && $ind_slug) || $is_pair): ?>
       <button class="rebuild-btn" id="rebuild-btn" onclick="rebuildPage()">🔄 公開ページを更新</button>
       <span class="rebuild-status" id="rebuild-status"></span>
 <?php endif; ?>
     </div>
-<?php if ($is_indicator && $ind_slug): ?>
+<?php if (($is_indicator && $ind_slug) || $is_pair): ?>
     <div id="rebuild-log" class="rebuild-log"></div>
 <?php endif; ?>
     <div class="info-banner">
-<?php if ($is_indicator && $ind_slug): ?>
+<?php if (($is_indicator && $ind_slug) || $is_pair): ?>
       💡 <strong>公開ページを更新</strong> ボタンで保存内容をすぐに反映できます。SSHは不要です。
 <?php else: ?>
       ℹ️ 保存後、管理画面の <strong>バックテスト</strong> または <strong>SEO管理 → ランキング管理</strong> から
@@ -1296,7 +1324,9 @@ addBt2Cond();
 <script>
 const ARTICLE_KEY    = <?= json_encode($article['key']) ?>;
 const IS_INDICATOR   = <?= $is_indicator ? 'true' : 'false' ?>;
+const IS_PAIR        = <?= $is_pair ? 'true' : 'false' ?>;
 const IND_SLUG       = <?= json_encode($ind_slug) ?>;
+const PAIR_SLUG      = <?= json_encode($pair_slug) ?>;
 const AI_NOTES_KEY   = IND_SLUG ? ('indicator_ai_notes_' + IND_SLUG) : '';
 
 async function loadContent() {
@@ -1317,6 +1347,10 @@ async function loadContent() {
             document.getElementById('ai-fb-updated').textContent = '最終保存: ' + (notes.updated_at || '').slice(0,16);
           }
         }
+      }
+      if (IS_PAIR) {
+        const cssEl = document.getElementById('editor-css');
+        if (cssEl) cssEl.value = data[ARTICLE_KEY + '_css']?.value || '';
       }
     }
   } catch(e) {
@@ -1449,6 +1483,10 @@ async function saveContent() {
       saves.push(_save(ARTICLE_KEY + '_css',    document.getElementById('editor-css').value));
       saves.push(_save(ARTICLE_KEY + '_jsonld', document.getElementById('editor-jsonld').value));
     }
+    if (IS_PAIR) {
+      const cssEl = document.getElementById('editor-css');
+      if (cssEl) saves.push(_save(ARTICLE_KEY + '_css', cssEl.value));
+    }
     const results = await Promise.all(saves);
     const failed  = results.find(d => d.status !== 'ok');
     if (!failed) {
@@ -1471,16 +1509,18 @@ async function rebuildPage() {
   const btn  = document.getElementById('rebuild-btn');
   const stat = document.getElementById('rebuild-status');
   const log  = document.getElementById('rebuild-log');
-  if (!btn || !IND_SLUG) return;
+  if (!btn || (!IND_SLUG && !PAIR_SLUG)) return;
   btn.disabled   = true;
   stat.textContent = 'ビルド中...';
   stat.className   = 'rebuild-status running';
   if (log) { log.textContent = ''; log.style.display = 'none'; }
   try {
-    const res = await fetch('/admin/api.php?action=rebuild_indicator_page', {
+    const action = IS_PAIR ? 'rebuild_pair_page' : 'rebuild_indicator_page';
+    const body   = IS_PAIR ? { pair: PAIR_SLUG } : { slug: IND_SLUG };
+    const res = await fetch('/admin/api.php?action=' + action, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ slug: IND_SLUG }),
+      body: JSON.stringify(body),
     });
     const data = await res.json();
     if (data.ok) {
