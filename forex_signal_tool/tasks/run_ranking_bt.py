@@ -239,6 +239,9 @@ def main():
     app = create_app()
     with app.app_context():
         from app.models.settings import Setting
+        from app.models.backtest import BacktestResult
+        from app.models.simulation_trade import SimulationTrade
+        import sqlalchemy as _sa
 
         sl_pips         = Setting.get_float("sl_pips",         20.0)
         tp_pips         = Setting.get_float("tp_pips",         40.0)
@@ -274,16 +277,58 @@ def main():
                     logger.warning("期間内データ不足: %s %s (%d件)", pair, tf, len(df))
                     continue
 
+                # ---- インクリメンタルバックテスト判定 ----
+                # SL/TPが同じで既存トレードがある場合は新規分のみ処理する
+                incremental_from_ts = None
+                recompute_stats     = False
+
+                from app import db as _db
+                last_exit = _db.session.execute(
+                    _sa.select(_sa.func.max(SimulationTrade.exit_at)).where(
+                        SimulationTrade.currency_pair == pair,
+                        SimulationTrade.timeframe     == tf,
+                    )
+                ).scalar()
+
+                if last_exit is not None:
+                    existing_bt = BacktestResult.query.filter_by(
+                        currency_pair=pair, timeframe=tf
+                    ).first()
+                    sl_tp_ok = (
+                        existing_bt is not None
+                        and abs(float(existing_bt.sl_pips or 0) - sl_pips) < 0.001
+                        and abs(float(existing_bt.tp_pips or 0) - tp_pips) < 0.001
+                    )
+                    if sl_tp_ok:
+                        # tz-naive に統一して比較
+                        le = last_exit.replace(tzinfo=None) if hasattr(last_exit, "tzinfo") and last_exit.tzinfo else last_exit
+                        latest_ts = df["timestamp"].max()
+                        if hasattr(latest_ts, "to_pydatetime"):
+                            latest_ts = latest_ts.to_pydatetime()
+                        latest_ts = latest_ts.replace(tzinfo=None) if latest_ts.tzinfo else latest_ts
+
+                        if latest_ts <= le:
+                            logger.info("  新規キャンドルなし、スキップ: %s %s", pair, tf)
+                            continue
+
+                        incremental_from_ts = le
+                        recompute_stats     = True
+                        logger.info("  インクリメンタルモード: %s %s (last_exit=%s)", pair, tf, le)
+                    else:
+                        logger.info("  SL/TP変更 or 初回: %s %s (フルBT)", pair, tf)
+
                 results = run_all_backtests(
                     pair=pair, timeframe=tf, df=df,
                     initial_capital=initial_capital,
                     sl_pips=sl_pips, tp_pips=tp_pips,
                     backtest_hours=99999,           # df全体を使用
+                    incremental_from_ts=incremental_from_ts,
                 )
-                saved = save_backtest_results(results)
+                saved = save_backtest_results(results, recompute_stats=recompute_stats)
                 total_saved += saved
                 all_bt_results.extend(results)
-                logger.info("  %s %s: %d件保存", pair, tf, saved)
+                logger.info("  %s %s: %d件保存%s", pair, tf, saved,
+                            " (インクリメンタル)" if incremental_from_ts else "")
 
         logger.info("バックテスト完了: 合計%d件保存", total_saved)
 

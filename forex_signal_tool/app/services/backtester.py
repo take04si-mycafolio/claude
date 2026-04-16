@@ -344,6 +344,7 @@ def run_backtest_for_indicator(
     sl_mode: str = "pips",
     tp_mode: str = "pips",
     precomputed_signals: Optional[np.ndarray] = None,
+    incremental_from_ts=None,
 ) -> Optional[dict]:
     """
     単一指標のバックテストを実行する。
@@ -535,10 +536,12 @@ def run_backtest_for_indicator(
         total_trades += 1
         if outcome == "WIN":
             winning_trades += 1
-            capital += trade_tp_amount
-            gross_profit += trade_tp_amount
+            trade_pl = trade_tp_amount
+            capital += trade_pl
+            gross_profit += trade_pl
         else:
             losing_trades += 1
+            trade_pl = -trade_sl_amount
             capital -= trade_sl_amount
             gross_loss += trade_sl_amount
 
@@ -547,19 +550,28 @@ def run_backtest_for_indicator(
         drawdown = peak_capital - capital
         max_drawdown = max(max_drawdown, drawdown)
 
-        trades_log.append({
-            "entry_ts": entry_ts,
-            "exit_ts": exit_ts,
-            "signal": signal,
-            "entry_price": entry_price,
-            "exit_price": exit_price,
-            "tp_price": tp_price,
-            "sl_price": sl_price,
-            "outcome": outcome,
-            "capital_after": capital,
-        })
+        # インクリメンタルモード: incremental_from_ts 以降のトレードのみ記録
+        # 全バーの統計（total_trades 等）は引き続き計算することで capital_after の精度を保つ
+        entry_ts_dt = entry_ts.to_pydatetime() if hasattr(entry_ts, "to_pydatetime") else entry_ts
+        if incremental_from_ts is None or entry_ts_dt > incremental_from_ts:
+            trades_log.append({
+                "entry_ts": entry_ts,
+                "exit_ts": exit_ts,
+                "signal": signal,
+                "entry_price": entry_price,
+                "exit_price": exit_price,
+                "tp_price": tp_price,
+                "sl_price": sl_price,
+                "outcome": outcome,
+                "capital_after": capital,
+                "profit_loss": trade_pl,
+            })
 
     if total_trades == 0:
+        return None
+
+    # インクリメンタルモード: 新規トレードがなければスキップ
+    if incremental_from_ts is not None and not trades_log:
         return None
 
     win_rate = (winning_trades / total_trades) * 100
@@ -589,7 +601,8 @@ def run_backtest_for_indicator(
 
 def run_all_backtests(pair: str, timeframe: str, df: pd.DataFrame,
                       initial_capital: float, sl_pips: float, tp_pips: float,
-                      backtest_hours: int = 12) -> list:
+                      backtest_hours: int = 12,
+                      incremental_from_ts=None) -> list:
     """
     全テクニカル指標のバックテストを実行し、結果リストを返す。
 
@@ -645,6 +658,7 @@ def run_all_backtests(pair: str, timeframe: str, df: pd.DataFrame,
                 tp_pips=tp_pips,
                 backtest_hours=backtest_hours,
                 precomputed_signals=precomputed.get(ind_name),
+                incremental_from_ts=incremental_from_ts,
             )
             if result:
                 result["indicator_category"] = category
@@ -677,6 +691,7 @@ def run_all_backtests(pair: str, timeframe: str, df: pd.DataFrame,
                 sl_mode="bb",
                 tp_mode="bb",
                 precomputed_signals=precomputed.get(ind_name),
+                incremental_from_ts=incremental_from_ts,
             )
             if result:
                 result["indicator_name"] = ind_name + "_BBSL"
@@ -745,12 +760,61 @@ def _parse_trade_dt(val):
     return val  # すでに datetime
 
 
-def save_backtest_results(results: list) -> int:
+def _recompute_stats_from_db(pair: str, tf: str, ind_name: str, initial_capital: float) -> Optional[dict]:
+    """
+    simulation_trades テーブルの全データから集計統計を再計算する。
+    インクリメンタルバックテスト後に BacktestResult を全履歴ベースで更新するために使用。
+    """
+    from app.models.simulation_trade import SimulationTrade
+
+    trades = (SimulationTrade.query
+              .filter_by(currency_pair=pair, timeframe=tf, indicator_name=ind_name)
+              .order_by(SimulationTrade.entry_at)
+              .all())
+
+    if not trades:
+        return None
+
+    total  = len(trades)
+    wins   = sum(1 for t in trades if t.outcome == "WIN")
+    losses = total - wins
+
+    gross_profit = sum(float(t.profit_loss) for t in trades if t.profit_loss and float(t.profit_loss) > 0)
+    gross_loss   = abs(sum(float(t.profit_loss) for t in trades if t.profit_loss and float(t.profit_loss) < 0))
+    win_rate      = (wins / total) * 100
+    profit_factor = (gross_profit / gross_loss) if gross_loss > 0 else (gross_profit if gross_profit > 0 else 0)
+    total_profit  = sum(float(t.profit_loss) for t in trades if t.profit_loss)
+
+    peak  = initial_capital
+    max_dd = 0.0
+    for t in trades:
+        if t.capital_after is not None:
+            c = float(t.capital_after)
+            peak   = max(peak, c)
+            max_dd = max(max_dd, peak - c)
+
+    last_cap = (float(trades[-1].capital_after) if trades[-1].capital_after is not None
+                else initial_capital + total_profit)
+
+    return {
+        "total_trades":   total,
+        "winning_trades": wins,
+        "losing_trades":  losses,
+        "win_rate":       round(win_rate, 2),
+        "profit_factor":  round(profit_factor, 4),
+        "total_profit":   round(total_profit, 0),
+        "max_drawdown":   round(max_dd, 0),
+        "final_capital":  round(last_cap, 0),
+    }
+
+
+def save_backtest_results(results: list, recompute_stats: bool = False) -> int:
     """
     バックテスト結果をDBに保存。
 
     - BacktestResult（集計）: 既存レコードがあれば在籍更新（ID保持）。なければ新規作成。
     - SimulationTrade（個別）: 既存トレードは保持。新規分のみ追記。重複はスキップ。
+    - recompute_stats=True の場合、保存後に DB 全データから統計を再計算（インクリメンタル用）。
     """
     from app import db
     from app.models.backtest import BacktestResult
@@ -824,7 +888,11 @@ def save_backtest_results(results: list) -> int:
                 continue
 
             capital_after = float(t.get("capital_after", prev_capital))
-            profit_loss   = round(capital_after - prev_capital, 2)
+            # profit_loss が直接提供されている場合（インクリメンタルモード）はそれを使用
+            if t.get("profit_loss") is not None:
+                profit_loss = round(float(t["profit_loss"]), 2)
+            else:
+                profit_loss = round(capital_after - prev_capital, 2)
             prev_capital  = capital_after
 
             # 実際の価格差からpipsを計算（BBモードで変動するケースに対応）
@@ -887,6 +955,36 @@ def save_backtest_results(results: list) -> int:
                          pair, tf, ind_name, TRADE_LIMIT_PER_INDICATOR)
 
     db.session.commit()
+
+    # ---- インクリメンタルモード: DB全データから統計を再計算 ----
+    # トリム後の最新状態で BacktestResult を更新するため、trim commit の後に実行する
+    if recompute_stats and results:
+        from app.models.backtest import BacktestResult
+        for r in results:
+            stats = _recompute_stats_from_db(
+                r["currency_pair"], r["timeframe"], r["indicator_name"],
+                float(r["initial_capital"])
+            )
+            if stats is None:
+                continue
+            record = BacktestResult.query.filter_by(
+                currency_pair  = r["currency_pair"],
+                timeframe      = r["timeframe"],
+                indicator_name = r["indicator_name"],
+            ).first()
+            if record is None:
+                continue
+            record.win_rate       = stats["win_rate"]
+            record.total_trades   = stats["total_trades"]
+            record.winning_trades = stats["winning_trades"]
+            record.losing_trades  = stats["losing_trades"]
+            record.total_profit   = stats["total_profit"]
+            record.final_capital  = stats["final_capital"]
+            record.max_drawdown   = stats["max_drawdown"]
+            record.profit_factor  = stats["profit_factor"]
+        db.session.commit()
+        logger.debug("DB再集計完了: %d指標", len(results))
+
     return saved
 
 
