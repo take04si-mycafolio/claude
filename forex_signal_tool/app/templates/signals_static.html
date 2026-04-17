@@ -6,48 +6,87 @@
   <i class="bi bi-lightning-charge-fill text-warning me-2"></i>シグナル一覧
 </div>
 
-{% if signals %}
+{% if signals_by_pair %}
+<style>
+.sig-tabs { display: flex; gap: 4px; padding: 0 12px; margin-bottom: 0; border-bottom: 1px solid #1e293b; }
+.sig-tab  { padding: 8px 16px; font-size: 0.8rem; font-weight: 600; color: #64748b; cursor: pointer;
+            border: none; background: none; border-bottom: 2px solid transparent; margin-bottom: -1px; }
+.sig-tab.active { color: #3b82f6; border-bottom-color: #3b82f6; }
+.sig-panel { display: none; }
+.sig-panel.active { display: block; }
+</style>
+
 <div class="section-card p-0">
-  {% for s in signals %}
-  <div class="signal-detail-item">
-    <div class="sdi-header">
-      <span class="signal-type-badge {% if s.signal_type == 'BUY' %}buy{% else %}sell{% endif %} me-2">
-        {{ '買い' if s.signal_type == 'BUY' else '売り' }}
-      </span>
-      <span class="sdi-name">{{ s.indicator_name }}</span>
-      <span class="sdi-tf ms-auto text-muted small">{{ s.currency_pair[:3] }}/{{ s.currency_pair[3:] }} · {{ s.timeframe }}</span>
-    </div>
-    <div class="sdi-body">
-      <div class="sdi-stat">
-        <span class="sdi-label">勝率</span>
-        <span class="sdi-value fw-bold {% if s.win_rate and s.win_rate >= 70 %}text-success{% elif s.win_rate and s.win_rate >= 60 %}text-warning{% endif %}">
-          {{ "%.1f"|format(s.win_rate) if s.win_rate else '--' }}%
+  <div class="sig-tabs">
+    {% for pair, sigs in signals_by_pair.items() %}
+    <button class="sig-tab {% if loop.first %}active{% endif %}"
+            onclick="sigTab(this,'sig-{{ pair }}')" data-panel="sig-{{ pair }}">
+      {{ pair_labels.get(pair, pair) }}
+      <span style="font-size:0.7rem;font-weight:400;color:#475569;margin-left:3px">({{ sigs|length }})</span>
+    </button>
+    {% endfor %}
+  </div>
+
+  {% for pair, sigs in signals_by_pair.items() %}
+  <div class="sig-panel {% if loop.first %}active{% endif %}" id="sig-{{ pair }}">
+    {% for s in sigs %}
+    <div class="signal-detail-item">
+      <div class="sdi-header">
+        <span class="signal-type-badge {% if s.signal_type == 'BUY' %}buy{% else %}sell{% endif %} me-2">
+          {{ '買い' if s.signal_type == 'BUY' else '売り' }}
         </span>
+        <span class="sdi-name">{{ s.indicator_name }}</span>
+        <span class="sdi-tf ms-auto text-muted small">{{ s.timeframe }}</span>
       </div>
-      <div class="sdi-stat">
-        <span class="sdi-label">信頼度</span>
-        <span class="sdi-value">{{ s.confidence_score|int if s.confidence_score else '--' }}</span>
-      </div>
-      <div class="sdi-stat">
-        <span class="sdi-label">エントリー</span>
-        <span class="sdi-value">{{ "%.3f"|format(s.entry_price) if s.entry_price else '--' }}</span>
-      </div>
-      <div class="sdi-stat">
-        <span class="sdi-label">SL</span>
-        <span class="sdi-value text-danger">{{ "%.3f"|format(s.sl_price) if s.sl_price else '--' }}</span>
-      </div>
-      <div class="sdi-stat">
-        <span class="sdi-label">TP</span>
-        <span class="sdi-value text-success">{{ "%.3f"|format(s.tp_price) if s.tp_price else '--' }}</span>
-      </div>
-      <div class="sdi-stat">
-        <span class="sdi-label">カテゴリ</span>
-        <span class="sdi-value small text-muted">{{ s.indicator_category or '--' }}</span>
+      <div class="sdi-body">
+        <div class="sdi-stat">
+          <span class="sdi-label">勝率</span>
+          <span class="sdi-value fw-bold {% if s.win_rate and s.win_rate >= 70 %}text-success{% elif s.win_rate and s.win_rate >= 60 %}text-warning{% endif %}">
+            {{ "%.1f"|format(s.win_rate) if s.win_rate else '--' }}%
+          </span>
+        </div>
+        <div class="sdi-stat">
+          <span class="sdi-label">信頼度</span>
+          <span class="sdi-value">{{ s.confidence_score|int if s.confidence_score else '--' }}</span>
+        </div>
+        <div class="sdi-stat">
+          <span class="sdi-label">エントリー</span>
+          <span class="sdi-value">{{ "%.3f"|format(s.entry_price) if s.entry_price else '--' }}</span>
+        </div>
+        <div class="sdi-stat">
+          <span class="sdi-label">SL</span>
+          <span class="sdi-value text-danger">{{ "%.3f"|format(s.sl_price) if s.sl_price else '--' }}</span>
+        </div>
+        <div class="sdi-stat">
+          <span class="sdi-label">TP</span>
+          <span class="sdi-value text-success">{{ "%.3f"|format(s.tp_price) if s.tp_price else '--' }}</span>
+        </div>
+        <div class="sdi-stat">
+          <span class="sdi-label">カテゴリ</span>
+          <span class="sdi-value small text-muted">{{ s.indicator_category or '--' }}</span>
+        </div>
       </div>
     </div>
+    {% endfor %}
+    {% if not sigs %}
+    <div class="empty-state-page" style="padding:32px 0">
+      <i class="bi bi-lightning fs-1 text-muted"></i>
+      <p class="mt-3">シグナルがありません</p>
+    </div>
+    {% endif %}
   </div>
   {% endfor %}
 </div>
+
+<script>
+function sigTab(btn, panelId) {
+  document.querySelectorAll('.sig-tab').forEach(function(b){ b.classList.remove('active'); });
+  document.querySelectorAll('.sig-panel').forEach(function(p){ p.classList.remove('active'); });
+  btn.classList.add('active');
+  document.getElementById(panelId).classList.add('active');
+}
+</script>
+
 {% else %}
 <div class="empty-state-page">
   <i class="bi bi-lightning fs-1 text-muted"></i>

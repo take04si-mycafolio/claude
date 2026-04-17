@@ -2007,16 +2007,25 @@ def main():
             })
             save(filename, html)
 
-        # シグナル一覧
+        # シグナル一覧（ペア別グループ化）
         all_signals = get_all_signals()
+        _pair_labels = {"USDJPY": "ドル円", "GBPJPY": "ポンド円", "EURJPY": "ユーロ円"}
+        signals_by_pair = {}
+        for _s in all_signals:
+            _p = _s.get("currency_pair", "")
+            if _p not in signals_by_pair:
+                signals_by_pair[_p] = []
+            signals_by_pair[_p].append(_s)
         html = render_html(app, "signals_static.html", {
             "pairs": pairs,
             "pair_pages": pair_pages,
             "signals": all_signals,
+            "signals_by_pair": signals_by_pair,
+            "pair_labels": _pair_labels,
             "updated_at": updated_at,
             "active_page": "signals",
         })
-        save("signals.html", html)
+        save("signals/index.html", html)
 
         # バックテスト（テクニカルランキング）
         import decimal as _decimal
@@ -2230,7 +2239,7 @@ def main():
             (SITE_URL + "/gbpjpy/",            "hourly", "0.9"),
             (SITE_URL + "/eurjpy/",            "hourly", "0.9"),
             (SITE_URL + "/technical-ranking/", "daily",  "0.8"),
-            (SITE_URL + "/signals.html",       "hourly", "0.7"),
+            (SITE_URL + "/signals/",            "hourly", "0.7"),
             (SITE_URL + "/reports.html",       "weekly", "0.5"),
         ]
         # カテゴリページ
