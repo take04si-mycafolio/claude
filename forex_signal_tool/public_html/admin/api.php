@@ -109,7 +109,7 @@ switch ($action) {
             $pdo   = get_pdo();
             $limit = (int)($_GET['limit'] ?? 168);
             $stmt  = $pdo->prepare("
-                SELECT DATE_FORMAT(`timestamp`, '%m/%d %H:%i') AS ts,
+                SELECT DATE_FORMAT(CONVERT_TZ(`timestamp`, '+00:00', '+09:00'), '%m/%d %H:%i') AS ts,
                        score, trend_score, external_score, close_price
                 FROM quantflow_scores
                 WHERE currency_pair = 'USDJPY'
