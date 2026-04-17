@@ -485,6 +485,8 @@ def get_pair_data(pair: str) -> dict:
                     "exit_price":     float(t.exit_price)  if t.exit_price  else None,
                     "outcome":        t.outcome,
                     "profit_pips":    float(t.profit_pips) if t.profit_pips else None,
+                    "sl_pips":        float(t.sl_pips)     if t.sl_pips     else None,
+                    "tp_pips":        float(t.tp_pips)     if t.tp_pips     else None,
                 })
         except Exception as e:
             logger.warning("QuantFlow trades error for %s: %s", pair, e)

@@ -392,6 +392,8 @@ function qfTab(ym) {
               data-ep="{{ t.entry_price or '' }}"
               data-xp="{{ t.exit_price or '' }}"
               data-oc="{{ t.outcome or '' }}"
+              data-sl="{{ t.sl_pips or '' }}"
+              data-tp="{{ t.tp_pips or '' }}"
               onclick="qfhOpen(this)">
             <td>{{ t.entry_ts }}</td>
             <td>
@@ -466,7 +468,7 @@ function qfhToggle(ym,btn){
   var rem=panel.querySelectorAll('.qfh-col').length;
   btn.textContent=exp?'折りたたむ ▲':'残り'+rem+'件を表示 ▼';
 }
-var _qfmChart=null,_qfmCs=null;
+var _qfmChart=null,_qfmCs=null,_qfmPLines=[];
 function _qfmJstFmt(ts){
   var d=new Date((ts+32400)*1000);
   return String(d.getUTCMonth()+1).padStart(2,'0')+'/'+String(d.getUTCDate()).padStart(2,'0')+' '+String(d.getUTCHours()).padStart(2,'0')+':'+String(d.getUTCMinutes()).padStart(2,'0');
@@ -501,7 +503,7 @@ function _qfmInit(){
 }
 function qfhOpen(row){
   var eu=row.dataset.eu,xu=row.dataset.xu||null,dir=row.dataset.dir,oc=row.dataset.oc||'';
-  var ep=row.dataset.ep,xp=row.dataset.xp;
+  var ep=row.dataset.ep,xp=row.dataset.xp,sl=row.dataset.sl,tp=row.dataset.tp;
   var fromD=new Date(eu+'Z');fromD.setMinutes(fromD.getMinutes()-30);
   var toD=new Date((xu||eu)+'Z');toD.setMinutes(toD.getMinutes()+30);
   var fmt=function(d){return d.toISOString().slice(0,19);};
@@ -520,7 +522,7 @@ function qfhOpen(row){
   document.getElementById('qfm-exit-time').textContent=xu?fj(xu):'—';
   var priceTxt='';
   if(ep)priceTxt+='Entry '+parseFloat(ep).toFixed(3);
-  if(xp)priceTxt+=(priceTxt?' → ':'')+' Exit '+parseFloat(xp).toFixed(3);
+  if(xp)priceTxt+=(priceTxt?' → ':'')+'Exit '+parseFloat(xp).toFixed(3);
   document.getElementById('qfm-prices').textContent=priceTxt;
   var modal=bootstrap.Modal.getOrCreateInstance(document.getElementById('qfTradeModal'));
   modal.show();
@@ -534,14 +536,39 @@ function qfhOpen(row){
       .then(function(d){
         loading.style.display='none';
         if(!d.ok||!d.candles||!d.candles.length){loading.textContent='ローソク足データがありません';loading.style.display='flex';return;}
-        _qfmCs.setData(d.candles.map(function(c){return{time:c.t+JST,open:c.o,high:c.h,low:c.l,close:c.c};}));
+        var candles=d.candles.map(function(c){return{time:c.t+JST,open:c.o,high:c.h,low:c.l,close:c.c};});
+        _qfmCs.setData(candles);
+
+        /* 既存価格ラインを全削除してから再生成 */
+        _qfmPLines.forEach(function(pl){try{_qfmCs.removePriceLine(pl);}catch(e){}});
+        _qfmPLines=[];
+        var epF=ep?parseFloat(ep):0,pip=0.01;
+        if(epF){
+          _qfmPLines.push(_qfmCs.createPriceLine({price:epF,color:'#eab308',lineWidth:1,lineStyle:0,axisLabelVisible:true,title:'Entry'}));
+        }
+        if(epF&&sl){
+          var slP=dir==='BUY'?epF-parseFloat(sl)*pip:epF+parseFloat(sl)*pip;
+          _qfmPLines.push(_qfmCs.createPriceLine({price:slP,color:'#ef5350',lineWidth:1,lineStyle:2,axisLabelVisible:true,title:'SL'}));
+        }
+        if(epF&&tp){
+          var tpP=dir==='BUY'?epF+parseFloat(tp)*pip:epF-parseFloat(tp)*pip;
+          _qfmPLines.push(_qfmCs.createPriceLine({price:tpP,color:'#26a69a',lineWidth:1,lineStyle:2,axisLabelVisible:true,title:'TP'}));
+        }
+
+        /* マーカー時刻はローソク足の実際の時刻に snap（LWC v4 は exact match 必須） */
+        function nearTs(t){
+          var best=candles[0].time,bd=Math.abs(candles[0].time-t);
+          for(var i=1;i<candles.length;i++){var diff=Math.abs(candles[i].time-t);if(diff<bd){bd=diff;best=candles[i].time;}}
+          return best;
+        }
         var markers=[];
-        var entT=Math.floor(new Date(eu+'Z').getTime()/1000)+JST;
+        var entT=nearTs(Math.floor(new Date(eu+'Z').getTime()/1000)+JST);
         markers.push({time:entT,position:dir==='BUY'?'belowBar':'aboveBar',color:'#eab308',shape:dir==='BUY'?'arrowUp':'arrowDown',text:'IN',size:1.5});
         if(xu){
-          var extT=Math.floor(new Date(xu+'Z').getTime()/1000)+JST;
+          var extT=nearTs(Math.floor(new Date(xu+'Z').getTime()/1000)+JST);
           var isWin=oc==='WIN';
-          markers.push({time:extT,position:(isWin?(dir==='BUY'):(dir!=='BUY'))?'aboveBar':'belowBar',color:isWin?'#f97316':'#3b82f6',shape:(isWin?(dir==='BUY'):(dir!=='BUY'))?'arrowDown':'arrowUp',text:'OUT',size:1.5});
+          var outAbove=isWin?(dir==='BUY'):(dir!=='BUY');
+          markers.push({time:extT,position:outAbove?'aboveBar':'belowBar',color:isWin?'#f97316':'#3b82f6',shape:outAbove?'arrowDown':'arrowUp',text:'OUT',size:1.5});
         }
         _qfmCs.setMarkers(markers);
         _qfmChart.timeScale().fitContent();
