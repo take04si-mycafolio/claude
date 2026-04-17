@@ -376,7 +376,6 @@ function qfTab(ym) {
           <tr>
             <th>エントリー(JST)</th>
             <th>方向</th>
-            <th>スコア</th>
             <th>Entry価格</th>
             <th>Exit価格</th>
             <th>結果</th>
@@ -400,9 +399,6 @@ function qfTab(ym) {
               <span class="signal-type-badge {% if t.direction == 'BUY' %}buy{% else %}sell{% endif %}">
                 {{ '買い' if t.direction == 'BUY' else '売り' }}
               </span>
-            </td>
-            <td class="{% if t.score_at_entry > 0 %}pos{% elif t.score_at_entry < 0 %}neg{% endif %}">
-              {% if t.score_at_entry > 0 %}+{% endif %}{{ t.score_at_entry }}
             </td>
             <td>{{ "%.3f"|format(t.entry_price) if t.entry_price else '-' }}</td>
             <td>{{ "%.3f"|format(t.exit_price) if t.exit_price else '-' }}</td>
