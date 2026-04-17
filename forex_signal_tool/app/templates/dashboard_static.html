@@ -148,9 +148,6 @@
         <div class="ts-bd-bar {% if ts.breakdown.deviation_penalty > 0 %}ts-bd-bar-ext{% else %}ts-bd-bar-neg{% endif %}"
              style="width:{{ [ts.breakdown.deviation_penalty | abs / 30 * 100, 100] | min | int }}%"></div>
       </div>
-      <div class="ts-bd-val {% if ts.breakdown.deviation_penalty < 0 %}ts-neg{% else %}ts-pos{% endif %}">
-        {% if ts.breakdown.deviation_penalty > 0 %}+{% endif %}{{ ts.breakdown.deviation_penalty }}
-      </div>
     </div>
     {% endif %}
   </div>
