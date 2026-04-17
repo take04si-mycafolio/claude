@@ -787,27 +787,6 @@ function qfhOpen(row){
   </div>
   {% endif %}
 </div>
-<!-- 操作パネル -->
-<div class="section-card">
-  <div class="section-title">
-    <i class="bi bi-terminal me-2"></i>データ操作
-  </div>
-  <div class="action-grid">
-    <button class="action-btn" onclick="runAction('fetch_data','データ取得中...','データ取得完了')">
-      <i class="bi bi-cloud-download"></i><span>データ取得</span>
-    </button>
-    <button class="action-btn" onclick="runAction('backtest','バックテスト中...','完了')">
-      <i class="bi bi-bar-chart"></i><span>バックテスト</span>
-    </button>
-    <button class="action-btn" onclick="runAction('signals','シグナル更新中...','更新完了')">
-      <i class="bi bi-lightning"></i><span>シグナル更新</span>
-    </button>
-    <button class="action-btn" onclick="runAction('report','AIレポート生成中...','レポート完了')">
-      <i class="bi bi-robot"></i><span>AIレポート</span>
-    </button>
-  </div>
-  <div id="action-status" class="action-status" style="display:none"></div>
-</div>
 
 <div class="section-card" style="font-size:0.72rem; color:#94a3b8; text-align:center; padding:8px 16px;">
   チャートデータ: {{ updated_at }} 生成 · 表示価格は30秒ごとに更新
