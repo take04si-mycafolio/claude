@@ -376,7 +376,7 @@ def get_pair_data(pair: str) -> dict:
         signals_by_tf.setdefault(tf, []).append(d)
     signal_tf_order = [tf for tf in TF_ORDER if tf in signals_by_tf]
 
-    # ===== シミュレーショントレード（TF別・最大15件ずつ） =====
+    # ===== シミュレーショントレード（TF別・最大5件ずつ） =====
     sl_pips = Setting.get_float("sl_pips", Config.DEFAULT_SL_PIPS)
     tp_pips = Setting.get_float("tp_pips", Config.DEFAULT_TP_PIPS)
     rr_ratio = round(tp_pips / sl_pips, 1) if sl_pips else 2.0
@@ -396,7 +396,7 @@ def get_pair_data(pair: str) -> dict:
             for t in raw_st:
                 tf = t.timeframe or "1hr"
                 bucket = sim_trades_by_tf.setdefault(tf, [])
-                if len(bucket) >= 15:
+                if len(bucket) >= 5:
                     continue
                 entry_p = float(t.entry_price) if t.entry_price else None
                 exit_p  = float(t.exit_price)  if t.exit_price  else None
