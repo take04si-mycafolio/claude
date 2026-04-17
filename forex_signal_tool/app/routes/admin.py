@@ -137,12 +137,27 @@ def dashboard():
 
     tf_order = ["5min", "15min", "30min", "1hr", "4hr", "daily"]
 
-    # price_data のタイムフレーム別内訳
+    # price_data: 通貨ペア × 足種 ごとの件数・最古・最新
     price_by_tf = []
     try:
-        for tf in tf_order:
-            count = PriceData.query.filter_by(timeframe=tf).count()
-            price_by_tf.append({"tf": tf, "count": count})
+        from sqlalchemy import func as sa_func
+        TF_SORT = {tf: i for i, tf in enumerate(tf_order)}
+        rows = (db.session.query(
+            PriceData.currency_pair,
+            PriceData.timeframe,
+            sa_func.count().label("cnt"),
+            sa_func.min(PriceData.timestamp).label("oldest"),
+            sa_func.max(PriceData.timestamp).label("newest"),
+        ).group_by(PriceData.currency_pair, PriceData.timeframe).all())
+        rows_sorted = sorted(rows, key=lambda r: (r.currency_pair, TF_SORT.get(r.timeframe, 99)))
+        for r in rows_sorted:
+            price_by_tf.append({
+                "pair":   r.currency_pair,
+                "tf":     r.timeframe,
+                "count":  r.cnt,
+                "oldest": r.oldest.strftime("%Y/%m/%d %H:%M") if r.oldest else "-",
+                "newest": r.newest.strftime("%Y/%m/%d %H:%M") if r.newest else "-",
+            })
     except Exception as e:
         logger.warning("price_by_tf error: %s", e)
 

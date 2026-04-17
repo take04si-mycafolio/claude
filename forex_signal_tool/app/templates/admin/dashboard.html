@@ -64,10 +64,15 @@ main{max-width:900px;margin:0 auto;padding:28px 20px}
 .db-bar-bg{background:#0f172a;border-radius:3px;height:6px;overflow:hidden}
 .db-bar-fill{height:6px;border-radius:3px;background:#3b82f6;transition:width .3s}
 .db-table .tname{color:#60a5fa;font-family:'Courier New',monospace}
-.tf-grid{display:grid;grid-template-columns:repeat(6,1fr);gap:8px;margin-top:12px}
-.tf-card{background:#0f172a;border:1px solid #334155;border-radius:7px;padding:10px;text-align:center}
-.tf-card .tf-label{font-size:11px;color:#64748b;margin-bottom:4px}
-.tf-card .tf-count{font-size:16px;font-weight:700;color:#f1f5f9}
+.data-range-table{width:100%;border-collapse:collapse;font-size:11px;margin-top:4px}
+.data-range-table th{text-align:left;padding:5px 8px;color:#64748b;font-weight:600;border-bottom:1px solid #1e293b;white-space:nowrap}
+.data-range-table td{padding:5px 8px;border-bottom:1px solid #0f172a;vertical-align:middle}
+.data-range-table tr:last-child td{border-bottom:none}
+.dr-pair{color:#60a5fa;font-weight:700;font-family:'Courier New',monospace}
+.dr-tf{color:#94a3b8;font-family:'Courier New',monospace}
+.dr-num{text-align:right;color:#f1f5f9;font-variant-numeric:tabular-nums}
+.dr-date{color:#cbd5e1;font-family:'Courier New',monospace;font-size:10.5px}
+.dr-oldest{color:#f59e0b}
 /* Sim / BT stats */
 .two-col{display:grid;grid-template-columns:1fr 1fr;gap:16px}
 .inner-card{background:#1e293b;border:1px solid #334155;border-radius:10px;padding:16px 18px}
@@ -304,15 +309,29 @@ main{max-width:900px;margin:0 auto;padding:28px 20px}
 
     {% if price_by_tf %}
     <div style="margin-top:16px">
-      <div style="font-size:12px;color:#64748b;margin-bottom:8px">price_data タイムフレーム別件数</div>
-      <div class="tf-grid">
-        {% for item in price_by_tf %}
-        <div class="tf-card">
-          <div class="tf-label">{{ item.tf }}</div>
-          <div class="tf-count">{{ "{:,}".format(item.count) }}</div>
-        </div>
-        {% endfor %}
-      </div>
+      <div style="font-size:12px;color:#64748b;margin-bottom:8px">price_data データ範囲（ペア × 足種）</div>
+      <table class="data-range-table">
+        <thead>
+          <tr>
+            <th>ペア</th>
+            <th>足種</th>
+            <th>件数</th>
+            <th>最古データ</th>
+            <th>最新データ</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for item in price_by_tf %}
+          <tr>
+            <td class="dr-pair">{{ item.pair }}</td>
+            <td class="dr-tf">{{ item.tf }}</td>
+            <td class="dr-num">{{ "{:,}".format(item.count) }}</td>
+            <td class="dr-date dr-oldest">{{ item.oldest }}</td>
+            <td class="dr-date">{{ item.newest }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
     </div>
     {% endif %}
   </div>
