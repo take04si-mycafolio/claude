@@ -164,7 +164,7 @@ switch ($action) {
         try {
             $pdo  = get_pdo();
             $stmt = $pdo->prepare("
-                SELECT UNIX_TIMESTAMP(timestamp)          AS t,
+                SELECT DATE_FORMAT(timestamp, '%Y-%m-%dT%H:%i:%S') AS dt,
                        CAST(open  AS DECIMAL(12,5))       AS o,
                        CAST(high  AS DECIMAL(12,5))       AS h,
                        CAST(low   AS DECIMAL(12,5))       AS l,
@@ -181,7 +181,7 @@ switch ($action) {
             $stmt->execute([$pair, $fromSql, $toSql]);
             $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
             $candles = array_map(function($r) {
-                return ['t'=>(int)$r['t'],'o'=>(float)$r['o'],'h'=>(float)$r['h'],'l'=>(float)$r['l'],'c'=>(float)$r['c']];
+                return ['dt'=>$r['dt'],'o'=>(float)$r['o'],'h'=>(float)$r['h'],'l'=>(float)$r['l'],'c'=>(float)$r['c']];
             }, $rows);
             json_out(['ok' => true, 'candles' => $candles]);
         } catch (Exception $e) {

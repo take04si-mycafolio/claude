@@ -536,7 +536,11 @@ function qfhOpen(row){
       .then(function(d){
         loading.style.display='none';
         if(!d.ok||!d.candles||!d.candles.length){loading.textContent='ローソク足データがありません';loading.style.display='flex';return;}
-        var candles=d.candles.map(function(c){return{time:c.t+JST,open:c.o,high:c.h,low:c.l,close:c.c};});
+        /* DBのdatetime文字列を"UTC"として明示パース → DBのTZ設定に依存しない */
+        var candles=d.candles.map(function(c){
+          var utcSec=Math.floor(new Date(c.dt+'Z').getTime()/1000);
+          return{time:utcSec+JST,open:c.o,high:c.h,low:c.l,close:c.c};
+        });
         _qfmCs.setData(candles);
 
         /* 既存価格ラインを全削除してから再生成 */
@@ -552,10 +556,10 @@ function qfhOpen(row){
         }
         if(epF&&tp){
           var tpP=dir==='BUY'?epF+parseFloat(tp)*pip:epF-parseFloat(tp)*pip;
-          _qfmPLines.push(_qfmCs.createPriceLine({price:tpP,color:'#26a69a',lineWidth:1,lineStyle:2,axisLabelVisible:true,title:'TP'}));
+          _qfmPLines.push(_qfmCs.createPriceLine({price:tpP,color:'#f97316',lineWidth:1,lineStyle:2,axisLabelVisible:true,title:'TP'}));
         }
 
-        /* マーカー時刻はローソク足の実際の時刻に snap（LWC v4 は exact match 必須） */
+        /* マーカー時刻: entryも同じくUTC明示パース+JST → candle.timeと完全一致 */
         function nearTs(t){
           var best=candles[0].time,bd=Math.abs(candles[0].time-t);
           for(var i=1;i<candles.length;i++){var diff=Math.abs(candles[i].time-t);if(diff<bd){bd=diff;best=candles[i].time;}}
