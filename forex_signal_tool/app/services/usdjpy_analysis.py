@@ -210,7 +210,38 @@ def get_usdjpy_trend_score() -> dict:
         except Exception:
             return False
 
-    us10y_rising = _is_rising("US10Y")
+    def _us10y_rising_hybrid() -> bool:
+        """
+        ハイブリッド判定:
+        - ^TNX 最新足が 90 分以内（米現物市場開場中）→ 現物利回り MA5 で判定
+        - それ以外（時間外）→ ZN=F 先物 MA5 を反転（先物上昇 = 利回り低下）
+        """
+        try:
+            df_cash = get_candles("US10Y", "1hr", limit=10)
+            if not df_cash.empty and len(df_cash) >= 5:
+                latest_ts = df_cash["timestamp"].iloc[-1]
+                if hasattr(latest_ts, "to_pydatetime"):
+                    latest_ts = latest_ts.to_pydatetime()
+                if latest_ts.tzinfo is None:
+                    latest_ts = latest_ts.replace(tzinfo=timezone.utc)
+                age_min = (datetime.now(timezone.utc) - latest_ts).total_seconds() / 60
+                if age_min <= 90:
+                    close = df_cash["close"].astype(float)
+                    return float(close.iloc[-1]) > float(close.iloc[-5:].mean())
+        except Exception:
+            pass
+        # 時間外: 先物（反転）
+        try:
+            df_fut = get_candles("USBF", "1hr", limit=10)
+            if not df_fut.empty and len(df_fut) >= 5:
+                close = df_fut["close"].astype(float)
+                fut_rising = float(close.iloc[-1]) > float(close.iloc[-5:].mean())
+                return not fut_rising  # 先物上昇 = 利回り低下
+        except Exception:
+            pass
+        return False
+
+    us10y_rising = _us10y_rising_hybrid()
     dxy_rising   = _is_rising("DXY")
 
     result = calculate_trend_score(

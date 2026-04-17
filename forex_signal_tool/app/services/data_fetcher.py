@@ -24,7 +24,8 @@ YF_PAIR_MAP = {
     "GBPJPY": "GBPJPY=X",
     "EURJPY": "EURJPY=X",
     # マクロ指標（トレンドスコア用）
-    "US10Y": "^TNX",       # 米10年債利回り
+    "US10Y": "^TNX",       # 米10年債利回り（現物）
+    "USBF":  "ZN=F",       # 米10年国債先物（時間外カバー用）
     "DXY":   "DX-Y.NYB",  # ドルインデックス
 }
 
@@ -49,7 +50,7 @@ YF_HOURS_BACK = {
 }
 
 # マクロ指標（US10Y / DXY）の取得対象タイムフレーム
-MACRO_PAIRS = ["US10Y", "DXY"]
+MACRO_PAIRS = ["US10Y", "USBF", "DXY"]
 MACRO_TIMEFRAMES = ["1hr"]
 
 

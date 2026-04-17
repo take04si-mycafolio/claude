@@ -34,6 +34,7 @@ logger = logging.getLogger(__name__)
 # US10Y=^TNX, DXY=DX-Y.NYB
 MACRO_TARGETS = [
     ("US10Y", "^TNX"),
+    ("USBF",  "ZN=F"),
     ("DXY",   "DX-Y.NYB"),
 ]
 

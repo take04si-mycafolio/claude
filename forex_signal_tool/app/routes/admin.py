@@ -137,7 +137,7 @@ def dashboard():
 
     tf_order = ["5min", "15min", "30min", "1hr", "4hr", "daily"]
 
-    MACRO_PAIRS_SET = {"US10Y", "DXY"}
+    MACRO_PAIRS_SET = {"US10Y", "USBF", "DXY"}
 
     # price_data: 通貨ペア × 足種 ごとの件数・最古・最新（マクロ除外）
     price_by_tf = []
@@ -166,7 +166,7 @@ def dashboard():
                 macro_found[r.currency_pair] = entry
             else:
                 price_by_tf.append(entry)
-        for pair in ["US10Y", "DXY"]:
+        for pair in ["US10Y", "USBF", "DXY"]:
             if pair in macro_found:
                 macro_status.append(macro_found[pair])
             else:

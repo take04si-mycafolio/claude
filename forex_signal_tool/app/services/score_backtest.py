@@ -19,7 +19,7 @@ SCORE_BANDS = [
 
 def _macro_rising_series(macro_close: pd.Series, usdjpy_ts: pd.Series) -> pd.Series:
     """
-    マクロ指標（US10Y/DXY）の各タイムスタンプにおける MA5 上抜けフラグを
+    マクロ指標（DXY など）の各タイムスタンプにおける MA5 上抜けフラグを
     USDJPY の timestamp 系列に merge_asof で対応付けて返す。
     欠損は False。
     """
@@ -29,7 +29,6 @@ def _macro_rising_series(macro_close: pd.Series, usdjpy_ts: pd.Series) -> pd.Ser
     ma5 = macro_close.rolling(5).mean()
     rising = (macro_close > ma5).astype(bool)
 
-    # merge_asof 用に DataFrame に変換（列名を揃える）
     left = pd.DataFrame({"ts": usdjpy_ts.values}, index=usdjpy_ts.index)
     right = pd.DataFrame({
         "ts":     macro_close.index,
@@ -42,9 +41,65 @@ def _macro_rising_series(macro_close: pd.Series, usdjpy_ts: pd.Series) -> pd.Ser
         on="ts",
         direction="backward",
     )
-    # 元の index 順に戻す
     merged.index = left.sort_values("ts").index
     result = merged["rising"].reindex(usdjpy_ts.index).fillna(False)
+    return result
+
+
+def _hybrid_us10y_rising_series(
+    us10y_close: pd.Series,
+    usbf_close: pd.Series,
+    usdjpy_ts: pd.Series,
+) -> pd.Series:
+    """
+    ハイブリッド US10Y 上昇フラグ（バックテスト用）:
+    - US10Y 直近足が 90 分以内: 現物 MA5 で判定
+    - それ以外: ZN=F 先物 MA5 を反転（先物上昇 = 利回り低下）
+    """
+    left = pd.DataFrame({"ts": usdjpy_ts.values}, index=usdjpy_ts.index)
+
+    # 現物: 90 分以内のデータのみ採用（tolerance）
+    if not us10y_close.empty:
+        ma5_cash = us10y_close.rolling(5).mean()
+        cash_rising = (us10y_close > ma5_cash).astype(bool)
+        right_cash = pd.DataFrame({
+            "ts": us10y_close.index,
+            "cash_rising": cash_rising.values,
+        }).sort_values("ts")
+        merged_cash = pd.merge_asof(
+            left.sort_values("ts"),
+            right_cash,
+            on="ts",
+            tolerance=pd.Timedelta("90min"),
+            direction="backward",
+        )
+        merged_cash.index = left.sort_values("ts").index
+        cash_flag = merged_cash["cash_rising"].reindex(usdjpy_ts.index)
+    else:
+        cash_flag = pd.Series(dtype=object, index=usdjpy_ts.index)
+
+    # 先物: tolerance なし（常に最新値）→ 反転
+    if not usbf_close.empty:
+        ma5_fut = usbf_close.rolling(5).mean()
+        fut_rising = (usbf_close > ma5_fut).astype(bool)
+        right_fut = pd.DataFrame({
+            "ts": usbf_close.index,
+            "fut_rising": fut_rising.values,
+        }).sort_values("ts")
+        merged_fut = pd.merge_asof(
+            left.sort_values("ts"),
+            right_fut,
+            on="ts",
+            direction="backward",
+        )
+        merged_fut.index = left.sort_values("ts").index
+        fut_flag = merged_fut["fut_rising"].reindex(usdjpy_ts.index)
+        fut_yield_flag = (~fut_flag.fillna(True).astype(bool))
+    else:
+        fut_yield_flag = pd.Series(False, index=usdjpy_ts.index)
+
+    # 現物フラグが有効（NaN でない）→ 現物、それ以外 → 先物
+    result = cash_flag.where(cash_flag.notna(), fut_yield_flag).fillna(False).astype(bool)
     return result
 
 
@@ -96,10 +151,11 @@ def compute_score_band_stats(
         return dm.set_index("timestamp")["close"].astype(float).sort_index()
 
     us10y_close = _load_macro_close("US10Y")
+    usbf_close  = _load_macro_close("USBF")
     dxy_close   = _load_macro_close("DXY")
 
-    us10y_rising_s = _macro_rising_series(us10y_close, ts)
-    dxy_rising_s   = _macro_rising_series(dxy_close,   ts)
+    us10y_rising_s = _hybrid_us10y_rising_series(us10y_close, usbf_close, ts)
+    dxy_rising_s   = _macro_rising_series(dxy_close, ts)
 
     # ---- 遡及スコア計算 ----
     warmup   = 200

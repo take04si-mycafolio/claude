@@ -368,7 +368,7 @@ main{max-width:900px;margin:0 auto;padding:28px 20px}
           </tr>
         </thead>
         <tbody>
-          {% set macro_labels = {"US10Y": "米10年債利回り", "DXY": "ドルインデックス"} %}
+          {% set macro_labels = {"US10Y": "米10年債利回り（現物）", "USBF": "米10年国債先物 ZN=F（時間外）", "DXY": "ドルインデックス"} %}
           {% for item in macro_status %}
           <tr>
             <td><span class="macro-badge">{{ item.pair }}</span></td>
