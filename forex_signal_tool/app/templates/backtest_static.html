@@ -388,7 +388,7 @@
   <div class="pbn-title">通貨ペア別リアルタイムシグナル</div>
   <div class="pbn-grid">
     {% for pair, filename in pair_pages.items() %}
-    <a href="/{{ filename }}" class="pbn-card {{ pair_color.get(pair, '') }}">
+    <a href="/{{ filename | replace('index.html', '') }}" class="pbn-card {{ pair_color.get(pair, '') }}">
       <div class="pbn-pair">{{ pair_en.get(pair, pair) }}</div>
       <div class="pbn-ja">{{ pair_ja.get(pair, '') }}</div>
       <div class="pbn-desc">{{ pair_desc.get(pair, '') }}</div>

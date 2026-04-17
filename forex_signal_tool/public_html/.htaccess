@@ -28,6 +28,9 @@ AddHandler cgi-script .cgi
   # index.html → / に正規化（301 Permanent）
   RewriteRule ^index\.html$ / [R=301,L]
 
+  # 通貨ペアページ: /usdjpy/index.html → /usdjpy/（301）
+  RewriteRule ^(usdjpy|gbpjpy|eurjpy)/index\.html$ /$1/ [R=301,L]
+
   # 実ファイル・ディレクトリはそのまま配信
   RewriteCond %{REQUEST_FILENAME} -f [OR]
   RewriteCond %{REQUEST_FILENAME} -d

@@ -11,7 +11,7 @@
 <!-- 通貨ペアタブ -->
 <div class="pair-tabs">
   {% for pair, filename in pair_pages.items() %}
-  <a href="/{{ filename }}"
+  <a href="/{{ filename | replace('index.html', '') }}"
      class="pair-tab {% if pair == current_pair %}active{% endif %}">
     {{ pair[:3] }}/{{ pair[3:] }}
   </a>
