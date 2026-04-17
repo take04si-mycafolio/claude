@@ -203,35 +203,35 @@
   {% if m.sell %}{% set grand.st = grand.st + m.sell.total %}{% set grand.sw = grand.sw + m.sell.wins %}{% set grand.sl_ = grand.sl_ + m.sell.losses %}{% set grand.sp = grand.sp + m.sell.total_pips %}{% endif %}
 {% endfor %}
 <style>
-.qf-section{background:#1e293b;border:1px solid #334155;border-radius:12px;padding:18px 20px;margin-bottom:18px}
+.qf-section{background:#fff;border:1px solid #e2e8f0;border-radius:12px;padding:18px 20px;margin-bottom:18px}
 .qf-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;flex-wrap:wrap;gap:8px}
-.qf-title{font-size:13px;font-weight:600;color:#94a3b8;display:flex;align-items:center;gap:6px}
+.qf-title{font-size:13px;font-weight:600;color:#475569;display:flex;align-items:center;gap:6px}
 .qf-grand{display:flex;gap:16px;flex-wrap:wrap}
 .qf-kpi{text-align:center}
-.qf-kpi-val{font-size:18px;font-weight:700;line-height:1.1}
-.qf-kpi-lbl{font-size:10px;color:#64748b;margin-top:2px}
+.qf-kpi-val{font-size:18px;font-weight:700;line-height:1.1;color:#1e293b}
+.qf-kpi-lbl{font-size:10px;color:#94a3b8;margin-top:2px}
 .qf-month-tabs{display:flex;gap:3px;flex-wrap:wrap;margin-bottom:0}
-.qf-mtab{padding:5px 14px;border-radius:6px 6px 0 0;font-size:11px;font-weight:600;cursor:pointer;border:1px solid #334155;border-bottom:none;background:#0f172a;color:#64748b;transition:background .15s,color .15s;white-space:nowrap}
-.qf-mtab.active{background:#1e293b;color:#f1f5f9;border-color:#475569}
-.qf-mpanel{display:none;background:#0f172a;border:1px solid #334155;border-radius:0 6px 6px 6px;padding:14px}
+.qf-mtab{padding:5px 14px;border-radius:6px 6px 0 0;font-size:11px;font-weight:600;cursor:pointer;border:1px solid #e2e8f0;border-bottom:none;background:#f8fafc;color:#94a3b8;transition:background .15s,color .15s;white-space:nowrap}
+.qf-mtab.active{background:#fff;color:#1e293b;border-color:#cbd5e1}
+.qf-mpanel{display:none;background:#f8fafc;border:1px solid #e2e8f0;border-radius:0 6px 6px 6px;padding:14px}
 .qf-mpanel.active{display:block}
 .qf-dir-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
 .qf-dir-card{border-radius:8px;padding:12px 14px}
-.qf-dir-card.buy{background:rgba(74,222,128,.07);border:1px solid rgba(74,222,128,.2)}
-.qf-dir-card.sell{background:rgba(248,113,113,.07);border:1px solid rgba(248,113,113,.2)}
+.qf-dir-card.buy{background:rgba(22,163,74,.06);border:1px solid rgba(22,163,74,.2)}
+.qf-dir-card.sell{background:rgba(220,38,38,.05);border:1px solid rgba(220,38,38,.18)}
 .qf-dir-label{font-size:11px;font-weight:700;margin-bottom:10px;display:flex;align-items:center;gap:5px}
-.qf-dir-label.buy{color:#4ade80}.qf-dir-label.sell{color:#f87171}
-.qf-stat-row{display:flex;justify-content:space-between;font-size:12px;padding:3px 0;border-bottom:1px solid rgba(255,255,255,.04)}
+.qf-dir-label.buy{color:#16a34a}.qf-dir-label.sell{color:#dc2626}
+.qf-stat-row{display:flex;justify-content:space-between;font-size:12px;padding:3px 0;border-bottom:1px solid #f1f5f9}
 .qf-stat-row:last-child{border-bottom:none}
-.qf-stat-key{color:#64748b}
-.qf-stat-val{font-weight:600;font-family:'Courier New',monospace}
-.qf-month-total{margin-top:10px;padding:10px 12px;background:#1e293b;border-radius:6px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px}
+.qf-stat-key{color:#94a3b8}
+.qf-stat-val{font-weight:600;font-family:'Courier New',monospace;color:#334155}
+.qf-month-total{margin-top:10px;padding:10px 12px;background:#fff;border:1px solid #e2e8f0;border-radius:6px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px}
 .qf-month-total-label{font-size:11px;color:#64748b;font-weight:600}
 .qf-month-kpis{display:flex;gap:14px;flex-wrap:wrap}
 .qf-month-kpi{text-align:right}
-.qf-month-kpi-val{font-size:14px;font-weight:700;font-family:'Courier New',monospace}
-.qf-month-kpi-lbl{font-size:10px;color:#64748b}
-.pos{color:#4ade80}.neg{color:#f87171}.neu{color:#facc15}
+.qf-month-kpi-val{font-size:14px;font-weight:700;font-family:'Courier New',monospace;color:#1e293b}
+.qf-month-kpi-lbl{font-size:10px;color:#94a3b8}
+.qf-section .pos{color:#16a34a}.qf-section .neg{color:#dc2626}.qf-section .neu{color:#d97706}
 @media(max-width:480px){.qf-dir-grid{grid-template-columns:1fr}}
 </style>
 <div class="qf-section">
@@ -305,7 +305,7 @@
       <span class="qf-month-total-label">{{ m.label }} 合計</span>
       <div class="qf-month-kpis">
         <div class="qf-month-kpi">
-          <div class="qf-month-kpi-val" style="color:#e2e8f0">{{ m.total }}回</div>
+          <div class="qf-month-kpi-val">{{ m.total }}回</div>
           <div class="qf-month-kpi-lbl">トレード</div>
         </div>
         <div class="qf-month-kpi">
