@@ -1,15 +1,15 @@
 """
-QuantFlow 月次バックテスト
+QuantFlow 月次バックテスト（5分足スキャルピングシミュレーション）
 
-1hr 足の QuantFlow スコアをもとにシグナルを生成し、
-SL/TP ヒットまでのトレード結果を quantflow_trades テーブルに保存する。
+1hr QuantFlowスコアを方向性フィルターとして使用し、スコアが方向転換した時に
+5分足でエントリーする。SL/TP/シグナル終了のいずれかで決済。
 
-エントリー条件 : |スコア| >= SCORE_THRESHOLD（デフォルト 30）
-エントリー価格 : シグナル発生の次足 open
-エグジット     : TP または SL ヒット（同足で両方ヒット → SL 優先）
-最大保有時間  : MAX_HOLD_BARS 本（デフォルト 48h）を超えたら close で決済
+エントリー条件: |スコア| >= SCORE_THRESHOLD かつ直前と異なる方向（シグナル転換）
+エントリー価格: シグナル発生直後の5m足 open
+エグジット    : TP / SL / シグナル終了（方向転換または|スコア|<閾値で前足close決済）
 """
 
+import bisect
 import logging
 import math
 import pandas as pd
@@ -17,7 +17,6 @@ import pandas as pd
 logger = logging.getLogger(__name__)
 
 SCORE_THRESHOLD = 30
-MAX_HOLD_BARS   = 48
 PIP_VALUE       = 0.01   # JPY ペア: 1 pip = 0.01
 WARMUP          = 200    # MA200 の計算に必要
 
@@ -81,87 +80,136 @@ def _compute_scores(df: pd.DataFrame, limit: int) -> list:
 
 def run_quantflow_backtest(
     pair:       str   = "USDJPY",
-    sl_pips:    float = 20.0,
-    tp_pips:    float = 40.0,
+    sl_pips:    float = 10.0,
+    tp_pips:    float = 20.0,
     limit:      int   = 5000,
     start_date: str   = "2026-01-01",
 ) -> dict:
     """
-    QuantFlow 月次バックテストを実行して DB に保存する。
+    5分足スキャルピングシミュレーションを実行してDBに保存する。
     既存データは全件削除してから再計算する。
 
-    start_date: この日付以降のエントリーのみ記録（マクロデータが揃う期間に限定）
+    ロジック:
+    - 1hr QuantFlowスコアが閾値を超えて方向転換 → シグナル発生
+    - 次の5m足openでエントリー（SL=sl_pips / TP=tp_pips）
+    - TP/SLヒット または シグナル終了（方向転換・閾値割れ）で決済
+    - シグナル終了時は前足closeで決済、損益をWIN/LOSSに判定
     """
     from app import db
     from app.models.quantflow_trade import QuantFlowTrade
     from app.services.data_fetcher import get_candles
     from datetime import datetime
 
-    logger.info("QuantFlow BT 開始: %s  SL=%.1f TP=%.1f  開始日=%s",
+    logger.info("QuantFlow BT (5m scalping) 開始: %s  SL=%.1f TP=%.1f  開始日=%s",
                 pair, sl_pips, tp_pips, start_date)
 
-    df = get_candles(pair, "1hr", limit=limit)
-    if df.empty or len(df) < WARMUP + 10:
-        return {"error": f"データ不足 ({len(df)} 本)"}
+    # 1hr足データとスコア計算
+    df_1h = get_candles(pair, "1hr", limit=limit)
+    if df_1h.empty or len(df_1h) < WARMUP + 10:
+        return {"error": f"1hr データ不足 ({len(df_1h)} 本)"}
+    df_1h = df_1h.reset_index(drop=True)
 
-    df = df.reset_index(drop=True)
+    # 5m足データ取得（1hrの約14倍で余裕を確保）
+    df_5m = get_candles(pair, "5min", limit=limit * 14)
+    if df_5m.empty:
+        return {"error": "5分足データなし。データ取得を先に実行してください。"}
+    df_5m = df_5m.reset_index(drop=True)
 
-    # start_date 以降のみエントリーを記録（スコア計算自体は全期間で行いWARMUP確保）
+    def _to_naive(ts):
+        if hasattr(ts, "to_pydatetime"):
+            ts = ts.to_pydatetime()
+        if hasattr(ts, "tzinfo") and ts.tzinfo is not None:
+            ts = ts.replace(tzinfo=None)
+        return ts
+
+    ts_1h = [_to_naive(df_1h["timestamp"].iloc[i]) for i in range(len(df_1h))]
+    ts_5m = [_to_naive(df_5m["timestamp"].iloc[i]) for i in range(len(df_5m))]
+
     try:
         entry_start_dt = datetime.strptime(start_date, "%Y-%m-%d")
     except ValueError:
         entry_start_dt = None
 
-    scores = _compute_scores(df, limit)
+    scores = _compute_scores(df_1h, limit)
 
-    # ---------- 既存データ削除 ----------
+    # 既存データ削除
     QuantFlowTrade.query.filter_by(currency_pair=pair).delete()
     db.session.commit()
 
-    # ---------- トレード生成 ----------
     trades_to_add = []
-    i = WARMUP
+    prev_dir = None  # 直前のシグナル方向: None / "BUY" / "SELL"
 
-    while i < len(df) - 1:
+    for i in range(WARMUP, len(df_1h)):
         score = scores[i]
+
+        # 現在の方向を判定
         if score is None or abs(score) < SCORE_THRESHOLD:
-            i += 1
-            continue
-
-        direction = "BUY" if score > 0 else "SELL"
-
-        entry_idx   = i + 1
-        if entry_idx >= len(df):
-            break
-
-        entry_price = float(df["open"].iloc[entry_idx])
-        entry_ts    = df["timestamp"].iloc[entry_idx]
-        if hasattr(entry_ts, "to_pydatetime"):
-            entry_ts = entry_ts.to_pydatetime()
-
-        # start_date 以前のエントリーはスキップ（スコア計算は継続）
-        if entry_start_dt and entry_ts.replace(tzinfo=None) < entry_start_dt:
-            i += 1
-            continue
-
-        tp_dist = tp_pips * PIP_VALUE
-        sl_dist = sl_pips * PIP_VALUE
-
-        if direction == "BUY":
-            tp_price = entry_price + tp_dist
-            sl_price = entry_price - sl_dist
+            curr_dir = None
         else:
-            tp_price = entry_price - tp_dist
-            sl_price = entry_price + sl_dist
+            curr_dir = "BUY" if score > 0 else "SELL"
+
+        # 転換なし（継続 or シグナルなし）はスキップ
+        if curr_dir is None or curr_dir == prev_dir:
+            prev_dir = curr_dir
+            continue
+
+        prev_dir  = curr_dir
+        direction = curr_dir
+        signal_start_ts = ts_1h[i]
+
+        # start_date 以前はスキップ（スコア計算の prev_dir は更新済み）
+        if entry_start_dt and signal_start_ts < entry_start_dt:
+            continue
+
+        # シグナル終了時刻を先読み（方向が変わる / スコアが閾値以下になる 1hr 足）
+        signal_end_ts = None
+        for j in range(i + 1, len(df_1h)):
+            s = scores[j]
+            if s is None or abs(s) < SCORE_THRESHOLD:
+                next_dir = None
+            else:
+                next_dir = "BUY" if s > 0 else "SELL"
+            if next_dir != direction:
+                signal_end_ts = ts_1h[j]
+                break
+
+        # signal_start_ts 直後の最初の5m足でエントリー
+        entry_5m_idx = bisect.bisect_right(ts_5m, signal_start_ts)
+        if entry_5m_idx >= len(df_5m):
+            continue
+
+        entry_price = float(df_5m["open"].iloc[entry_5m_idx])
+        entry_ts    = ts_5m[entry_5m_idx]
+
+        pip = PIP_VALUE
+        if direction == "BUY":
+            tp_price = entry_price + tp_pips * pip
+            sl_price = entry_price - sl_pips * pip
+        else:
+            tp_price = entry_price - tp_pips * pip
+            sl_price = entry_price + sl_pips * pip
 
         outcome     = None
         exit_price  = None
-        exit_idx    = None
+        exit_ts     = None
         profit_pips = None
 
-        for j in range(entry_idx + 1, min(entry_idx + MAX_HOLD_BARS + 1, len(df))):
-            high = float(df["high"].iloc[j])
-            low  = float(df["low"].iloc[j])
+        for k in range(entry_5m_idx + 1, len(df_5m)):
+            ts_k = ts_5m[k]
+
+            # シグナル終了 → 前足closeで決済
+            if signal_end_ts and ts_k >= signal_end_ts:
+                exit_price = float(df_5m["close"].iloc[k - 1])
+                exit_ts    = ts_k
+                if direction == "BUY":
+                    profit_pips = round((exit_price - entry_price) / pip, 2)
+                else:
+                    profit_pips = round((entry_price - exit_price) / pip, 2)
+                outcome = "WIN" if profit_pips > 0 else "LOSS"
+                break
+
+            high = float(df_5m["high"].iloc[k])
+            low  = float(df_5m["low"].iloc[k])
 
             if direction == "BUY":
                 hit_tp = high >= tp_price
@@ -171,30 +219,27 @@ def run_quantflow_backtest(
                 hit_sl = high >= sl_price
 
             if hit_tp and hit_sl:
-                outcome = "LOSS"; exit_price = sl_price; exit_idx = j
+                outcome = "LOSS"; exit_price = sl_price; exit_ts = ts_k
                 profit_pips = -sl_pips
                 break
             elif hit_tp:
-                outcome = "WIN";  exit_price = tp_price; exit_idx = j
+                outcome = "WIN";  exit_price = tp_price; exit_ts = ts_k
                 profit_pips = tp_pips
                 break
             elif hit_sl:
-                outcome = "LOSS"; exit_price = sl_price; exit_idx = j
+                outcome = "LOSS"; exit_price = sl_price; exit_ts = ts_k
                 profit_pips = -sl_pips
                 break
 
+        # 5m足が尽きた場合は最終足closeで決済
         if outcome is None:
-            exit_idx   = min(entry_idx + MAX_HOLD_BARS, len(df) - 1)
-            exit_price = float(df["close"].iloc[exit_idx])
+            exit_price = float(df_5m["close"].iloc[-1])
+            exit_ts    = ts_5m[-1]
             if direction == "BUY":
-                profit_pips = round((exit_price - entry_price) / PIP_VALUE, 2)
+                profit_pips = round((exit_price - entry_price) / pip, 2)
             else:
-                profit_pips = round((entry_price - exit_price) / PIP_VALUE, 2)
+                profit_pips = round((entry_price - exit_price) / pip, 2)
             outcome = "WIN" if profit_pips > 0 else "LOSS"
-
-        exit_ts = df["timestamp"].iloc[exit_idx]
-        if hasattr(exit_ts, "to_pydatetime"):
-            exit_ts = exit_ts.to_pydatetime()
 
         year_month = entry_ts.strftime("%Y-%m")
 
@@ -213,13 +258,11 @@ def run_quantflow_backtest(
             tp_pips        = tp_pips,
         ))
 
-        i = exit_idx + 1
-
     if trades_to_add:
         db.session.bulk_save_objects(trades_to_add)
         db.session.commit()
 
-    logger.info("QuantFlow BT 完了: %d トレード", len(trades_to_add))
+    logger.info("QuantFlow BT (5m) 完了: %d トレード", len(trades_to_add))
     return {"total_trades": len(trades_to_add), "pair": pair}
 
 
