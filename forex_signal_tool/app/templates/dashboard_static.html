@@ -32,21 +32,6 @@
   </div>
 
   <!-- 総合シグナル -->
-  <div class="mt-3">
-    {% if data.overall == 'BUY' %}
-    <div class="signal-badge-large buy">
-      <i class="bi bi-arrow-up-circle-fill me-2"></i>買いシグナル優勢
-    </div>
-    {% elif data.overall == 'SELL' %}
-    <div class="signal-badge-large sell">
-      <i class="bi bi-arrow-down-circle-fill me-2"></i>売りシグナル優勢
-    </div>
-    {% else %}
-    <div class="signal-badge-large neutral">
-      <i class="bi bi-dash-circle me-2"></i>中立
-    </div>
-    {% endif %}
-  </div>
 
   <!-- シグナル集計 -->
   <div class="signal-counts">
