@@ -719,7 +719,6 @@ function pollOpStatus(op, cfg, btn, msg, origText) {
 }
 </script>
 
-<?php if ($isLoggedIn): ?>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <script>
 var _qfChartInst = null;
@@ -897,6 +896,6 @@ function loadQfChart() {
 document.getElementById('qf-range').addEventListener('change', loadQfChart);
 loadQfChart();
 </script>
-<?php endif; ?>
+<?php endif; // end logged-in ?>
 </body>
 </html>
