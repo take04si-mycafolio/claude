@@ -2007,21 +2007,42 @@ def main():
             })
             save(filename, html)
 
-        # シグナル一覧（ペア別グループ化）
+        # シグナル一覧（ペア別・足別グループ化）
         all_signals = get_all_signals()
         _pair_labels = {"USDJPY": "ドル円", "GBPJPY": "ポンド円", "EURJPY": "ユーロ円"}
+        _tf_labels   = {"5min": "5分", "15min": "15分", "1hr": "1時間", "4hr": "4時間", "daily": "日足"}
+        _tf_order    = ["5min", "15min", "1hr", "4hr", "daily"]
+        # 指標URL・日本語名マップ（INDICATOR_SEO + INDICATOR_INFO + CATEGORY_SLUGS）
+        _sig_url_map = {}
+        for _iname, _iinfo in INDICATOR_INFO.items():
+            _cat_slug  = CATEGORY_SLUGS.get(_iinfo.get("category", ""), "indicators")
+            _url_slug  = INDICATOR_SEO.get(_iname, {}).get("url_slug") or _iinfo.get("slug", "")
+            _sig_url_map[_iname] = f"/{_cat_slug}/{_url_slug}/"
+        # シグナルを富化（日本語名・URL・JST日時）
+        for _s in all_signals:
+            _iname = _s.get("indicator_name", "")
+            _s["display_name"]    = INDICATOR_INFO.get(_iname, {}).get("display", _iname)
+            _s["ind_url"]         = _sig_url_map.get(_iname, "")
+            _s["signal_time_jst"] = utc_str_to_jst(_s.get("signal_time", ""))
+        # pair → tf → [signals]
+        _pair_order = ["USDJPY", "GBPJPY", "EURJPY"]
         signals_by_pair = {}
         for _s in all_signals:
-            _p = _s.get("currency_pair", "")
+            _p  = _s.get("currency_pair", "")
+            _tf = _s.get("timeframe", "")
             if _p not in signals_by_pair:
-                signals_by_pair[_p] = []
-            signals_by_pair[_p].append(_s)
+                signals_by_pair[_p] = {tf: [] for tf in _tf_order}
+            signals_by_pair[_p].setdefault(_tf, []).append(_s)
+        # ペアを固定順に並べ替え
+        signals_by_pair = {p: signals_by_pair[p] for p in _pair_order if p in signals_by_pair}
         html = render_html(app, "signals_static.html", {
             "pairs": pairs,
             "pair_pages": pair_pages,
             "signals": all_signals,
             "signals_by_pair": signals_by_pair,
             "pair_labels": _pair_labels,
+            "tf_labels": _tf_labels,
+            "tf_order": _tf_order,
             "updated_at": updated_at,
             "active_page": "signals",
         })

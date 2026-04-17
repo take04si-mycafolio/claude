@@ -8,83 +8,133 @@
 
 {% if signals_by_pair %}
 <style>
-.sig-tabs { display: flex; gap: 4px; padding: 0 12px; margin-bottom: 0; border-bottom: 1px solid #1e293b; }
-.sig-tab  { padding: 8px 16px; font-size: 0.8rem; font-weight: 600; color: #64748b; cursor: pointer;
-            border: none; background: none; border-bottom: 2px solid transparent; margin-bottom: -1px; }
-.sig-tab.active { color: #3b82f6; border-bottom-color: #3b82f6; }
-.sig-panel { display: none; }
-.sig-panel.active { display: block; }
+/* ペアタブ（3カラム均等） */
+.sig-pair-tabs { display: grid; grid-template-columns: repeat(3, 1fr); border-bottom: 1px solid #1e293b; }
+.sig-pair-tab  { padding: 10px 4px; font-size: 0.8rem; font-weight: 600; color: #64748b;
+                 cursor: pointer; border: none; background: none; text-align: center;
+                 border-bottom: 2px solid transparent; margin-bottom: -1px; }
+.sig-pair-tab.active { color: #3b82f6; border-bottom-color: #3b82f6; }
+/* 足サブタブ */
+.sig-tf-tabs { display: flex; gap: 2px; padding: 8px 10px 0; flex-wrap: wrap; }
+.sig-tf-tab  { padding: 5px 12px; font-size: 0.72rem; font-weight: 600; color: #64748b;
+               cursor: pointer; border: none; background: #1e293b; border-radius: 4px; }
+.sig-tf-tab.active { background: #2563eb; color: #fff; }
+/* パネル表示切り替え */
+.sig-pair-panel { display: none; }
+.sig-pair-panel.active { display: block; }
+.sig-tf-panel { display: none; padding: 8px 0 0; }
+.sig-tf-panel.active { display: block; }
+/* シグナルカード */
+.sig-empty { text-align: center; padding: 24px; font-size: 0.8rem; color: #475569; }
 </style>
 
 <div class="section-card p-0">
-  <div class="sig-tabs">
-    {% for pair, sigs in signals_by_pair.items() %}
-    <button class="sig-tab {% if loop.first %}active{% endif %}"
-            onclick="sigTab(this,'sig-{{ pair }}')" data-panel="sig-{{ pair }}">
+  <!-- ペアタブ -->
+  <div class="sig-pair-tabs">
+    {% for pair, tf_map in signals_by_pair.items() %}
+    <button class="sig-pair-tab {% if loop.first %}active{% endif %}"
+            onclick="sigPairTab(this,'sp-{{ pair }}')" id="ptab-{{ pair }}">
       {{ pair_labels.get(pair, pair) }}
-      <span style="font-size:0.7rem;font-weight:400;color:#475569;margin-left:3px">({{ sigs|length }})</span>
     </button>
     {% endfor %}
   </div>
 
-  {% for pair, sigs in signals_by_pair.items() %}
-  <div class="sig-panel {% if loop.first %}active{% endif %}" id="sig-{{ pair }}">
-    {% for s in sigs %}
-    <div class="signal-detail-item">
-      <div class="sdi-header">
-        <span class="signal-type-badge {% if s.signal_type == 'BUY' %}buy{% else %}sell{% endif %} me-2">
-          {{ '買い' if s.signal_type == 'BUY' else '売り' }}
-        </span>
-        <span class="sdi-name">{{ s.indicator_name }}</span>
-        <span class="sdi-tf ms-auto text-muted small">{{ s.timeframe }}</span>
-      </div>
-      <div class="sdi-body">
-        <div class="sdi-stat">
-          <span class="sdi-label">勝率</span>
-          <span class="sdi-value fw-bold {% if s.win_rate and s.win_rate >= 70 %}text-success{% elif s.win_rate and s.win_rate >= 60 %}text-warning{% endif %}">
-            {{ "%.1f"|format(s.win_rate) if s.win_rate else '--' }}%
-          </span>
-        </div>
-        <div class="sdi-stat">
-          <span class="sdi-label">信頼度</span>
-          <span class="sdi-value">{{ s.confidence_score|int if s.confidence_score else '--' }}</span>
-        </div>
-        <div class="sdi-stat">
-          <span class="sdi-label">エントリー</span>
-          <span class="sdi-value">{{ "%.3f"|format(s.entry_price) if s.entry_price else '--' }}</span>
-        </div>
-        <div class="sdi-stat">
-          <span class="sdi-label">SL</span>
-          <span class="sdi-value text-danger">{{ "%.3f"|format(s.sl_price) if s.sl_price else '--' }}</span>
-        </div>
-        <div class="sdi-stat">
-          <span class="sdi-label">TP</span>
-          <span class="sdi-value text-success">{{ "%.3f"|format(s.tp_price) if s.tp_price else '--' }}</span>
-        </div>
-        <div class="sdi-stat">
-          <span class="sdi-label">カテゴリ</span>
-          <span class="sdi-value small text-muted">{{ s.indicator_category or '--' }}</span>
-        </div>
-      </div>
+  <!-- ペアパネル -->
+  {% for pair, tf_map in signals_by_pair.items() %}
+  <div class="sig-pair-panel {% if loop.first %}active{% endif %}" id="sp-{{ pair }}">
+    <!-- 足サブタブ -->
+    <div class="sig-tf-tabs" id="tftabs-{{ pair }}">
+      {% for tf in tf_order %}
+      {% set sigs = tf_map.get(tf, []) %}
+      {% if sigs %}
+      <button class="sig-tf-tab" onclick="sigTfTab(this,'{{ pair }}','stf-{{ pair }}-{{ tf }}')"
+              data-pair="{{ pair }}" id="tftab-{{ pair }}-{{ tf }}">
+        {{ tf_labels.get(tf, tf) }}
+        <span style="font-size:0.65rem;font-weight:400;opacity:.7;margin-left:2px">({{ sigs|length }})</span>
+      </button>
+      {% endif %}
+      {% endfor %}
     </div>
-    {% endfor %}
-    {% if not sigs %}
-    <div class="empty-state-page" style="padding:32px 0">
-      <i class="bi bi-lightning fs-1 text-muted"></i>
-      <p class="mt-3">シグナルがありません</p>
+
+    <!-- 足パネル -->
+    {% for tf in tf_order %}
+    {% set sigs = tf_map.get(tf, []) %}
+    {% if sigs %}
+    <div class="sig-tf-panel" id="stf-{{ pair }}-{{ tf }}">
+      {% for s in sigs %}
+      <div class="signal-detail-item">
+        <div class="sdi-header">
+          <span class="signal-type-badge {% if s.signal_type == 'BUY' %}buy{% else %}sell{% endif %} me-2">
+            {{ '買い' if s.signal_type == 'BUY' else '売り' }}
+          </span>
+          <span class="sdi-name">
+            {% if s.ind_url %}<a href="{{ s.ind_url }}" style="color:inherit;text-decoration:underline;text-underline-offset:2px">{{ s.display_name }}</a>
+            {% else %}{{ s.display_name }}{% endif %}
+          </span>
+          <span class="sdi-tf ms-auto text-muted small">{{ s.signal_time_jst }}</span>
+        </div>
+        <div class="sdi-body">
+          <div class="sdi-stat">
+            <span class="sdi-label">勝率</span>
+            <span class="sdi-value fw-bold {% if s.win_rate and s.win_rate >= 70 %}text-success{% elif s.win_rate and s.win_rate >= 60 %}text-warning{% endif %}">
+              {{ "%.1f"|format(s.win_rate) if s.win_rate else '--' }}%
+            </span>
+          </div>
+          <div class="sdi-stat">
+            <span class="sdi-label">信頼度</span>
+            <span class="sdi-value">{{ s.confidence_score|int if s.confidence_score else '--' }}</span>
+          </div>
+          <div class="sdi-stat">
+            <span class="sdi-label">エントリー</span>
+            <span class="sdi-value">{{ "%.3f"|format(s.entry_price) if s.entry_price else '--' }}</span>
+          </div>
+          <div class="sdi-stat">
+            <span class="sdi-label">SL</span>
+            <span class="sdi-value text-danger">{{ "%.3f"|format(s.sl_price) if s.sl_price else '--' }}</span>
+          </div>
+          <div class="sdi-stat">
+            <span class="sdi-label">TP</span>
+            <span class="sdi-value text-success">{{ "%.3f"|format(s.tp_price) if s.tp_price else '--' }}</span>
+          </div>
+          <div class="sdi-stat">
+            <span class="sdi-label">カテゴリ</span>
+            <span class="sdi-value small text-muted">{{ s.indicator_category or '--' }}</span>
+          </div>
+        </div>
+      </div>
+      {% endfor %}
     </div>
     {% endif %}
+    {% endfor %}
   </div>
   {% endfor %}
 </div>
 
 <script>
-function sigTab(btn, panelId) {
-  document.querySelectorAll('.sig-tab').forEach(function(b){ b.classList.remove('active'); });
-  document.querySelectorAll('.sig-panel').forEach(function(p){ p.classList.remove('active'); });
+function sigPairTab(btn, panelId) {
+  document.querySelectorAll('.sig-pair-tab').forEach(function(b){ b.classList.remove('active'); });
+  document.querySelectorAll('.sig-pair-panel').forEach(function(p){ p.classList.remove('active'); });
+  btn.classList.add('active');
+  var panel = document.getElementById(panelId);
+  panel.classList.add('active');
+  // そのペアの最初の足タブを自動選択
+  var firstTfTab = panel.querySelector('.sig-tf-tab');
+  if (firstTfTab) firstTfTab.click();
+}
+function sigTfTab(btn, pair, panelId) {
+  document.querySelectorAll('#tftabs-' + pair + ' .sig-tf-tab').forEach(function(b){ b.classList.remove('active'); });
+  document.querySelectorAll('#sp-' + pair + ' .sig-tf-panel').forEach(function(p){ p.classList.remove('active'); });
   btn.classList.add('active');
   document.getElementById(panelId).classList.add('active');
 }
+// 初期表示：最初のペアの最初の足タブを選択
+document.addEventListener('DOMContentLoaded', function() {
+  var firstPairPanel = document.querySelector('.sig-pair-panel.active');
+  if (firstPairPanel) {
+    var firstTfTab = firstPairPanel.querySelector('.sig-tf-tab');
+    if (firstTfTab) firstTfTab.click();
+  }
+});
 </script>
 
 {% else %}
