@@ -149,9 +149,6 @@
         <div class="ts-bd-bar ts-bd-bar-neg" style="width:{{ [ts.breakdown.momentum_score | abs / 20 * 100, 100] | min | int }}%"></div>
         {% endif %}
       </div>
-      <div class="ts-bd-val {% if ts.breakdown.momentum_score < 0 %}ts-neg{% endif %}">
-        {% if ts.breakdown.momentum_score > 0 %}+{% endif %}{{ ts.breakdown.momentum_score }}
-      </div>
     </div>
     {% if ts.breakdown.deviation_penalty != 0 %}
     <div class="ts-bd-item">
