@@ -1103,6 +1103,11 @@ body {
 }
 .ts-bd-val.ts-neg { color: #ef4444; }
 .ts-bd-val.ts-pos { color: #16a34a; }
+.ts-deviation-msg {
+  font-size: 0.72rem;
+  color: #f59e0b;
+  padding: 4px 0 2px 2px;
+}
 .ts-detail-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
