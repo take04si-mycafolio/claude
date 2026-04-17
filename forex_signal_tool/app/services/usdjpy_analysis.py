@@ -121,7 +121,7 @@ def calculate_trend_score(
         message = "上昇優勢。押し目を狙った順張りが有効。"
     elif score >= -30:
         level = "Neutral"
-        message = "方向感なし。レンジ継続の可能性が高い。"
+        message = "反発局面です。" if deviation_penalty != 0 else "方向感なし。レンジ継続の可能性が高い。"
     elif score >= -70:
         level = "Sell"
         message = "下落優勢。戻り売りまたはショートを検討。"
