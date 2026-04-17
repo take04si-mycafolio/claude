@@ -206,6 +206,7 @@ main{max-width:900px;margin:0 auto;padding:28px 20px}
 .run-btn.fetch{background:#0e7490;color:#fff}.run-btn.fetch:hover{background:#0c6276}
 .run-btn.bt{background:#7c3aed;color:#fff}.run-btn.bt:hover{background:#6d28d9}
 .run-btn.sig{background:#15803d;color:#fff}.run-btn.sig:hover{background:#166534}
+.run-btn.qf{background:#4f46e5;color:#fff}.run-btn.qf:hover{background:#4338ca}
 .run-btn:disabled{opacity:.5;cursor:not-allowed}
 .result-msg{margin-top:8px;font-size:12px;min-height:18px;text-align:center}
 .result-msg.ok{color:#4ade80}.result-msg.err{color:#f87171}.result-msg.info{color:#60a5fa}
@@ -332,6 +333,12 @@ main{max-width:900px;margin:0 auto;padding:28px 20px}
         <p>現在の価格データと指標からアクティブシグナルを再生成します。</p>
         <button class="run-btn sig" onclick="runOp('signals')">シグナル更新を実行</button>
         <div class="result-msg" id="msg-signals"></div>
+      </div>
+      <div class="op-card" style="border-color:#4f46e5">
+        <h3 style="color:#a5b4fc">QuantFlow 月次BT</h3>
+        <p>USDJPYの5分足スキャルピングシミュレーションを再実行してDBに保存します（数分かかります）。</p>
+        <button class="run-btn qf" onclick="runOp('quantflow')">QuantFlow BT を実行</button>
+        <div class="result-msg" id="msg-quantflow"></div>
       </div>
       <div class="op-card" style="border-color:#1e40af">
         <h3 style="color:#93c5fd">コード更新 (git pull)</h3>
@@ -549,9 +556,10 @@ var _pollTimers = {};
 
 function runOp(op) {
   var cfgs = {
-    fetch:    { action: 'run_fetch',    btnSel: '.run-btn.fetch', msgId: 'msg-fetch',   rtId: 'rt-fetch',  opKey: 'fetch_status',   rtKey: 'last_fetch' },
-    backtest: { action: 'run_backtest', btnSel: '.run-btn.bt',    msgId: 'msg-backtest',rtId: 'rt-bt',     opKey: 'backtest_status',rtKey: 'last_bt' },
-    signals:  { action: 'run_signals',  btnSel: '.run-btn.sig',   msgId: 'msg-signals', rtId: 'rt-signal', opKey: 'signal_status',  rtKey: 'last_signal' },
+    fetch:    { action: 'run_fetch',         btnSel: '.run-btn.fetch', msgId: 'msg-fetch',      rtId: 'rt-fetch',  opKey: 'fetch_status',       rtKey: 'last_fetch' },
+    backtest: { action: 'run_backtest',      btnSel: '.run-btn.bt',    msgId: 'msg-backtest',   rtId: 'rt-bt',     opKey: 'backtest_status',    rtKey: 'last_bt' },
+    signals:  { action: 'run_signals',       btnSel: '.run-btn.sig',   msgId: 'msg-signals',    rtId: 'rt-signal', opKey: 'signal_status',      rtKey: 'last_signal' },
+    quantflow:{ action: 'run_quantflow_bt',  btnSel: '.run-btn.qf',    msgId: 'msg-quantflow',  rtId: null,        opKey: 'quantflow_bt_status', rtKey: null },
   };
   var cfg = cfgs[op];
   var btn = document.querySelector(cfg.btnSel);

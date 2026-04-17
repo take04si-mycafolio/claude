@@ -103,6 +103,14 @@ switch ($action) {
         json_out(['status' => 'started', 'message' => 'シグナル更新をバックグラウンドで開始しました']);
         break;
 
+    case 'run_quantflow_bt':
+        require_login();
+        setting_set('quantflow_bt_status', 'running');
+        $cmd = escapeshellarg(PYTHON_BIN) . ' ' . escapeshellarg(TASKS_DIR . '/run_quantflow_bt.py');
+        exec("nohup {$cmd} >> /tmp/forex_quantflow_bt.log 2>&1 &");
+        json_out(['status' => 'started', 'message' => 'QuantFlow バックテストをバックグラウンドで開始しました（数分かかります）']);
+        break;
+
     case 'op_status':
         require_login();
         $op = $_GET['op'] ?? '';
