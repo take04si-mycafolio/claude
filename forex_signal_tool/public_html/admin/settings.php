@@ -140,10 +140,23 @@ h2{font-size:20px;font-weight:700;color:#f1f5f9;margin-bottom:6px}
 .badge-idle{background:#1e293b;color:#64748b;border:1px solid #334155;border-radius:4px;padding:2px 8px;font-size:11px;font-family:sans-serif}
 .badge-run{background:#1e3a5f;color:#60a5fa;border-radius:4px;padding:2px 8px;font-size:11px;font-family:sans-serif}
 /* カバレッジテーブル */
-.cov-table{width:100%;border-collapse:collapse;font-size:12px;margin-top:8px}
+.cov-table{width:100%;border-collapse:collapse;font-size:12px;margin-top:0}
 .cov-table th{background:#0f172a;color:#64748b;padding:8px 10px;text-align:left;border-bottom:1px solid #334155}
 .cov-table td{padding:7px 10px;border-bottom:1px solid #1e293b;color:#cbd5e1}
 .cov-table tr:last-child td{border-bottom:none}
+.cov-num{text-align:right;font-family:'Courier New',monospace}
+.cov-date{font-family:'Courier New',monospace;font-size:11px}
+.cov-oldest{color:#f59e0b}
+/* ペアタブ */
+.pair-tabs{display:flex;gap:4px;margin-bottom:0}
+.pair-tab{padding:6px 18px;border-radius:6px 6px 0 0;font-size:12px;font-weight:600;cursor:pointer;border:1px solid #334155;border-bottom:none;background:#0f172a;color:#64748b;transition:background .15s,color .15s;user-select:none}
+.pair-tab.active{background:#1e293b;color:#60a5fa}
+.pair-tab-panel{display:none;background:#1e293b;border:1px solid #334155;border-radius:0 6px 6px 6px;padding:0;overflow:hidden}
+.pair-tab-panel.active{display:block}
+/* マクロ指標 */
+.macro-badge{display:inline-block;padding:2px 8px;border-radius:4px;font-size:10px;font-weight:700;background:#451a03;color:#fb923c}
+.macro-ok{color:#4ade80;font-weight:600}
+.macro-none{color:#ef4444;font-weight:600}
 /* ログ表示 */
 .log-box{background:#020617;border:1px solid #1e293b;border-radius:8px;padding:14px;font-family:'Courier New',monospace;font-size:11px;color:#94a3b8;white-space:pre-wrap;word-break:break-all;max-height:240px;overflow-y:auto;margin-top:8px}
 /* 全設定テーブル */
@@ -305,28 +318,74 @@ h2{font-size:20px;font-weight:700;color:#f1f5f9;margin-bottom:6px}
   </div>
 
   <!-- ===== データカバレッジ ===== -->
-  <?php if (!empty($diag['coverage'])): ?>
+  <?php if (!empty($diag['coverage'])):
+    $forexPairs = ['USDJPY','GBPJPY','EURJPY'];
+    $macroPairs = ['US10Y','USBF','DXY'];
+    $macroLabels = ['US10Y'=>'米10年債利回り（現物）','USBF'=>'米10年国債先物 ZN=F','DXY'=>'ドルインデックス'];
+    $pairLabel   = ['USDJPY'=>'ドル円','GBPJPY'=>'ポンド円','EURJPY'=>'ユーロ円'];
+    // グループ化
+    $grouped = [];
+    foreach ($diag['coverage'] as $row) {
+      $grouped[$row['currency_pair']][] = $row;
+    }
+  ?>
   <div class="section">
     <div class="section-title">データカバレッジ（ペア×タイムフレーム）</div>
-    <div class="card">
+
+    <!-- 為替ペアタブ -->
+    <div class="pair-tabs">
+      <?php foreach ($forexPairs as $i => $p): ?>
+      <div class="pair-tab<?= $i===0?' active':'' ?>" onclick="switchTab('<?= $p ?>')">
+        <?= $p ?>
+      </div>
+      <?php endforeach; ?>
+    </div>
+    <?php foreach ($forexPairs as $i => $p):
+      $rows = $grouped[$p] ?? [];
+    ?>
+    <div class="pair-tab-panel<?= $i===0?' active':'' ?>" id="tab-<?= $p ?>">
+      <div style="padding:10px 12px 6px;font-size:11px;color:#94a3b8"><?= $pairLabel[$p] ?? $p ?>（<?= count($rows) ?>足種）</div>
       <table class="cov-table">
-        <thead>
-          <tr>
-            <th>通貨ペア</th><th>TF</th><th>件数</th><th>最古データ</th><th>最新データ</th>
-          </tr>
-        </thead>
+        <thead><tr><th>足種</th><th>件数</th><th>最古データ</th><th>最新データ</th></tr></thead>
         <tbody>
-          <?php foreach ($diag['coverage'] as $row): ?>
+          <?php if (empty($rows)): ?>
+          <tr><td colspan="4" style="text-align:center;color:#475569;padding:12px">データなし</td></tr>
+          <?php else: foreach ($rows as $r): ?>
           <tr>
-            <td><?= htmlspecialchars($row['currency_pair']) ?></td>
-            <td><?= htmlspecialchars($row['timeframe']) ?></td>
-            <td><?= number_format($row['cnt']) ?></td>
-            <td><?= htmlspecialchars(substr($row['oldest'] ?? '', 0, 16)) ?></td>
-            <td><?= htmlspecialchars(substr($row['newest'] ?? '', 0, 16)) ?></td>
+            <td style="color:#94a3b8;font-family:'Courier New',monospace"><?= htmlspecialchars($r['timeframe']) ?></td>
+            <td class="cov-num"><?= number_format($r['cnt']) ?></td>
+            <td class="cov-date cov-oldest"><?= htmlspecialchars(substr($r['oldest']??'',0,16)) ?></td>
+            <td class="cov-date"><?= htmlspecialchars(substr($r['newest']??'',0,16)) ?></td>
+          </tr>
+          <?php endforeach; endif; ?>
+        </tbody>
+      </table>
+    </div>
+    <?php endforeach; ?>
+
+    <!-- マクロ指標 -->
+    <div style="margin-top:20px">
+      <div style="font-size:12px;color:#64748b;margin-bottom:8px">マクロ指標データ（US10Y / USBF / DXY）</div>
+      <table class="cov-table">
+        <thead><tr><th>指標</th><th>説明</th><th>足種</th><th>件数</th><th>最古データ</th><th>最新データ</th><th>状態</th></tr></thead>
+        <tbody>
+          <?php foreach ($macroPairs as $mp):
+            $mrows = $grouped[$mp] ?? [];
+            $mr = !empty($mrows) ? $mrows[0] : null;
+          ?>
+          <tr>
+            <td><span class="macro-badge"><?= htmlspecialchars($mp) ?></span></td>
+            <td style="color:#94a3b8;font-size:11px"><?= htmlspecialchars($macroLabels[$mp]??$mp) ?></td>
+            <td style="color:#94a3b8;font-family:'Courier New',monospace"><?= $mr ? htmlspecialchars($mr['timeframe']) : '-' ?></td>
+            <td class="cov-num"><?= $mr ? number_format($mr['cnt']) : '0' ?></td>
+            <td class="cov-date cov-oldest"><?= htmlspecialchars(substr($mr['oldest']??'',0,16)) ?: '-' ?></td>
+            <td class="cov-date"><?= htmlspecialchars(substr($mr['newest']??'',0,16)) ?: '-' ?></td>
+            <td><?php if ($mr && $mr['cnt']>0): ?><span class="macro-ok">✓ あり</span><?php else: ?><span class="macro-none">✗ なし</span><?php endif; ?></td>
           </tr>
           <?php endforeach; ?>
         </tbody>
       </table>
+      <div style="font-size:11px;color:#475569;margin-top:6px">※ トレンドスコアの外部要因（±30点）に使用。データなしの場合はスコアが常にマイナスバイアスになります。</div>
     </div>
   </div>
   <?php endif; ?>
@@ -367,5 +426,13 @@ h2{font-size:20px;font-weight:700;color:#f1f5f9;margin-bottom:6px}
     </div>
   </div>
 </main>
+<script>
+function switchTab(pair) {
+  document.querySelectorAll('.pair-tab').forEach(function(t){ t.classList.remove('active'); });
+  document.querySelectorAll('.pair-tab-panel').forEach(function(p){ p.classList.remove('active'); });
+  document.querySelector('.pair-tab[onclick="switchTab(\''+pair+'\')"]').classList.add('active');
+  document.getElementById('tab-'+pair).classList.add('active');
+}
+</script>
 </body>
 </html>
