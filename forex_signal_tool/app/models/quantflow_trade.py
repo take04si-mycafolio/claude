@@ -9,7 +9,7 @@ class QuantFlowTrade(db.Model):
 
     id             = db.Column(db.BigInteger, primary_key=True, autoincrement=True)
     currency_pair  = db.Column(db.String(10), nullable=False, index=True)
-    year_month     = db.Column(db.String(7),  nullable=False, index=True)  # "2026-01"
+    year_month     = db.Column("year_month", db.String(7), nullable=False, index=True, quote=True)  # "2026-01"
     entry_ts       = db.Column(db.DateTime,   nullable=False)
     exit_ts        = db.Column(db.DateTime,   nullable=True)
     direction      = db.Column(db.String(4),  nullable=False)   # BUY / SELL

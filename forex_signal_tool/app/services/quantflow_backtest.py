@@ -216,17 +216,17 @@ def get_quantflow_monthly_summary(pair: str = "USDJPY") -> list:
 
     sql = text("""
         SELECT
-            year_month,
-            COUNT(*)                                     AS total,
-            SUM(outcome = 'WIN')                         AS wins,
-            SUM(outcome = 'LOSS')                        AS losses,
+            `year_month`,
+            COUNT(*)                                         AS total,
+            SUM(outcome = 'WIN')                             AS wins,
+            SUM(outcome = 'LOSS')                            AS losses,
             ROUND(SUM(outcome = 'WIN') / COUNT(*) * 100, 1) AS win_rate,
-            ROUND(SUM(profit_pips), 2)                   AS total_pips,
-            ROUND(AVG(profit_pips), 2)                   AS avg_pips
+            ROUND(SUM(profit_pips), 2)                       AS total_pips,
+            ROUND(AVG(profit_pips), 2)                       AS avg_pips
         FROM quantflow_trades
         WHERE currency_pair = :pair
-        GROUP BY year_month
-        ORDER BY year_month DESC
+        GROUP BY `year_month`
+        ORDER BY `year_month` DESC
     """)
     rows = db.session.execute(sql, {"pair": pair}).fetchall()
 

@@ -15,7 +15,7 @@ SQL = """
 CREATE TABLE IF NOT EXISTS quantflow_trades (
     id             BIGINT AUTO_INCREMENT PRIMARY KEY,
     currency_pair  VARCHAR(10)    NOT NULL,
-    year_month     VARCHAR(7)     NOT NULL,
+    `year_month`   VARCHAR(7)     NOT NULL,
     entry_ts       DATETIME       NOT NULL,
     exit_ts        DATETIME       DEFAULT NULL,
     direction      VARCHAR(4)     NOT NULL,
@@ -27,7 +27,7 @@ CREATE TABLE IF NOT EXISTS quantflow_trades (
     sl_pips        DECIMAL(8,2)   DEFAULT NULL,
     tp_pips        DECIMAL(8,2)   DEFAULT NULL,
     created_at     DATETIME       DEFAULT CURRENT_TIMESTAMP,
-    INDEX idx_qft_pair_ym   (currency_pair, year_month),
+    INDEX idx_qft_pair_ym   (currency_pair, `year_month`),
     INDEX idx_qft_entry_ts  (entry_ts)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 """
