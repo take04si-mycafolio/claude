@@ -24,7 +24,7 @@ logger = logging.getLogger(__name__)
 
 def main():
     from app import create_app
-    from app.services.data_fetcher import fetch_and_store_all
+    from app.services.data_fetcher import fetch_and_store_all, fetch_and_store_macro
     from app.models.settings import Setting
     from datetime import datetime, timezone, timedelta
 
@@ -36,8 +36,16 @@ def main():
         for pair, tf_results in results.items():
             for tf, saved in tf_results.items():
                 logger.info("  %s %s: %d件保存", pair, tf, saved)
+
+        logger.info("マクロ指標取得開始")
+        macro_results = fetch_and_store_macro()
+        for pair, tf_results in macro_results.items():
+            for tf, saved in tf_results.items():
+                logger.info("  %s %s: %d件保存", pair, tf, saved)
+
         now_str = datetime.now(JST).strftime("%Y/%m/%d %H:%M JST")
         Setting.set("last_data_fetch_at", now_str)
+        Setting.set("last_macro_fetch_at", now_str)
         Setting.set("fetch_status", "done")
         logger.info("データ取得完了")
 
