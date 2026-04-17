@@ -225,8 +225,8 @@ def run_quantflow_backtest(
 
 def get_quantflow_monthly_summary(pair: str = "USDJPY") -> list:
     """
-    quantflow_trades から月別集計を返す。
-    新しい月順にソートして返す。
+    quantflow_trades から月別・方向別集計を返す（新しい月順）。
+    各月に buy / sell / total の内訳を含む。
     """
     from app import db
     from sqlalchemy import text
@@ -234,6 +234,7 @@ def get_quantflow_monthly_summary(pair: str = "USDJPY") -> list:
     sql = text("""
         SELECT
             `year_month`,
+            direction,
             COUNT(*)                                         AS total,
             SUM(outcome = 'WIN')                             AS wins,
             SUM(outcome = 'LOSS')                            AS losses,
@@ -242,23 +243,51 @@ def get_quantflow_monthly_summary(pair: str = "USDJPY") -> list:
             ROUND(AVG(profit_pips), 2)                       AS avg_pips
         FROM quantflow_trades
         WHERE currency_pair = :pair
-        GROUP BY `year_month`
-        ORDER BY `year_month` DESC
+        GROUP BY `year_month`, direction
+        ORDER BY `year_month` DESC, direction ASC
     """)
     rows = db.session.execute(sql, {"pair": pair}).fetchall()
 
-    result = []
+    # 月ごとにグループ化
+    months: dict = {}
     for r in rows:
-        ym = r[0]
-        y, m = ym.split("-")
-        result.append({
-            "year_month": ym,
-            "label":      f"{y}年{int(m):d}月",
-            "total":      int(r[1]),
-            "wins":       int(r[2] or 0),
-            "losses":     int(r[3] or 0),
-            "win_rate":   float(r[4] or 0),
-            "total_pips": float(r[5] or 0),
-            "avg_pips":   float(r[6] or 0),
-        })
+        ym        = r[0]
+        direction = r[1]   # "BUY" or "SELL"
+        stats = {
+            "total":      int(r[2]),
+            "wins":       int(r[3] or 0),
+            "losses":     int(r[4] or 0),
+            "win_rate":   float(r[5] or 0),
+            "total_pips": float(r[6] or 0),
+            "avg_pips":   float(r[7] or 0),
+        }
+        if ym not in months:
+            y, m = ym.split("-")
+            months[ym] = {
+                "year_month": ym,
+                "label":      f"{y}年{int(m):d}月",
+                "buy":        None,
+                "sell":       None,
+            }
+        if direction == "BUY":
+            months[ym]["buy"] = stats
+        else:
+            months[ym]["sell"] = stats
+
+    # 月合計を追加
+    result = []
+    for ym, d in months.items():
+        buy  = d["buy"]  or {"total": 0, "wins": 0, "losses": 0, "win_rate": 0, "total_pips": 0, "avg_pips": 0}
+        sell = d["sell"] or {"total": 0, "wins": 0, "losses": 0, "win_rate": 0, "total_pips": 0, "avg_pips": 0}
+        total_t = buy["total"]  + sell["total"]
+        total_w = buy["wins"]   + sell["wins"]
+        total_p = round(buy["total_pips"] + sell["total_pips"], 2)
+        d["total"]      = total_t
+        d["wins"]       = total_w
+        d["losses"]     = buy["losses"] + sell["losses"]
+        d["win_rate"]   = round(total_w / total_t * 100, 1) if total_t else 0
+        d["total_pips"] = total_p
+        d["avg_pips"]   = round(total_p / total_t, 2) if total_t else 0
+        result.append(d)
+
     return result

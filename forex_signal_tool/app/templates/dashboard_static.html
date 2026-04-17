@@ -201,64 +201,144 @@
 
 <!-- QuantFlow 月次バックテスト実績 -->
 {% if data.quantflow_monthly %}
-<div class="section-card">
-  <div class="section-title section-title-row">
-    <div class="section-title-left">
-      <i class="bi bi-calendar3 text-primary me-2"></i>QuantFlow 月次バックテスト実績
-      <span class="info-tip" data-tip="QuantFlow スコアが±30を超えた時点でエントリーし、SL/TP（{{ data.sl_pips | default(20) }}pips / {{ data.tp_pips | default(40) }}pips）で決済した全トレードの月別集計です。">
-        <i class="bi bi-info-circle-fill"></i>
+{% set all_months = data.quantflow_monthly %}
+{% set grand = namespace(t=0,w=0,l=0,p=0.0,bt=0,bw=0,bl=0,bp=0.0,st=0,sw=0,sl_=0,sp=0.0) %}
+{% for m in all_months %}
+  {% set grand.t  = grand.t  + m.total %}{% set grand.w  = grand.w  + m.wins %}{% set grand.l  = grand.l  + m.losses %}{% set grand.p  = grand.p  + m.total_pips %}
+  {% if m.buy  %}{% set grand.bt = grand.bt + m.buy.total  %}{% set grand.bw = grand.bw + m.buy.wins  %}{% set grand.bl = grand.bl + m.buy.losses  %}{% set grand.bp = grand.bp + m.buy.total_pips  %}{% endif %}
+  {% if m.sell %}{% set grand.st = grand.st + m.sell.total %}{% set grand.sw = grand.sw + m.sell.wins %}{% set grand.sl_ = grand.sl_ + m.sell.losses %}{% set grand.sp = grand.sp + m.sell.total_pips %}{% endif %}
+{% endfor %}
+<style>
+.qf-section{background:#1e293b;border:1px solid #334155;border-radius:12px;padding:18px 20px;margin-bottom:18px}
+.qf-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;flex-wrap:wrap;gap:8px}
+.qf-title{font-size:13px;font-weight:600;color:#94a3b8;display:flex;align-items:center;gap:6px}
+.qf-grand{display:flex;gap:16px;flex-wrap:wrap}
+.qf-kpi{text-align:center}
+.qf-kpi-val{font-size:18px;font-weight:700;line-height:1.1}
+.qf-kpi-lbl{font-size:10px;color:#64748b;margin-top:2px}
+.qf-month-tabs{display:flex;gap:3px;flex-wrap:wrap;margin-bottom:0}
+.qf-mtab{padding:5px 14px;border-radius:6px 6px 0 0;font-size:11px;font-weight:600;cursor:pointer;border:1px solid #334155;border-bottom:none;background:#0f172a;color:#64748b;transition:background .15s,color .15s;white-space:nowrap}
+.qf-mtab.active{background:#1e293b;color:#f1f5f9;border-color:#475569}
+.qf-mpanel{display:none;background:#0f172a;border:1px solid #334155;border-radius:0 6px 6px 6px;padding:14px}
+.qf-mpanel.active{display:block}
+.qf-dir-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.qf-dir-card{border-radius:8px;padding:12px 14px}
+.qf-dir-card.buy{background:rgba(74,222,128,.07);border:1px solid rgba(74,222,128,.2)}
+.qf-dir-card.sell{background:rgba(248,113,113,.07);border:1px solid rgba(248,113,113,.2)}
+.qf-dir-label{font-size:11px;font-weight:700;margin-bottom:10px;display:flex;align-items:center;gap:5px}
+.qf-dir-label.buy{color:#4ade80}.qf-dir-label.sell{color:#f87171}
+.qf-stat-row{display:flex;justify-content:space-between;font-size:12px;padding:3px 0;border-bottom:1px solid rgba(255,255,255,.04)}
+.qf-stat-row:last-child{border-bottom:none}
+.qf-stat-key{color:#64748b}
+.qf-stat-val{font-weight:600;font-family:'Courier New',monospace}
+.qf-month-total{margin-top:10px;padding:10px 12px;background:#1e293b;border-radius:6px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px}
+.qf-month-total-label{font-size:11px;color:#64748b;font-weight:600}
+.qf-month-kpis{display:flex;gap:14px;flex-wrap:wrap}
+.qf-month-kpi{text-align:right}
+.qf-month-kpi-val{font-size:14px;font-weight:700;font-family:'Courier New',monospace}
+.qf-month-kpi-lbl{font-size:10px;color:#64748b}
+.pos{color:#4ade80}.neg{color:#f87171}.neu{color:#facc15}
+@media(max-width:480px){.qf-dir-grid{grid-template-columns:1fr}}
+</style>
+<div class="qf-section">
+  <!-- ヘッダー & 全体KPI -->
+  <div class="qf-header">
+    <div class="qf-title">
+      <i class="bi bi-calendar3 text-primary"></i>QuantFlow 月次バックテスト実績
+      <span class="info-tip" data-tip="QuantFlow スコア±30超えでエントリー。SL/TP は設定値を使用。2026年1月以降のデータが対象です。">
+        <i class="bi bi-info-circle-fill" style="font-size:12px;color:#475569"></i>
       </span>
     </div>
+    <div class="qf-grand">
+      <div class="qf-kpi">
+        <div class="qf-kpi-val" style="color:#f1f5f9">{{ grand.t }}</div>
+        <div class="qf-kpi-lbl">総トレード</div>
+      </div>
+      <div class="qf-kpi">
+        <div class="qf-kpi-val {% if grand.t>0 and grand.w/grand.t>=0.6 %}pos{% elif grand.t>0 and grand.w/grand.t>=0.5 %}neu{% else %}neg{% endif %}">
+          {% if grand.t>0 %}{{ "%.1f"|format(grand.w/grand.t*100) }}%{% else %}-{% endif %}
+        </div>
+        <div class="qf-kpi-lbl">総合勝率</div>
+      </div>
+      <div class="qf-kpi">
+        <div class="qf-kpi-val {% if grand.p>0 %}pos{% else %}neg{% endif %}">{{ "%+.1f"|format(grand.p) }}</div>
+        <div class="qf-kpi-lbl">累計 pips</div>
+      </div>
+    </div>
   </div>
-  <div class="table-responsive">
-    <table class="score-table" style="font-size:12px">
-      <thead>
-        <tr>
-          <th>月</th>
-          <th style="text-align:right">回数</th>
-          <th style="text-align:right">勝</th>
-          <th style="text-align:right">敗</th>
-          <th style="text-align:right">勝率</th>
-          <th style="text-align:right">合計 pips</th>
-          <th style="text-align:right">期待値</th>
-        </tr>
-      </thead>
-      <tbody>
-        {% set total_t = namespace(t=0, w=0, l=0, p=0.0) %}
-        {% for m in data.quantflow_monthly %}
-        {% set total_t.t = total_t.t + m.total %}
-        {% set total_t.w = total_t.w + m.wins %}
-        {% set total_t.l = total_t.l + m.losses %}
-        {% set total_t.p = total_t.p + m.total_pips %}
-        <tr>
-          <td style="color:#e2e8f0;font-weight:600">{{ m.label }}</td>
-          <td style="text-align:right;color:#94a3b8">{{ m.total }}</td>
-          <td style="text-align:right;color:#4ade80">{{ m.wins }}</td>
-          <td style="text-align:right;color:#f87171">{{ m.losses }}</td>
-          <td style="text-align:right;font-weight:600;color:{% if m.win_rate >= 60 %}#4ade80{% elif m.win_rate >= 50 %}#facc15{% else %}#f87171{% endif %}">{{ "%.1f"|format(m.win_rate) }}%</td>
-          <td style="text-align:right;font-weight:600;color:{% if m.total_pips > 0 %}#4ade80{% else %}#f87171{% endif %}">{{ "%+.1f"|format(m.total_pips) }}</td>
-          <td style="text-align:right;color:{% if m.avg_pips > 0 %}#4ade80{% else %}#f87171{% endif %}">{{ "%+.1f"|format(m.avg_pips) }}</td>
-        </tr>
-        {% endfor %}
-      </tbody>
-      <tfoot>
-        <tr style="border-top:2px solid #334155">
-          <td style="color:#94a3b8;font-weight:600">合計</td>
-          <td style="text-align:right;color:#f1f5f9;font-weight:700">{{ total_t.t }}</td>
-          <td style="text-align:right;color:#4ade80;font-weight:700">{{ total_t.w }}</td>
-          <td style="text-align:right;color:#f87171;font-weight:700">{{ total_t.l }}</td>
-          <td style="text-align:right;font-weight:700;color:{% if total_t.t > 0 and (total_t.w / total_t.t * 100) >= 50 %}#4ade80{% else %}#f87171{% endif %}">
-            {% if total_t.t > 0 %}{{ "%.1f"|format(total_t.w / total_t.t * 100) }}%{% else %}-{% endif %}
-          </td>
-          <td style="text-align:right;font-weight:700;color:{% if total_t.p > 0 %}#4ade80{% else %}#f87171{% endif %}">{{ "%+.1f"|format(total_t.p) }}</td>
-          <td style="text-align:right;color:#64748b">
-            {% if total_t.t > 0 %}{{ "%+.1f"|format(total_t.p / total_t.t) }}{% else %}-{% endif %}
-          </td>
-        </tr>
-      </tfoot>
-    </table>
+
+  <!-- 月タブ -->
+  <div class="qf-month-tabs">
+    {% for m in all_months %}
+    <div class="qf-mtab{% if loop.first %} active{% endif %}" onclick="qfTab('{{ m.year_month }}')">{{ m.label }}</div>
+    {% endfor %}
   </div>
+
+  {% for m in all_months %}
+  <div class="qf-mpanel{% if loop.first %} active{% endif %}" id="qf-{{ m.year_month }}">
+    <div class="qf-dir-grid">
+      <!-- BUY -->
+      {% set b = m.buy %}
+      <div class="qf-dir-card buy">
+        <div class="qf-dir-label buy"><i class="bi bi-arrow-up-circle-fill"></i>買い（BUY）</div>
+        {% if b %}
+        <div class="qf-stat-row"><span class="qf-stat-key">トレード数</span><span class="qf-stat-val" style="color:#e2e8f0">{{ b.total }}回</span></div>
+        <div class="qf-stat-row"><span class="qf-stat-key">勝 / 敗</span><span class="qf-stat-val"><span class="pos">{{ b.wins }}</span> / <span class="neg">{{ b.losses }}</span></span></div>
+        <div class="qf-stat-row"><span class="qf-stat-key">勝率</span><span class="qf-stat-val {% if b.win_rate>=60 %}pos{% elif b.win_rate>=50 %}neu{% else %}neg{% endif %}">{{ "%.1f"|format(b.win_rate) }}%</span></div>
+        <div class="qf-stat-row"><span class="qf-stat-key">合計 pips</span><span class="qf-stat-val {% if b.total_pips>0 %}pos{% else %}neg{% endif %}">{{ "%+.1f"|format(b.total_pips) }}</span></div>
+        <div class="qf-stat-row"><span class="qf-stat-key">期待値</span><span class="qf-stat-val {% if b.avg_pips>0 %}pos{% else %}neg{% endif %}">{{ "%+.2f"|format(b.avg_pips) }}</span></div>
+        {% else %}
+        <div style="color:#475569;font-size:12px;padding:8px 0">データなし</div>
+        {% endif %}
+      </div>
+      <!-- SELL -->
+      {% set s = m.sell %}
+      <div class="qf-dir-card sell">
+        <div class="qf-dir-label sell"><i class="bi bi-arrow-down-circle-fill"></i>売り（SELL）</div>
+        {% if s %}
+        <div class="qf-stat-row"><span class="qf-stat-key">トレード数</span><span class="qf-stat-val" style="color:#e2e8f0">{{ s.total }}回</span></div>
+        <div class="qf-stat-row"><span class="qf-stat-key">勝 / 敗</span><span class="qf-stat-val"><span class="pos">{{ s.wins }}</span> / <span class="neg">{{ s.losses }}</span></span></div>
+        <div class="qf-stat-row"><span class="qf-stat-key">勝率</span><span class="qf-stat-val {% if s.win_rate>=60 %}pos{% elif s.win_rate>=50 %}neu{% else %}neg{% endif %}">{{ "%.1f"|format(s.win_rate) }}%</span></div>
+        <div class="qf-stat-row"><span class="qf-stat-key">合計 pips</span><span class="qf-stat-val {% if s.total_pips>0 %}pos{% else %}neg{% endif %}">{{ "%+.1f"|format(s.total_pips) }}</span></div>
+        <div class="qf-stat-row"><span class="qf-stat-key">期待値</span><span class="qf-stat-val {% if s.avg_pips>0 %}pos{% else %}neg{% endif %}">{{ "%+.2f"|format(s.avg_pips) }}</span></div>
+        {% else %}
+        <div style="color:#475569;font-size:12px;padding:8px 0">データなし</div>
+        {% endif %}
+      </div>
+    </div>
+    <!-- 月合計 -->
+    <div class="qf-month-total">
+      <span class="qf-month-total-label">{{ m.label }} 合計</span>
+      <div class="qf-month-kpis">
+        <div class="qf-month-kpi">
+          <div class="qf-month-kpi-val" style="color:#e2e8f0">{{ m.total }}回</div>
+          <div class="qf-month-kpi-lbl">トレード</div>
+        </div>
+        <div class="qf-month-kpi">
+          <div class="qf-month-kpi-val {% if m.win_rate>=60 %}pos{% elif m.win_rate>=50 %}neu{% else %}neg{% endif %}">{{ "%.1f"|format(m.win_rate) }}%</div>
+          <div class="qf-month-kpi-lbl">勝率</div>
+        </div>
+        <div class="qf-month-kpi">
+          <div class="qf-month-kpi-val {% if m.total_pips>0 %}pos{% else %}neg{% endif %}">{{ "%+.1f"|format(m.total_pips) }}</div>
+          <div class="qf-month-kpi-lbl">合計 pips</div>
+        </div>
+        <div class="qf-month-kpi">
+          <div class="qf-month-kpi-val {% if m.avg_pips>0 %}pos{% else %}neg{% endif %}">{{ "%+.2f"|format(m.avg_pips) }}</div>
+          <div class="qf-month-kpi-lbl">期待値</div>
+        </div>
+      </div>
+    </div>
+  </div>
+  {% endfor %}
 </div>
+<script>
+function qfTab(ym) {
+  document.querySelectorAll('.qf-mtab').forEach(function(t){t.classList.remove('active')});
+  document.querySelectorAll('.qf-mpanel').forEach(function(p){p.classList.remove('active')});
+  document.querySelector('.qf-mtab[onclick="qfTab(\''+ym+'\')"]').classList.add('active');
+  document.getElementById('qf-'+ym).classList.add('active');
+}
+</script>
 {% endif %}
 
 <!-- スコア帯別過去実績 -->
