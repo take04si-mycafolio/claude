@@ -445,6 +445,15 @@ def get_pair_data(pair: str) -> dict:
         except Exception as e:
             logger.warning("Score band stats error for %s: %s", pair, e)
 
+    # QuantFlow 月次バックテスト実績（USD/JPY 専用）
+    quantflow_monthly = []
+    if pair == "USDJPY":
+        try:
+            from app.services.quantflow_backtest import get_quantflow_monthly_summary
+            quantflow_monthly = get_quantflow_monthly_summary("USDJPY")
+        except Exception as e:
+            logger.warning("QuantFlow monthly error for %s: %s", pair, e)
+
     return {
         "pair": pair,
         "display": f"{pair[:3]}/{pair[3:]}",
@@ -467,8 +476,9 @@ def get_pair_data(pair: str) -> dict:
         "sl_pips":          sl_pips,
         "tp_pips":          tp_pips,
         "rr_ratio":         rr_ratio,
-        "trend_score":      trend_score,
-        "score_band_stats": score_band_stats,
+        "trend_score":        trend_score,
+        "score_band_stats":   score_band_stats,
+        "quantflow_monthly":  quantflow_monthly,
     }
 
 

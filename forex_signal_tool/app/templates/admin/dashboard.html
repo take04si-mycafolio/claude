@@ -42,6 +42,8 @@ main{max-width:900px;margin:0 auto;padding:28px 20px}
 .run-btn.sig-btn:hover{background:#166534}
 .run-btn.macro-btn{background:#b45309;color:#fff}
 .run-btn.macro-btn:hover{background:#92400e}
+.run-btn.qf-btn{background:#4f46e5;color:#fff}
+.run-btn.qf-btn:hover{background:#4338ca}
 .run-btn:disabled{opacity:.5;cursor:not-allowed}
 .result-msg{margin-top:8px;font-size:12px;min-height:18px;text-align:center}
 .result-msg.ok{color:#4ade80}
@@ -185,12 +187,18 @@ main{max-width:900px;margin:0 auto;padding:28px 20px}
         <div class="result-msg" id="msg-signals"></div>
       </div>
     </div>
-    <div style="margin-top:12px">
+    <div style="margin-top:12px;display:flex;gap:12px;flex-wrap:wrap">
       <div class="op-card" style="max-width:300px">
         <h3>マクロ指標取得</h3>
         <p>yfinance から US10Y・DXY の最新 1hr データを取得してDBに保存します。</p>
         <button class="run-btn macro-btn" onclick="runOp('macro')">マクロ取得を実行</button>
         <div class="result-msg" id="msg-macro"></div>
+      </div>
+      <div class="op-card" style="max-width:300px">
+        <h3>QuantFlow 月次BT</h3>
+        <p>USDJPY の全期間データで QuantFlow バックテストを再実行してDBに保存します。</p>
+        <button class="run-btn qf-btn" onclick="runOp('quantflow')">QuantFlow BT を実行</button>
+        <div class="result-msg" id="msg-quantflow"></div>
       </div>
     </div>
   </div>
@@ -438,7 +446,8 @@ const OPS = {
   fetch:    { url: '/admin/run-fetch',    btnSel: '.fetch-btn', msgId: 'msg-fetch',   rtId: 'rt-fetch' },
   backtest: { url: '/admin/run-backtest', btnSel: '.bt-btn',    msgId: 'msg-backtest',rtId: 'rt-bt' },
   signals:  { url: '/admin/run-signals',  btnSel: '.sig-btn',   msgId: 'msg-signals', rtId: 'rt-signal' },
-  macro:    { url: '/admin/run-macro',    btnSel: '.macro-btn', msgId: 'msg-macro',   rtId: null },
+  macro:    { url: '/admin/run-macro',       btnSel: '.macro-btn', msgId: 'msg-macro',     rtId: null },
+  quantflow:{ url: '/admin/run-quantflow-bt',btnSel: '.qf-btn',    msgId: 'msg-quantflow', rtId: null },
 };
 
 function runOp(name) {
