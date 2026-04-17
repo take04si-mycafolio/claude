@@ -47,33 +47,39 @@
 </div>
 
 <!-- チャート（ダーク・フルwidth） -->
-<div class="chart-card">
-  <div class="chart-header">
-    <div class="chart-ohlc-bar">
-      <span class="ohlc-item"><span class="ohlc-lbl">O</span><span id="ohlc-o">—</span></span>
-      <span class="ohlc-item"><span class="ohlc-lbl">H</span><span id="ohlc-h">—</span></span>
-      <span class="ohlc-item"><span class="ohlc-lbl">L</span><span id="ohlc-l">—</span></span>
-      <span class="ohlc-item"><span class="ohlc-lbl">C</span><span id="ohlc-c">—</span></span>
-    </div>
-    <div class="tf-tabs">
-      <button class="tf-tab" data-tf="5min"  onclick="switchTf(this)">5m</button>
-      <button class="tf-tab" data-tf="15min" onclick="switchTf(this)">15m</button>
-      <button class="tf-tab active" data-tf="1hr"  onclick="switchTf(this)">1H</button>
-      <button class="tf-tab" data-tf="4hr"  onclick="switchTf(this)">4H</button>
-      <button class="tf-tab" data-tf="daily" onclick="switchTf(this)">D</button>
-    </div>
+<div class="chart-card" id="chart-card">
+  <div class="chart-toggle-hdr" onclick="toggleChart()">
+    <span class="chart-toggle-label"><i class="bi bi-bar-chart-line me-1"></i>チャートを表示</span>
+    <i class="bi bi-chevron-down chart-toggle-arrow"></i>
   </div>
-  <div class="chart-legend">
-    <button class="legend-toggle active" data-series="sma20"><span class="legend-line" style="background:#3b82f6"></span>SMA20</button>
-    <button class="legend-toggle active" data-series="sma50"><span class="legend-line" style="background:#f59e0b"></span>SMA50</button>
-    <button class="legend-toggle active" data-series="ema21"><span class="legend-line" style="background:#a78bfa"></span>EMA21</button>
-    <button class="legend-toggle active" data-series="bb"><span class="legend-line" style="background:#475569"></span>BB</button>
-  </div>
-  <div id="main-chart"></div>
-  <div class="rsi-header">RSI(14)<span id="rsi-cur" class="rsi-cur-val"></span></div>
-  <div id="rsi-chart"></div>
-  <div id="chart-loading" class="chart-loading">
-    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" style="animation:spin 0.8s linear infinite;flex-shrink:0"><circle cx="12" cy="12" r="9" stroke="#3b82f6" stroke-width="3" stroke-dasharray="28 56" stroke-linecap="round"/></svg>読込中...
+  <div id="chart-body" style="display:none">
+    <div class="chart-header">
+      <div class="chart-ohlc-bar">
+        <span class="ohlc-item"><span class="ohlc-lbl">O</span><span id="ohlc-o">—</span></span>
+        <span class="ohlc-item"><span class="ohlc-lbl">H</span><span id="ohlc-h">—</span></span>
+        <span class="ohlc-item"><span class="ohlc-lbl">L</span><span id="ohlc-l">—</span></span>
+        <span class="ohlc-item"><span class="ohlc-lbl">C</span><span id="ohlc-c">—</span></span>
+      </div>
+      <div class="tf-tabs">
+        <button class="tf-tab" data-tf="5min"  onclick="switchTf(this)">5m</button>
+        <button class="tf-tab" data-tf="15min" onclick="switchTf(this)">15m</button>
+        <button class="tf-tab active" data-tf="1hr"  onclick="switchTf(this)">1H</button>
+        <button class="tf-tab" data-tf="4hr"  onclick="switchTf(this)">4H</button>
+        <button class="tf-tab" data-tf="daily" onclick="switchTf(this)">D</button>
+      </div>
+    </div>
+    <div class="chart-legend">
+      <button class="legend-toggle active" data-series="sma20"><span class="legend-line" style="background:#3b82f6"></span>SMA20</button>
+      <button class="legend-toggle active" data-series="sma50"><span class="legend-line" style="background:#f59e0b"></span>SMA50</button>
+      <button class="legend-toggle active" data-series="ema21"><span class="legend-line" style="background:#a78bfa"></span>EMA21</button>
+      <button class="legend-toggle active" data-series="bb"><span class="legend-line" style="background:#475569"></span>BB</button>
+    </div>
+    <div id="main-chart"></div>
+    <div class="rsi-header">RSI(14)<span id="rsi-cur" class="rsi-cur-val"></span></div>
+    <div id="rsi-chart"></div>
+    <div id="chart-loading" class="chart-loading">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" style="animation:spin 0.8s linear infinite;flex-shrink:0"><circle cx="12" cy="12" r="9" stroke="#3b82f6" stroke-width="3" stroke-dasharray="28 56" stroke-linecap="round"/></svg>読込中...
+    </div>
   </div>
 </div>
 
@@ -1080,10 +1086,23 @@ async function runAction(action, loadingMsg, doneMsg) {
   }
 }
 
+// ===== チャート折りたたみ =====
+let _chartInited = false;
+function toggleChart() {
+  const body = document.getElementById('chart-body');
+  const card = document.getElementById('chart-card');
+  const open = body.style.display === 'none';
+  body.style.display = open ? '' : 'none';
+  card.classList.toggle('chart-open', open);
+  if (open && !_chartInited) {
+    _chartInited = true;
+    initCharts();
+    loadChartData(currentTf);
+  }
+}
+
 // ===== 起動 =====
 document.addEventListener('DOMContentLoaded', () => {
-  initCharts();
-  loadChartData(currentTf);
   fetchRealtimePrice();
   setInterval(fetchRealtimePrice, 30000);
 });

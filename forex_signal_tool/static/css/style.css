@@ -455,9 +455,30 @@ body {
 
 .chart-card {
   background: #131722;
-  margin: 0;          /* price-card と幅を揃える */
+  margin: 0;
   padding-bottom: 6px;
 }
+
+/* チャート折りたたみトグルヘッダー */
+.chart-toggle-hdr {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 14px;
+  cursor: pointer;
+  user-select: none;
+  font-size: 0.82rem;
+  color: #94a3b8;
+  border-bottom: 1px solid #1e293b;
+}
+.chart-toggle-hdr:hover { background: #1a2235; }
+.chart-toggle-hdr .chart-toggle-label { color: #cbd5e1; font-weight: 500; }
+.chart-toggle-hdr .chart-toggle-arrow {
+  font-size: 0.7rem;
+  transition: transform 0.2s;
+}
+.chart-card.chart-open .chart-toggle-arrow { transform: rotate(180deg); }
+
 
 /* ヘッダー：OHLCバー + TFタブ */
 .chart-header {
