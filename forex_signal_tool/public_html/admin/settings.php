@@ -6,6 +6,14 @@ require_once __DIR__ . '/_config.php';
 session_start();
 require_login();
 
+// UTC datetime string → JST (substring, +9h)
+function utc_to_jst_str(string $utc, int $len = 16): string {
+    if ($utc === '') return '';
+    $ts = strtotime($utc . ' UTC');
+    if ($ts === false) return substr($utc, 0, $len);
+    return date('Y-m-d H:i', $ts + 9 * 3600);
+}
+
 // ---- 現在の設定値をDBから読み込む ----
 $saved = '';
 $saveError = '';
@@ -346,7 +354,7 @@ h2{font-size:20px;font-weight:700;color:#f1f5f9;margin-bottom:6px}
     <div class="pair-tab-panel<?= $i===0?' active':'' ?>" id="tab-<?= $p ?>">
       <div style="padding:10px 12px 6px;font-size:11px;color:#94a3b8"><?= $pairLabel[$p] ?? $p ?>（<?= count($rows) ?>足種）</div>
       <table class="cov-table">
-        <thead><tr><th>足種</th><th>件数</th><th>最古データ</th><th>最新データ</th></tr></thead>
+        <thead><tr><th>足種</th><th>件数</th><th>最古データ (JST)</th><th>最新データ (JST)</th></tr></thead>
         <tbody>
           <?php if (empty($rows)): ?>
           <tr><td colspan="4" style="text-align:center;color:#475569;padding:12px">データなし</td></tr>
@@ -354,8 +362,8 @@ h2{font-size:20px;font-weight:700;color:#f1f5f9;margin-bottom:6px}
           <tr>
             <td style="color:#94a3b8;font-family:'Courier New',monospace"><?= htmlspecialchars($r['timeframe']) ?></td>
             <td class="cov-num"><?= number_format($r['cnt']) ?></td>
-            <td class="cov-date cov-oldest"><?= htmlspecialchars(substr($r['oldest']??'',0,16)) ?></td>
-            <td class="cov-date"><?= htmlspecialchars(substr($r['newest']??'',0,16)) ?></td>
+            <td class="cov-date cov-oldest"><?= htmlspecialchars(utc_to_jst_str($r['oldest']??'')) ?></td>
+            <td class="cov-date"><?= htmlspecialchars(utc_to_jst_str($r['newest']??'')) ?></td>
           </tr>
           <?php endforeach; endif; ?>
         </tbody>
@@ -367,7 +375,7 @@ h2{font-size:20px;font-weight:700;color:#f1f5f9;margin-bottom:6px}
     <div style="margin-top:20px">
       <div style="font-size:12px;color:#64748b;margin-bottom:8px">マクロ指標データ（US10Y / USBF / DXY）</div>
       <table class="cov-table">
-        <thead><tr><th>指標</th><th>説明</th><th>足種</th><th>件数</th><th>最古データ</th><th>最新データ</th><th>状態</th></tr></thead>
+        <thead><tr><th>指標</th><th>説明</th><th>足種</th><th>件数</th><th>最古データ (JST)</th><th>最新データ (JST)</th><th>状態</th></tr></thead>
         <tbody>
           <?php foreach ($macroPairs as $mp):
             $mrows = $grouped[$mp] ?? [];
@@ -378,8 +386,8 @@ h2{font-size:20px;font-weight:700;color:#f1f5f9;margin-bottom:6px}
             <td style="color:#94a3b8;font-size:11px"><?= htmlspecialchars($macroLabels[$mp]??$mp) ?></td>
             <td style="color:#94a3b8;font-family:'Courier New',monospace"><?= $mr ? htmlspecialchars($mr['timeframe']) : '-' ?></td>
             <td class="cov-num"><?= $mr ? number_format($mr['cnt']) : '0' ?></td>
-            <td class="cov-date cov-oldest"><?= htmlspecialchars(substr($mr['oldest']??'',0,16)) ?: '-' ?></td>
-            <td class="cov-date"><?= htmlspecialchars(substr($mr['newest']??'',0,16)) ?: '-' ?></td>
+            <td class="cov-date cov-oldest"><?= ($mr && $mr['oldest']) ? htmlspecialchars(utc_to_jst_str($mr['oldest'])) : '-' ?></td>
+            <td class="cov-date"><?= ($mr && $mr['newest']) ? htmlspecialchars(utc_to_jst_str($mr['newest'])) : '-' ?></td>
             <td><?php if ($mr && $mr['cnt']>0): ?><span class="macro-ok">✓ あり</span><?php else: ?><span class="macro-none">✗ なし</span><?php endif; ?></td>
           </tr>
           <?php endforeach; ?>
