@@ -87,7 +87,7 @@ def run_quantflow_backtest(
 ) -> dict:
     """
     5分足スキャルピングシミュレーションを実行してDBに保存する。
-    既存データは全件削除してから再計算する。
+    既存データは保持し、最新 entry_ts より後のシグナルだけを追加する（差分実行）。
 
     ロジック:
     - 1hr QuantFlowスコアが閾値を超えて方向転換 → シグナル発生
@@ -99,6 +99,7 @@ def run_quantflow_backtest(
     from app.models.quantflow_trade import QuantFlowTrade
     from app.services.data_fetcher import get_candles
     from datetime import datetime
+    from sqlalchemy import func
 
     logger.info("QuantFlow BT (5m scalping) 開始: %s  SL=%.1f TP=%.1f  開始日=%s",
                 pair, sl_pips, tp_pips, start_date)
@@ -132,9 +133,15 @@ def run_quantflow_backtest(
 
     scores = _compute_scores(df_1h, limit)
 
-    # 既存データ削除
-    QuantFlowTrade.query.filter_by(currency_pair=pair).delete()
-    db.session.commit()
+    # 既存トレードの最新 entry_ts を取得（差分実行の基準点）
+    latest_entry = db.session.query(
+        func.max(QuantFlowTrade.entry_ts)
+    ).filter_by(currency_pair=pair).scalar()
+
+    if latest_entry:
+        logger.info("既存トレードあり（最新 entry_ts: %s UTC）。以降の差分のみ追加します。", latest_entry)
+    else:
+        logger.info("既存トレードなし。全件バックテストを実行します。")
 
     trades_to_add = []
     prev_dir = None  # 直前のシグナル方向: None / "BUY" / "SELL"
@@ -180,6 +187,10 @@ def run_quantflow_backtest(
 
         entry_price = float(df_5m["open"].iloc[entry_5m_idx])
         entry_ts    = ts_5m[entry_5m_idx]
+
+        # 既存DBの最新 entry_ts 以前はスキップ（prev_dir は更新済みなので状態は正しく引き継がれる）
+        if latest_entry and entry_ts <= latest_entry:
+            continue
 
         pip = PIP_VALUE
         if direction == "BUY":
@@ -262,7 +273,7 @@ def run_quantflow_backtest(
         db.session.bulk_save_objects(trades_to_add)
         db.session.commit()
 
-    logger.info("QuantFlow BT (5m) 完了: %d トレード", len(trades_to_add))
+    logger.info("QuantFlow BT (5m) 完了: %d トレード追加", len(trades_to_add))
     return {"total_trades": len(trades_to_add), "pair": pair}
 
 
