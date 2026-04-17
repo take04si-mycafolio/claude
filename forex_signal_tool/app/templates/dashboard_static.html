@@ -344,15 +344,11 @@ function qfTab(ym) {
 .qfh-table th{background:#f8fafc;color:#374151;font-weight:600;padding:6px 8px;text-align:left;white-space:nowrap;border-bottom:2px solid #e5e7eb}
 .qfh-table td{padding:5px 8px;border-bottom:1px solid #f1f5f9;color:#111827;white-space:nowrap}
 .qfh-row{cursor:pointer;transition:background .12s}.qfh-row:hover{background:#eff6ff}
+.qfh-col{display:none}.qfh-panel.qfh-exp .qfh-col{display:table-row}
 .qfh-win{background:#dcfce7;color:#15803d;font-weight:700;padding:2px 6px;border-radius:4px;font-size:11px}
 .qfh-loss{background:#fee2e2;color:#b91c1c;font-weight:700;padding:2px 6px;border-radius:4px;font-size:11px}
-.qfh-modal-ov{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:9998;align-items:center;justify-content:center}
-.qfh-modal-ov.open{display:flex}
-.qfh-modal-box{background:#fff;border-radius:12px;padding:18px 20px;width:min(94vw,640px);max-height:88vh;overflow:auto;position:relative;box-shadow:0 8px 32px rgba(0,0,0,0.18)}
-.qfh-modal-close{position:absolute;top:10px;right:14px;background:none;border:none;font-size:24px;cursor:pointer;color:#9ca3af;line-height:1;padding:0}
-.qfh-modal-title{font-size:13px;font-weight:700;color:#111827;margin-bottom:10px;padding-right:30px;line-height:1.4}
-#qfh-chart{width:100%;height:300px;display:none}
-.qfh-loading{text-align:center;padding:24px;color:#6b7280;font-size:13px}
+.qfh-more{width:100%;margin-top:6px;padding:7px 12px;background:#f8fafc;border:1px solid #e5e7eb;border-radius:6px;cursor:pointer;font-size:12px;color:#374151;font-weight:600;transition:background .12s}
+.qfh-more:hover{background:#eff6ff;border-color:#bfdbfe}
 </style>
 
 <div class="section-card">
@@ -389,12 +385,13 @@ function qfTab(ym) {
         </thead>
         <tbody>
           {% for t in trades %}
-          <tr class="qfh-row"
+          <tr class="qfh-row{% if loop.index > 8 %} qfh-col{% endif %}"
               data-eu="{{ t.entry_ts_iso }}"
               data-xu="{{ t.exit_ts_iso or '' }}"
               data-dir="{{ t.direction }}"
               data-ep="{{ t.entry_price or '' }}"
               data-xp="{{ t.exit_price or '' }}"
+              data-oc="{{ t.outcome or '' }}"
               onclick="qfhOpen(this)">
             <td>{{ t.entry_ts }}</td>
             <td>
@@ -420,17 +417,40 @@ function qfTab(ym) {
         </tbody>
       </table>
     </div>
+    {% if trades|length > 8 %}
+    <button class="qfh-more" onclick="qfhToggle('{{ ym }}',this)">残り{{ trades|length - 8 }}件を表示 ▼</button>
+    {% endif %}
   </div>
   {% endfor %}
 </div>
 
-<!-- チャートモーダル -->
-<div id="qfh-modal" class="qfh-modal-ov" onclick="qfhOvClick(event)">
-  <div class="qfh-modal-box">
-    <button class="qfh-modal-close" onclick="qfhClose()">&times;</button>
-    <div id="qfh-modal-title" class="qfh-modal-title"></div>
-    <div id="qfh-loading" class="qfh-loading">チャートを読み込み中...</div>
-    <div id="qfh-chart"></div>
+<!-- QuantFlow チャートモーダル -->
+<div class="modal fade" id="qfTradeModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-lg modal-dialog-centered">
+    <div class="modal-content" style="background:#131722;border:1px solid #1e293b;border-radius:12px">
+      <div class="modal-header" style="background:#1a2233;border-bottom:1px solid #1e293b;border-radius:12px 12px 0 0;padding:10px 16px">
+        <div style="flex:1">
+          <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+            <span id="qfm-badge" class="signal-type-badge">—</span>
+            <span id="qfm-outcome" style="font-size:12px;font-weight:600"></span>
+          </div>
+          <div style="font-size:11px;color:#64748b;margin-top:4px">
+            IN: <span id="qfm-entry-time" style="color:#94a3b8">—</span>
+            &nbsp;→&nbsp;
+            OUT: <span id="qfm-exit-time" style="color:#94a3b8">—</span>
+            &nbsp;&nbsp;
+            <span id="qfm-prices" style="color:#64748b">—</span>
+          </div>
+        </div>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body" style="padding:0;position:relative">
+        <div id="qfm-loading" style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:#131722;z-index:10;font-size:12px;color:#64748b">
+          読み込み中...
+        </div>
+        <div id="qfm-chart" style="height:320px"></div>
+      </div>
+    </div>
   </div>
 </div>
 <script>
@@ -440,68 +460,94 @@ function qfhTab(ym){
   document.querySelector('.qfh-tab[onclick="qfhTab(\''+ym+'\')"]').classList.add('active');
   document.getElementById('qfh-'+ym).classList.add('active');
 }
-function qfhClose(){
-  document.getElementById('qfh-modal').classList.remove('open');
-  var c=document.getElementById('qfh-chart');
-  c.innerHTML='';c.style.display='none';
-  if(window._qfhChart){try{window._qfhChart.remove();}catch(e){}window._qfhChart=null;}
+function qfhToggle(ym,btn){
+  var panel=document.getElementById('qfh-'+ym);
+  var exp=panel.classList.toggle('qfh-exp');
+  var rem=panel.querySelectorAll('.qfh-col').length;
+  btn.textContent=exp?'折りたたむ ▲':'残り'+rem+'件を表示 ▼';
 }
-function qfhOvClick(e){if(e.target===document.getElementById('qfh-modal'))qfhClose();}
+var _qfmChart=null,_qfmCs=null;
+function _qfmJstFmt(ts){
+  var d=new Date((ts+32400)*1000);
+  return String(d.getUTCMonth()+1).padStart(2,'0')+'/'+String(d.getUTCDate()).padStart(2,'0')+' '+String(d.getUTCHours()).padStart(2,'0')+':'+String(d.getUTCMinutes()).padStart(2,'0');
+}
+function _qfmJstTick(ts,type){
+  var d=new Date((ts+32400)*1000);
+  var mo=String(d.getUTCMonth()+1).padStart(2,'0'),da=String(d.getUTCDate()).padStart(2,'0');
+  var hh=String(d.getUTCHours()).padStart(2,'0'),mi=String(d.getUTCMinutes()).padStart(2,'0');
+  if(type===0)return String(d.getUTCFullYear());
+  if(type<=2)return mo+'/'+da;
+  return hh+':'+mi;
+}
+function _qfmInit(){
+  if(_qfmChart)return;
+  var el=document.getElementById('qfm-chart');
+  _qfmChart=LightweightCharts.createChart(el,{
+    autoSize:true,height:320,
+    layout:{background:{color:'#131722'},textColor:'#94a3b8',fontSize:11},
+    grid:{vertLines:{color:'#1a2233'},horzLines:{color:'#1a2233'}},
+    crosshair:{mode:1},
+    rightPriceScale:{borderColor:'#1a2233',scaleMargins:{top:.1,bottom:.1}},
+    timeScale:{borderColor:'#1a2233',timeVisible:true,secondsVisible:false,tickMarkFormatter:_qfmJstTick},
+    localization:{timeFormatter:_qfmJstFmt},
+    handleScroll:true,handleScale:true
+  });
+  _qfmCs=_qfmChart.addCandlestickSeries({
+    upColor:'#26a69a',downColor:'#ef5350',
+    borderUpColor:'#26a69a',borderDownColor:'#ef5350',
+    wickUpColor:'#26a69a',wickDownColor:'#ef5350'
+  });
+  new ResizeObserver(function(){var w=el.clientWidth;if(w>0)_qfmChart.applyOptions({width:w});}).observe(el);
+}
 function qfhOpen(row){
-  var eu=row.dataset.eu,xu=row.dataset.xu||null,dir=row.dataset.dir;
+  var eu=row.dataset.eu,xu=row.dataset.xu||null,dir=row.dataset.dir,oc=row.dataset.oc||'';
+  var ep=row.dataset.ep,xp=row.dataset.xp;
   var fromD=new Date(eu+'Z');fromD.setMinutes(fromD.getMinutes()-30);
   var toD=new Date((xu||eu)+'Z');toD.setMinutes(toD.getMinutes()+30);
   var fmt=function(d){return d.toISOString().slice(0,19);};
-  var jst=function(iso){return new Date(new Date(iso+'Z').getTime()+9*3600000);};
-  var fj=function(d){return(d.getUTCMonth()+1)+'/'+d.getUTCDate()+' '+('0'+d.getUTCHours()).slice(-2)+':'+('0'+d.getUTCMinutes()).slice(-2);};
-  var title=(dir==='BUY'?'買い':'売り')+'  エントリー: '+fj(jst(eu));
-  if(xu)title+=' → エグジット: '+fj(jst(xu));
-  document.getElementById('qfh-modal-title').textContent=title;
-  document.getElementById('qfh-loading').style.display='block';
-  document.getElementById('qfh-loading').textContent='チャートを読み込み中...';
-  document.getElementById('qfh-chart').style.display='none';
-  document.getElementById('qfh-modal').classList.add('open');
-  function doChart(){
+  var fj=function(iso){
+    var d=new Date(new Date(iso+'Z').getTime()+9*3600000);
+    return(d.getUTCMonth()+1)+'/'+d.getUTCDate()+' '+String(d.getUTCHours()).padStart(2,'0')+':'+String(d.getUTCMinutes()).padStart(2,'0');
+  };
+  var badge=document.getElementById('qfm-badge');
+  badge.textContent=dir==='BUY'?'買い':'売り';
+  badge.className='signal-type-badge '+(dir==='BUY'?'buy':'sell');
+  var outEl=document.getElementById('qfm-outcome');
+  if(oc==='WIN'){outEl.textContent='✓ 利確';outEl.style.color='#22c55e';}
+  else if(oc==='LOSS'){outEl.textContent='✗ 損切';outEl.style.color='#ef5350';}
+  else{outEl.textContent='';outEl.style.color='';}
+  document.getElementById('qfm-entry-time').textContent=fj(eu);
+  document.getElementById('qfm-exit-time').textContent=xu?fj(xu):'—';
+  var priceTxt='';
+  if(ep)priceTxt+='Entry '+parseFloat(ep).toFixed(3);
+  if(xp)priceTxt+=(priceTxt?' → ':'')+' Exit '+parseFloat(xp).toFixed(3);
+  document.getElementById('qfm-prices').textContent=priceTxt;
+  var modal=bootstrap.Modal.getOrCreateInstance(document.getElementById('qfTradeModal'));
+  modal.show();
+  setTimeout(function(){
+    _qfmInit();
+    var loading=document.getElementById('qfm-loading');
+    loading.style.display='flex';
+    var JST=9*3600;
     fetch('/admin/api.php?action=qf_candles&pair=USDJPY&from='+encodeURIComponent(fmt(fromD))+'&to='+encodeURIComponent(fmt(toD)))
       .then(function(r){return r.json();})
       .then(function(d){
-        if(!d.ok||!d.candles||!d.candles.length){
-          document.getElementById('qfh-loading').textContent='ローソク足データがありません';return;
-        }
-        document.getElementById('qfh-loading').style.display='none';
-        var c=document.getElementById('qfh-chart');
-        c.style.display='block';c.innerHTML='';
-        if(window._qfhChart){try{window._qfhChart.remove();}catch(e){}window._qfhChart=null;}
-        var chart=LightweightCharts.createChart(c,{
-          width:c.clientWidth,height:280,
-          layout:{background:{color:'#fff'},textColor:'#374151'},
-          grid:{vertLines:{color:'#f1f5f9'},horzLines:{color:'#f1f5f9'}},
-          timeScale:{timeVisible:true,secondsVisible:false}
-        });
-        window._qfhChart=chart;
-        var cs=chart.addCandlestickSeries({
-          upColor:'#22c55e',downColor:'#ef4444',
-          borderUpColor:'#22c55e',borderDownColor:'#ef4444',
-          wickUpColor:'#22c55e',wickDownColor:'#ef4444'
-        });
-        var JST=9*3600;
-        cs.setData(d.candles.map(function(c){return{time:c.t+JST,open:c.o,high:c.h,low:c.l,close:c.c};}));
+        loading.style.display='none';
+        if(!d.ok||!d.candles||!d.candles.length){loading.textContent='ローソク足データがありません';loading.style.display='flex';return;}
+        _qfmCs.setData(d.candles.map(function(c){return{time:c.t+JST,open:c.o,high:c.h,low:c.l,close:c.c};}));
         var markers=[];
         var entT=Math.floor(new Date(eu+'Z').getTime()/1000)+JST;
-        markers.push({time:entT,position:dir==='BUY'?'belowBar':'aboveBar',color:dir==='BUY'?'#2563eb':'#dc2626',shape:dir==='BUY'?'arrowUp':'arrowDown',text:'IN'});
-        if(xu){var extT=Math.floor(new Date(xu+'Z').getTime()/1000)+JST;markers.push({time:extT,position:dir==='BUY'?'aboveBar':'belowBar',color:'#f59e0b',shape:'circle',text:'OUT'});}
-        cs.setMarkers(markers);
-        chart.timeScale().fitContent();
+        markers.push({time:entT,position:dir==='BUY'?'belowBar':'aboveBar',color:'#eab308',shape:dir==='BUY'?'arrowUp':'arrowDown',text:'IN',size:1.5});
+        if(xu){
+          var extT=Math.floor(new Date(xu+'Z').getTime()/1000)+JST;
+          var isWin=oc==='WIN';
+          markers.push({time:extT,position:(isWin?(dir==='BUY'):(dir!=='BUY'))?'aboveBar':'belowBar',color:isWin?'#f97316':'#3b82f6',shape:(isWin?(dir==='BUY'):(dir!=='BUY'))?'arrowDown':'arrowUp',text:'OUT',size:1.5});
+        }
+        _qfmCs.setMarkers(markers);
+        _qfmChart.timeScale().fitContent();
       })
-      .catch(function(){document.getElementById('qfh-loading').textContent='データの取得に失敗しました';});
-  }
-  if(typeof LightweightCharts==='undefined'){
-    var s=document.createElement('script');
-    s.src='https://unpkg.com/lightweight-charts@4.2.0/dist/lightweight-charts.standalone.production.js';
-    s.onload=doChart;
-    s.onerror=function(){document.getElementById('qfh-loading').textContent='チャートライブラリの読み込みに失敗しました';};
-    document.head.appendChild(s);
-  }else{doChart();}
+      .catch(function(){loading.textContent='データの取得に失敗しました';loading.style.display='flex';});
+  },200);
 }
 </script>
 {% endif %}
