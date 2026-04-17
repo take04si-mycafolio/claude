@@ -333,7 +333,6 @@
       <!-- 右：レート・バイアス・買い売りボックス -->
       <div class="pp-right">
         <div class="pp-rate" data-rate-display>{% if p.rate %}{{ "%.3f"|format(p.rate|float) }}{% else %}---{% endif %}</div>
-        <div><span class="pp-bias {{ p.overall_cls }}">{{ p.overall_ja }}</span></div>
         <div class="pp-counts">
           <div class="pp-count-box pp-count-buy">
             <div class="pp-count-num">{{ p.buy_count }}</div>
