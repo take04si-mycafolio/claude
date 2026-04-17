@@ -1,9 +1,9 @@
 {% extends "base_static.html" %}
-{% block title %}{% if current_pair == "USDJPY" %}ドル円リアルタイム予想【トレンドスコアと統計で見るテクニカル分析】{% else %}{{ data.display }} - FXシグナル{% endif %}{% endblock %}
+{% block title %}{% if current_pair == "USDJPY" %}ドル円リアルタイム予想【QuantFlow（クオンツ・フロー）で見るテクニカル分析】{% else %}{{ data.display }} - FXシグナル{% endif %}{% endblock %}
 
 {% block head_extra %}
 {% if current_pair == "USDJPY" %}
-<meta name="description" content="ドル円の方向性を-100〜+100でリアルタイムに可視化。マルチタイムフレーム分析とマクロ要因（米金利・DXY）を融合した独自スコアリングエンジンを搭載。直近バックテストで勝率62.5%（RR1:2）を記録した期待値の高いロジックで、プロの相場分析を客観的な数値で提供します。">
+<meta name="description" content="ドル円の方向性を-100〜+100でリアルタイムに可視化。マルチタイムフレーム分析とマクロ要因（米金利・DXY）を融合した独自シグナルエンジン「QuantFlow（クオンツ・フロー）」を搭載。直近バックテストで勝率62.5%（RR1:2）を記録した期待値の高いロジックで、プロの相場分析を客観的な数値で提供します。">
 {% endif %}
 {% endblock %}
 
@@ -99,8 +99,8 @@
 <div class="section-card">
   <div class="section-title section-title-row">
     <div class="section-title-left">
-      <i class="bi bi-speedometer2 text-primary me-2"></i>トレンドスコア
-      <span class="info-tip" data-tip="マルチタイムフレームのMA合流・米金利・DXY・RSIを総合した方向性スコアです。+100〜-100の双方向で、正が買い・負が売り優勢。±30以内はレンジ。">
+      <i class="bi bi-speedometer2 text-primary me-2"></i>QuantFlow <small class="text-muted" style="font-size:.75em;font-weight:400">クオンツ・フロー</small>
+      <span class="info-tip" data-tip="QuantFlow（クオンツ・フロー）はマルチタイムフレームのMA合流・米金利・DXY・RSIを総合した独自の方向性スコアです。+100〜-100の双方向で、正が買い・負が売り優勢。±30以内はレンジ。">
         <i class="bi bi-info-circle-fill"></i>
       </span>
     </div>

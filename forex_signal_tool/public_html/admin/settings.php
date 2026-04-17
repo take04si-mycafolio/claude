@@ -385,7 +385,7 @@ h2{font-size:20px;font-weight:700;color:#f1f5f9;margin-bottom:6px}
           <?php endforeach; ?>
         </tbody>
       </table>
-      <div style="font-size:11px;color:#475569;margin-top:6px">※ トレンドスコアの外部要因（±30点）に使用。データなしの場合はスコアが常にマイナスバイアスになります。</div>
+      <div style="font-size:11px;color:#475569;margin-top:6px">※ QuantFlow の外部要因スコア（±30点）に使用。データなしの場合はスコアが常にマイナスバイアスになります。</div>
     </div>
   </div>
   <?php endif; ?>
