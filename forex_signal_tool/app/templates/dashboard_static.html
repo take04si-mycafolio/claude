@@ -132,18 +132,12 @@
         <div class="ts-bd-bar {% if ts.breakdown.trend_score >= 0 %}ts-bd-bar-trend{% else %}ts-bd-bar-neg{% endif %}"
              style="width:{{ [ts.breakdown.trend_score | abs / 50 * 100, 100] | min | int }}%"></div>
       </div>
-      <div class="ts-bd-val {% if ts.breakdown.trend_score < 0 %}ts-neg{% endif %}">
-        {% if ts.breakdown.trend_score > 0 %}+{% endif %}{{ ts.breakdown.trend_score }}/50
-      </div>
     </div>
     <div class="ts-bd-item">
       <div class="ts-bd-label">外部要因</div>
       <div class="ts-bd-bar-wrap">
         <div class="ts-bd-bar {% if ts.breakdown.external_score >= 0 %}ts-bd-bar-ext{% else %}ts-bd-bar-neg{% endif %}"
              style="width:{{ [ts.breakdown.external_score | abs / 30 * 100, 100] | min | int }}%"></div>
-      </div>
-      <div class="ts-bd-val {% if ts.breakdown.external_score < 0 %}ts-neg{% endif %}">
-        {% if ts.breakdown.external_score > 0 %}+{% endif %}{{ ts.breakdown.external_score }}/30
       </div>
     </div>
     <div class="ts-bd-item">
@@ -155,9 +149,6 @@
         <div class="ts-bd-bar ts-bd-bar-neg" style="width:{{ [ts.breakdown.momentum_score | abs / 20 * 100, 100] | min | int }}%"></div>
         {% endif %}
       </div>
-      <div class="ts-bd-val {% if ts.breakdown.momentum_score < 0 %}ts-neg{% endif %}">
-        {% if ts.breakdown.momentum_score > 0 %}+{% endif %}{{ ts.breakdown.momentum_score }}
-      </div>
     </div>
     {% if ts.breakdown.deviation_penalty != 0 %}
     <div class="ts-bd-item">
@@ -165,9 +156,6 @@
       <div class="ts-bd-bar-wrap">
         <div class="ts-bd-bar {% if ts.breakdown.deviation_penalty > 0 %}ts-bd-bar-ext{% else %}ts-bd-bar-neg{% endif %}"
              style="width:{{ [ts.breakdown.deviation_penalty | abs / 30 * 100, 100] | min | int }}%"></div>
-      </div>
-      <div class="ts-bd-val {% if ts.breakdown.deviation_penalty < 0 %}ts-neg{% else %}ts-pos{% endif %}">
-        {% if ts.breakdown.deviation_penalty > 0 %}+{% endif %}{{ ts.breakdown.deviation_penalty }}
       </div>
     </div>
     {% endif %}
