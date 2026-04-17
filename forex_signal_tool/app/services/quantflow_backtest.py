@@ -80,26 +80,38 @@ def _compute_scores(df: pd.DataFrame, limit: int) -> list:
 
 
 def run_quantflow_backtest(
-    pair:      str   = "USDJPY",
-    sl_pips:   float = 20.0,
-    tp_pips:   float = 40.0,
-    limit:     int   = 5000,
+    pair:       str   = "USDJPY",
+    sl_pips:    float = 20.0,
+    tp_pips:    float = 40.0,
+    limit:      int   = 5000,
+    start_date: str   = "2026-01-01",
 ) -> dict:
     """
     QuantFlow 月次バックテストを実行して DB に保存する。
     既存データは全件削除してから再計算する。
+
+    start_date: この日付以降のエントリーのみ記録（マクロデータが揃う期間に限定）
     """
     from app import db
     from app.models.quantflow_trade import QuantFlowTrade
     from app.services.data_fetcher import get_candles
+    from datetime import datetime
 
-    logger.info("QuantFlow BT 開始: %s  SL=%.1f TP=%.1f", pair, sl_pips, tp_pips)
+    logger.info("QuantFlow BT 開始: %s  SL=%.1f TP=%.1f  開始日=%s",
+                pair, sl_pips, tp_pips, start_date)
 
     df = get_candles(pair, "1hr", limit=limit)
     if df.empty or len(df) < WARMUP + 10:
         return {"error": f"データ不足 ({len(df)} 本)"}
 
     df = df.reset_index(drop=True)
+
+    # start_date 以降のみエントリーを記録（スコア計算自体は全期間で行いWARMUP確保）
+    try:
+        entry_start_dt = datetime.strptime(start_date, "%Y-%m-%d")
+    except ValueError:
+        entry_start_dt = None
+
     scores = _compute_scores(df, limit)
 
     # ---------- 既存データ削除 ----------
@@ -126,6 +138,11 @@ def run_quantflow_backtest(
         entry_ts    = df["timestamp"].iloc[entry_idx]
         if hasattr(entry_ts, "to_pydatetime"):
             entry_ts = entry_ts.to_pydatetime()
+
+        # start_date 以前のエントリーはスキップ（スコア計算は継続）
+        if entry_start_dt and entry_ts.replace(tzinfo=None) < entry_start_dt:
+            i += 1
+            continue
 
         tp_dist = tp_pips * PIP_VALUE
         sl_dist = sl_pips * PIP_VALUE

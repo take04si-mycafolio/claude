@@ -310,9 +310,11 @@ def run_quantflow_bt():
     from app.models.settings import Setting
 
     try:
-        sl_pips = Setting.get_float("sl_pips", 20.0)
-        tp_pips = Setting.get_float("tp_pips", 40.0)
-        result  = run_quantflow_backtest(pair="USDJPY", sl_pips=sl_pips, tp_pips=tp_pips)
+        sl_pips    = Setting.get_float("sl_pips", 20.0)
+        tp_pips    = Setting.get_float("tp_pips", 40.0)
+        start_date = Setting.get("quantflow_bt_start", "2026-01-01")
+        result     = run_quantflow_backtest(
+            pair="USDJPY", sl_pips=sl_pips, tp_pips=tp_pips, start_date=start_date)
         if "error" in result:
             return jsonify({"status": "error", "message": result["error"]})
         Setting.set("last_quantflow_bt_at",
