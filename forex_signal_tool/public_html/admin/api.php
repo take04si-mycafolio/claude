@@ -103,6 +103,19 @@ switch ($action) {
         json_out(['status' => 'started', 'message' => 'シグナル更新をバックグラウンドで開始しました']);
         break;
 
+    case 'quantflow_chart_data':
+        require_login();
+        $py     = escapeshellarg(PYTHON_BIN);
+        $script = escapeshellarg(TASKS_DIR . '/get_quantflow_chart.py');
+        exec("{$py} {$script} 2>&1", $lines, $ret);
+        $raw    = implode('', $lines);
+        $result = json_decode($raw, true);
+        if ($result === null) {
+            json_out(['ok' => false, 'error' => 'スクリプトエラー', 'detail' => substr($raw, 0, 500)]);
+        }
+        json_out($result);
+        break;
+
     case 'run_quantflow_bt':
         require_login();
         setting_set('quantflow_bt_status', 'running');

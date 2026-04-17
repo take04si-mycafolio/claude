@@ -349,6 +349,24 @@ main{max-width:900px;margin:0 auto;padding:28px 20px}
     </div>
   </div>
 
+  <!-- ===== QuantFlow スコアチャート ===== -->
+  <div class="section">
+    <div class="section-title">QuantFlow スコア（直近 168h）</div>
+    <div style="background:#1e293b;border:1px solid #334155;border-radius:10px;padding:18px">
+      <div id="qf-chart-loading" style="text-align:center;color:#64748b;font-size:13px;padding:40px 0">
+        <span class="spin" style="border-color:#33415599;border-top-color:#60a5fa"></span> スコア計算中（15〜30秒）...
+      </div>
+      <div id="qf-chart-error" style="display:none;text-align:center;color:#f87171;font-size:13px;padding:20px 0"></div>
+      <canvas id="qfChart" style="display:none;max-height:280px"></canvas>
+      <div id="qf-chart-meta" style="display:none;margin-top:10px;display:none;justify-content:flex-end;gap:20px">
+        <span style="font-size:11px;color:#64748b">
+          最新スコア: <span id="qf-latest-score" style="font-weight:700;font-size:15px"></span>
+          &nbsp;|&nbsp; 直近終値: <span id="qf-latest-close" style="color:#94a3b8"></span>
+        </span>
+      </div>
+    </div>
+  </div>
+
   <!-- ===== DB 使用量内訳 ===== -->
   <div class="section">
     <div class="section-title">データベース使用量内訳</div>
@@ -664,6 +682,150 @@ function pollOpStatus(op, cfg, btn, msg, origText) {
     .catch(function(){});
   }, 3000);
 }
+</script>
+
+<?php if ($isLoggedIn): ?>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script>
+(function() {
+  var loading = document.getElementById('qf-chart-loading');
+  var errDiv  = document.getElementById('qf-chart-error');
+  var canvas  = document.getElementById('qfChart');
+  var meta    = document.getElementById('qf-chart-meta');
+
+  fetch('/admin/api.php?action=quantflow_chart_data', {
+    headers: {'X-Requested-With': 'XMLHttpRequest'}
+  })
+  .then(function(r){ return r.json(); })
+  .then(function(d) {
+    loading.style.display = 'none';
+    if (!d.ok) {
+      errDiv.textContent = 'エラー: ' + (d.error || '不明');
+      errDiv.style.display = 'block';
+      return;
+    }
+
+    var pts    = d.data.filter(function(x){ return x.score !== null; });
+    var labels = pts.map(function(x){ return x.ts; });
+    var scores = pts.map(function(x){ return x.score; });
+
+    // 最新値を表示
+    var latest = pts[pts.length - 1];
+    if (latest) {
+      var scoreEl = document.getElementById('qf-latest-score');
+      var score   = latest.score;
+      scoreEl.textContent = (score > 0 ? '+' : '') + score;
+      scoreEl.style.color = score >= 30 ? '#4ade80' : score <= -30 ? '#f87171' : '#94a3b8';
+      document.getElementById('qf-latest-close').textContent = latest.close + ' JPY';
+    }
+
+    canvas.style.display = 'block';
+    meta.style.display   = 'flex';
+
+    var ctx = canvas.getContext('2d');
+    new Chart(ctx, {
+      type: 'line',
+      data: {
+        labels: labels,
+        datasets: [
+          {
+            label: 'QuantFlow Score',
+            data: scores,
+            borderWidth: 1.5,
+            pointRadius: 0,
+            tension: 0.2,
+            segment: {
+              borderColor: function(ctx) {
+                var v = ctx.p1.parsed.y;
+                return v >= 30 ? '#4ade80' : v <= -30 ? '#f87171' : '#60a5fa';
+              }
+            },
+            fill: false,
+          },
+          {
+            label: '+30',
+            data: labels.map(function(){ return 30; }),
+            borderColor: 'rgba(74,222,128,0.35)',
+            borderWidth: 1,
+            borderDash: [5, 5],
+            pointRadius: 0,
+            fill: false,
+          },
+          {
+            label: '-30',
+            data: labels.map(function(){ return -30; }),
+            borderColor: 'rgba(248,113,113,0.35)',
+            borderWidth: 1,
+            borderDash: [5, 5],
+            pointRadius: 0,
+            fill: false,
+          },
+          {
+            label: '0',
+            data: labels.map(function(){ return 0; }),
+            borderColor: 'rgba(71,85,105,0.5)',
+            borderWidth: 1,
+            pointRadius: 0,
+            fill: false,
+          }
+        ]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: true,
+        animation: false,
+        scales: {
+          y: {
+            min: -100, max: 100,
+            grid:  { color: 'rgba(51,65,85,0.6)' },
+            ticks: { color: '#64748b', stepSize: 25 },
+            border:{ color: '#334155' }
+          },
+          x: {
+            grid:  { display: false },
+            ticks: {
+              color: '#64748b',
+              maxTicksLimit: 14,
+              maxRotation: 0,
+              font: { size: 10 }
+            },
+            border:{ color: '#334155' }
+          }
+        },
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            backgroundColor: '#1e293b',
+            borderColor: '#334155',
+            borderWidth: 1,
+            titleColor: '#94a3b8',
+            bodyColor: '#f1f5f9',
+            callbacks: {
+              label: function(ctx) {
+                if (ctx.dataset.label !== 'QuantFlow Score') return null;
+                var v = ctx.parsed.y;
+                var label = (v > 0 ? '+' : '') + v;
+                var level = v >= 50 ? 'Strong Buy' : v >= 30 ? 'Buy' : v <= -50 ? 'Strong Sell' : v <= -30 ? 'Sell' : 'Neutral';
+                return 'Score: ' + label + '  [' + level + ']';
+              },
+              afterLabel: function(ctx) {
+                if (ctx.dataset.label !== 'QuantFlow Score') return null;
+                var idx = ctx.dataIndex;
+                var pt  = pts[idx];
+                return pt ? 'Close: ' + pt.close : null;
+              }
+            }
+          }
+        }
+      }
+    });
+  })
+  .catch(function(e) {
+    loading.style.display = 'none';
+    errDiv.textContent = '通信エラー: ' + e.message;
+    errDiv.style.display = 'block';
+  });
+})();
 </script>
 <?php endif; ?>
 </body>
