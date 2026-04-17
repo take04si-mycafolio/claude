@@ -82,6 +82,12 @@ main{max-width:900px;margin:0 auto;padding:28px 20px}
 .macro-badge{display:inline-block;padding:2px 8px;border-radius:4px;font-size:10px;font-weight:700;background:#451a03;color:#fb923c}
 .macro-ok{color:#4ade80;font-weight:600}
 .macro-none{color:#ef4444;font-weight:600}
+/* Pair tabs */
+.pair-tabs{display:flex;gap:4px;margin-bottom:0}
+.pair-tab{padding:6px 16px;border-radius:6px 6px 0 0;font-size:12px;font-weight:600;cursor:pointer;border:1px solid #334155;border-bottom:none;background:#0f172a;color:#64748b;transition:background .15s,color .15s}
+.pair-tab.active{background:#1e293b;color:#60a5fa;border-color:#334155}
+.pair-tab-panel{display:none;background:#1e293b;border:1px solid #334155;border-radius:0 6px 6px 6px;padding:12px}
+.pair-tab-panel.active{display:block}
 /* Sim / BT stats */
 .two-col{display:grid;grid-template-columns:1fr 1fr;gap:16px}
 .inner-card{background:#1e293b;border:1px solid #334155;border-radius:10px;padding:16px 18px}
@@ -325,30 +331,44 @@ main{max-width:900px;margin:0 auto;padding:28px 20px}
     {% endif %}
 
     {% if price_by_tf %}
+    {% set pairs_order = ["USDJPY", "GBPJPY", "EURJPY"] %}
+    {% set grouped = price_by_tf | groupby("pair") %}
     <div style="margin-top:16px">
       <div style="font-size:12px;color:#64748b;margin-bottom:8px">price_data データ範囲（ペア × 足種）</div>
-      <table class="data-range-table">
-        <thead>
-          <tr>
-            <th>ペア</th>
-            <th>足種</th>
-            <th>件数</th>
-            <th>最古データ</th>
-            <th>最新データ</th>
-          </tr>
-        </thead>
-        <tbody>
-          {% for item in price_by_tf %}
-          <tr>
-            <td class="dr-pair">{{ item.pair }}</td>
-            <td class="dr-tf">{{ item.tf }}</td>
-            <td class="dr-num">{{ "{:,}".format(item.count) }}</td>
-            <td class="dr-date dr-oldest">{{ item.oldest }}</td>
-            <td class="dr-date">{{ item.newest }}</td>
-          </tr>
-          {% endfor %}
-        </tbody>
-      </table>
+      <div class="pair-tabs">
+        {% for pair in pairs_order %}
+        <div class="pair-tab{% if loop.first %} active{% endif %}" onclick="switchPairTab('{{ pair }}')">{{ pair }}</div>
+        {% endfor %}
+      </div>
+      {% set pair_label = {"USDJPY":"ドル円","GBPJPY":"ポンド円","EURJPY":"ユーロ円"} %}
+      {% for pair in pairs_order %}
+      {% set rows = price_by_tf | selectattr("pair","equalto",pair) | list %}
+      <div class="pair-tab-panel{% if loop.first %} active{% endif %}" id="panel-{{ pair }}">
+        <div style="font-size:11px;color:#94a3b8;margin-bottom:8px">{{ pair_label.get(pair, pair) }}（{{ rows|length }}足種）</div>
+        <table class="data-range-table">
+          <thead>
+            <tr>
+              <th>足種</th>
+              <th>件数</th>
+              <th>最古データ</th>
+              <th>最新データ</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for item in rows %}
+            <tr>
+              <td class="dr-tf">{{ item.tf }}</td>
+              <td class="dr-num">{{ "{:,}".format(item.count) }}</td>
+              <td class="dr-date dr-oldest">{{ item.oldest }}</td>
+              <td class="dr-date">{{ item.newest }}</td>
+            </tr>
+            {% else %}
+            <tr><td colspan="4" style="color:#475569;text-align:center;padding:12px">データなし</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      {% endfor %}
     </div>
     {% endif %}
 
@@ -407,6 +427,13 @@ main{max-width:900px;margin:0 auto;padding:28px 20px}
 </main>
 
 <script>
+function switchPairTab(pair) {
+  document.querySelectorAll('.pair-tab').forEach(function(t){ t.classList.remove('active'); });
+  document.querySelectorAll('.pair-tab-panel').forEach(function(p){ p.classList.remove('active'); });
+  document.querySelector('.pair-tab[onclick="switchPairTab(\'' + pair + '\')"]').classList.add('active');
+  document.getElementById('panel-' + pair).classList.add('active');
+}
+
 const OPS = {
   fetch:    { url: '/admin/run-fetch',    btnSel: '.fetch-btn', msgId: 'msg-fetch',   rtId: 'rt-fetch' },
   backtest: { url: '/admin/run-backtest', btnSel: '.bt-btn',    msgId: 'msg-backtest',rtId: 'rt-bt' },
