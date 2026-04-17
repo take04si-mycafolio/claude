@@ -454,6 +454,41 @@ def get_pair_data(pair: str) -> dict:
         except Exception as e:
             logger.warning("QuantFlow monthly error for %s: %s", pair, e)
 
+    # QuantFlow トレード履歴（USD/JPY 専用）
+    quantflow_trades_by_month: dict = {}
+    if pair == "USDJPY":
+        try:
+            from app.models.quantflow_trade import QuantFlowTrade
+            from datetime import timedelta
+            JST_OFFSET = timedelta(hours=9)
+            trades = (
+                QuantFlowTrade.query
+                .filter_by(currency_pair="USDJPY")
+                .order_by(QuantFlowTrade.entry_ts.desc())
+                .all()
+            )
+            for t in trades:
+                ym = t.year_month
+                if ym not in quantflow_trades_by_month:
+                    quantflow_trades_by_month[ym] = []
+                entry_jst = (t.entry_ts + JST_OFFSET) if t.entry_ts else None
+                exit_jst  = (t.exit_ts  + JST_OFFSET) if t.exit_ts  else None
+                quantflow_trades_by_month[ym].append({
+                    "id":             t.id,
+                    "entry_ts":       entry_jst.strftime("%m/%d %H:%M") if entry_jst else None,
+                    "entry_ts_iso":   t.entry_ts.strftime("%Y-%m-%dT%H:%M:%S") if t.entry_ts else None,
+                    "exit_ts":        exit_jst.strftime("%m/%d %H:%M") if exit_jst else None,
+                    "exit_ts_iso":    t.exit_ts.strftime("%Y-%m-%dT%H:%M:%S") if t.exit_ts else None,
+                    "direction":      t.direction,
+                    "score_at_entry": t.score_at_entry,
+                    "entry_price":    float(t.entry_price) if t.entry_price else None,
+                    "exit_price":     float(t.exit_price)  if t.exit_price  else None,
+                    "outcome":        t.outcome,
+                    "profit_pips":    float(t.profit_pips) if t.profit_pips else None,
+                })
+        except Exception as e:
+            logger.warning("QuantFlow trades error for %s: %s", pair, e)
+
     return {
         "pair": pair,
         "display": f"{pair[:3]}/{pair[3:]}",
@@ -476,9 +511,10 @@ def get_pair_data(pair: str) -> dict:
         "sl_pips":          sl_pips,
         "tp_pips":          tp_pips,
         "rr_ratio":         rr_ratio,
-        "trend_score":        trend_score,
-        "score_band_stats":   score_band_stats,
-        "quantflow_monthly":  quantflow_monthly,
+        "trend_score":               trend_score,
+        "score_band_stats":          score_band_stats,
+        "quantflow_monthly":         quantflow_monthly,
+        "quantflow_trades_by_month": quantflow_trades_by_month,
     }
 
 

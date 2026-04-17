@@ -150,6 +150,45 @@ switch ($action) {
         json_out(['status' => 'started', 'message' => 'QuantFlow バックテストをバックグラウンドで開始しました（数分かかります）']);
         break;
 
+    case 'qf_candles':
+        $pair = strtoupper(preg_replace('/[^A-Za-z]/', '', $_GET['pair'] ?? 'USDJPY'));
+        $from = $_GET['from'] ?? '';
+        $to   = $_GET['to']   ?? '';
+        if (!in_array($pair, ['USDJPY', 'GBPJPY', 'EURJPY'], true) || !$from || !$to) {
+            json_out(['ok' => false, 'error' => '無効なパラメータ']);
+        }
+        if (!preg_match('/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}$/', $from) ||
+            !preg_match('/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}$/', $to)) {
+            json_out(['ok' => false, 'error' => '日時形式が不正です']);
+        }
+        try {
+            $pdo  = get_pdo();
+            $stmt = $pdo->prepare("
+                SELECT UNIX_TIMESTAMP(timestamp)          AS t,
+                       CAST(open  AS DECIMAL(12,5))       AS o,
+                       CAST(high  AS DECIMAL(12,5))       AS h,
+                       CAST(low   AS DECIMAL(12,5))       AS l,
+                       CAST(close AS DECIMAL(12,5))       AS c
+                FROM price_data
+                WHERE currency_pair = ?
+                  AND timeframe      = '5min'
+                  AND timestamp BETWEEN ? AND ?
+                ORDER BY timestamp ASC
+                LIMIT 500
+            ");
+            $fromSql = str_replace('T', ' ', $from);
+            $toSql   = str_replace('T', ' ', $to);
+            $stmt->execute([$pair, $fromSql, $toSql]);
+            $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
+            $candles = array_map(function($r) {
+                return ['t'=>(int)$r['t'],'o'=>(float)$r['o'],'h'=>(float)$r['h'],'l'=>(float)$r['l'],'c'=>(float)$r['c']];
+            }, $rows);
+            json_out(['ok' => true, 'candles' => $candles]);
+        } catch (Exception $e) {
+            json_out(['ok' => false, 'error' => $e->getMessage()]);
+        }
+        break;
+
     case 'op_status':
         require_login();
         $op = $_GET['op'] ?? '';
