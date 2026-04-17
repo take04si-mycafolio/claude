@@ -211,7 +211,7 @@
       <tbody>
         {% for row in bt_top_table %}
         <tr>
-          <td style="font-weight:500;white-space:nowrap">{{ row.short_name }}</td>
+          <td style="font-weight:500;white-space:nowrap">{% if row.url %}<a href="{{ row.url }}" style="color:inherit;text-decoration:underline;text-underline-offset:2px">{{ row.short_name }}</a>{% else %}{{ row.short_name }}{% endif %}</td>
           <td style="font-size:12px;color:var(--color-text-secondary);white-space:nowrap">{{ row.category }}</td>
           <td><span class="badge {{ row.wr_class }}">{{ row.wr_label }}</span></td>
           <td>{{ row.pf_label }}</td>
@@ -220,9 +220,10 @@
           <td style="font-size:12px;color:var(--color-text-secondary);white-space:normal;line-height:1.55">{{ row.feature }}</td>
         </tr>
         {% endfor %}
+        {% if bt_top_table | selectattr('ind', 'equalto', 'Ichimoku_Cloud') | list | length == 0 %}
         <!-- 一目均衡表（DB未対応・静的行） -->
         <tr>
-          <td style="font-weight:500;white-space:nowrap">一目均衡表</td>
+          <td style="font-weight:500;white-space:nowrap"><a href="/trend/ichimoku/" style="color:inherit;text-decoration:underline;text-underline-offset:2px">一目均衡表</a></td>
           <td style="font-size:12px;color:var(--color-text-secondary);white-space:nowrap">トレンド</td>
           <td><span class="badge b-gray" style="font-size:11px;color:#888">検証予定</span></td>
           <td style="font-size:12px;color:var(--color-text-secondary)">ー</td>
@@ -230,6 +231,7 @@
           <td style="font-size:12px;color:var(--color-text-secondary)">ー</td>
           <td style="font-size:12px;color:var(--color-text-secondary);white-space:normal;line-height:1.55">転換線・基準線・先行スパン（雲）・遅行線の5本線で、相場のトレンド方向・サポレジ・勢いを一目で把握できます。</td>
         </tr>
+        {% endif %}
       </tbody>
     </table>
   </div>
