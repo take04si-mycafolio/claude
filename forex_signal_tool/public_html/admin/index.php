@@ -335,9 +335,15 @@ main{max-width:900px;margin:0 auto;padding:28px 20px}
         <div class="result-msg" id="msg-signals"></div>
       </div>
       <div class="op-card" style="border-color:#4f46e5">
+        <h3 style="color:#a5b4fc">QuantFlow スコア更新</h3>
+        <p>直近30日分の1hrスコアを計算してDBに保存します（チャートデータの更新）。</p>
+        <button class="run-btn qf" onclick="runOp('qfscores')">スコア更新を実行</button>
+        <div class="result-msg" id="msg-qfscores"></div>
+      </div>
+      <div class="op-card" style="border-color:#3730a3">
         <h3 style="color:#a5b4fc">QuantFlow 月次BT</h3>
         <p>USDJPYの5分足スキャルピングシミュレーションを再実行してDBに保存します（数分かかります）。</p>
-        <button class="run-btn qf" onclick="runOp('quantflow')">QuantFlow BT を実行</button>
+        <button class="run-btn qf-bt" style="background:#3730a3;color:#fff" onclick="runOp('quantflow')">QuantFlow BT を実行</button>
         <div class="result-msg" id="msg-quantflow"></div>
       </div>
       <div class="op-card" style="border-color:#1e40af">
@@ -351,18 +357,46 @@ main{max-width:900px;margin:0 auto;padding:28px 20px}
 
   <!-- ===== QuantFlow スコアチャート ===== -->
   <div class="section">
-    <div class="section-title">QuantFlow スコア（直近 168h）</div>
-    <div style="background:#1e293b;border:1px solid #334155;border-radius:10px;padding:18px">
+    <div class="section-title" style="display:flex;align-items:center;justify-content:space-between">
+      <span>QuantFlow スコア（1時間足）</span>
+      <div style="display:flex;gap:8px;align-items:center">
+        <select id="qf-range" style="background:#1e293b;border:1px solid #334155;color:#94a3b8;font-size:12px;padding:4px 8px;border-radius:6px;cursor:pointer">
+          <option value="168">直近7日</option>
+          <option value="336">直近14日</option>
+          <option value="720">直近30日</option>
+        </select>
+        <button onclick="loadQfChart()" style="background:#1e293b;border:1px solid #334155;color:#94a3b8;font-size:12px;padding:4px 10px;border-radius:6px;cursor:pointer">再読込</button>
+      </div>
+    </div>
+    <div style="background:#1e293b;border:1px solid #334155;border-radius:10px;padding:18px;margin-top:10px">
       <div id="qf-chart-loading" style="text-align:center;color:#64748b;font-size:13px;padding:40px 0">
-        <span class="spin" style="border-color:#33415599;border-top-color:#60a5fa"></span> スコア計算中（15〜30秒）...
+        <span class="spin" style="border-color:#33415599;border-top-color:#60a5fa"></span> 読み込み中...
       </div>
       <div id="qf-chart-error" style="display:none;text-align:center;color:#f87171;font-size:13px;padding:20px 0"></div>
-      <canvas id="qfChart" style="display:none;max-height:280px"></canvas>
-      <div id="qf-chart-meta" style="display:none;margin-top:10px;display:none;justify-content:flex-end;gap:20px">
-        <span style="font-size:11px;color:#64748b">
-          最新スコア: <span id="qf-latest-score" style="font-weight:700;font-size:15px"></span>
-          &nbsp;|&nbsp; 直近終値: <span id="qf-latest-close" style="color:#94a3b8"></span>
-        </span>
+      <div id="qf-chart-empty" style="display:none;text-align:center;padding:40px 0">
+        <div style="color:#64748b;font-size:13px;margin-bottom:12px">データがありません。「QuantFlow スコア更新」を実行してください。</div>
+        <button class="run-btn qf" onclick="runOp('qfscores')" style="width:auto;padding:8px 20px">スコア更新を実行</button>
+      </div>
+      <div id="qf-chart-wrap" style="display:none">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+          <div style="font-size:12px;color:#64748b">
+            最新スコア:
+            <span id="qf-latest-score" style="font-weight:700;font-size:18px;margin:0 4px"></span>
+            <span id="qf-latest-level" style="font-size:11px;padding:2px 7px;border-radius:4px;background:#1e293b;border:1px solid #334155"></span>
+          </div>
+          <div style="font-size:12px;color:#64748b">
+            終値: <span id="qf-latest-close" style="color:#94a3b8"></span>
+          </div>
+        </div>
+        <div style="position:relative;height:260px">
+          <canvas id="qfChart"></canvas>
+        </div>
+        <div style="margin-top:10px;display:flex;gap:16px;font-size:11px;color:#64748b">
+          <span style="display:flex;align-items:center;gap:4px"><span style="display:inline-block;width:20px;height:2px;background:#4ade80"></span> Score ≥+30 (BUY)</span>
+          <span style="display:flex;align-items:center;gap:4px"><span style="display:inline-block;width:20px;height:2px;background:#f87171"></span> Score ≤−30 (SELL)</span>
+          <span style="display:flex;align-items:center;gap:4px"><span style="display:inline-block;width:20px;height:2px;background:#60a5fa"></span> Neutral</span>
+          <span style="display:flex;align-items:center;gap:4px"><span style="display:inline-block;width:20px;height:2px;background:#33415588;border-top:1px dashed #33415588"></span> ±30 閾値</span>
+        </div>
       </div>
     </div>
   </div>
@@ -577,7 +611,8 @@ function runOp(op) {
     fetch:    { action: 'run_fetch',         btnSel: '.run-btn.fetch', msgId: 'msg-fetch',      rtId: 'rt-fetch',  opKey: 'fetch_status',       rtKey: 'last_fetch' },
     backtest: { action: 'run_backtest',      btnSel: '.run-btn.bt',    msgId: 'msg-backtest',   rtId: 'rt-bt',     opKey: 'backtest_status',    rtKey: 'last_bt' },
     signals:  { action: 'run_signals',       btnSel: '.run-btn.sig',   msgId: 'msg-signals',    rtId: 'rt-signal', opKey: 'signal_status',      rtKey: 'last_signal' },
-    quantflow:{ action: 'run_quantflow_bt',  btnSel: '.run-btn.qf',    msgId: 'msg-quantflow',  rtId: null,        opKey: 'quantflow_bt_status', rtKey: null },
+    qfscores: { action: 'run_quantflow_scores', btnSel: '.run-btn.qf', msgId: 'msg-qfscores',   rtId: null, opKey: 'quantflow_scores_status', rtKey: null },
+    quantflow:{ action: 'run_quantflow_bt',    btnSel: '.run-btn.qf-bt', msgId: 'msg-quantflow', rtId: null, opKey: 'quantflow_bt_status', rtKey: null },
   };
   var cfg = cfgs[op];
   var btn = document.querySelector(cfg.btnSel);
@@ -687,13 +722,21 @@ function pollOpStatus(op, cfg, btn, msg, origText) {
 <?php if ($isLoggedIn): ?>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <script>
-(function() {
+var _qfChartInst = null;
+
+function loadQfChart() {
   var loading = document.getElementById('qf-chart-loading');
   var errDiv  = document.getElementById('qf-chart-error');
-  var canvas  = document.getElementById('qfChart');
-  var meta    = document.getElementById('qf-chart-meta');
+  var empty   = document.getElementById('qf-chart-empty');
+  var wrap    = document.getElementById('qf-chart-wrap');
+  var limit   = document.getElementById('qf-range').value;
 
-  fetch('/admin/api.php?action=quantflow_chart_data', {
+  loading.style.display = 'block';
+  errDiv.style.display  = 'none';
+  empty.style.display   = 'none';
+  wrap.style.display    = 'none';
+
+  fetch('/admin/api.php?action=quantflow_chart_data&limit=' + limit, {
     headers: {'X-Requested-With': 'XMLHttpRequest'}
   })
   .then(function(r){ return r.json(); })
@@ -704,66 +747,84 @@ function pollOpStatus(op, cfg, btn, msg, origText) {
       errDiv.style.display = 'block';
       return;
     }
+    if (!d.data || d.data.length === 0) {
+      empty.style.display = 'block';
+      return;
+    }
 
-    var pts    = d.data.filter(function(x){ return x.score !== null; });
+    var pts    = d.data;
     var labels = pts.map(function(x){ return x.ts; });
     var scores = pts.map(function(x){ return x.score; });
 
-    // 最新値を表示
+    // 最新値
     var latest = pts[pts.length - 1];
-    if (latest) {
+    if (latest && latest.score !== null) {
+      var s      = latest.score;
+      var level  = s >= 50 ? 'Strong Buy' : s >= 30 ? 'Buy' : s <= -50 ? 'Strong Sell' : s <= -30 ? 'Sell' : 'Neutral';
+      var color  = s >= 30 ? '#4ade80' : s <= -30 ? '#f87171' : '#94a3b8';
       var scoreEl = document.getElementById('qf-latest-score');
-      var score   = latest.score;
-      scoreEl.textContent = (score > 0 ? '+' : '') + score;
-      scoreEl.style.color = score >= 30 ? '#4ade80' : score <= -30 ? '#f87171' : '#94a3b8';
-      document.getElementById('qf-latest-close').textContent = latest.close + ' JPY';
+      scoreEl.textContent = (s > 0 ? '+' : '') + s;
+      scoreEl.style.color = color;
+      var lvEl = document.getElementById('qf-latest-level');
+      lvEl.textContent  = level;
+      lvEl.style.color  = color;
+      lvEl.style.borderColor = color + '55';
+      document.getElementById('qf-latest-close').textContent = latest.close ? latest.close + ' JPY' : '-';
     }
 
-    canvas.style.display = 'block';
-    meta.style.display   = 'flex';
+    wrap.style.display = 'block';
 
-    var ctx = canvas.getContext('2d');
-    new Chart(ctx, {
+    if (_qfChartInst) { _qfChartInst.destroy(); _qfChartInst = null; }
+    var ctx = document.getElementById('qfChart').getContext('2d');
+    _qfChartInst = new Chart(ctx, {
       type: 'line',
       data: {
         labels: labels,
         datasets: [
           {
-            label: 'QuantFlow Score',
+            label: 'Score',
             data: scores,
-            borderWidth: 1.5,
+            borderWidth: 2,
             pointRadius: 0,
-            tension: 0.2,
+            tension: 0.15,
             segment: {
               borderColor: function(ctx) {
                 var v = ctx.p1.parsed.y;
                 return v >= 30 ? '#4ade80' : v <= -30 ? '#f87171' : '#60a5fa';
+              },
+              backgroundColor: function(ctx) {
+                var v = ctx.p1.parsed.y;
+                return v >= 30 ? 'rgba(74,222,128,0.08)' : v <= -30 ? 'rgba(248,113,113,0.08)' : 'transparent';
               }
             },
-            fill: false,
+            fill: {
+              target: { value: 0 },
+              above: 'rgba(74,222,128,0.05)',
+              below: 'rgba(248,113,113,0.05)'
+            },
           },
           {
             label: '+30',
             data: labels.map(function(){ return 30; }),
-            borderColor: 'rgba(74,222,128,0.35)',
+            borderColor: 'rgba(74,222,128,0.3)',
             borderWidth: 1,
-            borderDash: [5, 5],
+            borderDash: [6, 4],
             pointRadius: 0,
             fill: false,
           },
           {
             label: '-30',
             data: labels.map(function(){ return -30; }),
-            borderColor: 'rgba(248,113,113,0.35)',
+            borderColor: 'rgba(248,113,113,0.3)',
             borderWidth: 1,
-            borderDash: [5, 5],
+            borderDash: [6, 4],
             pointRadius: 0,
             fill: false,
           },
           {
             label: '0',
             data: labels.map(function(){ return 0; }),
-            borderColor: 'rgba(71,85,105,0.5)',
+            borderColor: 'rgba(71,85,105,0.4)',
             borderWidth: 1,
             pointRadius: 0,
             fill: false,
@@ -772,47 +833,53 @@ function pollOpStatus(op, cfg, btn, msg, origText) {
       },
       options: {
         responsive: true,
-        maintainAspectRatio: true,
+        maintainAspectRatio: false,
         animation: false,
+        interaction: { mode: 'index', intersect: false },
         scales: {
           y: {
             min: -100, max: 100,
-            grid:  { color: 'rgba(51,65,85,0.6)' },
-            ticks: { color: '#64748b', stepSize: 25 },
-            border:{ color: '#334155' }
+            grid:  { color: 'rgba(51,65,85,0.5)' },
+            ticks: {
+              color: '#64748b',
+              stepSize: 25,
+              callback: function(v) { return (v > 0 ? '+' : '') + v; }
+            },
+            border: { color: '#334155' }
           },
           x: {
             grid:  { display: false },
             ticks: {
               color: '#64748b',
-              maxTicksLimit: 14,
+              maxTicksLimit: 12,
               maxRotation: 0,
               font: { size: 10 }
             },
-            border:{ color: '#334155' }
+            border: { color: '#334155' }
           }
         },
         plugins: {
           legend: { display: false },
           tooltip: {
-            backgroundColor: '#1e293b',
+            backgroundColor: '#0f172a',
             borderColor: '#334155',
             borderWidth: 1,
             titleColor: '#94a3b8',
             bodyColor: '#f1f5f9',
+            padding: 10,
             callbacks: {
+              title: function(items) { return items[0].label; },
               label: function(ctx) {
-                if (ctx.dataset.label !== 'QuantFlow Score') return null;
-                var v = ctx.parsed.y;
-                var label = (v > 0 ? '+' : '') + v;
+                if (ctx.dataset.label !== 'Score') return null;
+                var v     = ctx.parsed.y;
                 var level = v >= 50 ? 'Strong Buy' : v >= 30 ? 'Buy' : v <= -50 ? 'Strong Sell' : v <= -30 ? 'Sell' : 'Neutral';
-                return 'Score: ' + label + '  [' + level + ']';
-              },
-              afterLabel: function(ctx) {
-                if (ctx.dataset.label !== 'QuantFlow Score') return null;
-                var idx = ctx.dataIndex;
-                var pt  = pts[idx];
-                return pt ? 'Close: ' + pt.close : null;
+                var pt    = pts[ctx.dataIndex];
+                var lines = [
+                  'Score: ' + (v > 0 ? '+' : '') + v + '  [' + level + ']',
+                ];
+                if (pt && pt.close) lines.push('Close: ' + pt.close + ' JPY');
+                if (pt && pt.trend != null) lines.push('Trend: ' + (pt.trend > 0 ? '+' : '') + pt.trend + ' / Ext: ' + (pt.ext > 0 ? '+' : '') + pt.ext);
+                return lines;
               }
             }
           }
@@ -825,7 +892,10 @@ function pollOpStatus(op, cfg, btn, msg, origText) {
     errDiv.textContent = '通信エラー: ' + e.message;
     errDiv.style.display = 'block';
   });
-})();
+}
+
+document.getElementById('qf-range').addEventListener('change', loadQfChart);
+loadQfChart();
 </script>
 <?php endif; ?>
 </body>

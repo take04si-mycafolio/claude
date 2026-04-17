@@ -105,15 +105,41 @@ switch ($action) {
 
     case 'quantflow_chart_data':
         require_login();
-        $py     = escapeshellarg(PYTHON_BIN);
-        $script = escapeshellarg(TASKS_DIR . '/get_quantflow_chart.py');
-        exec("{$py} {$script} 2>&1", $lines, $ret);
-        $raw    = implode('', $lines);
-        $result = json_decode($raw, true);
-        if ($result === null) {
-            json_out(['ok' => false, 'error' => 'スクリプトエラー', 'detail' => substr($raw, 0, 500)]);
+        try {
+            $pdo   = get_pdo();
+            $limit = (int)($_GET['limit'] ?? 168);
+            $stmt  = $pdo->prepare("
+                SELECT DATE_FORMAT(`timestamp`, '%m/%d %H:%i') AS ts,
+                       score, trend_score, external_score, close_price
+                FROM quantflow_scores
+                WHERE currency_pair = 'USDJPY'
+                ORDER BY `timestamp` DESC
+                LIMIT ?
+            ");
+            $stmt->bindValue(1, $limit, PDO::PARAM_INT);
+            $stmt->execute();
+            $rows = array_reverse($stmt->fetchAll(PDO::FETCH_ASSOC));
+            $data = array_map(function($r) {
+                return [
+                    'ts'    => $r['ts'],
+                    'score' => $r['score'] !== null ? (int)$r['score'] : null,
+                    'trend' => $r['trend_score']    !== null ? (int)$r['trend_score']    : null,
+                    'ext'   => $r['external_score'] !== null ? (int)$r['external_score'] : null,
+                    'close' => $r['close_price']    !== null ? (float)$r['close_price']  : null,
+                ];
+            }, $rows);
+            json_out(['ok' => true, 'data' => $data, 'count' => count($data)]);
+        } catch (Exception $e) {
+            json_out(['ok' => false, 'error' => $e->getMessage()]);
         }
-        json_out($result);
+        break;
+
+    case 'run_quantflow_scores':
+        require_login();
+        setting_set('quantflow_scores_status', 'running');
+        $cmd = escapeshellarg(PYTHON_BIN) . ' ' . escapeshellarg(TASKS_DIR . '/update_quantflow_scores.py');
+        exec("nohup {$cmd} >> /tmp/forex_quantflow_scores.log 2>&1 &");
+        json_out(['status' => 'started', 'message' => 'QuantFlow スコア更新をバックグラウンドで開始しました']);
         break;
 
     case 'run_quantflow_bt':
