@@ -40,6 +40,8 @@ main{max-width:900px;margin:0 auto;padding:28px 20px}
 .run-btn.bt-btn:hover{background:#6d28d9}
 .run-btn.sig-btn{background:#15803d;color:#fff}
 .run-btn.sig-btn:hover{background:#166534}
+.run-btn.macro-btn{background:#b45309;color:#fff}
+.run-btn.macro-btn:hover{background:#92400e}
 .run-btn:disabled{opacity:.5;cursor:not-allowed}
 .result-msg{margin-top:8px;font-size:12px;min-height:18px;text-align:center}
 .result-msg.ok{color:#4ade80}
@@ -73,6 +75,13 @@ main{max-width:900px;margin:0 auto;padding:28px 20px}
 .dr-num{text-align:right;color:#f1f5f9;font-variant-numeric:tabular-nums}
 .dr-date{color:#cbd5e1;font-family:'Courier New',monospace;font-size:10.5px}
 .dr-oldest{color:#f59e0b}
+.macro-status-table{width:100%;border-collapse:collapse;font-size:12px;margin-top:8px}
+.macro-status-table th{text-align:left;padding:6px 10px;color:#64748b;font-weight:600;border-bottom:1px solid #334155;white-space:nowrap;font-size:11px;text-transform:uppercase}
+.macro-status-table td{padding:6px 10px;border-bottom:1px solid #0f172a;vertical-align:middle}
+.macro-status-table tr:last-child td{border-bottom:none}
+.macro-badge{display:inline-block;padding:2px 8px;border-radius:4px;font-size:10px;font-weight:700;background:#451a03;color:#fb923c}
+.macro-ok{color:#4ade80;font-weight:600}
+.macro-none{color:#ef4444;font-weight:600}
 /* Sim / BT stats */
 .two-col{display:grid;grid-template-columns:1fr 1fr;gap:16px}
 .inner-card{background:#1e293b;border:1px solid #334155;border-radius:10px;padding:16px 18px}
@@ -168,6 +177,14 @@ main{max-width:900px;margin:0 auto;padding:28px 20px}
         <p>現在の価格データと指標からアクティブシグナルを再生成します。</p>
         <button class="run-btn sig-btn" onclick="runOp('signals')">シグナル更新を実行</button>
         <div class="result-msg" id="msg-signals"></div>
+      </div>
+    </div>
+    <div style="margin-top:12px">
+      <div class="op-card" style="max-width:300px">
+        <h3>マクロ指標取得</h3>
+        <p>yfinance から US10Y・DXY の最新 1hr データを取得してDBに保存します。</p>
+        <button class="run-btn macro-btn" onclick="runOp('macro')">マクロ取得を実行</button>
+        <div class="result-msg" id="msg-macro"></div>
       </div>
     </div>
   </div>
@@ -334,6 +351,46 @@ main{max-width:900px;margin:0 auto;padding:28px 20px}
       </table>
     </div>
     {% endif %}
+
+    {% if macro_status %}
+    <div style="margin-top:20px">
+      <div style="font-size:12px;color:#64748b;margin-bottom:8px">マクロ指標データ（US10Y / DXY）</div>
+      <table class="macro-status-table">
+        <thead>
+          <tr>
+            <th>指標</th>
+            <th>説明</th>
+            <th>足種</th>
+            <th>件数</th>
+            <th>最古データ</th>
+            <th>最新データ</th>
+            <th>状態</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% set macro_labels = {"US10Y": "米10年債利回り", "DXY": "ドルインデックス"} %}
+          {% for item in macro_status %}
+          <tr>
+            <td><span class="macro-badge">{{ item.pair }}</span></td>
+            <td style="color:#94a3b8;font-size:11px">{{ macro_labels.get(item.pair, item.pair) }}</td>
+            <td class="dr-tf">{{ item.tf }}</td>
+            <td class="dr-num">{{ "{:,}".format(item.count) }}</td>
+            <td class="dr-date dr-oldest">{{ item.oldest }}</td>
+            <td class="dr-date">{{ item.newest }}</td>
+            <td>
+              {% if item.count > 0 %}
+              <span class="macro-ok">✓ あり</span>
+              {% else %}
+              <span class="macro-none">✗ なし</span>
+              {% endif %}
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      <div style="font-size:11px;color:#475569;margin-top:6px">※ トレンドスコアの外部要因（±30点）に使用。データなしの場合はスコアが常にマイナスバイアスになります。</div>
+    </div>
+    {% endif %}
   </div>
 
   <!-- バックテストツールへのリンク -->
@@ -354,6 +411,7 @@ const OPS = {
   fetch:    { url: '/admin/run-fetch',    btnSel: '.fetch-btn', msgId: 'msg-fetch',   rtId: 'rt-fetch' },
   backtest: { url: '/admin/run-backtest', btnSel: '.bt-btn',    msgId: 'msg-backtest',rtId: 'rt-bt' },
   signals:  { url: '/admin/run-signals',  btnSel: '.sig-btn',   msgId: 'msg-signals', rtId: 'rt-signal' },
+  macro:    { url: '/admin/run-macro',    btnSel: '.macro-btn', msgId: 'msg-macro',   rtId: null },
 };
 
 function runOp(name) {

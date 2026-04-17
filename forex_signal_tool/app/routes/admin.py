@@ -137,8 +137,11 @@ def dashboard():
 
     tf_order = ["5min", "15min", "30min", "1hr", "4hr", "daily"]
 
-    # price_data: 通貨ペア × 足種 ごとの件数・最古・最新
+    MACRO_PAIRS_SET = {"US10Y", "DXY"}
+
+    # price_data: 通貨ペア × 足種 ごとの件数・最古・最新（マクロ除外）
     price_by_tf = []
+    macro_status = []
     try:
         from sqlalchemy import func as sa_func
         TF_SORT = {tf: i for i, tf in enumerate(tf_order)}
@@ -150,14 +153,24 @@ def dashboard():
             sa_func.max(PriceData.timestamp).label("newest"),
         ).group_by(PriceData.currency_pair, PriceData.timeframe).all())
         rows_sorted = sorted(rows, key=lambda r: (r.currency_pair, TF_SORT.get(r.timeframe, 99)))
+        macro_found = {}
         for r in rows_sorted:
-            price_by_tf.append({
+            entry = {
                 "pair":   r.currency_pair,
                 "tf":     r.timeframe,
                 "count":  r.cnt,
                 "oldest": r.oldest.strftime("%Y/%m/%d %H:%M") if r.oldest else "-",
                 "newest": r.newest.strftime("%Y/%m/%d %H:%M") if r.newest else "-",
-            })
+            }
+            if r.currency_pair in MACRO_PAIRS_SET:
+                macro_found[r.currency_pair] = entry
+            else:
+                price_by_tf.append(entry)
+        for pair in ["US10Y", "DXY"]:
+            if pair in macro_found:
+                macro_status.append(macro_found[pair])
+            else:
+                macro_status.append({"pair": pair, "tf": "1hr", "count": 0, "oldest": "-", "newest": "-"})
     except Exception as e:
         logger.warning("price_by_tf error: %s", e)
 
@@ -214,6 +227,7 @@ def dashboard():
         stats=stats,
         db_tables=db_tables,
         price_by_tf=price_by_tf,
+        macro_status=macro_status,
         db_total_mb=db_total_mb,
         sim_stats=sim_stats,
         bt_stats=bt_stats,
@@ -269,6 +283,23 @@ def run_backtest():
         return jsonify({"status": "ok", "message": f"バックテスト完了: {total_saved}件保存"})
     except Exception as e:
         logger.exception("backtest error")
+        return jsonify({"status": "error", "message": str(e)})
+
+
+@bp.route("/run-macro", methods=["POST"])
+@login_required
+def run_macro():
+    from app.services.data_fetcher import fetch_and_store_macro
+    from app.models.settings import Setting
+
+    try:
+        results = fetch_and_store_macro()
+        total = sum(v for tf_r in results.values() for v in tf_r.values())
+        Setting.set("last_macro_fetch_at",
+                    datetime.now(timezone.utc).strftime("%Y/%m/%d %H:%M UTC"))
+        return jsonify({"status": "ok", "message": f"マクロ指標取得完了: {total}件保存"})
+    except Exception as e:
+        logger.exception("macro fetch error")
         return jsonify({"status": "error", "message": str(e)})
 
 
