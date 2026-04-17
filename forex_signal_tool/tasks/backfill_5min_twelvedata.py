@@ -1,22 +1,24 @@
 #!/usr/bin/env python3
 """
-Twelve Data API を使って 5 分足データを遡及取得し DB に保存するスクリプト。
+Twelve Data API を使って複数タイムフレームのデータを遡及取得し DB に保存するスクリプト。
 
-対象: USDJPY → GBPJPY → EURJPY
-期間: 2026-01-01 00:00 UTC 〜 2026-03-31 22:55 UTC
-      （DB には既に 2026-03-31 23:00〜 が存在するため重複上書きは無害）
+対象ペア : USDJPY → GBPJPY → EURJPY
+対象足種 :
+    5min  : 2026-01-01 〜 2026-03-31 22:55 UTC（既存 23:00〜 の直前まで）
+    15min : 2025-10-01 〜 現在
+    30min : 2025-10-01 〜 現在
 
 使い方:
     python tasks/backfill_5min_twelvedata.py
 
-レート制限: Free プラン 8 req/min → リクエスト間 10 秒 sleep
+レート制限: Free プラン 8 req/min → リクエスト間 12 秒 sleep
 """
 
 import sys
 import os
 import time
 import logging
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timedelta
 
 import requests
 import pandas as pd
@@ -35,7 +37,7 @@ logger = logging.getLogger(__name__)
 API_KEY    = "3885ff93dfc3409da028a3912f3f473d"
 BASE_URL   = "https://api.twelvedata.com/time_series"
 OUTPUTSIZE = 5000   # 1 リクエストあたりの最大ローソク足数
-SLEEP_SEC  = 12     # レート制限: 8 req/min → 7.5s 必要、余裕をもって 12s
+SLEEP_SEC  = 12     # 8 req/min 制限対応
 
 PAIRS = [
     ("USDJPY", "USD/JPY"),
@@ -43,21 +45,39 @@ PAIRS = [
     ("EURJPY", "EUR/JPY"),
 ]
 
-# 5000 本 × 5min = 25000 分 ≈ 17.36 日
-CHUNK_MINUTES = OUTPUTSIZE * 5
+# タイムフレーム設定: (DB名, APIパラメータ, 足間隔分, 取得開始, 取得終了)
+NOW = datetime.utcnow().replace(second=0, microsecond=0)
 
-FILL_START = datetime(2026, 1, 1,  0,  0, 0)   # UTC naive
-FILL_END   = datetime(2026, 3, 31, 22, 55, 0)  # UTC naive（既存の 23:00 の直前）
+TIMEFRAMES = [
+    {
+        "db_tf":    "5min",
+        "api_tf":   "5min",
+        "interval_min": 5,
+        "start":    datetime(2026, 1, 1, 0, 0, 0),
+        "end":      datetime(2026, 3, 31, 22, 55, 0),  # 既存データ 23:00〜 の直前
+    },
+    {
+        "db_tf":    "15min",
+        "api_tf":   "15min",
+        "interval_min": 15,
+        "start":    datetime(2025, 10, 1, 0, 0, 0),
+        "end":      NOW,
+    },
+    {
+        "db_tf":    "30min",
+        "api_tf":   "30min",
+        "interval_min": 30,
+        "start":    datetime(2025, 10, 1, 0, 0, 0),
+        "end":      NOW,
+    },
+]
 
 
-def fetch_chunk(symbol: str, start_dt: datetime, end_dt: datetime) -> pd.DataFrame:
-    """
-    Twelve Data API から 1 チャンクを取得して DataFrame で返す。
-    空の場合は空 DataFrame を返す。
-    """
+def fetch_chunk(symbol: str, api_tf: str, start_dt: datetime, end_dt: datetime) -> pd.DataFrame:
+    """Twelve Data API から 1 チャンクを取得して DataFrame で返す。"""
     params = {
         "symbol":     symbol,
-        "interval":   "5min",
+        "interval":   api_tf,
         "start_date": start_dt.strftime("%Y-%m-%d %H:%M:%S"),
         "end_date":   end_dt.strftime("%Y-%m-%d %H:%M:%S"),
         "outputsize": OUTPUTSIZE,
@@ -95,57 +115,64 @@ def fetch_chunk(symbol: str, start_dt: datetime, end_dt: datetime) -> pd.DataFra
         })
 
     df = pd.DataFrame(rows)
-    df["timestamp"] = pd.to_datetime(df["timestamp"])  # UTC naive
+    df["timestamp"] = pd.to_datetime(df["timestamp"])
     df = df.sort_values("timestamp").reset_index(drop=True)
     return df
 
 
-def backfill_pair(pair_db: str, pair_api: str, app):
-    """1 ペア分のデータをチャンク単位で取得・保存する。"""
+def backfill_pair_tf(pair_db: str, pair_api: str, tf: dict, app) -> int:
+    """1ペア × 1タイムフレームをチャンク単位で取得・保存する。"""
     from app.services.data_fetcher import save_price_data
 
-    logger.info("=== %s 開始 ===", pair_db)
-    total_saved = 0
-    chunk_start = FILL_START
+    db_tf        = tf["db_tf"]
+    api_tf       = tf["api_tf"]
+    interval_min = tf["interval_min"]
+    fill_end     = tf["end"]
 
-    while chunk_start <= FILL_END:
+    chunk_minutes = OUTPUTSIZE * interval_min  # 1 チャンクあたりの時間幅（分）
+
+    logger.info("  [%s %s] 取得開始: %s 〜 %s",
+                pair_db, db_tf,
+                tf["start"].strftime("%Y-%m-%d"),
+                fill_end.strftime("%Y-%m-%d %H:%M"))
+
+    total_saved = 0
+    chunk_start = tf["start"]
+
+    while chunk_start <= fill_end:
         chunk_end = min(
-            chunk_start + timedelta(minutes=CHUNK_MINUTES - 5),
-            FILL_END,
+            chunk_start + timedelta(minutes=chunk_minutes - interval_min),
+            fill_end,
         )
 
-        logger.info("  取得: %s 〜 %s",
+        logger.info("    取得: %s 〜 %s",
                     chunk_start.strftime("%Y-%m-%d %H:%M"),
                     chunk_end.strftime("%Y-%m-%d %H:%M"))
 
-        df = fetch_chunk(pair_api, chunk_start, chunk_end)
+        df = fetch_chunk(pair_api, api_tf, chunk_start, chunk_end)
 
         if df.empty:
-            # 空チャンクでも次に進む（週末・祝日等）
-            chunk_start = chunk_end + timedelta(minutes=5)
+            chunk_start = chunk_end + timedelta(minutes=interval_min)
             time.sleep(SLEEP_SEC)
             continue
 
-        # FILL_END を超えた行をトリミング
-        df = df[df["timestamp"] <= FILL_END].reset_index(drop=True)
+        df = df[df["timestamp"] <= pd.Timestamp(fill_end)].reset_index(drop=True)
 
         if not df.empty:
             with app.app_context():
-                saved = save_price_data(pair_db, "5min", df)
+                saved = save_price_data(pair_db, db_tf, df)
             total_saved += saved
-            logger.info("    → %d件保存 (取得 %d行)", saved, len(df))
+            logger.info("      → %d件保存 (取得 %d行)", saved, len(df))
 
-            # 次チャンクの開始 = 最後のタイムスタンプ + 5分
             last_ts = df["timestamp"].iloc[-1]
-            chunk_start = last_ts.to_pydatetime() + timedelta(minutes=5)
+            chunk_start = last_ts.to_pydatetime() + timedelta(minutes=interval_min)
         else:
-            chunk_start = chunk_end + timedelta(minutes=5)
+            chunk_start = chunk_end + timedelta(minutes=interval_min)
 
-        if chunk_start <= FILL_END:
-            logger.info("    次チャンクまで %d秒待機...", SLEEP_SEC)
+        if chunk_start <= fill_end:
             time.sleep(SLEEP_SEC)
 
-    logger.info("=== %s 完了: 合計 %d件 ===", pair_db, total_saved)
+    logger.info("  [%s %s] 完了: 合計 %d件", pair_db, db_tf, total_saved)
     return total_saved
 
 
@@ -153,16 +180,19 @@ def main():
     from app import create_app
 
     app = create_app()
-
     grand_total = 0
+
     for pair_db, pair_api in PAIRS:
-        saved = backfill_pair(pair_db, pair_api, app)
-        grand_total += saved
-        if pair_db != PAIRS[-1][0]:
-            logger.info("次ペアまで %d秒待機...", SLEEP_SEC)
+        logger.info("=== %s 開始 ===", pair_db)
+        for tf in TIMEFRAMES:
+            saved = backfill_pair_tf(pair_db, pair_api, tf, app)
+            grand_total += saved
+            # ペア × TF 間も待機（最後のチャンクは sleep 済みなので最小限）
             time.sleep(SLEEP_SEC)
 
-    logger.info("全ペア完了: 合計 %d件 追加/更新", grand_total)
+        logger.info("=== %s 全 TF 完了 ===", pair_db)
+
+    logger.info("全ペア・全 TF 完了: 合計 %d件 追加/更新", grand_total)
 
 
 if __name__ == "__main__":
