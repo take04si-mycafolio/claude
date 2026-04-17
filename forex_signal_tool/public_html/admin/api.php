@@ -189,6 +189,65 @@ switch ($action) {
         }
         break;
 
+    case 'qf_trades_csv':
+        require_login();
+        try {
+            $pdo  = get_pdo();
+            $pair = strtoupper(preg_replace('/[^A-Za-z]/', '', $_GET['pair'] ?? 'USDJPY'));
+            if (!in_array($pair, ['USDJPY', 'GBPJPY', 'EURJPY'], true)) {
+                $pair = 'USDJPY';
+            }
+            $stmt = $pdo->prepare("
+                SELECT
+                    `year_month`,
+                    DATE_FORMAT(CONVERT_TZ(entry_ts, '+00:00', '+09:00'), '%Y/%m/%d %H:%i') AS entry_jst,
+                    DATE_FORMAT(CONVERT_TZ(exit_ts,  '+00:00', '+09:00'), '%Y/%m/%d %H:%i') AS exit_jst,
+                    direction,
+                    score_at_entry,
+                    CAST(entry_price  AS DECIMAL(12,5)) AS entry_price,
+                    CAST(exit_price   AS DECIMAL(12,5)) AS exit_price,
+                    outcome,
+                    CAST(profit_pips  AS DECIMAL(8,2))  AS profit_pips,
+                    CAST(sl_pips      AS DECIMAL(8,2))  AS sl_pips,
+                    CAST(tp_pips      AS DECIMAL(8,2))  AS tp_pips
+                FROM quantflow_trades
+                WHERE currency_pair = ?
+                ORDER BY entry_ts DESC
+            ");
+            $stmt->execute([$pair]);
+            $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+            $filename = 'quantflow_trades_' . $pair . '_' . date('Ymd') . '.csv';
+            header('Content-Type: text/csv; charset=UTF-8');
+            header('Content-Disposition: attachment; filename="' . $filename . '"');
+            header('Cache-Control: no-cache');
+
+            $fh = fopen('php://output', 'w');
+            fwrite($fh, "\xEF\xBB\xBF"); // UTF-8 BOM
+            fputcsv($fh, ['年月', 'エントリー(JST)', 'エグジット(JST)', '方向', 'スコア',
+                          'Entry価格', 'Exit価格', '結果', '損益(pips)', 'SL(pips)', 'TP(pips)']);
+            foreach ($rows as $r) {
+                fputcsv($fh, [
+                    $r['year_month'],
+                    $r['entry_jst']   ?? '',
+                    $r['exit_jst']    ?? '',
+                    $r['direction'],
+                    $r['score_at_entry'],
+                    $r['entry_price'] ?? '',
+                    $r['exit_price']  ?? '',
+                    $r['outcome']     ?? '',
+                    $r['profit_pips'] ?? '',
+                    $r['sl_pips']     ?? '',
+                    $r['tp_pips']     ?? '',
+                ]);
+            }
+            fclose($fh);
+            exit;
+        } catch (Exception $e) {
+            json_out(['ok' => false, 'error' => $e->getMessage()]);
+        }
+        break;
+
     case 'op_status':
         require_login();
         $op = $_GET['op'] ?? '';
