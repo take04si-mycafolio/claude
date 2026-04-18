@@ -177,13 +177,15 @@ tr.trade-row.sim-active td{background:rgba(59,130,246,.10)!important}
       </span>
     </h2>
     {% if results %}
-    <ul class="nav nav-tabs ind-pair-tabs mb-2" id="btTab" role="tablist">
+    {# マクロ: pair タブ + 結果テーブルを描画 #}
+    {% macro render_pair_tabs(rbp, tab_prefix) %}
+    <ul class="nav nav-tabs ind-pair-tabs mb-2" id="{{ tab_prefix }}Tab" role="tablist">
       {% for pair in pairs %}
       <li class="nav-item" role="presentation">
         <button class="nav-link {% if loop.first %}active{% endif %}"
-                id="bt-{{ pair.lower() }}-tab"
+                id="{{ tab_prefix }}-{{ pair.lower() }}-tab"
                 data-bs-toggle="tab"
-                data-bs-target="#bt-{{ pair.lower() }}"
+                data-bs-target="#{{ tab_prefix }}-{{ pair.lower() }}"
                 type="button" role="tab">
           {{ pair[:3] }}/{{ pair[3:] }}
         </button>
@@ -193,16 +195,14 @@ tr.trade-row.sim-active td{background:rgba(59,130,246,.10)!important}
     <div class="tab-content">
       {% for pair in pairs %}
       <div class="tab-pane fade {% if loop.first %}show active{% endif %}"
-           id="bt-{{ pair.lower() }}" role="tabpanel">
-        {% set pair_results = results_by_pair[pair] %}
+           id="{{ tab_prefix }}-{{ pair.lower() }}" role="tabpanel">
+        {% set pair_results = rbp[pair] %}
         {% if pair_results %}
         <div class="ind-results-table-wrap">
           <table class="ind-results-table">
             <thead>
               <tr>
-                <th>TF</th>
-                <th>勝率</th>
-                <th>取引数</th>
+                <th>TF</th><th>勝率</th><th>取引数</th>
                 <th style="white-space:nowrap">勝/負</th>
                 <th style="white-space:nowrap">損益</th>
                 <th>PF</th>
@@ -234,6 +234,47 @@ tr.trade-row.sim-active td{background:rgba(59,130,246,.10)!important}
       </div>
       {% endfor %}
     </div>
+    {% endmacro %}
+
+    {% if has_direction_split %}
+    {# BUY/SELL タブ #}
+    <ul class="nav nav-tabs mb-2" role="tablist" style="gap:4px;border-bottom:2px solid #1e293b">
+      <li class="nav-item">
+        <button class="nav-link active" id="dir-buy-tab"
+                data-bs-toggle="tab" data-bs-target="#dir-buy"
+                type="button" role="tab"
+                style="color:#34d399;font-weight:600;font-size:13px">
+          📈 BUY（買い）
+        </button>
+      </li>
+      <li class="nav-item">
+        <button class="nav-link" id="dir-sell-tab"
+                data-bs-toggle="tab" data-bs-target="#dir-sell"
+                type="button" role="tab"
+                style="color:#f87171;font-weight:600;font-size:13px">
+          📉 SELL（売り）
+        </button>
+      </li>
+    </ul>
+    <div class="tab-content">
+      <div class="tab-pane fade show active" id="dir-buy" role="tabpanel">
+        {% if results_by_direction.get('BUY') %}
+          {{ render_pair_tabs(results_by_direction['BUY'], 'btbuy') }}
+        {% else %}
+          <div class="empty-state small">BUY のデータがありません</div>
+        {% endif %}
+      </div>
+      <div class="tab-pane fade" id="dir-sell" role="tabpanel">
+        {% if results_by_direction.get('SELL') %}
+          {{ render_pair_tabs(results_by_direction['SELL'], 'btsell') }}
+        {% else %}
+          <div class="empty-state small">SELL のデータがありません</div>
+        {% endif %}
+      </div>
+    </div>
+    {% else %}
+    {{ render_pair_tabs(results_by_pair, 'bt') }}
+    {% endif %}
     {% else %}
     <div class="empty-state">バックテストデータがありません</div>
     {% endif %}

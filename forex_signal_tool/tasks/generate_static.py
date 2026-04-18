@@ -1421,6 +1421,15 @@ def get_indicator_page_data(indicator_name: str, app) -> dict | None:
     for pair in all_pairs:
         results_by_pair[pair] = [r for r in results_dicts if r["currency_pair"] == pair]
 
+    # BUY/SELL 方向別結果（カスタム複合指標用）
+    _dirs = set(r.get("signal_direction", "BOTH") for r in results_dicts)
+    has_direction_split = bool(_dirs & {"BUY", "SELL"})
+    results_by_direction = {}
+    if has_direction_split:
+        for _d in ["BUY", "SELL"]:
+            _d_results = [r for r in results_dicts if r.get("signal_direction") == _d]
+            results_by_direction[_d] = {pair: [r for r in _d_results if r["currency_pair"] == pair] for pair in all_pairs}
+
     # 通貨ペアごとの最良バックテスト結果（ヒーロー3カラム用）
     best_by_pair = {}
     for pair in all_pairs:
@@ -1531,6 +1540,8 @@ def get_indicator_page_data(indicator_name: str, app) -> dict | None:
         "category_slug":        CATEGORY_SLUGS.get(info["category"], ""),
         "results":              results_dicts,
         "results_by_pair":      results_by_pair,
+        "has_direction_split":  has_direction_split,
+        "results_by_direction": results_by_direction,
         "best_by_pair":         best_by_pair,
         "trades_by_pair_tf":    trades_by_pair_tf,
         "tf_labels":            TF_LABELS,
