@@ -1620,7 +1620,7 @@ async function _bt2AutoSave() {
     totalWins   += Math.round((m.win_rate || 0) * (m.total_trades || 0));
     if (m.profit_factor != null && isFinite(m.profit_factor)) { totalPf += m.profit_factor; pfCount++; }
   }
-  const keyFn   = r => (r.dir ? r.dir + '_' : '') + r.pair + '_' + r.tf;
+  const keyFn   = r => r.pair + '_' + r.tf;
   const btResult = {
     win_rate:      totalTrades > 0 ? totalWins / totalTrades : null,
     profit_factor: pfCount > 0 ? totalPf / pfCount : null,
