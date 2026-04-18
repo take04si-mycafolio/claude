@@ -83,6 +83,18 @@
   </div>
 </div>
 
+{% if pair_article_css %}
+<style>{{ pair_article_css | safe }}</style>
+{% endif %}
+{% if pair_article %}
+<div class="section-card pair-article-body">
+  {% if pair_article_heading %}
+  <div class="section-title" style="margin-bottom:14px">{{ pair_article_heading | e }}</div>
+  {% endif %}
+  {{ pair_article | safe }}
+</div>
+{% endif %}
+
 <!-- トレンドスコア（USD/JPY のみ） -->
 {% if data.trend_score and not data.trend_score.error %}
 {% set ts = data.trend_score %}
@@ -796,15 +808,6 @@ function qfhOpen(row){
 </div>
 
 <div style="height: 20px;"></div>
-
-{% if pair_article_css %}
-<style>{{ pair_article_css | safe }}</style>
-{% endif %}
-{% if pair_article %}
-<div class="pair-article-body container-fluid px-3 pb-4">
-  {{ pair_article | safe }}
-</div>
-{% endif %}
 
 <!-- トレード詳細チャートモーダル -->
 <div class="modal fade" id="tradeModal" tabindex="-1" aria-hidden="true">

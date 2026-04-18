@@ -245,15 +245,22 @@ $ibt_tp    = $ibt_first ? (int)($ibt_first['tp_pips'] ?? 40) : 40;
 }'></textarea>
   </div>
 <?php elseif ($is_pair): ?>
-  <!-- 通貨ペアページ：CSS + HTML -->
+  <!-- 通貨ペアページ：見出し + CSS + HTML -->
   <div class="editor-card" style="margin-bottom:16px">
-    <label class="editor-label">① CSS（追加スタイル — &lt;style&gt;タグの中身のみ）</label>
+    <label class="editor-label">① 見出し（QuantFlowの上に表示される記事エリアのタイトル）</label>
+    <div style="font-size:11px;color:#475569;margin-bottom:6px">空白の場合は見出しなしで記事コンテンツのみ表示されます。</div>
+    <input type="text" id="editor-heading" class="editor-textarea"
+           style="min-height:auto;padding:9px 12px;font-size:14px"
+           placeholder="例: ドル円の相場観・注目ポイント">
+  </div>
+  <div class="editor-card" style="margin-bottom:16px">
+    <label class="editor-label">② CSS（追加スタイル — &lt;style&gt;タグの中身のみ）</label>
     <div style="font-size:11px;color:#475569;margin-bottom:6px">ページ固有のスタイルを記述。body{} は自動除去されます。</div>
     <textarea id="editor-css" class="editor-textarea" style="min-height:180px" placeholder=".pair-intro { ... }"></textarea>
   </div>
   <div class="editor-card" style="margin-bottom:16px">
-    <label class="editor-label">② 記事 HTML（チャート・シグナル一覧の下に追記されます）</label>
-    <div style="font-size:11px;color:#475569;margin-bottom:6px">HTMLタグ使用可。ページ下部の「記事エリア」に表示されます。</div>
+    <label class="editor-label">③ 記事 HTML（QuantFlowクオンツ・フローの上に表示されます）</label>
+    <div style="font-size:11px;color:#475569;margin-bottom:6px">HTMLタグ使用可。チャートの直下・QuantFlowセクションの上に挿入されます。</div>
     <textarea id="editor" class="editor-textarea" placeholder="<section class=&quot;pair-intro&quot;>&#10;  <h2>ドル円の特徴</h2>&#10;  <p>...</p>&#10;</section>"></textarea>
   </div>
 <?php else: ?>
@@ -1514,8 +1521,10 @@ async function loadContent() {
         }
       }
       if (IS_PAIR) {
-        const cssEl = document.getElementById('editor-css');
-        if (cssEl) cssEl.value = data[ARTICLE_KEY + '_css']?.value || '';
+        const cssEl     = document.getElementById('editor-css');
+        const headingEl = document.getElementById('editor-heading');
+        if (cssEl)     cssEl.value     = data[ARTICLE_KEY + '_css']?.value     || '';
+        if (headingEl) headingEl.value = data[ARTICLE_KEY + '_heading']?.value || '';
       }
     }
   } catch(e) {
@@ -1649,8 +1658,10 @@ async function saveContent() {
       saves.push(_save(ARTICLE_KEY + '_jsonld', document.getElementById('editor-jsonld').value));
     }
     if (IS_PAIR) {
-      const cssEl = document.getElementById('editor-css');
-      if (cssEl) saves.push(_save(ARTICLE_KEY + '_css', cssEl.value));
+      const cssEl     = document.getElementById('editor-css');
+      const headingEl = document.getElementById('editor-heading');
+      if (cssEl)     saves.push(_save(ARTICLE_KEY + '_css',     cssEl.value));
+      if (headingEl) saves.push(_save(ARTICLE_KEY + '_heading', headingEl.value));
     }
     const results = await Promise.all(saves);
     const failed  = results.find(d => d.status !== 'ok');

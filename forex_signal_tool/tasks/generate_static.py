@@ -1749,17 +1749,18 @@ def main():
             _raw_css    = content_db.get(f"{_pair_key}_css", "")
             _pair_data  = get_pair_data(target_pair)
             html = render_html(app, "dashboard_static.html", {
-                "pairs":           pairs,
-                "pair_pages":      _pair_pages,
-                "current_pair":    target_pair,
-                "data":            _pair_data,
-                "slug_map":        slug_map,
-                "ind_url_map":     ind_url_map,
-                "display_map":     display_map,
-                "pair_article":    content_db.get(_pair_key, ""),
-                "pair_article_css": scope_article_css(_raw_css),
-                "updated_at":      updated_at,
-                "active_page":     "home",
+                "pairs":                pairs,
+                "pair_pages":           _pair_pages,
+                "current_pair":         target_pair,
+                "data":                 _pair_data,
+                "slug_map":             slug_map,
+                "ind_url_map":          ind_url_map,
+                "display_map":          display_map,
+                "pair_article":         content_db.get(_pair_key, ""),
+                "pair_article_heading": content_db.get(f"{_pair_key}_heading", ""),
+                "pair_article_css":     scope_article_css(_raw_css),
+                "updated_at":           updated_at,
+                "active_page":          "home",
             })
             save(_pair_pages[target_pair], html)
             logger.info("Pair page built: /%s/", target_pair.lower())
@@ -2039,17 +2040,18 @@ def main():
             _pair_key = f"pair_article_{pair.lower()}"
             _pair_raw_css = content_db_top.get(f"{_pair_key}_css", "")
             html = render_html(app, "dashboard_static.html", {
-                "pairs": pairs,
-                "pair_pages": pair_pages,
-                "current_pair": pair,
-                "data": data,
-                "slug_map": slug_map,
-                "ind_url_map": ind_url_map,
-                "display_map": display_map,
-                "pair_article":     content_db_top.get(_pair_key, ""),
-                "pair_article_css": scope_article_css(_pair_raw_css),
-                "updated_at": updated_at,
-                "active_page": "home",
+                "pairs":                pairs,
+                "pair_pages":           pair_pages,
+                "current_pair":         pair,
+                "data":                 data,
+                "slug_map":             slug_map,
+                "ind_url_map":          ind_url_map,
+                "display_map":          display_map,
+                "pair_article":         content_db_top.get(_pair_key, ""),
+                "pair_article_heading": content_db_top.get(f"{_pair_key}_heading", ""),
+                "pair_article_css":     scope_article_css(_pair_raw_css),
+                "updated_at":           updated_at,
+                "active_page":          "home",
             })
             save(filename, html)
 
