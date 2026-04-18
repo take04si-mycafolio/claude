@@ -1984,11 +1984,11 @@ const IND_SLUG       = <?= json_encode($ind_slug) ?>;
 const PAIR_SLUG      = <?= json_encode($pair_slug) ?>;
 const AI_NOTES_KEY   = IND_SLUG ? ('indicator_ai_notes_' + IND_SLUG) : '';
 <?php
-// プレビューURL: カスタム指標は /indicators/{slug}/、通常指標は /{cat}/{slug}/、ペアは /{slug}/
+// プレビューURL: カスタム指標は /composite/{slug}/、通常指標は /{cat}/{slug}/、ペアは /{slug}/
 if ($is_pair && $pair_slug) {
     $preview_url = '/' . $pair_slug . '/';
 } elseif ($is_custom_indicator && $ind_slug) {
-    $preview_url = '/indicators/' . $ind_slug . '/';
+    $preview_url = '/composite/' . $ind_slug . '/';
 } elseif ($ind_slug) {
     // 組み込み指標: indicator_slugs.json からカテゴリ推定（なければ /indicators/{slug}/）
     $preview_url = '/indicators/' . $ind_slug . '/';

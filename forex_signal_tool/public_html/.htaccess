@@ -34,6 +34,9 @@ AddHandler cgi-script .cgi
   # シグナルページ: /signals.html → /signals/（301）
   RewriteRule ^signals\.html$ /signals/ [R=301,L]
 
+  # カスタム複合指標: 旧 /indicators/{slug}/ → /composite/{slug}/ (301)
+  RewriteRule ^indicators/([a-z0-9_]+)/?$ /composite/$1/ [R=301,L]
+
   # 実ファイル・ディレクトリはそのまま配信
   RewriteCond %{REQUEST_FILENAME} -f [OR]
   RewriteCond %{REQUEST_FILENAME} -d
