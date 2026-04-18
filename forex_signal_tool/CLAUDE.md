@@ -26,12 +26,31 @@ UTC のまま表示することは重大なバグ。9時間ずれた時刻が表
 2. そのソースはすでに JST 変換済みか、UTC のままか
 3. UTC のままなら `+9h` 変換を追加してから表示する
 
-#### よくあるミス
+#### よくあるミス（過去に発生したバグ一覧）
 
 - `pandas.Timestamp` を `.strftime()` だけで出力 → UTC のまま（`+timedelta(hours=9)` を先に加算）
 - `datetime.strftime()` を JST 変換なしで出力 → 同上
 - `new Date(ts + 'Z')` で ISO 文字列をパース → 'Z' を付けると UTC 扱いになるため JST 文字列には使わない
 - Jinja2 で `{{ entry_at }}` を直接表示 → `{{ entry_at | utc_to_jst }}` フィルターを使う
+
+#### Lightweight Charts における二重オフセット（重大バグ）
+
+`dashboard_static.html` の QuantFlow トレードモーダルチャートで発生した実例:
+
+```
+【正しい実装パターン】
+  candle.time = UTC_sec + 32400  ← Python から来た UTC をJS側で +9h する
+  formatter: new Date(ts * 1000)  ← ts はすでに +9h 済みなので追加オフセット不要
+
+【NG パターン — 9時間ずれのさらに9時間ずれ = UTC+18h になる】
+  candle.time = UTC_sec + 32400
+  formatter: new Date((ts + 32400) * 1000)  ← 二重オフセット！
+```
+
+**チャートに時刻を追加・変更するときは必ず確認する:**
+1. candle/marker の `time` 値は UTC_sec か、JST-shifted (UTC_sec+32400) か
+2. `tickMarkFormatter` / `localization.timeFormatter` は `ts` に対してどのオフセットを加算しているか
+3. 両者の合計が正確に `+9h` (=32400秒) になっているか確認する
 
 ---
 
