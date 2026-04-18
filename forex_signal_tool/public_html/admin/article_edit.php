@@ -301,6 +301,19 @@ $ibt_tp    = $ibt_first ? (int)($ibt_first['tp_pips'] ?? 40) : 40;
     </div>
   </div>
 
+<?php
+// BT2 時間足定義（テクニカルページ専用BT・BT2 共通）
+$tf_defs = [
+  '5min'  => ['label'=>'5分足',   'start'=>date('Y-m-d',strtotime('-3 months')), 'checked'=>false],
+  '15min' => ['label'=>'15分足',  'start'=>date('Y-m-d',strtotime('-6 months')), 'checked'=>false],
+  '30min' => ['label'=>'30分足',  'start'=>date('Y-m-d',strtotime('-6 months')), 'checked'=>false],
+  '1hr'   => ['label'=>'1時間足', 'start'=>date('Y-m-d',strtotime('-1 year')),   'checked'=>true],
+  '4hr'   => ['label'=>'4時間足', 'start'=>date('Y-m-d',strtotime('-2 years')),  'checked'=>true],
+  'daily' => ['label'=>'日足',    'start'=>date('Y-m-d',strtotime('-5 years')),  'checked'=>true],
+];
+$today = date('Y-m-d');
+?>
+
 <?php if ($is_indicator && $indicator_name && !$is_custom_indicator): ?>
 <style>
 .ind-bt-card{background:#0b1a2b;border:1px solid #1e3a5f;border-radius:10px;padding:18px 20px;margin-top:16px}
@@ -372,15 +385,6 @@ $ibt_tp    = $ibt_first ? (int)($ibt_first['tp_pips'] ?? 40) : 40;
     </tr></thead>
     <tbody>
 <?php
-$tf_defs = [
-  '5min'  => ['label'=>'5分足',   'start'=>date('Y-m-d',strtotime('-3 months')), 'checked'=>false],
-  '15min' => ['label'=>'15分足',  'start'=>date('Y-m-d',strtotime('-6 months')), 'checked'=>false],
-  '30min' => ['label'=>'30分足',  'start'=>date('Y-m-d',strtotime('-6 months')), 'checked'=>false],
-  '1hr'   => ['label'=>'1時間足', 'start'=>date('Y-m-d',strtotime('-1 year')),   'checked'=>true],
-  '4hr'   => ['label'=>'4時間足', 'start'=>date('Y-m-d',strtotime('-2 years')),  'checked'=>true],
-  'daily' => ['label'=>'日足',    'start'=>date('Y-m-d',strtotime('-5 years')),  'checked'=>true],
-];
-$today = date('Y-m-d');
 foreach ($tf_defs as $tf => $def):
   $saved   = $page_bt_by_tf[$tf] ?? null;
   $checked = ($saved !== null) ? true : $def['checked'];
