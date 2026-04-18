@@ -1710,6 +1710,7 @@ def main():
         # ---- 単一ページ高速ビルド ----
         app = create_app()
         with app.app_context():
+            content_db  = load_content_db()
             # カスタム複合指標を INDICATOR_INFO に追加（--slug ビルド用）
             try:
                 from app.models.custom_indicator import CustomV2Indicator as _CVI
@@ -1720,11 +1721,12 @@ def main():
                     except Exception: pass
                     try: _bad_list  = _cvi_json.loads(_ci.bad_markets  or "[]")
                     except Exception: pass
+                    _ci_slug = _ci.name.lower()
                     INDICATOR_INFO[_ci.name] = {
                         "display":     _ci.display_name,
-                        "slug":        _ci.name.lower(),
+                        "slug":        _ci_slug,
                         "category":    "コンポジット",
-                        "feature":     "",
+                        "feature":     content_db.get(f"indicator_feature_{_ci_slug}", ""),
                         "description": _ci.description or "",
                         "good":        _good_list,
                         "bad":         _bad_list,
@@ -1749,7 +1751,6 @@ def main():
             }
             slug_map    = {name: info["slug"]    for name, info in INDICATOR_INFO.items()}
             display_map = {name: info["display"] for name, info in INDICATOR_INFO.items()}
-            content_db  = load_content_db()
             seo_db      = load_seo_db()
             built = False
             for ind_name, ind_info in INDICATOR_INFO.items():
@@ -1943,18 +1944,19 @@ def main():
                 except Exception: pass
                 try: _bad_list  = _cvi_json.loads(_ci.bad_markets  or "[]")
                 except Exception: pass
+                _ci_slug = _ci.name.lower()
                 INDICATOR_INFO[_ci.name] = {
                     "display":     _ci.display_name,
-                    "slug":        _ci.name.lower(),
+                    "slug":        _ci_slug,
                     "category":    "コンポジット",
-                    "feature":     "",
+                    "feature":     content_db_top.get(f"indicator_feature_{_ci_slug}", ""),
                     "description": _ci.description or "",
                     "good":        _good_list,
                     "bad":         _bad_list,
                     "url":         "",
                 }
-                ind_url_map[_ci.name]  = f"/composite/{_ci.name.lower()}/"
-                slug_map[_ci.name]     = _ci.name.lower()
+                ind_url_map[_ci.name]  = f"/composite/{_ci_slug}/"
+                slug_map[_ci.name]     = _ci_slug
                 display_map[_ci.name]  = _ci.display_name
             logger.info("カスタム複合指標を %d 件ロード", _CVI.query.filter_by(is_active=True).count())
         except Exception as _cve:
