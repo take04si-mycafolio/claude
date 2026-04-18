@@ -1449,8 +1449,7 @@ async function runBt2Inline() {
             <td>${pf}</td><td>${m.total_trades||0}件</td>
             <td style="color:${m.total_profit>=0?'#4ade80':'#f87171'}">${tp}円</td>
             <td style="font-size:11px;color:#64748b">${period}</td>`;
-          // 保存用に結果を蓄積（トレード履歴は最新20件に制限）
-          _bt2InlineResults.push({ pair, tf, metrics: m, trades: (res.trades || []).slice(-20) });
+          _bt2InlineResults.push({ pair, tf, metrics: m, trades: (res.trades || []).slice(-300) });
         }
       } catch(e) {
         tr.innerHTML = `<td>${pair}</td><td>${TF_LBL[tf]||tf}</td>
@@ -1557,7 +1556,7 @@ async function _runBt2InlineWithSides() {
               <td>${pf}</td><td>${m.total_trades||0}件</td>
               <td style="color:${m.total_profit>=0?'#4ade80':'#f87171'}">${tp}円</td>
               <td style="font-size:11px;color:#64748b">${period}</td>`;
-            _bt2InlineResults.push({ pair, tf, dir: s.dir, metrics: m, trades: (res.trades || []).slice(-20) });
+            _bt2InlineResults.push({ pair, tf, dir: s.dir, metrics: m, trades: (res.trades || []).slice(-300) });
           }
         } catch(e) {
           tr.innerHTML = `<td>${pair}</td><td>${TF_LBL[tf]||tf}</td>

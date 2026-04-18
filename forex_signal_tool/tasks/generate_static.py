@@ -1447,7 +1447,7 @@ def get_indicator_page_data(indicator_name: str, app) -> dict | None:
                     _text(
                         "SELECT * FROM indicator_page_sim_trades "
                         "WHERE indicator_name=:ind AND currency_pair=:pair AND timeframe=:tf "
-                        "ORDER BY entry_at DESC LIMIT 20"
+                        "ORDER BY entry_at DESC LIMIT 300"
                     ),
                     {"ind": indicator_name, "pair": pair, "tf": tf},
                 ).fetchall()
