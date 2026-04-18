@@ -135,7 +135,7 @@ tr.trade-row.sim-active td{background:rgba(59,130,246,.10)!important}
     <p class="ind-text">{{ info.description }}</p>
     <div class="ind-feature-box">
       <div class="ind-feature-label">シグナルの仕組み</div>
-      <p class="ind-text mb-0">{{ info.feature }}</p>
+      <div class="ind-text mb-0">{{ info.feature | safe }}</div>
     </div>
   </div>
 
