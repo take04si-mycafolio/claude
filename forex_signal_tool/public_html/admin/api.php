@@ -553,6 +553,78 @@ switch ($action) {
                 ]);
             }
 
+            // ---- 個別トレード履歴を indicator_page_sim_trades に保存 ----
+            $pdo->exec("CREATE TABLE IF NOT EXISTS indicator_page_sim_trades (
+                id              BIGINT AUTO_INCREMENT PRIMARY KEY,
+                indicator_name  VARCHAR(80)  NOT NULL,
+                currency_pair   VARCHAR(10)  NOT NULL,
+                timeframe       VARCHAR(10)  NOT NULL,
+                entry_at        DATETIME     NOT NULL,
+                exit_at         DATETIME     NULL,
+                direction       VARCHAR(10)  NOT NULL,
+                entry_price     DECIMAL(12,5) NULL,
+                exit_price      DECIMAL(12,5) NULL,
+                tp_price        DECIMAL(12,5) NULL,
+                sl_price        DECIMAL(12,5) NULL,
+                sl_pips         DECIMAL(8,2)  NULL,
+                tp_pips         DECIMAL(8,2)  NULL,
+                outcome         VARCHAR(10)   NULL,
+                profit_loss     DECIMAL(14,2) NULL,
+                capital_after   DECIMAL(16,2) NULL,
+                created_at      DATETIME DEFAULT CURRENT_TIMESTAMP,
+                INDEX idx_ind_pair_tf (indicator_name, currency_pair, timeframe)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+
+            // 既存トレードを全削除してから再挿入
+            $pdo->prepare('DELETE FROM indicator_page_sim_trades WHERE indicator_name = ?')
+                ->execute([$indicatorName]);
+
+            $stmtTrade = $pdo->prepare(
+                "INSERT INTO indicator_page_sim_trades
+                 (indicator_name, currency_pair, timeframe, entry_at, exit_at,
+                  direction, entry_price, exit_price, tp_price, sl_price,
+                  sl_pips, tp_pips, outcome, profit_loss, capital_after)
+                 VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)"
+            );
+
+            foreach ($results as $r) {
+                $pair   = $r['pair'] ?? '';
+                $tf     = $r['tf']   ?? '';
+                $m      = $r['metrics'] ?? [];
+                $slPips = (float)($m['sl_pips'] ?? 0) ?: null;
+                $tpPips = (float)($m['tp_pips'] ?? 0) ?: null;
+                if (!$pair || !$tf) continue;
+                foreach (($r['trades'] ?? []) as $t) {
+                    $exitReason = $t['exit_reason'] ?? '';
+                    if ($exitReason === 'END_OF_DATA') continue; // 未決済は除外
+                    // entry_time / exit_time は JST 文字列 → UTC に変換（-9h）
+                    $entryAt = $exitAt = null;
+                    if (!empty($t['entry_time'])) {
+                        $dt = DateTime::createFromFormat('Y-m-d\TH:i:s', $t['entry_time']);
+                        if ($dt) { $dt->modify('-9 hours'); $entryAt = $dt->format('Y-m-d H:i:s'); }
+                    }
+                    if (!empty($t['exit_time'])) {
+                        $dt = DateTime::createFromFormat('Y-m-d\TH:i:s', $t['exit_time']);
+                        if ($dt) { $dt->modify('-9 hours'); $exitAt = $dt->format('Y-m-d H:i:s'); }
+                    }
+                    if (!$entryAt) continue;
+                    $outcome = ($exitReason === 'TP') ? 'WIN' : 'LOSS';
+                    $stmtTrade->execute([
+                        $indicatorName, $pair, $tf,
+                        $entryAt, $exitAt,
+                        $t['direction'] ?? 'BUY',
+                        isset($t['entry_price'])     ? round((float)$t['entry_price'],     5) : null,
+                        isset($t['exit_price'])      ? round((float)$t['exit_price'],      5) : null,
+                        isset($t['tp_price'])        ? round((float)$t['tp_price'],        5) : null,
+                        isset($t['sl_price'])        ? round((float)$t['sl_price'],        5) : null,
+                        $slPips, $tpPips,
+                        $outcome,
+                        isset($t['pnl_currency'])    ? round((float)$t['pnl_currency'],    2) : null,
+                        isset($t['running_capital']) ? round((float)$t['running_capital'], 2) : null,
+                    ]);
+                }
+            }
+
             json_out(['ok' => true, 'saved' => count($results)]);
         } catch (Exception $e) {
             json_out(['ok' => false, 'error' => $e->getMessage()]);

@@ -1654,6 +1654,18 @@ async function _bt2AutoSave() {
             dir:     r.dir || '',
             metrics: r.metrics,
             period:  periodFn(r),
+            trades:  (r.trades || []).map(t => ({
+              entry_time:      t.entry_time,
+              exit_time:       t.exit_time,
+              direction:       t.direction,
+              entry_price:     t.entry_price,
+              exit_price:      t.exit_price,
+              sl_price:        t.sl_price,
+              tp_price:        t.tp_price,
+              pnl_currency:    t.pnl_currency,
+              running_capital: t.running_capital,
+              exit_reason:     t.exit_reason,
+            })),
           })),
         }),
       }).then(r => r.json());
