@@ -1393,6 +1393,31 @@ switch ($action) {
         }
         break;
 
+    // ---- カスタム複合指標: スタブ作成（新規） ----
+    case 'create_indicator_stub':
+        require_login();
+        $slug         = preg_replace('/[^a-z0-9_]/', '', strtolower(trim($body['slug'] ?? '')));
+        $display_name = trim($body['display_name'] ?? '');
+        if (!$slug || !$display_name) {
+            json_out(['status' => 'error', 'message' => 'slug と display_name は必須です']);
+        }
+        if (strlen($slug) > 80) {
+            json_out(['status' => 'error', 'message' => 'slug は 80文字以内にしてください']);
+        }
+        try {
+            $pdo  = get_pdo();
+            $stmt = $pdo->prepare(
+                "INSERT INTO custom_v2_indicators (name, display_name, strategy_config)
+                 VALUES (?, ?, '{\"entry_conditions\":{\"logic\":\"AND\",\"conditions\":[]},\"direction\":\"BOTH\"}')
+                 ON DUPLICATE KEY UPDATE display_name = VALUES(display_name)"
+            );
+            $stmt->execute([$slug, $display_name]);
+            json_out(['status' => 'ok', 'slug' => $slug]);
+        } catch (Exception $e) {
+            json_out(['status' => 'error', 'message' => $e->getMessage()]);
+        }
+        break;
+
     default:
         json_out(['status' => 'error', 'message' => '不明なアクション: ' . htmlspecialchars($action)]);
 }

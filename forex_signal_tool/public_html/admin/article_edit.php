@@ -177,6 +177,26 @@ if ($is_indicator) {
             $indicator_name = $BUILTIN_SLUG_MAP[$ind_slug] ?? '';
         }
     }
+    // カスタム複合指標の検出（組み込みマップにない場合、DBを検索）
+    $is_custom_indicator = false;
+    $custom_indicator    = null;
+    if ($is_indicator && !$indicator_name && $ind_slug) {
+        try {
+            $pdo  = get_pdo();
+            $stmt = $pdo->prepare("SELECT * FROM custom_v2_indicators WHERE name = ? AND is_active = 1 LIMIT 1");
+            $stmt->execute([$ind_slug]);
+            $row = $stmt->fetch(PDO::FETCH_ASSOC);
+            if ($row) {
+                $is_custom_indicator = true;
+                $custom_indicator    = $row;
+                $indicator_name      = $ind_slug;
+                // strategy_config を配列にデコード
+                if (isset($custom_indicator['strategy_config']) && is_string($custom_indicator['strategy_config'])) {
+                    $custom_indicator['strategy_config'] = json_decode($custom_indicator['strategy_config'], true);
+                }
+            }
+        } catch (Exception $e) {}
+    }
     // テクニカルページ専用バックテストの現在設定をTF別に取得
     if ($indicator_name) {
         try {
@@ -815,6 +835,66 @@ function resetIndicatorPageBt() {
     </div>
   </div>
 
+  <?php if ($is_indicator): ?>
+  <!-- カスタム指標として登録・更新 -->
+  <div id="ci-register-wrap" style="margin-top:12px;padding:14px;background:#0d0a1f;border:1px solid #3b1d8a;border-radius:8px">
+    <div style="font-size:12px;font-weight:600;color:#a78bfa;margin-bottom:10px">📌 カスタム指標として登録・更新</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px">
+      <div>
+        <label style="font-size:10px;color:#64748b;display:block;margin-bottom:3px">表示名</label>
+        <input type="text" id="ci-display-name"
+               value="<?= htmlspecialchars($custom_indicator['display_name'] ?? ($article['title'] ?? '')) ?>"
+               style="width:100%;background:#0f172a;border:1px solid #334155;border-radius:5px;color:#e2e8f0;padding:7px 10px;font-size:12px;outline:none">
+      </div>
+      <div>
+        <label style="font-size:10px;color:#64748b;display:block;margin-bottom:3px">内部キー名（変更不可）</label>
+        <input type="text" id="ci-reg-name"
+               value="<?= htmlspecialchars($ind_slug ?? '') ?>"
+               readonly
+               style="width:100%;background:#0f172a;border:1px solid #1e293b;border-radius:5px;color:#64748b;padding:7px 10px;font-size:12px;outline:none;opacity:.7">
+      </div>
+    </div>
+    <div style="margin-bottom:10px">
+      <label style="font-size:10px;color:#64748b;display:block;margin-bottom:3px">説明</label>
+      <textarea id="ci-reg-desc" rows="2"
+                style="width:100%;background:#0f172a;border:1px solid #334155;border-radius:5px;color:#e2e8f0;padding:7px 10px;font-size:12px;resize:vertical;outline:none"><?= htmlspecialchars($custom_indicator['description'] ?? '') ?></textarea>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px">
+      <div>
+        <label style="font-size:10px;color:#64748b;display:block;margin-bottom:3px">得な相場（1行1項目）</label>
+        <textarea id="ci-reg-good" rows="3"
+                  style="width:100%;background:#0f172a;border:1px solid #334155;border-radius:5px;color:#e2e8f0;padding:7px 10px;font-size:12px;resize:vertical;outline:none"><?php
+          if (!empty($custom_indicator['good_markets'])) {
+              $g = is_array($custom_indicator['good_markets'])
+                   ? $custom_indicator['good_markets']
+                   : json_decode($custom_indicator['good_markets'], true);
+              echo htmlspecialchars(is_array($g) ? implode("\n", $g) : '');
+          }
+        ?></textarea>
+      </div>
+      <div>
+        <label style="font-size:10px;color:#64748b;display:block;margin-bottom:3px">苦手な相場（1行1項目）</label>
+        <textarea id="ci-reg-bad" rows="3"
+                  style="width:100%;background:#0f172a;border:1px solid #334155;border-radius:5px;color:#e2e8f0;padding:7px 10px;font-size:12px;resize:vertical;outline:none"><?php
+          if (!empty($custom_indicator['bad_markets'])) {
+              $b = is_array($custom_indicator['bad_markets'])
+                   ? $custom_indicator['bad_markets']
+                   : json_decode($custom_indicator['bad_markets'], true);
+              echo htmlspecialchars(is_array($b) ? implode("\n", $b) : '');
+          }
+        ?></textarea>
+      </div>
+    </div>
+    <div style="display:flex;align-items:center;gap:12px">
+      <button onclick="registerAsCustomIndicator()"
+              style="background:#7c3aed;color:#fff;border:none;border-radius:7px;padding:8px 20px;font-size:13px;font-weight:600;cursor:pointer">
+        📌 登録・更新
+      </button>
+      <span id="ci-reg-status" style="font-size:12px;color:#94a3b8"></span>
+    </div>
+  </div>
+  <?php endif; ?>
+
   <!-- リンク済み保存戦略 -->
   <div style="margin-top:14px;border-top:1px solid #1e293b;padding-top:12px">
     <div class="bt2-section-hdr" style="margin-top:0">リンク済み保存戦略（BT2で保存済み）</div>
@@ -1312,8 +1392,96 @@ async function saveBt2InlineStrategy() {
   }
 }
 
-// 初期条件を1つ追加
+// 保存データからBT2条件行を復元する
+function bt2AddCondFromData(cond) {
+  addBt2Cond();
+  const rows = document.querySelectorAll('.bt2-cond-row');
+  const row  = rows[rows.length - 1];
+  const id   = row.id.replace('row-', '');
+  const setVal = (sel, val) => { const el = row.querySelector(sel); if (el && val != null) el.value = val; };
+  setVal('.bt2-ind',      cond.indicator);
+  // indicatorを設定後にparam選択肢を更新してからparamをセット
+  const indSel = row.querySelector('.bt2-ind');
+  if (indSel) {
+    indSel.dispatchEvent(new Event('change'));
+    setTimeout(() => {
+      setVal('.bt2-param',    cond.param);
+      setVal('.bt2-op',       cond.operator);
+      setVal('.bt2-val',      cond.value);
+      setVal('.bt2-val2',     cond.value2);
+      setVal('.bt2-tf',       cond.timeframe);
+    }, 50);
+  }
+}
+
+// カスタム指標として登録・更新
+async function registerAsCustomIndicator() {
+  const conds = bt2BuildConds();
+  if (!conds.length) { alert('条件を少なくとも1つ追加してください'); return; }
+  const strategy = {
+    strategy_version: '1.0',
+    direction:        document.getElementById('bt2-direction').value,
+    entry_conditions: { logic: _bt2Logic, conditions: conds },
+    filters:          bt2BuildFilters(),
+    sl_config:        bt2BuildSl(),
+    tp_config:        bt2BuildTp(),
+    trailing_config:  bt2BuildTrailing(),
+  };
+  const toArr = t => t.split('\n').map(s => s.trim()).filter(Boolean);
+  const stat  = document.getElementById('ci-reg-status');
+  stat.textContent = '保存中...';
+  stat.style.color = '#94a3b8';
+  try {
+    const res = await fetch('/admin/api.php', {
+      method: 'POST', headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({
+        action:          'save_custom_indicator',
+        name:            document.getElementById('ci-reg-name').value,
+        display_name:    document.getElementById('ci-display-name').value,
+        description:     document.getElementById('ci-reg-desc').value,
+        good_markets:    toArr(document.getElementById('ci-reg-good').value),
+        bad_markets:     toArr(document.getElementById('ci-reg-bad').value),
+        strategy_config: strategy,
+      }),
+    }).then(r => r.json());
+    if (res.status === 'ok') {
+      stat.textContent = '✅ 登録しました（バックテスト実行中）';
+      stat.style.color = '#4ade80';
+    } else {
+      stat.textContent = '❌ ' + (res.message || '');
+      stat.style.color = '#ef4444';
+    }
+  } catch(e) {
+    stat.textContent = '❌ ' + e.message;
+    stat.style.color = '#ef4444';
+  }
+  setTimeout(() => { stat.textContent = ''; }, 6000);
+}
+
+<?php if ($is_custom_indicator && $custom_indicator && !empty($custom_indicator['strategy_config'])): ?>
+// カスタム指標の設定を BT2 ビルダーに復元
+(function() {
+  const cfg = <?= json_encode($custom_indicator['strategy_config'], JSON_UNESCAPED_UNICODE) ?>;
+  if (!cfg) return;
+  const dir = document.getElementById('bt2-direction');
+  if (dir && cfg.direction) dir.value = cfg.direction;
+  const logicVal = (cfg.entry_conditions || {}).logic || 'AND';
+  bt2SetLogic(logicVal);
+  const conds = (cfg.entry_conditions || {}).conditions || [];
+  if (conds.length > 0) {
+    // 初期条件1件は削除して置き換え
+    const existing = document.querySelectorAll('.bt2-cond-row');
+    existing.forEach(r => r.remove());
+    _bt2Seq = 0;
+    conds.forEach(bt2AddCondFromData);
+  }
+})();
+<?php endif; ?>
+
+// 初期条件を1つ追加（カスタム指標で設定が復元される場合は上書きされる）
+<?php if (!$is_custom_indicator || empty($custom_indicator['strategy_config']['entry_conditions']['conditions'])): ?>
 addBt2Cond();
+<?php endif; ?>
 </script>
 <?php endif; ?>
 </main>
