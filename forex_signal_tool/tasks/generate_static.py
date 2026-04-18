@@ -1576,6 +1576,8 @@ def get_settings() -> dict:
 def get_category_page_data(category_name: str) -> dict | None:
     """カテゴリページのデータを返す"""
     from app.models.backtest import BacktestResult
+    from app import db as _cat_db
+    from sqlalchemy import text as _cat_text
 
     cat_info = CATEGORY_INFO.get(category_name)
     if not cat_info:
@@ -1591,15 +1593,33 @@ def get_category_page_data(category_name: str) -> dict | None:
               .filter_by(indicator_name=ind_name)
               .order_by(BacktestResult.win_rate.desc())
               .first())
+        best_win_rate = float(br.win_rate) if br else None
+        best_pair     = br.currency_pair if br else None
+        best_tf       = br.timeframe if br else None
+        # BacktestResult になければ indicator_page_bt_results を参照（カスタム複合指標用）
+        if best_win_rate is None:
+            try:
+                _pbr = _cat_db.session.execute(
+                    _cat_text("SELECT win_rate, currency_pair, timeframe "
+                              "FROM indicator_page_bt_results "
+                              "WHERE indicator_name=:ind ORDER BY win_rate DESC LIMIT 1"),
+                    {"ind": ind_name}
+                ).fetchone()
+                if _pbr:
+                    best_win_rate = float(_pbr[0])
+                    best_pair     = _pbr[1]
+                    best_tf       = _pbr[2]
+            except Exception:
+                pass
         indicators.append({
             "slug":          ind_info["slug"],
             "url_slug":      ind_info.get("url_slug", ind_info["slug"]),
             "display":       ind_info["display"],
             "description":   ind_info["description"],
             "good":          ind_info.get("good", []),
-            "best_win_rate": float(br.win_rate) if br else None,
-            "best_pair":     br.currency_pair if br else None,
-            "best_tf":       br.timeframe if br else None,
+            "best_win_rate": best_win_rate,
+            "best_pair":     best_pair,
+            "best_tf":       best_tf,
         })
     # 勝率降順ソート
     indicators.sort(key=lambda x: -(x["best_win_rate"] or 0))
@@ -1703,7 +1723,7 @@ def main():
                     INDICATOR_INFO[_ci.name] = {
                         "display":     _ci.display_name,
                         "slug":        _ci.name.lower(),
-                        "category":    "カスタム複合",
+                        "category":    "コンポジット",
                         "feature":     "",
                         "description": _ci.description or "",
                         "good":        _good_list,
@@ -1926,14 +1946,14 @@ def main():
                 INDICATOR_INFO[_ci.name] = {
                     "display":     _ci.display_name,
                     "slug":        _ci.name.lower(),
-                    "category":    "カスタム複合",
+                    "category":    "コンポジット",
                     "feature":     "",
                     "description": _ci.description or "",
                     "good":        _good_list,
                     "bad":         _bad_list,
                     "url":         "",
                 }
-                ind_url_map[_ci.name]  = ""
+                ind_url_map[_ci.name]  = f"/composite/{_ci.name.lower()}/"
                 slug_map[_ci.name]     = _ci.name.lower()
                 display_map[_ci.name]  = _ci.display_name
             logger.info("カスタム複合指標を %d 件ロード", _CVI.query.filter_by(is_active=True).count())
@@ -2136,11 +2156,7 @@ def main():
         for _iname, _iinfo in INDICATOR_INFO.items():
             _cat_slug  = CATEGORY_SLUGS.get(_iinfo.get("category", ""), "indicators")
             _url_slug  = INDICATOR_SEO.get(_iname, {}).get("url_slug") or _iinfo.get("slug", "")
-            # カスタム複合指標はURLなし
-            if _iinfo.get("category") == "カスタム複合":
-                _sig_url_map[_iname] = ""
-            else:
-                _sig_url_map[_iname] = f"/{_cat_slug}/{_url_slug}/"
+            _sig_url_map[_iname] = f"/{_cat_slug}/{_url_slug}/"
         # シグナルを富化（日本語名・URL・JST日時）
         for _s in all_signals:
             _iname = _s.get("indicator_name", "")
