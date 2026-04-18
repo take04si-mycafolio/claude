@@ -239,6 +239,8 @@ h2{font-size:19px;font-weight:700;color:#f1f5f9;margin-bottom:4px}
         <td>
           <div class="btn-group">
             <a href="/admin/article_edit.php?key=<?= urlencode($art['key']) ?>" class="edit-btn">編集</a>
+            <a href="/admin/indicator_strategy_edit.php?slug=<?= urlencode($slug) ?>&ind_name=<?= urlencode($indName) ?>&title=<?= urlencode($art['title']) ?>"
+               class="edit-btn" style="background:#0e2d40;color:#38bdf8;border-color:#0e7490">⚙️ 条件設定</a>
             <?php if ($indName): ?>
             <button class="expand-btn" id="expand-<?= $slug ?>"
                     onclick="togglePanel(<?= htmlspecialchars(json_encode($slug)) ?>, <?= htmlspecialchars(json_encode($indName)) ?>)">

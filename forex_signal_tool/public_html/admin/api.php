@@ -1268,6 +1268,31 @@ switch ($action) {
         }
         break;
 
+    // ---- カスタム複合指標: 1件取得 ----
+    case 'get_custom_indicator':
+        require_login();
+        try {
+            $name = trim($body['name'] ?? '');
+            if (!$name) { json_out(['status' => 'error', 'message' => 'name が必要です']); }
+            $pdo  = get_pdo();
+            $stmt = $pdo->prepare(
+                "SELECT name, display_name, description, good_markets, bad_markets,
+                        strategy_config, is_active
+                 FROM custom_v2_indicators WHERE name = ? LIMIT 1"
+            );
+            $stmt->execute([$name]);
+            $row = $stmt->fetch(PDO::FETCH_ASSOC);
+            if (!$row) { json_out(['status' => 'not_found']); }
+            // strategy_config は JSON文字列 or 配列どちらの場合もある
+            if (is_string($row['strategy_config'])) {
+                $row['strategy_config'] = json_decode($row['strategy_config'], true);
+            }
+            json_out(['status' => 'ok', 'indicator' => $row]);
+        } catch (Exception $e) {
+            json_out(['status' => 'error', 'message' => $e->getMessage()]);
+        }
+        break;
+
     // ---- カスタム複合指標: 登録 ----
     case 'save_custom_indicator':
         require_login();
