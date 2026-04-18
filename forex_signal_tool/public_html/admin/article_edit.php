@@ -1637,21 +1637,7 @@ async function _bt2AutoSave() {
   try {
     if (stat) { stat.textContent = '保存中...'; stat.style.color = '#94a3b8'; }
 
-    // 1) saved_strategies に保存
-    const saveRes = await fetch('/admin/api.php', {
-      method: 'POST', headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({
-        action:           'save_strategy',
-        name,
-        config:           { strategy: strategyCfg, sim_params: simParams },
-        linked_indicator: IND_SLUG || '',
-        bt_result:        btResult,
-      }),
-    }).then(r => r.json());
-    if (!saveRes.ok) throw new Error(saveRes.error || '保存エラー');
-    await loadLinkedStrategies();
-
-    // 2) indicator_page_bt_results に保存（公開ページ反映用）
+    // indicator_page_bt_results に保存（公開ページ反映用）
     if (IND_SLUG) {
       const periodFn = r => {
         const s = r.metrics?.start_date, e = r.metrics?.end_date;

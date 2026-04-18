@@ -1475,6 +1475,7 @@ def get_indicator_page_data(indicator_name: str, app) -> dict | None:
                 "SELECT id, name, bt_result_json, bt_ran_at, created_at "
                 "FROM saved_strategies "
                 "WHERE linked_indicator_name = :ind AND bt_result_json IS NOT NULL "
+                "AND name NOT REGEXP ' [0-9]{4}-[0-9]{2}-[0-9]{2} [0-9]{2}:[0-9]{2}$' "
                 "ORDER BY bt_ran_at DESC LIMIT 5"
             ),
             {"ind": indicator_name},
