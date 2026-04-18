@@ -1361,9 +1361,20 @@ def get_indicator_page_data(indicator_name: str, app) -> dict | None:
                        .order_by(BacktestResult.win_rate.desc())
                        .all())
         if not results_orm:
-            return None
-        results_dicts = [r.to_dict() for r in results_orm]
-        best_dict = results_dicts[0]
+            # BT未実行（新規カスタム指標など）は空結果でページ生成
+            results_dicts = []
+            best_dict = {
+                "id": None, "currency_pair": "USDJPY", "timeframe": "1hr",
+                "indicator_name": indicator_name, "indicator_category": None,
+                "signal_direction": "BOTH", "win_rate": 0, "total_trades": 0,
+                "winning_trades": 0, "losing_trades": 0, "total_profit": 0,
+                "initial_capital": 1000000, "final_capital": 1000000,
+                "sl_pips": 20, "tp_pips": 40, "backtest_hours": None,
+                "max_drawdown": None, "profit_factor": None, "calculated_at": "",
+            }
+        else:
+            results_dicts = [r.to_dict() for r in results_orm]
+            best_dict = results_dicts[0]
         sl = Setting.get_float("sl_pips", 20)
         tp = Setting.get_float("tp_pips", 40)
 
