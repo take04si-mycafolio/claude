@@ -944,7 +944,7 @@ switch ($action) {
         $is_valid = in_array($key, $allowed, true)
             || preg_match('/^indicator_article_[a-z0-9_]+(_(css|jsonld))?$/', $key)
             || preg_match('/^indicator_ai_notes_[a-z0-9_]+$/', $key)
-            || preg_match('/^indicator_(description|good|bad)_[a-z0-9_]+$/', $key)
+            || preg_match('/^indicator_(description|good|bad|feature)_[a-z0-9_]+$/', $key)
             || preg_match('/^pair_article_(usdjpy|gbpjpy|eurjpy)(_(css|heading))?$/', $key);
         if (!$is_valid) {
             json_out(['status' => 'error', 'message' => '無効なキーです']);

@@ -220,6 +220,30 @@ $ibt_first = $page_bt_by_tf ? reset($page_bt_by_tf) : null;
 $ibt_sl    = $ibt_first ? (int)($ibt_first['sl_pips'] ?? 20) : 20;
 $ibt_tp    = $ibt_first ? (int)($ibt_first['tp_pips'] ?? 40) : 40;
 
+// シグナルの仕組みテキストを取得
+$current_feature = '';
+if ($is_indicator && $ind_slug) {
+    try {
+        $pdo  = get_pdo();
+        $pdo->exec("CREATE TABLE IF NOT EXISTS site_content (
+            content_key   VARCHAR(100) NOT NULL PRIMARY KEY,
+            content_value MEDIUMTEXT,
+            updated_at    DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+        $stmt = $pdo->prepare("SELECT content_value FROM site_content WHERE content_key=?");
+        $stmt->execute(["indicator_feature_{$ind_slug}"]);
+        $row = $stmt->fetch(PDO::FETCH_ASSOC);
+        if ($row) {
+            $current_feature = $row['content_value'] ?? '';
+        } else {
+            // フォールバック: カスタム指標の場合は custom_v2_indicators から取得
+            if ($is_custom_indicator && !empty($custom_indicator)) {
+                // feature フィールドは存在しないため空のまま
+            }
+        }
+    } catch (Exception $e) {}
+}
+
 // SEO設定を取得
 $current_seo_title = '';
 $current_seo_desc  = '';
@@ -246,6 +270,21 @@ if ($is_indicator && $ind_slug) {
 ?>
 
 <?php if ($is_indicator): ?>
+  <!-- シグナルの仕組み -->
+  <div class="editor-card" style="margin-bottom:16px;border-color:#1e4028">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+      <span style="font-size:13px;font-weight:700;color:#86efac">⚡ シグナルの仕組み</span>
+      <div style="display:flex;align-items:center;gap:8px">
+        <span id="feature-save-status" style="font-size:12px;color:#94a3b8"></span>
+        <button onclick="saveFeatureText()" style="background:#14532d;color:#86efac;border:1px solid #16a34a;border-radius:6px;padding:6px 14px;font-size:12px;font-weight:600;cursor:pointer">💾 保存 &amp; ページ更新</button>
+      </div>
+    </div>
+    <div style="font-size:11px;color:#475569;margin-bottom:6px">公開ページの「指標の概要」内「シグナルの仕組み」欄に表示されます。</div>
+    <textarea id="feature-text" rows="3"
+      style="width:100%;background:#0f172a;border:1px solid #334155;border-radius:6px;color:#e2e8f0;padding:10px 12px;font-size:13px;outline:none;resize:vertical"
+      placeholder="例: 上ヒゲピンバー→売りシグナル（上方向への拒絶）、下ヒゲピンバー→買いシグナル（下方向への拒絶）。プライスアクション分析の核心的パターンです。"><?= htmlspecialchars($current_feature) ?></textarea>
+  </div>
+
   <!-- SEO設定 -->
   <div class="editor-card" style="margin-bottom:16px;border-color:#1e4976">
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
@@ -2231,6 +2270,30 @@ async function saveSeoData() {
     const r = await fetch('/admin/api.php', {
       method: 'POST', headers: {'Content-Type': 'application/json'},
       body: JSON.stringify({ action: 'seo_save', page_type: 'indicator', page_key: IND_SLUG, title, meta_description: desc }),
+    }).then(r => r.json());
+    if (!r || r.status !== 'ok') throw new Error(r?.message || '保存失敗');
+    stat.textContent = 'ページ更新中...'; stat.style.color = '#67e8f9';
+    const rb = await fetch('/admin/api.php', {
+      method: 'POST', headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({ action: 'rebuild_indicator_page', slug: IND_SLUG }),
+    }).then(r => r.json());
+    stat.textContent = rb.ok ? '✅ 保存・ページ更新完了' : '✅ 保存済み（ページ更新失敗）';
+    stat.style.color = rb.ok ? '#4ade80' : '#facc15';
+  } catch(e) {
+    stat.textContent = '❌ エラー: ' + e.message;
+    stat.style.color = '#f87171';
+  }
+}
+
+async function saveFeatureText() {
+  if (!IND_SLUG) return;
+  const stat = document.getElementById('feature-save-status');
+  const text = document.getElementById('feature-text')?.value.trim() || '';
+  stat.textContent = '保存中...'; stat.style.color = '#94a3b8';
+  try {
+    const r = await fetch('/admin/api.php', {
+      method: 'POST', headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({ action: 'content_save', key: 'indicator_feature_' + IND_SLUG, value: text }),
     }).then(r => r.json());
     if (!r || r.status !== 'ok') throw new Error(r?.message || '保存失敗');
     stat.textContent = 'ページ更新中...'; stat.style.color = '#67e8f9';

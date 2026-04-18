@@ -1875,9 +1875,10 @@ def main():
             _url_slug = INDICATOR_SEO.get(_iname, {}).get("url_slug") or _iinfo.get("slug", "")
             if not _url_slug:
                 continue
-            _desc = content_db_top.get(f"indicator_description_{_url_slug}")
-            _good = content_db_top.get(f"indicator_good_{_url_slug}")
-            _bad  = content_db_top.get(f"indicator_bad_{_url_slug}")
+            _desc    = content_db_top.get(f"indicator_description_{_url_slug}")
+            _good    = content_db_top.get(f"indicator_good_{_url_slug}")
+            _bad     = content_db_top.get(f"indicator_bad_{_url_slug}")
+            _feature = content_db_top.get(f"indicator_feature_{_url_slug}")
             if _desc:
                 _iinfo["description"] = _desc
             if _good:
@@ -1886,6 +1887,8 @@ def main():
             if _bad:
                 try: _iinfo["bad"] = _json_override.loads(_bad)
                 except Exception: pass
+            if _feature:
+                _iinfo["feature"] = _feature
 
         # カスタム複合指標を DB から読み込んで各マップに追加
         try:
