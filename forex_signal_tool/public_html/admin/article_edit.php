@@ -1466,7 +1466,7 @@ async function runBt2Inline() {
 
   if (_bt2InlineResults.length > 0) {
     saveWrap.style.display = 'block';
-    document.getElementById('bt2-save-status').textContent = '';
+    await _bt2AutoSave();
   }
 }
 
@@ -1573,7 +1573,87 @@ async function _runBt2InlineWithSides() {
   log.textContent = `完了（${total}件実行）`;
   if (_bt2InlineResults.length > 0) {
     saveWrap.style.display = 'block';
-    document.getElementById('bt2-save-status').textContent = '';
+    await _bt2AutoSave();
+  }
+}
+
+async function _bt2AutoSave() {
+  const pad  = n => String(n).padStart(2, '0');
+  const now  = new Date();
+  const ts   = `${now.getFullYear()}-${pad(now.getMonth()+1)}-${pad(now.getDate())} ${pad(now.getHours())}:${pad(now.getMinutes())}`;
+  const name = (IND_SLUG || 'BT2') + ' ' + ts;
+
+  const nameEl = document.getElementById('bt2-save-name');
+  if (nameEl) nameEl.value = name;
+  const stat = document.getElementById('bt2-save-status');
+  if (stat) { stat.textContent = '自動保存中...'; stat.style.color = '#94a3b8'; }
+
+  let strategyCfg;
+  if (IS_CUSTOM_IND) {
+    const buyConds  = bt2BuildCondsSide('buy');
+    const sellConds = bt2BuildCondsSide('sell');
+    const makeOneSide = (dir, conds, logic) => ({
+      strategy_version: '1.0', direction: dir,
+      entry_conditions: { logic, conditions: conds },
+      filters: bt2BuildFilters(), sl_config: bt2BuildSl(),
+      tp_config: bt2BuildTp(), trailing_config: bt2BuildTrailing(),
+    });
+    strategyCfg = {
+      version: '2.0',
+      buy:  buyConds.length  ? makeOneSide('BUY',  buyConds,  _bt2LogicBuy)  : null,
+      sell: sellConds.length ? makeOneSide('SELL', sellConds, _bt2LogicSell) : null,
+    };
+  } else {
+    strategyCfg = {
+      strategy_version: '1.0',
+      direction: document.getElementById('bt2-direction').value,
+      entry_conditions: { logic: _bt2Logic, conditions: bt2BuildConds() },
+      filters: bt2BuildFilters(), sl_config: bt2BuildSl(),
+      tp_config: bt2BuildTp(), trailing_config: bt2BuildTrailing(),
+    };
+  }
+
+  let totalTrades = 0, totalWins = 0, totalPf = 0, pfCount = 0;
+  for (const r of _bt2InlineResults) {
+    const m = r.metrics;
+    totalTrades += (m.total_trades || 0);
+    totalWins   += Math.round((m.win_rate || 0) * (m.total_trades || 0));
+    if (m.profit_factor != null && isFinite(m.profit_factor)) { totalPf += m.profit_factor; pfCount++; }
+  }
+  const keyFn   = r => (r.dir ? r.dir + '_' : '') + r.pair + '_' + r.tf;
+  const btResult = {
+    win_rate:      totalTrades > 0 ? totalWins / totalTrades : null,
+    profit_factor: pfCount > 0 ? totalPf / pfCount : null,
+    total_trades:  totalTrades,
+    per_pair:      Object.fromEntries(_bt2InlineResults.map(r  => [keyFn(r), r.metrics])),
+    trades_by_key: Object.fromEntries(_bt2InlineResults.filter(r => r.trades?.length).map(r => [keyFn(r), r.trades])),
+  };
+  const simParams = {
+    initial_capital:  parseFloat(document.getElementById('bt2-capital').value)   || 1000000,
+    pip_value:        parseFloat(document.getElementById('bt2-pip-value').value)  || 100,
+    max_bars_to_exit: parseInt(document.getElementById('bt2-max-bars').value, 10) || 200,
+  };
+
+  try {
+    const res = await fetch('/admin/api.php', {
+      method: 'POST', headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({
+        action:           'save_strategy',
+        name,
+        config:           { strategy: strategyCfg, sim_params: simParams },
+        linked_indicator: IND_SLUG || '',
+        bt_result:        btResult,
+      }),
+    }).then(r => r.json());
+    if (res.ok) {
+      if (stat) { stat.textContent = '✅ 自動保存しました'; stat.style.color = '#4ade80'; }
+      await loadLinkedStrategies();
+      setTimeout(() => { if (stat) stat.textContent = ''; }, 5000);
+    } else {
+      if (stat) { stat.textContent = '⚠️ 自動保存失敗: ' + (res.error || ''); stat.style.color = '#f87171'; }
+    }
+  } catch(e) {
+    if (stat) { stat.textContent = '⚠️ 自動保存エラー: ' + e.message; stat.style.color = '#f87171'; }
   }
 }
 
