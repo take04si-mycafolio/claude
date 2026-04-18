@@ -219,9 +219,59 @@ if ($is_indicator) {
 $ibt_first = $page_bt_by_tf ? reset($page_bt_by_tf) : null;
 $ibt_sl    = $ibt_first ? (int)($ibt_first['sl_pips'] ?? 20) : 20;
 $ibt_tp    = $ibt_first ? (int)($ibt_first['tp_pips'] ?? 40) : 40;
+
+// SEO設定を取得
+$current_seo_title = '';
+$current_seo_desc  = '';
+if ($is_indicator && $ind_slug) {
+    try {
+        $pdo = get_pdo();
+        $pdo->exec("CREATE TABLE IF NOT EXISTS page_seo (
+            page_type        VARCHAR(20)  NOT NULL,
+            page_key         VARCHAR(100) NOT NULL,
+            title            VARCHAR(200) DEFAULT '',
+            meta_description TEXT,
+            updated_at       DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+            PRIMARY KEY (page_type, page_key)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+        $stmt = $pdo->prepare("SELECT title, meta_description FROM page_seo WHERE page_type='indicator' AND page_key=?");
+        $stmt->execute([$ind_slug]);
+        $row = $stmt->fetch(PDO::FETCH_ASSOC);
+        if ($row) {
+            $current_seo_title = $row['title'] ?? '';
+            $current_seo_desc  = $row['meta_description'] ?? '';
+        }
+    } catch (Exception $e) {}
+}
 ?>
 
 <?php if ($is_indicator): ?>
+  <!-- SEO設定 -->
+  <div class="editor-card" style="margin-bottom:16px;border-color:#1e4976">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+      <span style="font-size:13px;font-weight:700;color:#7dd3fc">🔍 SEO設定（タイトル・メタディスクリプション）</span>
+      <div style="display:flex;align-items:center;gap:8px">
+        <span id="seo-save-status" style="font-size:12px;color:#94a3b8"></span>
+        <button onclick="saveSeoData()" style="background:#1e4976;color:#7dd3fc;border:1px solid #2563eb;border-radius:6px;padding:6px 14px;font-size:12px;font-weight:600;cursor:pointer">💾 SEOを保存 &amp; ページ更新</button>
+      </div>
+    </div>
+    <div style="margin-bottom:12px">
+      <label class="editor-label" style="margin-bottom:4px">タイトルタグ <span style="font-weight:400;color:#64748b;font-size:11px">（空欄 = デフォルト。目安: 30〜60文字）</span></label>
+      <input type="text" id="seo-title"
+             style="width:100%;background:#0f172a;border:1px solid #334155;border-radius:6px;color:#e2e8f0;padding:10px 12px;font-size:13px;outline:none"
+             placeholder="例: PinSMAの勝率｜FXカスタム複合指標を検証"
+             value="<?= htmlspecialchars($current_seo_title) ?>">
+      <div id="seo-title-count" style="font-size:11px;color:#64748b;margin-top:3px;text-align:right"></div>
+    </div>
+    <div>
+      <label class="editor-label" style="margin-bottom:4px">メタディスクリプション <span style="font-weight:400;color:#64748b;font-size:11px">（空欄 = デフォルト。目安: 70〜120文字）</span></label>
+      <textarea id="seo-description"
+             style="width:100%;background:#0f172a;border:1px solid #334155;border-radius:6px;color:#e2e8f0;padding:10px 12px;font-size:13px;outline:none;resize:vertical;min-height:72px"
+             placeholder="例: PinSMAの勝率をBUY・SELL別にバックテストで検証。カスタム複合指標によるエントリー精度をデータで解説。"><?= htmlspecialchars($current_seo_desc) ?></textarea>
+      <div id="seo-desc-count" style="font-size:11px;color:#64748b;margin-top:3px;text-align:right"></div>
+    </div>
+  </div>
+
   <!-- 指標記事：3フィールド（CSS / HTML / JSON-LD） -->
   <div class="editor-card" style="margin-bottom:16px">
     <label class="editor-label">① CSS（&lt;style&gt;タグの中身のみ。body{}は不要）</label>
@@ -2150,6 +2200,50 @@ async function rebuildPage() {
 
 function previewArticle() {
   window.open(PAGE_PREVIEW_URL, '_blank');
+}
+
+// ---- SEO 文字数カウンター ----
+(function() {
+  function updateCount(inputId, countId, warn, danger) {
+    const el = document.getElementById(inputId);
+    const ct = document.getElementById(countId);
+    if (!el || !ct) return;
+    function update() {
+      const n = el.value.length;
+      ct.textContent = n + ' 文字';
+      ct.style.color = n > danger ? '#f87171' : n > warn ? '#facc15' : '#64748b';
+    }
+    el.addEventListener('input', update);
+    update();
+  }
+  updateCount('seo-title',       'seo-title-count', 60, 80);
+  updateCount('seo-description', 'seo-desc-count',  120, 160);
+})();
+
+// ---- SEO 保存 & ページ再生成 ----
+async function saveSeoData() {
+  if (!IND_SLUG) return;
+  const stat  = document.getElementById('seo-save-status');
+  const title = document.getElementById('seo-title')?.value.trim()       || '';
+  const desc  = document.getElementById('seo-description')?.value.trim() || '';
+  stat.textContent = '保存中...'; stat.style.color = '#94a3b8';
+  try {
+    const r = await fetch('/admin/api.php', {
+      method: 'POST', headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({ action: 'seo_save', page_type: 'indicator', page_key: IND_SLUG, title, meta_description: desc }),
+    }).then(r => r.json());
+    if (!r || r.status !== 'ok') throw new Error(r?.message || '保存失敗');
+    stat.textContent = 'ページ更新中...'; stat.style.color = '#67e8f9';
+    const rb = await fetch('/admin/api.php', {
+      method: 'POST', headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({ action: 'rebuild_indicator_page', slug: IND_SLUG }),
+    }).then(r => r.json());
+    stat.textContent = rb.ok ? '✅ 保存・ページ更新完了' : '✅ 保存済み（ページ更新失敗）';
+    stat.style.color = rb.ok ? '#4ade80' : '#facc15';
+  } catch(e) {
+    stat.textContent = '❌ エラー: ' + e.message;
+    stat.style.color = '#f87171';
+  }
 }
 
 loadContent();
