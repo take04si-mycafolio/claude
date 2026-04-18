@@ -1844,7 +1844,29 @@ def main():
         # カスタム複合指標を DB から読み込んで各マップに追加
         try:
             from app.models.custom_indicator import CustomV2Indicator as _CVI
+            from app import db as _db
             import json as _cvi_json
+            # テーブルが存在しない場合は自動作成
+            try:
+                _CVI.query.filter_by(is_active=True).first()
+            except Exception:
+                _db.session.execute(_db.text("""
+                    CREATE TABLE IF NOT EXISTS custom_v2_indicators (
+                        id              BIGINT PRIMARY KEY AUTO_INCREMENT,
+                        name            VARCHAR(80)  NOT NULL UNIQUE,
+                        display_name    VARCHAR(120) NOT NULL,
+                        description     TEXT,
+                        good_markets    TEXT,
+                        bad_markets     TEXT,
+                        category        VARCHAR(30)  NOT NULL DEFAULT 'カスタム複合',
+                        strategy_config JSON         NOT NULL,
+                        is_active       TINYINT(1)   NOT NULL DEFAULT 1,
+                        created_at      DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                        INDEX idx_custom_ind_active (is_active)
+                    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+                """))
+                _db.session.commit()
+                logger.info("custom_v2_indicators テーブルを自動作成しました")
             for _ci in _CVI.query.filter_by(is_active=True).all():
                 _good_list = []
                 _bad_list  = []

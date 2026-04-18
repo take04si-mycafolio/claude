@@ -355,6 +355,12 @@ main{max-width:900px;margin:0 auto;padding:28px 20px}
         <button class="run-btn" style="background:#1d4ed8" id="btn-gitpull" onclick="runGitPull()">git pull を実行</button>
         <div id="git-output" style="display:none;margin-top:10px;padding:10px;background:#0f172a;border:1px solid #334155;border-radius:6px;font-family:monospace;font-size:11px;color:#94a3b8;white-space:pre-wrap;word-break:break-all;max-height:160px;overflow-y:auto"></div>
       </div>
+      <div class="op-card" style="border-color:#065f46">
+        <h3 style="color:#6ee7b7">DB マイグレーション</h3>
+        <p>新機能に必要なテーブルを作成します。初回のみ実行してください（既存テーブルは変更されません）。</p>
+        <button class="run-btn" style="background:#065f46;color:#fff" onclick="runMigration()">マイグレーション実行</button>
+        <div class="result-msg" id="msg-migrate"></div>
+      </div>
     </div>
   </div>
 
@@ -734,6 +740,24 @@ async function runGitPull() {
   }
   btn.disabled = false;
   btn.textContent = 'git pull を実行';
+}
+
+async function runMigration() {
+  const msgEl = document.getElementById('msg-migrate');
+  msgEl.textContent = '実行中...';
+  msgEl.style.color = '#94a3b8';
+  try {
+    const res = await fetch('/admin/api.php', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({ action: 'migrate_custom_indicators' }),
+    }).then(r => r.json());
+    msgEl.textContent = res.status === 'ok' ? '✅ ' + res.message : '❌ ' + res.message;
+    msgEl.style.color = res.status === 'ok' ? '#4ade80' : '#f87171';
+  } catch(e) {
+    msgEl.textContent = '❌ 通信エラー: ' + e.message;
+    msgEl.style.color = '#f87171';
+  }
 }
 
 function pollOpStatus(op, cfg, btn, msg, origText) {

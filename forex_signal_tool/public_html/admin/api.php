@@ -1394,6 +1394,32 @@ switch ($action) {
         }
         break;
 
+    // ---- マイグレーション: custom_v2_indicators テーブル作成 ----
+    case 'migrate_custom_indicators':
+        require_login();
+        try {
+            $pdo = get_pdo();
+            $pdo->exec("
+                CREATE TABLE IF NOT EXISTS custom_v2_indicators (
+                    id              BIGINT PRIMARY KEY AUTO_INCREMENT,
+                    name            VARCHAR(80)  NOT NULL UNIQUE,
+                    display_name    VARCHAR(120) NOT NULL,
+                    description     TEXT,
+                    good_markets    TEXT,
+                    bad_markets     TEXT,
+                    category        VARCHAR(30)  NOT NULL DEFAULT 'カスタム複合',
+                    strategy_config JSON         NOT NULL,
+                    is_active       TINYINT(1)   NOT NULL DEFAULT 1,
+                    created_at      DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                    INDEX idx_custom_ind_active (is_active)
+                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+            ");
+            json_out(['status' => 'ok', 'message' => 'custom_v2_indicators テーブルを作成しました（既存の場合はスキップ）']);
+        } catch (Exception $e) {
+            json_out(['status' => 'error', 'message' => $e->getMessage()]);
+        }
+        break;
+
     // ---- カスタム複合指標: スタブ作成（新規） ----
     case 'create_indicator_stub':
         require_login();
