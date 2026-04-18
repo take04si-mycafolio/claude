@@ -1779,6 +1779,33 @@ const IS_PAIR        = <?= $is_pair ? 'true' : 'false' ?>;
 const IND_SLUG       = <?= json_encode($ind_slug) ?>;
 const PAIR_SLUG      = <?= json_encode($pair_slug) ?>;
 const AI_NOTES_KEY   = IND_SLUG ? ('indicator_ai_notes_' + IND_SLUG) : '';
+<?php
+// プレビューURL: カスタム指標は /indicators/{slug}/、通常指標は /{cat}/{slug}/、ペアは /{slug}/
+if ($is_pair && $pair_slug) {
+    $preview_url = '/' . $pair_slug . '/';
+} elseif ($is_custom_indicator && $ind_slug) {
+    $preview_url = '/indicators/' . $ind_slug . '/';
+} elseif ($ind_slug) {
+    // 組み込み指標: indicator_slugs.json からカテゴリ推定（なければ /indicators/{slug}/）
+    $preview_url = '/indicators/' . $ind_slug . '/';
+    $slugsFile   = __DIR__ . '/indicator_slugs.json';
+    if (file_exists($slugsFile)) {
+        $slugsJson = json_decode(file_get_contents($slugsFile), true) ?? [];
+        $catMap    = [
+            'oscillator' => ['rsi','macd','stochastic','cci','williams_r','stoch_rsi'],
+            'trend'      => ['ema','sma','bb','bollinger','ichimoku','pivot','fibonacci'],
+            'candlestick'=> ['pin_bar','hammer','doji','engulfing','soldiers','crows'],
+            'composite'  => ['rsi_macd','rsi_stoch','macd_stoch','triple'],
+        ];
+        foreach ($catMap as $cat => $slugs) {
+            if (in_array($ind_slug, $slugs)) { $preview_url = "/{$cat}/{$ind_slug}/"; break; }
+        }
+    }
+} else {
+    $preview_url = '/';
+}
+?>
+const PAGE_PREVIEW_URL = <?= json_encode($preview_url) ?>;
 
 async function loadContent() {
   try {
@@ -2007,10 +2034,7 @@ async function rebuildPage() {
 }
 
 function previewArticle() {
-  let url = '/';
-  if (IND_SLUG)  url = '/' + IND_SLUG.toLowerCase() + '/';
-  else if (PAIR_SLUG) url = '/' + PAIR_SLUG.toLowerCase() + '/';
-  window.open(url, '_blank');
+  window.open(PAGE_PREVIEW_URL, '_blank');
 }
 
 loadContent();

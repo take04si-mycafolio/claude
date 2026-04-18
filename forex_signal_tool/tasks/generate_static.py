@@ -1667,6 +1667,29 @@ def main():
         # ---- 単一ページ高速ビルド ----
         app = create_app()
         with app.app_context():
+            # カスタム複合指標を INDICATOR_INFO に追加（--slug ビルド用）
+            try:
+                from app.models.custom_indicator import CustomV2Indicator as _CVI
+                import json as _cvi_json
+                for _ci in _CVI.query.filter_by(is_active=True).all():
+                    _good_list, _bad_list = [], []
+                    try: _good_list = _cvi_json.loads(_ci.good_markets or "[]")
+                    except Exception: pass
+                    try: _bad_list  = _cvi_json.loads(_ci.bad_markets  or "[]")
+                    except Exception: pass
+                    INDICATOR_INFO[_ci.name] = {
+                        "display":     _ci.display_name,
+                        "slug":        _ci.name.lower(),
+                        "category":    "カスタム複合",
+                        "feature":     "",
+                        "description": _ci.description or "",
+                        "good":        _good_list,
+                        "bad":         _bad_list,
+                        "url":         "",
+                    }
+            except Exception as _cve:
+                logger.warning("カスタム複合指標のロード失敗 (--slug): %s", _cve)
+
             updated_at = datetime.now(JST).strftime("%Y/%m/%d %H:%M")
             pairs      = Config.CURRENCY_PAIRS
             pair_pages = {
