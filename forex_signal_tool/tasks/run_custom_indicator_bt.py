@@ -45,49 +45,61 @@ def main():
             return
 
         Setting.set(status_key, "running")
-        cfg       = ind.strategy_config
-        direction = cfg.get("direction", "BUY")
-        entry_cg  = cfg.get("entry_conditions")
+        cfg = ind.strategy_config or {}
 
-        def _indicator_func(df):
-            try:
-                ok, _ = evaluate_group(entry_cg, df, len(df) - 2)
-                sig   = (direction if direction in ("BUY", "SELL") else "BUY") if ok else "NEUTRAL"
-            except Exception:
-                sig = "NEUTRAL"
-            return {ind_name: {"signal": sig, "value": 1.0 if ok else 0.0, "category": "カスタム複合"}}
+        # v2.0: {version:'2.0', buy:{...}, sell:{...}}  /  legacy: {direction, entry_conditions, ...}
+        if cfg.get("version") == "2.0":
+            sides = []
+            if cfg.get("buy"):
+                sides.append(("BUY",  cfg["buy"]))
+            if cfg.get("sell"):
+                sides.append(("SELL", cfg["sell"]))
+        else:
+            direction = cfg.get("direction", "BUY")
+            sides = [(direction, cfg)]
 
         sl_pips = float(Setting.get("sl_pips", "20"))
         tp_pips = float(Setting.get("tp_pips", "40"))
         capital = float(Setting.get("initial_capital", "1000000"))
 
         total = 0
-        for pair in PAIRS:
-            for tf in TIMEFRAMES:
+        for direction, side_cfg in sides:
+            entry_cg = side_cfg.get("entry_conditions")
+
+            def _indicator_func(df, _entry_cg=entry_cg, _dir=direction):
                 try:
-                    df = get_candles(pair, tf, limit=500)
-                    if df.empty or len(df) < 30:
-                        continue
-                    result = run_backtest_for_indicator(
-                        df             = df,
-                        indicator_name = ind_name,
-                        indicator_func = _indicator_func,
-                        pair           = pair,
-                        timeframe      = tf,
-                        initial_capital= capital,
-                        sl_pips        = sl_pips,
-                        tp_pips        = tp_pips,
-                    )
-                    if result:
-                        result["indicator_category"] = "カスタム複合"
-                        save_backtest_results(result, db.session)
-                        total += 1
-                        logger.info("%s %s %s: win_rate=%.1f%% trades=%d",
-                                    ind_name, pair, tf,
-                                    result.get("win_rate", 0),
-                                    result.get("total_trades", 0))
-                except Exception as e:
-                    logger.warning("%s %s %s error: %s", ind_name, pair, tf, e)
+                    ok, _ = evaluate_group(_entry_cg, df, len(df) - 2)
+                    sig   = _dir if ok else "NEUTRAL"
+                except Exception:
+                    sig = "NEUTRAL"
+                return {ind_name: {"signal": sig, "value": 1.0 if ok else 0.0, "category": "カスタム複合"}}
+
+            for pair in PAIRS:
+                for tf in TIMEFRAMES:
+                    try:
+                        df = get_candles(pair, tf, limit=500)
+                        if df.empty or len(df) < 30:
+                            continue
+                        result = run_backtest_for_indicator(
+                            df              = df,
+                            indicator_name  = ind_name,
+                            indicator_func  = _indicator_func,
+                            pair            = pair,
+                            timeframe       = tf,
+                            initial_capital = capital,
+                            sl_pips         = sl_pips,
+                            tp_pips         = tp_pips,
+                        )
+                        if result:
+                            result["indicator_category"] = "カスタム複合"
+                            save_backtest_results(result, db.session)
+                            total += 1
+                            logger.info("%s %s %s [%s]: win_rate=%.1f%% trades=%d",
+                                        ind_name, pair, tf, direction,
+                                        result.get("win_rate", 0),
+                                        result.get("total_trades", 0))
+                    except Exception as e:
+                        logger.warning("%s %s %s [%s] error: %s", ind_name, pair, tf, direction, e)
 
         Setting.set(status_key, "done")
         logger.info("完了: %d バックテスト実行", total)

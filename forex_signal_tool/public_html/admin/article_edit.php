@@ -285,6 +285,7 @@ $ibt_tp    = $ibt_first ? (int)($ibt_first['tp_pips'] ?? 40) : 40;
 <?php if (($is_indicator && $ind_slug) || $is_pair): ?>
       <button class="rebuild-btn" id="rebuild-btn" onclick="rebuildPage()">🔄 公開ページを更新</button>
       <span class="rebuild-status" id="rebuild-status"></span>
+      <button onclick="previewArticle()" style="background:#1e3a5f;color:#7dd3fc;border:1px solid #1e4976;border-radius:7px;padding:7px 16px;font-size:12px;font-weight:600;cursor:pointer;transition:all .15s">🔍 プレビュー</button>
 <?php endif; ?>
     </div>
 <?php if (($is_indicator && $ind_slug) || $is_pair): ?>
@@ -300,7 +301,7 @@ $ibt_tp    = $ibt_first ? (int)($ibt_first['tp_pips'] ?? 40) : 40;
     </div>
   </div>
 
-<?php if ($is_indicator && $indicator_name): ?>
+<?php if ($is_indicator && $indicator_name && !$is_custom_indicator): ?>
 <style>
 .ind-bt-card{background:#0b1a2b;border:1px solid #1e3a5f;border-radius:10px;padding:18px 20px;margin-top:16px}
 .ind-bt-card h3{font-size:12px;font-weight:600;color:#38bdf8;text-transform:uppercase;letter-spacing:.05em;margin-bottom:4px}
@@ -565,6 +566,13 @@ function resetIndicatorPageBt() {
 .ai-fb-status{font-size:11px}
 .ai-fb-status.ok{color:#22c55e}
 .ai-fb-status.err{color:#ef4444}
+/* BUY/SELL side tabs */
+.bt2-side-tabs{display:flex;gap:0;margin-bottom:12px;border-bottom:2px solid #1e293b}
+.bt2-side-tab{background:none;border:none;border-bottom:2px solid transparent;color:#64748b;padding:7px 20px;font-size:12px;font-weight:600;cursor:pointer;transition:all .15s;margin-bottom:-2px}
+.bt2-side-tab.active[data-side="buy"]{color:#34d399;border-color:#34d399}
+.bt2-side-tab.active[data-side="sell"]{color:#f87171;border-color:#f87171}
+.bt2-side-panel{display:none}
+.bt2-side-panel.active{display:block}
 /* linked strategies */
 .ls-item{background:#0f172a;border:1px solid #1e293b;border-radius:5px;padding:6px 10px;font-size:12px;margin-bottom:5px;display:flex;align-items:flex-start;gap:8px}
 .ls-body{flex:1;min-width:0}
@@ -585,6 +593,31 @@ function resetIndicatorPageBt() {
 
   <!-- エントリー条件 -->
   <div class="bt2-section-hdr">エントリー条件</div>
+<?php if ($is_custom_indicator): ?>
+  <!-- カスタム指標: BUY/SELL タブ別条件 -->
+  <div class="bt2-side-tabs">
+    <button class="bt2-side-tab active" data-side="buy" onclick="bt2SwitchSide('buy')">📈 BUY 条件</button>
+    <button class="bt2-side-tab" data-side="sell" onclick="bt2SwitchSide('sell')">📉 SELL 条件</button>
+  </div>
+  <div class="bt2-side-panel active" id="bt2-side-buy">
+    <div class="bt2-logic-row">
+      <span style="font-size:11px;color:#475569">結合論理:</span>
+      <button class="bt2-lb active" id="bt2-logic-buy-and" onclick="bt2SetLogicSide('buy','AND')">AND（全条件一致）</button>
+      <button class="bt2-lb" id="bt2-logic-buy-or" onclick="bt2SetLogicSide('buy','OR')">OR（いずれか一致）</button>
+    </div>
+    <div id="bt2-cond-list-buy"></div>
+    <button class="bt2-add-cond" onclick="addBt2CondToSide('buy')">＋ BUY 条件を追加</button>
+  </div>
+  <div class="bt2-side-panel" id="bt2-side-sell">
+    <div class="bt2-logic-row">
+      <span style="font-size:11px;color:#475569">結合論理:</span>
+      <button class="bt2-lb active" id="bt2-logic-sell-and" onclick="bt2SetLogicSide('sell','AND')">AND（全条件一致）</button>
+      <button class="bt2-lb" id="bt2-logic-sell-or" onclick="bt2SetLogicSide('sell','OR')">OR（いずれか一致）</button>
+    </div>
+    <div id="bt2-cond-list-sell"></div>
+    <button class="bt2-add-cond" onclick="addBt2CondToSide('sell')">＋ SELL 条件を追加</button>
+  </div>
+<?php else: ?>
   <div class="bt2-logic-row">
     <span style="font-size:11px;color:#475569">結合論理:</span>
     <button class="bt2-lb active" id="bt2-logic-and" onclick="bt2SetLogic('AND')">AND（全条件一致）</button>
@@ -592,9 +625,11 @@ function resetIndicatorPageBt() {
   </div>
   <div id="bt2-cond-list"></div>
   <button class="bt2-add-cond" onclick="addBt2Cond()">＋ 条件を追加</button>
+<?php endif; ?>
 
   <!-- 基本設定 -->
   <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:10px;margin-bottom:14px">
+<?php if (!$is_custom_indicator): ?>
     <div class="bt2-fg">
       <label>エントリー方向</label>
       <select id="bt2-direction">
@@ -603,6 +638,7 @@ function resetIndicatorPageBt() {
         <option value="BOTH" selected>BOTH（両方）</option>
       </select>
     </div>
+<?php endif; ?>
     <div class="bt2-fg">
       <label>初期資金 (円)</label>
       <input type="number" id="bt2-capital" value="1000000" min="10000" step="10000">
@@ -825,7 +861,7 @@ function resetIndicatorPageBt() {
   <!-- 結果テーブル -->
   <table class="bt2-result-tbl" id="bt2-result-tbl">
     <thead><tr>
-      <th>通貨ペア</th><th>時間足</th><th>勝率</th><th>PF</th><th>総取引</th><th>損益(円)</th><th>期間</th>
+      <th>通貨ペア</th><th>時間足</th><?php if ($is_custom_indicator): ?><th>方向</th><?php endif; ?><th>勝率</th><th>PF</th><th>総取引</th><th>損益(円)</th><th>期間</th>
     </tr></thead>
     <tbody id="bt2-result-body"></tbody>
   </table>
@@ -931,7 +967,8 @@ function resetIndicatorPageBt() {
 
 <script>
 /* ===== BT2 inline condition builder ===== */
-let _bt2InlineResults = [];  // 最終実行の pair×TF 結果を蓄積（保存用）
+const IS_CUSTOM_IND = <?= $is_custom_indicator ? 'true' : 'false' ?>;
+let _bt2InlineResults = [];
 
 const BT2_IND = {
   RSI:         { label:'RSI',          params:[{n:'period',l:'期間',d:14}] },
@@ -990,10 +1027,115 @@ function bt2IndOpts(excludePatterns) {
 let _bt2Seq = 0;
 let _bt2Logic = 'AND';
 
+// BUY/SELL side state (custom indicators only)
+let _bt2LogicBuy = 'AND', _bt2LogicSell = 'AND';
+let _bt2SeqBuy = 0, _bt2SeqSell = 0;
+let _bt2ActiveSide = 'buy';
+
 function bt2SetLogic(v) {
   _bt2Logic = v;
   document.getElementById('bt2-logic-and').classList.toggle('active', v === 'AND');
   document.getElementById('bt2-logic-or' ).classList.toggle('active', v === 'OR');
+}
+
+function bt2SwitchSide(side) {
+  _bt2ActiveSide = side;
+  document.querySelectorAll('.bt2-side-tab').forEach(t => t.classList.toggle('active', t.dataset.side === side));
+  document.querySelectorAll('.bt2-side-panel').forEach(p => p.classList.toggle('active', p.id === 'bt2-side-' + side));
+}
+
+function bt2SetLogicSide(side, v) {
+  if (side === 'buy') _bt2LogicBuy = v;
+  else _bt2LogicSell = v;
+  document.getElementById('bt2-logic-' + side + '-and').classList.toggle('active', v === 'AND');
+  document.getElementById('bt2-logic-' + side + '-or' ).classList.toggle('active', v === 'OR');
+}
+
+function addBt2CondToSide(side) {
+  const seq = side === 'buy' ? ++_bt2SeqBuy : ++_bt2SeqSell;
+  const id = 'bt2cs-' + side + '-' + seq;
+  const row = document.createElement('div');
+  row.className = 'bt2-cond-row';
+  row.id = id;
+  row.dataset.id = 'c' + seq;
+  row.innerHTML = `
+    <div class="bt2-fg">
+      <label>指標</label>
+      <select onchange="bt2OnIndChange(this, '${id}')">
+        ${bt2IndOpts(false)}
+      </select>
+    </div>
+    <div class="bt2-fg" id="${id}-params">${bt2ParamInputs('RSI', id)}</div>
+    <div class="bt2-fg">
+      <label>比較</label>
+      <select id="${id}-cmp">
+        ${BT2_COMPS.map(c => `<option value="${c.v}">${c.l}</option>`).join('')}
+      </select>
+    </div>
+    <div class="bt2-fg" id="${id}-rhs">${bt2RhsHtml(id)}</div>
+    <div>
+      <label style="visibility:hidden;font-size:10px">削除</label>
+      <button class="bt2-del-cond" onclick="this.closest('.bt2-cond-row').remove()">✕</button>
+    </div>`;
+  document.getElementById('bt2-cond-list-' + side).appendChild(row);
+}
+
+function bt2BuildCondsSide(side) {
+  const conds = [];
+  for (const row of document.querySelectorAll('#bt2-cond-list-' + side + ' .bt2-cond-row')) {
+    const condId = row.dataset.id;
+    const indKey = row.querySelector('select').value;
+    const rowId  = row.id;
+    const cmpVal = document.getElementById(rowId + '-cmp')?.value || 'less_than';
+    const params = {};
+    ((BT2_IND[indKey] || {}).params || []).forEach(p => {
+      const el = document.getElementById(rowId + '-p-' + p.n);
+      if (el) params[p.n] = parseFloat(el.value);
+    });
+    let value = null, compare_to_indicator = null, compare_to_params = null;
+    const cmpIndSel = document.getElementById(rowId + '-cmp-ind');
+    if (cmpIndSel && cmpIndSel.value) {
+      compare_to_indicator = cmpIndSel.value;
+      compare_to_params = {};
+      ((BT2_IND[cmpIndSel.value] || {}).params || []).forEach(p => {
+        const el = document.getElementById(rowId + '-cind-p-' + p.n);
+        compare_to_params[p.n] = el ? parseFloat(el.value) : p.d;
+      });
+    } else {
+      const valEl = document.getElementById(rowId + '-val');
+      value = valEl ? parseFloat(valEl.value) : null;
+    }
+    conds.push({ id: condId, indicator: indKey, params, comparison: cmpVal,
+                 value, compare_to_indicator, compare_to_params });
+  }
+  return conds;
+}
+
+function bt2AddCondFromDataToSide(cond, side) {
+  addBt2CondToSide(side);
+  const list = document.getElementById('bt2-cond-list-' + side);
+  const rows = list.querySelectorAll('.bt2-cond-row');
+  const row  = rows[rows.length - 1];
+  const id   = row.id;
+  const setVal = (sel, val) => { const el = row.querySelector(sel); if (el && val != null) el.value = val; };
+  setVal('select', cond.indicator);
+  const indSel = row.querySelector('select');
+  if (indSel) {
+    indSel.dispatchEvent(new Event('change'));
+    setTimeout(() => {
+      const ps = (BT2_IND[cond.indicator] || {}).params || [];
+      ps.forEach(p => { const el = document.getElementById(id + '-p-' + p.n); if (el && cond.params?.[p.n] != null) el.value = cond.params[p.n]; });
+      const cmpEl = document.getElementById(id + '-cmp'); if (cmpEl && cond.comparison) cmpEl.value = cond.comparison;
+      if (cond.compare_to_indicator) {
+        const cmpIndEl = document.getElementById(id + '-cmp-ind'); if (cmpIndEl) { cmpIndEl.value = cond.compare_to_indicator; cmpIndEl.dispatchEvent(new Event('change')); }
+        setTimeout(() => {
+          if (cond.compare_to_params) Object.keys(cond.compare_to_params).forEach(k => { const el = document.getElementById(id + '-cind-p-' + k); if (el) el.value = cond.compare_to_params[k]; });
+        }, 50);
+      } else {
+        const valEl = document.getElementById(id + '-val'); if (valEl && cond.value != null) valEl.value = cond.value;
+      }
+    }, 50);
+  }
 }
 
 function bt2ParamInputs(indKey, rowId) {
@@ -1217,6 +1359,8 @@ function bt2BuildTrailing() {
 }
 
 async function runBt2Inline() {
+  if (IS_CUSTOM_IND) { await _runBt2InlineWithSides(); return; }
+
   const pairs = [...document.querySelectorAll('.bt2-pair:checked')].map(el => el.value);
   if (!pairs.length) { alert('通貨ペアを1つ以上選択してください'); return; }
 
@@ -1316,7 +1460,113 @@ async function runBt2Inline() {
   btn.disabled = false;
   log.textContent = `完了（${total}件実行）`;
 
-  // 成功した結果が1件以上あれば保存セクションを表示
+  if (_bt2InlineResults.length > 0) {
+    saveWrap.style.display = 'block';
+    document.getElementById('bt2-save-status').textContent = '';
+  }
+}
+
+async function _runBt2InlineWithSides() {
+  const pairs = [...document.querySelectorAll('.bt2-pair:checked')].map(el => el.value);
+  if (!pairs.length) { alert('通貨ペアを1つ以上選択してください'); return; }
+
+  const tfRanges = {};
+  document.querySelectorAll('.bt2-tf:checked').forEach(el => {
+    const row = el.closest('tr');
+    tfRanges[el.value] = {
+      start: row.querySelector('.bt2-tf-start').value || null,
+      end:   row.querySelector('.bt2-tf-end').value   || null,
+    };
+  });
+  if (!Object.keys(tfRanges).length) { alert('時間足を1つ以上選択してください'); return; }
+
+  const buyConds  = bt2BuildCondsSide('buy');
+  const sellConds = bt2BuildCondsSide('sell');
+  if (!buyConds.length && !sellConds.length) { alert('BUY または SELL の条件を1つ以上追加してください'); return; }
+
+  const simParams = {
+    initial_capital:  parseFloat(document.getElementById('bt2-capital').value)   || 1000000,
+    pip_value:        parseFloat(document.getElementById('bt2-pip-value').value)  || 100,
+    max_bars_to_exit: parseInt(document.getElementById('bt2-max-bars').value, 10) || 200,
+  };
+
+  const btn   = document.getElementById('bt2-run-btn');
+  const log   = document.getElementById('bt2-log');
+  const tbl   = document.getElementById('bt2-result-tbl');
+  const tbody = document.getElementById('bt2-result-body');
+  const saveWrap = document.getElementById('bt2-save-wrap');
+  btn.disabled = true;
+  tbody.innerHTML = '';
+  tbl.style.display = 'none';
+  saveWrap.style.display = 'none';
+  _bt2InlineResults = [];
+
+  const tfs = Object.keys(tfRanges);
+  const sides = [];
+  if (buyConds.length)  sides.push({ dir:'BUY',  conds:buyConds,  logic:_bt2LogicBuy });
+  if (sellConds.length) sides.push({ dir:'SELL', conds:sellConds, logic:_bt2LogicSell });
+
+  const total = pairs.length * tfs.length * sides.length;
+  let done = 0;
+  const TF_LBL = {'5min':'5分足','15min':'15分足','30min':'30分足','1hr':'1時間足','4hr':'4時間足','daily':'日足'};
+
+  for (const s of sides) {
+    const strategy = {
+      strategy_version: '1.0',
+      direction: s.dir,
+      entry_conditions: { logic: s.logic, conditions: s.conds },
+      filters:         bt2BuildFilters(),
+      sl_config:       bt2BuildSl(),
+      tp_config:       bt2BuildTp(),
+      trailing_config: bt2BuildTrailing(),
+    };
+    for (const tf of tfs) {
+      const rng = tfRanges[tf];
+      for (const pair of pairs) {
+        done++;
+        log.textContent = `実行中 (${done}/${total}): ${pair} ${TF_LBL[tf]||tf} [${s.dir}]...`;
+        const tr = document.createElement('tr');
+        try {
+          const payload = { action:'bt_v2', pair, timeframe:tf, strategy_config:strategy, sim_params:simParams };
+          if (rng.start && rng.end) { payload.start_date = rng.start; payload.end_date = rng.end; }
+          else { payload.limit = 500; }
+          const res = await fetch('/admin/api.php', {
+            method:'POST', headers:{'Content-Type':'application/json'},
+            body: JSON.stringify(payload),
+          }).then(r => r.json());
+
+          if (!res.ok) {
+            tr.innerHTML = `<td>${pair}</td><td>${TF_LBL[tf]||tf}</td>
+              <td style="color:${s.dir==='BUY'?'#34d399':'#f87171'}">${s.dir}</td>
+              <td colspan="5" style="color:#ef4444;font-size:11px">${res.error||'APIエラー'}</td>`;
+          } else {
+            const m  = res.metrics || {};
+            const wr = m.win_rate != null ? (m.win_rate * 100).toFixed(1) : null;
+            const wc = m.win_rate >= 0.55 ? '#4ade80' : m.win_rate >= 0.40 ? '#facc15' : '#f87171';
+            const pf = m.profit_factor != null ? (isFinite(m.profit_factor) ? m.profit_factor.toFixed(2) : '∞') : '-';
+            const tp = m.total_profit  != null ? Math.round(m.total_profit).toLocaleString() : '-';
+            const period = [rng.start, rng.end].filter(Boolean).join('〜') || `${m.total_trades||0}本`;
+            const dirColor = s.dir === 'BUY' ? '#34d399' : '#f87171';
+            tr.innerHTML = `<td>${pair}</td><td>${TF_LBL[tf]||tf}</td>
+              <td style="color:${dirColor};font-weight:600">${s.dir}</td>
+              <td style="color:${wr!=null?wc:'#64748b'};font-weight:600">${wr!=null?wr+'%':'-'}</td>
+              <td>${pf}</td><td>${m.total_trades||0}件</td>
+              <td style="color:${m.total_profit>=0?'#4ade80':'#f87171'}">${tp}円</td>
+              <td style="font-size:11px;color:#64748b">${period}</td>`;
+            _bt2InlineResults.push({ pair, tf, dir: s.dir, metrics: m, trades: (res.trades || []).slice(-20) });
+          }
+        } catch(e) {
+          tr.innerHTML = `<td>${pair}</td><td>${TF_LBL[tf]||tf}</td>
+            <td>${s.dir}</td><td colspan="5" style="color:#ef4444;font-size:11px">${e.message}</td>`;
+        }
+        tbody.appendChild(tr);
+        tbl.style.display = 'table';
+      }
+    }
+  }
+
+  btn.disabled = false;
+  log.textContent = `完了（${total}件実行）`;
   if (_bt2InlineResults.length > 0) {
     saveWrap.style.display = 'block';
     document.getElementById('bt2-save-status').textContent = '';
@@ -1423,16 +1673,22 @@ function bt2AddCondFromData(cond) {
 
 // カスタム指標として登録・更新
 async function registerAsCustomIndicator() {
-  const conds = bt2BuildConds();
-  if (!conds.length) { alert('条件を少なくとも1つ追加してください'); return; }
-  const strategy = {
+  const buyConds  = bt2BuildCondsSide('buy');
+  const sellConds = bt2BuildCondsSide('sell');
+  if (!buyConds.length && !sellConds.length) { alert('BUY または SELL の条件を少なくとも1つ追加してください'); return; }
+  const makeOneSide = (dir, conds, logic) => ({
     strategy_version: '1.0',
-    direction:        document.getElementById('bt2-direction').value,
-    entry_conditions: { logic: _bt2Logic, conditions: conds },
-    filters:          bt2BuildFilters(),
-    sl_config:        bt2BuildSl(),
-    tp_config:        bt2BuildTp(),
-    trailing_config:  bt2BuildTrailing(),
+    direction: dir,
+    entry_conditions: { logic, conditions: conds },
+    filters:         bt2BuildFilters(),
+    sl_config:       bt2BuildSl(),
+    tp_config:       bt2BuildTp(),
+    trailing_config: bt2BuildTrailing(),
+  });
+  const strategy = {
+    version: '2.0',
+    buy:  buyConds.length  ? makeOneSide('BUY',  buyConds,  _bt2LogicBuy)  : null,
+    sell: sellConds.length ? makeOneSide('SELL', sellConds, _bt2LogicSell) : null,
   };
   const toArr = t => t.split('\n').map(s => s.trim()).filter(Boolean);
   const stat  = document.getElementById('ci-reg-status');
@@ -1466,28 +1722,47 @@ async function registerAsCustomIndicator() {
 }
 
 <?php if ($is_custom_indicator && $custom_indicator && !empty($custom_indicator['strategy_config'])): ?>
-// カスタム指標の設定を BT2 ビルダーに復元
+// カスタム指標の設定を BT2 サイドビルダーに復元
 (function() {
   const cfg = <?= json_encode($custom_indicator['strategy_config'], JSON_UNESCAPED_UNICODE) ?>;
   if (!cfg) return;
-  const dir = document.getElementById('bt2-direction');
-  if (dir && cfg.direction) dir.value = cfg.direction;
-  const logicVal = (cfg.entry_conditions || {}).logic || 'AND';
-  bt2SetLogic(logicVal);
-  const conds = (cfg.entry_conditions || {}).conditions || [];
-  if (conds.length > 0) {
-    // 初期条件1件は削除して置き換え
-    const existing = document.querySelectorAll('.bt2-cond-row');
-    existing.forEach(r => r.remove());
-    _bt2Seq = 0;
-    conds.forEach(bt2AddCondFromData);
+
+  function restoreSide(side, sideData) {
+    if (!sideData) return;
+    const logicVal = (sideData.entry_conditions || {}).logic || 'AND';
+    bt2SetLogicSide(side, logicVal);
+    const conds = (sideData.entry_conditions || {}).conditions || [];
+    if (conds.length > 0) {
+      document.querySelectorAll('#bt2-cond-list-' + side + ' .bt2-cond-row').forEach(r => r.remove());
+      if (side === 'buy') _bt2SeqBuy = 0; else _bt2SeqSell = 0;
+      conds.forEach(c => bt2AddCondFromDataToSide(c, side));
+    }
+  }
+
+  if (cfg.version === '2.0') {
+    restoreSide('buy',  cfg.buy  || null);
+    restoreSide('sell', cfg.sell || null);
+  } else {
+    // 旧フォーマット: BUY/SELL どちらかに移行
+    const side = (cfg.direction === 'SELL') ? 'sell' : 'buy';
+    restoreSide(side, cfg);
+    bt2SwitchSide(side);
   }
 })();
 <?php endif; ?>
 
 // 初期条件を1つ追加（カスタム指標で設定が復元される場合は上書きされる）
-<?php if (!$is_custom_indicator || empty($custom_indicator['strategy_config']['entry_conditions']['conditions'])): ?>
+<?php if (!$is_custom_indicator): ?>
 addBt2Cond();
+<?php else: ?>
+<?php
+  $hasBuyConds  = !empty($custom_indicator['strategy_config']['buy']['entry_conditions']['conditions']);
+  $hasSellConds = !empty($custom_indicator['strategy_config']['sell']['entry_conditions']['conditions']);
+  // legacy v1 conditions
+  $hasLegacyConds = !empty($custom_indicator['strategy_config']['entry_conditions']['conditions']);
+?>
+<?php if (!$hasBuyConds && !$hasLegacyConds): ?>addBt2CondToSide('buy');<?php endif; ?>
+<?php if (!$hasSellConds && !$hasLegacyConds): ?>addBt2CondToSide('sell');<?php endif; ?>
 <?php endif; ?>
 </script>
 <?php endif; ?>
@@ -1725,6 +2000,13 @@ async function rebuildPage() {
   } finally {
     btn.disabled = false;
   }
+}
+
+function previewArticle() {
+  let url = '/';
+  if (IND_SLUG)  url = '/' + IND_SLUG.toLowerCase() + '/';
+  else if (PAIR_SLUG) url = '/' + PAIR_SLUG.toLowerCase() + '/';
+  window.open(url, '_blank');
 }
 
 loadContent();
