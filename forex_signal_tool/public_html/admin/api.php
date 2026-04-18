@@ -760,7 +760,8 @@ switch ($action) {
         $allowed = ['ranking_analysis', 'ranking_short_term', 'ranking_day_trade', 'ranking_swing', 'ranking_title', 'ranking_intro', 'top_article', 'top_article_pre', 'top_article_post'];
         $is_valid = in_array($key, $allowed, true)
             || preg_match('/^indicator_article_[a-z0-9_]+(_(css|jsonld))?$/', $key)
-            || preg_match('/^indicator_ai_notes_[a-z0-9_]+$/', $key);
+            || preg_match('/^indicator_ai_notes_[a-z0-9_]+$/', $key)
+            || preg_match('/^indicator_(description|good|bad)_[a-z0-9_]+$/', $key);
         if (!$is_valid) {
             json_out(['status' => 'error', 'message' => '無効なキーです']);
         }
@@ -1263,6 +1264,106 @@ switch ($action) {
 
         } catch (Exception $e) {
             foreach ($tmpFiles as $f) { @unlink($f); }
+            json_out(['status' => 'error', 'message' => $e->getMessage()]);
+        }
+        break;
+
+    // ---- カスタム複合指標: 登録 ----
+    case 'save_custom_indicator':
+        require_login();
+        try {
+            $name         = trim($body['name']         ?? '');
+            $display_name = trim($body['display_name'] ?? '');
+            $description  = trim($body['description']  ?? '');
+            $good_markets = $body['good_markets'] ?? '[]';
+            $bad_markets  = $body['bad_markets']  ?? '[]';
+            $strategy_cfg = $body['strategy_config'] ?? null;
+
+            if (!$name || !$display_name || !$strategy_cfg) {
+                json_out(['status' => 'error', 'message' => 'name / display_name / strategy_config は必須です']);
+            }
+            if (!preg_match('/^[A-Za-z0-9_]{1,80}$/', $name)) {
+                json_out(['status' => 'error', 'message' => 'name は半角英数字・アンダースコアのみ (1-80文字)']);
+            }
+            if (!is_array($strategy_cfg)) {
+                json_out(['status' => 'error', 'message' => 'strategy_config が不正です']);
+            }
+
+            $cfgJson  = json_encode($strategy_cfg, JSON_UNESCAPED_UNICODE);
+            $goodJson = is_array($good_markets) ? json_encode($good_markets, JSON_UNESCAPED_UNICODE) : (string)$good_markets;
+            $badJson  = is_array($bad_markets)  ? json_encode($bad_markets,  JSON_UNESCAPED_UNICODE) : (string)$bad_markets;
+
+            $pdo  = get_pdo();
+            $stmt = $pdo->prepare(
+                "INSERT INTO custom_v2_indicators
+                    (name, display_name, description, good_markets, bad_markets, strategy_config)
+                 VALUES (?, ?, ?, ?, ?, ?)
+                 ON DUPLICATE KEY UPDATE
+                    display_name   = VALUES(display_name),
+                    description    = VALUES(description),
+                    good_markets   = VALUES(good_markets),
+                    bad_markets    = VALUES(bad_markets),
+                    strategy_config= VALUES(strategy_config),
+                    is_active      = 1"
+            );
+            $stmt->execute([$name, $display_name, $description, $goodJson, $badJson, $cfgJson]);
+
+            // バックグラウンドでバックテスト実行
+            $py     = escapeshellarg(PYTHON_BIN);
+            $script = escapeshellarg(TASKS_DIR . '/run_custom_indicator_bt.py');
+            $nameEsc = escapeshellarg($name);
+            exec("nohup {$py} {$script} --name {$nameEsc} >> /tmp/forex_custom_ind_bt.log 2>&1 &");
+
+            json_out(['status' => 'ok', 'message' => '登録しました。バックテストをバックグラウンドで開始しました。']);
+        } catch (Exception $e) {
+            json_out(['status' => 'error', 'message' => $e->getMessage()]);
+        }
+        break;
+
+    // ---- カスタム複合指標: 一覧取得 ----
+    case 'list_custom_indicators':
+        require_login();
+        try {
+            $pdo  = get_pdo();
+            $rows = $pdo->query(
+                "SELECT id, name, display_name, description, good_markets, bad_markets,
+                        is_active, created_at
+                 FROM custom_v2_indicators
+                 ORDER BY created_at DESC"
+            )->fetchAll(PDO::FETCH_ASSOC);
+            json_out(['status' => 'ok', 'indicators' => $rows]);
+        } catch (Exception $e) {
+            json_out(['status' => 'error', 'message' => $e->getMessage()]);
+        }
+        break;
+
+    // ---- カスタム複合指標: 削除（soft delete） ----
+    case 'delete_custom_indicator':
+        require_login();
+        try {
+            $name = trim($body['name'] ?? '');
+            if (!$name) { json_out(['status' => 'error', 'message' => 'name が必要です']); }
+            $pdo  = get_pdo();
+            $stmt = $pdo->prepare("UPDATE custom_v2_indicators SET is_active=0 WHERE name=?");
+            $stmt->execute([$name]);
+            json_out(['status' => 'ok', 'message' => '無効化しました']);
+        } catch (Exception $e) {
+            json_out(['status' => 'error', 'message' => $e->getMessage()]);
+        }
+        break;
+
+    // ---- カスタム複合指標: バックテスト再実行 ----
+    case 'run_custom_indicator_bt':
+        require_login();
+        try {
+            $name = trim($body['name'] ?? '');
+            if (!$name) { json_out(['status' => 'error', 'message' => 'name が必要です']); }
+            $py     = escapeshellarg(PYTHON_BIN);
+            $script = escapeshellarg(TASKS_DIR . '/run_custom_indicator_bt.py');
+            $nameEsc = escapeshellarg($name);
+            exec("nohup {$py} {$script} --name {$nameEsc} >> /tmp/forex_custom_ind_bt.log 2>&1 &");
+            json_out(['status' => 'ok', 'message' => 'バックテストを開始しました']);
+        } catch (Exception $e) {
             json_out(['status' => 'error', 'message' => $e->getMessage()]);
         }
         break;

@@ -96,7 +96,9 @@ h2{font-size:19px;font-weight:700;color:#f1f5f9;margin-bottom:4px}
 
 /* パネル内レイアウト */
 .panel-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px}
-@media(max-width:700px){.panel-grid{grid-template-columns:1fr}}
+.panel-grid-3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px;margin-top:12px}
+@media(max-width:900px){.panel-grid-3{grid-template-columns:1fr 1fr}}
+@media(max-width:700px){.panel-grid{grid-template-columns:1fr}.panel-grid-3{grid-template-columns:1fr}}
 .panel-section{background:#0b1525;border:1px solid #1e3a5f;border-radius:8px;padding:14px}
 .panel-section-title{font-size:11px;font-weight:600;color:#38bdf8;text-transform:uppercase;letter-spacing:.05em;margin-bottom:10px}
 
@@ -130,6 +132,18 @@ h2{font-size:19px;font-weight:700;color:#f1f5f9;margin-bottom:4px}
 .info-banner{background:#1e293b;border:1px solid #334155;border-radius:10px;padding:14px 18px;margin-bottom:20px;font-size:13px;color:#94a3b8;line-height:1.7}
 .info-banner strong{color:#60a5fa}
 .info-banner a{color:#60a5fa}
+
+/* 指標メタ編集 */
+.meta-textarea{width:100%;background:#0f172a;border:1px solid #334155;border-radius:6px;color:#e2e8f0;padding:8px 10px;font-size:12px;line-height:1.6;resize:vertical;font-family:inherit;outline:none}
+.meta-textarea:focus{border-color:#0e7490}
+.meta-textarea::placeholder{color:#334155}
+.meta-label{font-size:11px;font-weight:600;color:#94a3b8;margin-bottom:4px;display:block}
+.meta-save-btn{margin-top:8px;background:#0f766e;color:#fff;border:none;border-radius:6px;padding:6px 16px;font-size:12px;font-weight:600;cursor:pointer;transition:background .15s}
+.meta-save-btn:hover{background:#0d9488}
+.meta-save-btn:disabled{background:#334155;cursor:not-allowed}
+.meta-save-status{display:inline-block;margin-left:8px;font-size:11px;vertical-align:middle}
+.meta-save-status.ok{color:#22c55e}
+.meta-save-status.err{color:#ef4444}
 </style>
 </head>
 <body>
@@ -280,6 +294,39 @@ h2{font-size:19px;font-weight:700;color:#f1f5f9;margin-bottom:4px}
             </div>
 
           </div>
+
+          <!-- 指標メタ情報（概要・得意・苦手） -->
+          <div class="panel-grid-3">
+
+            <div class="panel-section">
+              <div class="panel-section-title">📝 指標の概要</div>
+              <label class="meta-label" for="meta-desc-<?= $slug ?>">指標の説明文</label>
+              <textarea class="meta-textarea" id="meta-desc-<?= $slug ?>" rows="5"
+                        placeholder="この指標の概要・使い方・特徴を入力してください"></textarea>
+            </div>
+
+            <div class="panel-section">
+              <div class="panel-section-title">✅ 得な相場</div>
+              <label class="meta-label" for="meta-good-<?= $slug ?>">1行1項目で入力</label>
+              <textarea class="meta-textarea" id="meta-good-<?= $slug ?>" rows="5"
+                        placeholder="例）&#10;トレンド相場&#10;ボラティリティが高い局面&#10;一方向に動く相場"></textarea>
+            </div>
+
+            <div class="panel-section">
+              <div class="panel-section-title">❌ 苦手な相場</div>
+              <label class="meta-label" for="meta-bad-<?= $slug ?>">1行1項目で入力</label>
+              <textarea class="meta-textarea" id="meta-bad-<?= $slug ?>" rows="5"
+                        placeholder="例）&#10;レンジ相場&#10;急騰・急落局面&#10;経済指標発表前後"></textarea>
+            </div>
+
+          </div>
+          <div style="margin-top:8px">
+            <button class="meta-save-btn"
+                    id="meta-save-<?= $slug ?>"
+                    onclick="saveIndicatorMeta(<?= htmlspecialchars(json_encode($slug)) ?>)">概要・得意・苦手を保存</button>
+            <span class="meta-save-status" id="meta-save-status-<?= $slug ?>"></span>
+          </div>
+
         </td>
       </tr>
       <?php endif; ?>
@@ -323,6 +370,23 @@ function togglePanel(slug, indicatorName) {
     ta.value = _content[notesKey].value || '';
     const upd = _content[notesKey].updated_at || '';
     if (upd) document.getElementById('ai-updated-' + slug).textContent = '最終保存: ' + upd.slice(0,16);
+  }
+
+  // 指標メタ情報を復元
+  const descKey = 'indicator_description_' + slug;
+  const goodKey = 'indicator_good_' + slug;
+  const badKey  = 'indicator_bad_'  + slug;
+  const descEl  = document.getElementById('meta-desc-' + slug);
+  const goodEl  = document.getElementById('meta-good-' + slug);
+  const badEl   = document.getElementById('meta-bad-'  + slug);
+  if (descEl && _content[descKey]) descEl.value = _content[descKey].value || '';
+  if (goodEl && _content[goodKey]) {
+    try { goodEl.value = JSON.parse(_content[goodKey].value || '[]').join('\n'); }
+    catch(e) { goodEl.value = _content[goodKey].value || ''; }
+  }
+  if (badEl && _content[badKey]) {
+    try { badEl.value = JSON.parse(_content[badKey].value || '[]').join('\n'); }
+    catch(e) { badEl.value = _content[badKey].value || ''; }
   }
 
   // リンク済み戦略を取得
@@ -393,6 +457,46 @@ async function loadLinkedStrategies(slug, indicatorName) {
   } catch(e) {
     el.innerHTML = '<div class="strategy-empty">読み込みエラー</div>';
   }
+}
+
+async function saveIndicatorMeta(slug) {
+  const descEl = document.getElementById('meta-desc-' + slug);
+  const goodEl = document.getElementById('meta-good-' + slug);
+  const badEl  = document.getElementById('meta-bad-'  + slug);
+  const btn    = document.getElementById('meta-save-' + slug);
+  const stat   = document.getElementById('meta-save-status-' + slug);
+
+  const toArr = (txt) => txt.split('\n').map(s => s.trim()).filter(s => s.length > 0);
+
+  const saves = [
+    { key: 'indicator_description_' + slug, value: descEl ? descEl.value : '' },
+    { key: 'indicator_good_' + slug,        value: JSON.stringify(toArr(goodEl ? goodEl.value : '')) },
+    { key: 'indicator_bad_'  + slug,        value: JSON.stringify(toArr(badEl  ? badEl.value  : '')) },
+  ];
+
+  btn.disabled = true;
+  stat.textContent = '保存中...';
+  stat.className   = 'meta-save-status';
+
+  try {
+    for (const s of saves) {
+      const res = await fetch('/admin/api.php?action=content_save', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({ key: s.key, value: s.value }),
+      }).then(r => r.json());
+      if (res.status !== 'ok') throw new Error(res.message || '保存失敗');
+      _content[s.key] = { value: s.value, updated_at: new Date().toISOString() };
+    }
+    stat.textContent = '✓ 保存しました';
+    stat.className   = 'meta-save-status ok';
+  } catch(e) {
+    stat.textContent = 'エラー: ' + e.message;
+    stat.className   = 'meta-save-status err';
+  }
+
+  btn.disabled = false;
+  setTimeout(() => { stat.textContent = ''; stat.className = 'meta-save-status'; }, 4000);
 }
 
 function escHtml(s) {

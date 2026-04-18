@@ -1822,6 +1822,52 @@ def main():
         top_pre  = content_db_top.get("top_article_pre",  "")
         top_post = content_db_top.get("top_article_post", "")
 
+        # site_content から indicator_description/good/bad を INDICATOR_INFO に上書き
+        import json as _json_override
+        for _iname, _iinfo in INDICATOR_INFO.items():
+            _url_slug = INDICATOR_SEO.get(_iname, {}).get("url_slug") or _iinfo.get("slug", "")
+            if not _url_slug:
+                continue
+            _desc = content_db_top.get(f"indicator_description_{_url_slug}")
+            _good = content_db_top.get(f"indicator_good_{_url_slug}")
+            _bad  = content_db_top.get(f"indicator_bad_{_url_slug}")
+            if _desc:
+                _iinfo["description"] = _desc
+            if _good:
+                try: _iinfo["good"] = _json_override.loads(_good)
+                except Exception: pass
+            if _bad:
+                try: _iinfo["bad"] = _json_override.loads(_bad)
+                except Exception: pass
+
+        # カスタム複合指標を DB から読み込んで各マップに追加
+        try:
+            from app.models.custom_indicator import CustomV2Indicator as _CVI
+            import json as _cvi_json
+            for _ci in _CVI.query.filter_by(is_active=True).all():
+                _good_list = []
+                _bad_list  = []
+                try: _good_list = _cvi_json.loads(_ci.good_markets or "[]")
+                except Exception: pass
+                try: _bad_list  = _cvi_json.loads(_ci.bad_markets  or "[]")
+                except Exception: pass
+                INDICATOR_INFO[_ci.name] = {
+                    "display":     _ci.display_name,
+                    "slug":        _ci.name.lower(),
+                    "category":    "カスタム複合",
+                    "feature":     "",
+                    "description": _ci.description or "",
+                    "good":        _good_list,
+                    "bad":         _bad_list,
+                    "url":         "",
+                }
+                ind_url_map[_ci.name]  = ""
+                slug_map[_ci.name]     = _ci.name.lower()
+                display_map[_ci.name]  = _ci.display_name
+            logger.info("カスタム複合指標を %d 件ロード", _CVI.query.filter_by(is_active=True).count())
+        except Exception as _cve:
+            logger.warning("カスタム複合指標の読み込み失敗: %s", _cve)
+
         # 指標別集計データ（勝率一覧 s06 / ランキング s07 用）
         bt_top_table   = []
         bt_top_ranking = []
@@ -2017,7 +2063,11 @@ def main():
         for _iname, _iinfo in INDICATOR_INFO.items():
             _cat_slug  = CATEGORY_SLUGS.get(_iinfo.get("category", ""), "indicators")
             _url_slug  = INDICATOR_SEO.get(_iname, {}).get("url_slug") or _iinfo.get("slug", "")
-            _sig_url_map[_iname] = f"/{_cat_slug}/{_url_slug}/"
+            # カスタム複合指標はURLなし
+            if _iinfo.get("category") == "カスタム複合":
+                _sig_url_map[_iname] = ""
+            else:
+                _sig_url_map[_iname] = f"/{_cat_slug}/{_url_slug}/"
         # シグナルを富化（日本語名・URL・JST日時）
         for _s in all_signals:
             _iname = _s.get("indicator_name", "")

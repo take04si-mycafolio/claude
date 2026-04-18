@@ -4,6 +4,7 @@ from .lines import calculate_lines
 from .volatility import calculate_volatility
 from .patterns import calculate_patterns
 from .composite import calculate_composite
+from .custom import calculate_custom
 from .compute import compute_series
 
 __all__ = [
@@ -13,6 +14,7 @@ __all__ = [
     "calculate_volatility",
     "calculate_patterns",
     "calculate_composite",
+    "calculate_custom",
     "compute_series",
 ]
 
@@ -26,4 +28,5 @@ def calculate_all(df):
     results.update(calculate_volatility(df))
     results.update(calculate_patterns(df))
     results.update(calculate_composite(df))
+    results.update(calculate_custom(df))
     return results

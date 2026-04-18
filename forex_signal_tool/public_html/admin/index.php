@@ -604,6 +604,63 @@ main{max-width:900px;margin:0 auto;padding:28px 20px}
       </div>
     </div>
   </div>
+
+  <!-- カスタム複合指標 管理 -->
+  <div class="section">
+    <div class="section-title">カスタム複合指標</div>
+    <p style="font-size:12px;color:#64748b;margin-bottom:16px">バックテストv2で作成した戦略をテクニカル指標として登録できます。登録後はシグナルページ・ランキングに反映されます。</p>
+
+    <!-- 新規登録フォーム -->
+    <div style="background:#0b1525;border:1px solid #1e3a5f;border-radius:10px;padding:18px;margin-bottom:20px">
+      <div style="font-size:13px;font-weight:700;color:#38bdf8;margin-bottom:14px">➕ 新規登録</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px">
+        <div>
+          <label style="font-size:11px;color:#94a3b8;display:block;margin-bottom:4px">内部キー名（半角英数字・_のみ）<span style="color:#ef4444">*</span></label>
+          <input id="ci-name" type="text" placeholder="例: CustomV2_RSI_BB_Combo"
+                 style="width:100%;background:#0f172a;border:1px solid #334155;border-radius:6px;color:#e2e8f0;padding:8px 10px;font-size:13px;outline:none">
+        </div>
+        <div>
+          <label style="font-size:11px;color:#94a3b8;display:block;margin-bottom:4px">表示名（日本語可）<span style="color:#ef4444">*</span></label>
+          <input id="ci-display-name" type="text" placeholder="例: RSI＋BB 複合シグナル"
+                 style="width:100%;background:#0f172a;border:1px solid #334155;border-radius:6px;color:#e2e8f0;padding:8px 10px;font-size:13px;outline:none">
+        </div>
+      </div>
+      <div style="margin-bottom:12px">
+        <label style="font-size:11px;color:#94a3b8;display:block;margin-bottom:4px">説明（任意）</label>
+        <textarea id="ci-description" rows="2"
+                  style="width:100%;background:#0f172a;border:1px solid #334155;border-radius:6px;color:#e2e8f0;padding:8px 10px;font-size:12px;resize:vertical;font-family:inherit;outline:none"
+                  placeholder="この指標の概要を入力（省略可）"></textarea>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px">
+        <div>
+          <label style="font-size:11px;color:#94a3b8;display:block;margin-bottom:4px">得な相場（1行1項目）</label>
+          <textarea id="ci-good" rows="3"
+                    style="width:100%;background:#0f172a;border:1px solid #334155;border-radius:6px;color:#e2e8f0;padding:8px 10px;font-size:12px;resize:vertical;font-family:inherit;outline:none"
+                    placeholder="例)&#10;トレンド相場&#10;ボラティリティ高め"></textarea>
+        </div>
+        <div>
+          <label style="font-size:11px;color:#94a3b8;display:block;margin-bottom:4px">苦手な相場（1行1項目）</label>
+          <textarea id="ci-bad" rows="3"
+                    style="width:100%;background:#0f172a;border:1px solid #334155;border-radius:6px;color:#e2e8f0;padding:8px 10px;font-size:12px;resize:vertical;font-family:inherit;outline:none"
+                    placeholder="例)&#10;レンジ相場&#10;急騰・急落局面"></textarea>
+        </div>
+      </div>
+      <div style="font-size:11px;color:#64748b;margin-bottom:10px">
+        ⚠️ strategy_config は <a href="/admin/backtest_v2.php" style="color:#60a5fa">バックテストv2</a> で戦略を保存し、その内部キー名を上記に入力してください。登録ボタンを押すと保存済み戦略の設定が自動で読み込まれます。
+      </div>
+      <button onclick="saveCustomIndicator()"
+              id="ci-save-btn"
+              style="background:#0f766e;color:#fff;border:none;border-radius:7px;padding:8px 20px;font-size:13px;font-weight:600;cursor:pointer">
+        📊 指標として登録してバックテスト開始
+      </button>
+      <span id="ci-save-status" style="margin-left:10px;font-size:12px"></span>
+    </div>
+
+    <!-- 登録済み一覧 -->
+    <div style="font-size:13px;font-weight:700;color:#94a3b8;margin-bottom:10px">📋 登録済み一覧</div>
+    <div id="custom-indicator-list" style="font-size:12px;color:#475569;text-align:center;padding:12px">読み込み中...</div>
+  </div>
+
 </main>
 
 <script>
@@ -898,6 +955,155 @@ function loadQfChart() {
 
 document.getElementById('qf-range').addEventListener('change', loadQfChart);
 loadQfChart();
+
+// ---- カスタム複合指標 ----
+function escHtmlCi(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+async function loadCustomIndicators() {
+  const el = document.getElementById('custom-indicator-list');
+  if (!el) return;
+  try {
+    const res = await fetch('/admin/api.php?action=list_custom_indicators', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({}),
+    }).then(r => r.json());
+    if (res.status !== 'ok' || !res.indicators || res.indicators.length === 0) {
+      el.innerHTML = '<div style="color:#475569;text-align:center;padding:12px">登録済み指標はありません</div>';
+      return;
+    }
+    el.innerHTML = res.indicators.map(ind => `
+      <div style="background:#0b1525;border:1px solid #${ind.is_active == 1 ? '1e3a5f' : '334155'};border-radius:8px;padding:12px 16px;margin-bottom:8px;display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+        <div style="flex:1;min-width:200px">
+          <div style="font-size:14px;font-weight:600;color:${ind.is_active == 1 ? '#f1f5f9' : '#475569'}">${escHtmlCi(ind.display_name)}</div>
+          <div style="font-size:11px;color:#475569;margin-top:2px;font-family:monospace">${escHtmlCi(ind.name)}</div>
+          ${ind.description ? `<div style="font-size:11px;color:#64748b;margin-top:4px">${escHtmlCi(ind.description)}</div>` : ''}
+          <div style="font-size:11px;color:#334155;margin-top:2px">登録日: ${(ind.created_at||'').slice(0,10)} ${ind.is_active == 1 ? '<span style="color:#22c55e">●アクティブ</span>' : '<span style="color:#475569">●無効</span>'}</div>
+        </div>
+        <div style="display:flex;gap:6px;flex-shrink:0">
+          <button onclick="runCustomBt(${JSON.stringify(ind.name)})"
+                  style="background:#0e7490;color:#fff;border:none;border-radius:6px;padding:5px 12px;font-size:12px;font-weight:600;cursor:pointer">
+            🔄 BT再実行
+          </button>
+          ${ind.is_active == 1 ? `<button onclick="deleteCustomInd(${JSON.stringify(ind.name)})"
+                  style="background:#7f1d1d;color:#fca5a5;border:none;border-radius:6px;padding:5px 12px;font-size:12px;font-weight:600;cursor:pointer">
+            🗑️ 無効化
+          </button>` : ''}
+        </div>
+      </div>
+    `).join('');
+  } catch(e) {
+    el.innerHTML = '<div style="color:#ef4444;padding:12px">読み込みエラー: ' + e.message + '</div>';
+  }
+}
+
+async function saveCustomIndicator() {
+  const name        = document.getElementById('ci-name').value.trim();
+  const displayName = document.getElementById('ci-display-name').value.trim();
+  const description = document.getElementById('ci-description').value.trim();
+  const goodTxt     = document.getElementById('ci-good').value.trim();
+  const badTxt      = document.getElementById('ci-bad').value.trim();
+  const btn         = document.getElementById('ci-save-btn');
+  const stat        = document.getElementById('ci-save-status');
+
+  if (!name || !displayName) {
+    stat.textContent = '⚠ 内部キー名と表示名は必須です';
+    stat.style.color = '#f59e0b';
+    return;
+  }
+  if (!/^[A-Za-z0-9_]{1,80}$/.test(name)) {
+    stat.textContent = '⚠ 内部キー名は半角英数字・アンダースコアのみ';
+    stat.style.color = '#f59e0b';
+    return;
+  }
+
+  const toArr = txt => txt.split('\n').map(s => s.trim()).filter(s => s.length > 0);
+
+  // strategy_config を saved_strategies から name で取得
+  let strategyCfg = null;
+  try {
+    const sr = await fetch('/admin/api.php?action=load_strategy', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({ name }),
+    }).then(r => r.json());
+    if (sr.ok && sr.strategy && sr.strategy.strategy_config) {
+      strategyCfg = sr.strategy.strategy_config;
+    }
+  } catch(e) {}
+
+  if (!strategyCfg) {
+    stat.textContent = '⚠ バックテストv2で「' + name + '」という名前の保存済み戦略が見つかりません';
+    stat.style.color = '#f59e0b';
+    return;
+  }
+
+  btn.disabled = true;
+  stat.textContent = '登録中...';
+  stat.style.color = '#94a3b8';
+
+  try {
+    const res = await fetch('/admin/api.php?action=save_custom_indicator', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({
+        name,
+        display_name:    displayName,
+        description,
+        good_markets:    toArr(goodTxt),
+        bad_markets:     toArr(badTxt),
+        strategy_config: strategyCfg,
+      }),
+    }).then(r => r.json());
+
+    if (res.status === 'ok') {
+      stat.textContent = '✓ ' + res.message;
+      stat.style.color = '#22c55e';
+      document.getElementById('ci-name').value = '';
+      document.getElementById('ci-display-name').value = '';
+      document.getElementById('ci-description').value = '';
+      document.getElementById('ci-good').value = '';
+      document.getElementById('ci-bad').value = '';
+      setTimeout(loadCustomIndicators, 1000);
+    } else {
+      stat.textContent = 'エラー: ' + (res.message || '');
+      stat.style.color = '#ef4444';
+    }
+  } catch(e) {
+    stat.textContent = 'ネットワークエラー: ' + e.message;
+    stat.style.color = '#ef4444';
+  }
+  btn.disabled = false;
+}
+
+async function runCustomBt(name) {
+  if (!confirm(name + ' のバックテストを再実行しますか？')) return;
+  try {
+    const res = await fetch('/admin/api.php?action=run_custom_indicator_bt', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({ name }),
+    }).then(r => r.json());
+    alert(res.status === 'ok' ? '✓ ' + res.message : 'エラー: ' + (res.message || ''));
+  } catch(e) { alert('ネットワークエラー'); }
+}
+
+async function deleteCustomInd(name) {
+  if (!confirm(name + ' を無効化しますか？（バックテストデータは残ります）')) return;
+  try {
+    const res = await fetch('/admin/api.php?action=delete_custom_indicator', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({ name }),
+    }).then(r => r.json());
+    if (res.status === 'ok') loadCustomIndicators();
+    else alert('エラー: ' + (res.message || ''));
+  } catch(e) { alert('ネットワークエラー'); }
+}
+
+loadCustomIndicators();
 </script>
 <?php endif; // end logged-in ?>
 </body>
