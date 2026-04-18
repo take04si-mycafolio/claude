@@ -11,7 +11,9 @@ import sys
 import os
 import json
 import traceback
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
+
+_JST = timedelta(hours=9)
 
 # プロジェクトルートをパスに追加
 SCRIPT_DIR   = os.path.dirname(os.path.abspath(__file__))
@@ -171,14 +173,14 @@ def main():
                 res['rr_ratio'] = rr_ratio
                 res['sl_mode']  = sl_mode
 
-                # トレード履歴を JSON シリアライズ可能な形に変換
+                # トレード履歴を JSON シリアライズ可能な形に変換（DB は UTC 保存 → +9h で JST 表示）
                 trades_out = []
                 for t in res.get('trades', []):
                     ets = t.get('entry_ts')
                     xts = t.get('exit_ts')
                     trades_out.append({
-                        'entry_ts':     ets.strftime('%Y/%m/%d %H:%M') if hasattr(ets, 'strftime') else str(ets),
-                        'exit_ts':      xts.strftime('%Y/%m/%d %H:%M') if hasattr(xts, 'strftime') else str(xts),
+                        'entry_ts':     (ets + _JST).strftime('%Y/%m/%d %H:%M') if hasattr(ets, 'strftime') else str(ets),
+                        'exit_ts':      (xts + _JST).strftime('%Y/%m/%d %H:%M') if hasattr(xts, 'strftime') else (str(xts) if xts else ''),
                         'signal':       t.get('signal'),
                         'entry_price':  round(float(t.get('entry_price', 0)), 3),
                         'exit_price':   round(float(t.get('exit_price', 0)), 3),
