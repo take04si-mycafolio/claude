@@ -47,6 +47,19 @@ $INDICATOR_ARTICLES = [
 // DB からカスタム複合指標を取得してリストに追加
 try {
     $pdo = get_pdo();
+    $pdo->exec("CREATE TABLE IF NOT EXISTS custom_v2_indicators (
+        id              BIGINT PRIMARY KEY AUTO_INCREMENT,
+        name            VARCHAR(80)  NOT NULL UNIQUE,
+        display_name    VARCHAR(120) NOT NULL,
+        description     TEXT,
+        good_markets    TEXT,
+        bad_markets     TEXT,
+        category        VARCHAR(30)  NOT NULL DEFAULT 'カスタム複合',
+        strategy_config JSON         NOT NULL,
+        is_active       TINYINT(1)   NOT NULL DEFAULT 1,
+        created_at      DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        INDEX idx_custom_ind_active (is_active)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
     $customRows = $pdo->query(
         "SELECT name, display_name FROM custom_v2_indicators WHERE is_active=1 ORDER BY created_at DESC"
     )->fetchAll(PDO::FETCH_ASSOC);
