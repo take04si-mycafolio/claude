@@ -1635,7 +1635,10 @@ async function _bt2AutoSave() {
   };
 
   try {
-    const res = await fetch('/admin/api.php', {
+    if (stat) { stat.textContent = '保存中...'; stat.style.color = '#94a3b8'; }
+
+    // 1) saved_strategies に保存
+    const saveRes = await fetch('/admin/api.php', {
       method: 'POST', headers: {'Content-Type': 'application/json'},
       body: JSON.stringify({
         action:           'save_strategy',
@@ -1645,13 +1648,48 @@ async function _bt2AutoSave() {
         bt_result:        btResult,
       }),
     }).then(r => r.json());
-    if (res.ok) {
-      if (stat) { stat.textContent = '✅ 自動保存しました'; stat.style.color = '#4ade80'; }
-      await loadLinkedStrategies();
-      setTimeout(() => { if (stat) stat.textContent = ''; }, 5000);
+    if (!saveRes.ok) throw new Error(saveRes.error || '保存エラー');
+    await loadLinkedStrategies();
+
+    // 2) indicator_page_bt_results に保存（公開ページ反映用）
+    if (IND_SLUG) {
+      const periodFn = r => {
+        const s = r.metrics?.start_date, e = r.metrics?.end_date;
+        return (s && e) ? `${s}〜${e}` : '';
+      };
+      const pageRes = await fetch('/admin/api.php', {
+        method: 'POST', headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({
+          action:          'save_bt2_page_results',
+          indicator_name:  IND_SLUG,
+          results: _bt2InlineResults.map(r => ({
+            pair:    r.pair,
+            tf:      r.tf,
+            dir:     r.dir || '',
+            metrics: r.metrics,
+            period:  periodFn(r),
+          })),
+        }),
+      }).then(r => r.json());
+
+      // 3) 公開ページ再生成
+      if (pageRes.ok) {
+        if (stat) { stat.textContent = 'ページ更新中...'; stat.style.color = '#67e8f9'; }
+        const rebuildRes = await fetch('/admin/api.php', {
+          method: 'POST', headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({ action: 'rebuild_indicator_page', slug: IND_SLUG }),
+        }).then(r => r.json());
+        if (stat) {
+          stat.textContent = rebuildRes.ok ? '✅ 保存・ページ更新完了' : '✅ 保存完了（ページ更新失敗）';
+          stat.style.color = rebuildRes.ok ? '#4ade80' : '#facc15';
+        }
+      } else {
+        if (stat) { stat.textContent = '✅ 保存完了（ページ保存失敗: ' + (pageRes.error||'') + '）'; stat.style.color = '#facc15'; }
+      }
     } else {
-      if (stat) { stat.textContent = '⚠️ 自動保存失敗: ' + (res.error || ''); stat.style.color = '#f87171'; }
+      if (stat) { stat.textContent = '✅ 自動保存しました'; stat.style.color = '#4ade80'; }
     }
+    setTimeout(() => { if (stat) stat.textContent = ''; }, 6000);
   } catch(e) {
     if (stat) { stat.textContent = '⚠️ 自動保存エラー: ' + e.message; stat.style.color = '#f87171'; }
   }

@@ -448,6 +448,133 @@ switch ($action) {
         json_out($result);
         break;
 
+    // ---- BT2インライン結果を indicator_page_bt_results に保存 ----
+    case 'save_bt2_page_results':
+        require_login();
+        try {
+            $pdo           = get_pdo();
+            $indicatorName = trim($body['indicator_name'] ?? '');
+            $results       = $body['results'] ?? [];  // [{pair, tf, dir, metrics, period}]
+            if (!$indicatorName || !$results) {
+                json_out(['ok' => false, 'error' => 'indicator_name と results が必要']);
+                break;
+            }
+
+            // テーブル存在確認（run_indicator_page_bt.py と同じ DDL）
+            $pdo->exec("CREATE TABLE IF NOT EXISTS indicator_page_bt_results (
+                id              BIGINT AUTO_INCREMENT PRIMARY KEY,
+                indicator_name  VARCHAR(80)  NOT NULL,
+                currency_pair   VARCHAR(10)  NOT NULL,
+                timeframe       VARCHAR(10)  NOT NULL,
+                signal_direction VARCHAR(10) DEFAULT 'BOTH',
+                win_rate        DECIMAL(5,2) NOT NULL DEFAULT 0,
+                total_trades    INT          NOT NULL DEFAULT 0,
+                winning_trades  INT          NOT NULL DEFAULT 0,
+                losing_trades   INT          NOT NULL DEFAULT 0,
+                total_profit    DECIMAL(15,2) NOT NULL DEFAULT 0,
+                initial_capital DECIMAL(15,2) NOT NULL DEFAULT 1000000,
+                final_capital   DECIMAL(15,2) NOT NULL DEFAULT 1000000,
+                sl_pips         DECIMAL(8,2)  NOT NULL DEFAULT 20,
+                tp_pips         DECIMAL(8,2)  NOT NULL DEFAULT 40,
+                max_drawdown    DECIMAL(15,2) DEFAULT 0,
+                profit_factor   DECIMAL(8,4)  DEFAULT 0,
+                start_date      DATE NULL,
+                end_date        DATE NULL,
+                bars_used       INT DEFAULT 0,
+                calculated_at   DATETIME NOT NULL,
+                created_at      DATETIME DEFAULT CURRENT_TIMESTAMP,
+                UNIQUE KEY uq_ind_page_bt (indicator_name, currency_pair, timeframe)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+
+            // pair/tf ごとに BUY+SELL 結果をマージ
+            $grouped = [];
+            foreach ($results as $r) {
+                $key = ($r['pair'] ?? '') . '_' . ($r['tf'] ?? '');
+                if (!isset($grouped[$key])) {
+                    $grouped[$key] = ['pair' => $r['pair'], 'tf' => $r['tf'], 'rows' => []];
+                }
+                $grouped[$key]['rows'][] = $r;
+            }
+
+            $stmt = $pdo->prepare("INSERT INTO indicator_page_bt_results
+                (indicator_name, currency_pair, timeframe, signal_direction,
+                 win_rate, total_trades, winning_trades, losing_trades,
+                 total_profit, initial_capital, final_capital,
+                 sl_pips, tp_pips, max_drawdown, profit_factor,
+                 start_date, end_date, calculated_at)
+                VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,NOW())
+                ON DUPLICATE KEY UPDATE
+                    signal_direction=VALUES(signal_direction),
+                    win_rate=VALUES(win_rate),
+                    total_trades=VALUES(total_trades),
+                    winning_trades=VALUES(winning_trades),
+                    losing_trades=VALUES(losing_trades),
+                    total_profit=VALUES(total_profit),
+                    initial_capital=VALUES(initial_capital),
+                    final_capital=VALUES(final_capital),
+                    sl_pips=VALUES(sl_pips),
+                    tp_pips=VALUES(tp_pips),
+                    max_drawdown=VALUES(max_drawdown),
+                    profit_factor=VALUES(profit_factor),
+                    start_date=VALUES(start_date),
+                    end_date=VALUES(end_date),
+                    calculated_at=NOW()");
+
+            foreach ($grouped as $item) {
+                $pair = $item['pair'];
+                $tf   = $item['tf'];
+                $rows = $item['rows'];
+
+                $totalTrades = $winTrades = $totalProfit = 0;
+                $pfSum = $pfCnt = 0;
+                $ic = 1000000;
+                $sl = 20; $tp = 40; $md = 0;
+                $dirs = [];
+                $startDate = $endDate = null;
+
+                foreach ($rows as $r) {
+                    $m = $r['metrics'] ?? [];
+                    $tt = (int)($m['total_trades'] ?? 0);
+                    $wr = (float)($m['win_rate'] ?? 0);
+                    $totalTrades  += $tt;
+                    $winTrades    += (int)round($wr * $tt);
+                    $totalProfit  += (float)($m['total_profit'] ?? 0);
+                    $pf = (float)($m['profit_factor'] ?? 0);
+                    if ($pf > 0 && is_finite($pf)) { $pfSum += $pf; $pfCnt++; }
+                    $ic  = (float)($m['initial_capital'] ?? $ic);
+                    $sl  = (float)($m['sl_pips'] ?? $sl);
+                    $tp  = (float)($m['tp_pips'] ?? $tp);
+                    $md  = max($md, (float)($m['max_drawdown'] ?? 0));
+                    if (!empty($r['dir'])) $dirs[] = $r['dir'];
+                    if (!empty($r['period'])) {
+                        [$ps, $pe] = array_pad(explode('〜', $r['period']), 2, null);
+                        if ($ps && !$startDate) $startDate = $ps;
+                        if ($pe) $endDate = $pe;
+                    }
+                }
+                $winRate = $totalTrades > 0 ? ($winTrades / $totalTrades) * 100 : 0;
+                $pfAvg   = $pfCnt > 0 ? $pfSum / $pfCnt : 0;
+                $fc      = $ic + $totalProfit;
+                $loseTrades = $totalTrades - $winTrades;
+                $uniqueDirs = array_unique($dirs);
+                $dir = count($uniqueDirs) > 1 ? 'BOTH' : ($uniqueDirs[0] ?? 'BOTH');
+
+                $stmt->execute([
+                    $indicatorName, $pair, $tf, $dir,
+                    round($winRate, 2), $totalTrades, $winTrades, $loseTrades,
+                    round($totalProfit, 2), round($ic, 2), round($fc, 2),
+                    round($sl, 2), round($tp, 2),
+                    round($md, 2), round($pfAvg, 4),
+                    $startDate ?: null, $endDate ?: null,
+                ]);
+            }
+
+            json_out(['ok' => true, 'saved' => count($grouped)]);
+        } catch (Exception $e) {
+            json_out(['ok' => false, 'error' => $e->getMessage()]);
+        }
+        break;
+
     // ---- 戦略保存 / 読込 / 一覧 ----
     case 'save_strategy':
         require_login();
