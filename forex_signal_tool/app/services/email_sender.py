@@ -62,6 +62,105 @@ def send_report_email(report_id: int) -> bool:
         return False
 
 
+def send_quantflow_signal_email(signal, event_type: str) -> bool:
+    """
+    QuantFlow ライブシグナルのメール通知を送信する。
+
+    Parameters
+    ----------
+    signal : QuantFlowLiveSignal
+    event_type : str
+        "ENTRY" / "EXIT_TP" / "EXIT_SL" / "EXIT_SIGNAL_END"
+
+    受信先: Settings テーブルの quantflow_signal_recipients（カンマ区切り）
+    """
+    from app import mail
+    from app.models.settings import Setting
+    from flask_mail import Message
+
+    recipients_raw = Setting.get("quantflow_signal_recipients", "")
+    recipients = [r.strip() for r in recipients_raw.split(",") if r.strip()]
+    if not recipients:
+        logger.warning("quantflow_signal_recipients が未設定のためメール送信をスキップ")
+        return False
+
+    dir_ja    = "買い（BUY）" if signal.direction == "BUY" else "売り（SELL）"
+    ep_str    = f"{float(signal.entry_price):.3f}"
+    sl_str    = f"{float(signal.sl_price):.3f}"
+    tp_str    = f"{float(signal.tp_price):.3f}"
+    entry_jst = (signal.entry_ts + timedelta(hours=9)).strftime("%Y/%m/%d %H:%M JST")
+
+    subjects = {
+        "ENTRY":           f"[QuantFlow] {dir_ja}シグナル発生 - USDJPY",
+        "EXIT_TP":         f"[QuantFlow] TP達成（利確）- USDJPY {signal.direction}",
+        "EXIT_SL":         f"[QuantFlow] SL到達（損切）- USDJPY {signal.direction}",
+        "EXIT_SIGNAL_END": f"[QuantFlow] シグナル変更で決済 - USDJPY {signal.direction}",
+    }
+
+    if event_type == "ENTRY":
+        body = f"""
+<h2>QuantFlow シグナル発生</h2>
+<table>
+  <tr><th>方向</th><td>{dir_ja}</td></tr>
+  <tr><th>スコア</th><td>{signal.score_at_entry}</td></tr>
+  <tr><th>エントリー日時</th><td>{entry_jst}</td></tr>
+  <tr><th>エントリー価格</th><td>{ep_str}</td></tr>
+  <tr><th>SL</th><td>{sl_str}（{float(signal.sl_pips):.1f} pips）</td></tr>
+  <tr><th>TP</th><td>{tp_str}（{float(signal.tp_pips):.1f} pips）</td></tr>
+</table>"""
+    else:
+        exit_jst = (
+            (signal.exit_ts + timedelta(hours=9)).strftime("%Y/%m/%d %H:%M JST")
+            if signal.exit_ts else "-"
+        )
+        exit_str = f"{float(signal.exit_price):.3f}" if signal.exit_price else "-"
+        pp_str   = f"{float(signal.profit_pips):+.2f}" if signal.profit_pips is not None else "-"
+        reason_ja = {
+            "EXIT_TP":         "TP達成（利確）",
+            "EXIT_SL":         "SL到達（損切）",
+            "EXIT_SIGNAL_END": "シグナル変更",
+        }.get(event_type, event_type)
+        body = f"""
+<h2>QuantFlow ポジション決済</h2>
+<table>
+  <tr><th>決済理由</th><td>{reason_ja}</td></tr>
+  <tr><th>方向</th><td>{dir_ja}</td></tr>
+  <tr><th>エントリー日時</th><td>{entry_jst}</td></tr>
+  <tr><th>エントリー価格</th><td>{ep_str}</td></tr>
+  <tr><th>決済日時</th><td>{exit_jst}</td></tr>
+  <tr><th>決済価格</th><td>{exit_str}</td></tr>
+  <tr><th>損益</th><td>{pp_str} pips</td></tr>
+</table>"""
+
+    html = f"""<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<style>
+  body  {{ font-family: sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; color: #333; }}
+  h2   {{ color: #1a56db; }}
+  table {{ border-collapse: collapse; width: 100%; }}
+  th, td {{ border: 1px solid #ddd; padding: 8px 12px; text-align: left; }}
+  th   {{ background: #f5f5f5; width: 35%; }}
+</style>
+</head>
+<body>{body}</body>
+</html>"""
+
+    try:
+        msg = Message(
+            subject    = subjects.get(event_type, "[QuantFlow] 通知"),
+            recipients = recipients,
+            html       = html,
+        )
+        mail.send(msg)
+        logger.info("QuantFlow email sent: %s → %s", event_type, recipients)
+        return True
+    except Exception as exc:
+        logger.error("QuantFlow email failed: %s", exc)
+        return False
+
+
 def _markdown_to_html(text: str) -> str:
     """シンプルなMarkdown → HTML変換"""
     import re

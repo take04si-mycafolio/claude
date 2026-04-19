@@ -189,6 +189,36 @@ switch ($action) {
         }
         break;
 
+    case 'quantflow_live_position':
+        require_login();
+        try {
+            $pdo = get_pdo();
+            $open = $pdo->query("
+                SELECT id, direction, score_at_entry,
+                       entry_price, sl_price, tp_price, sl_pips, tp_pips,
+                       DATE_FORMAT(CONVERT_TZ(entry_ts,'+00:00','+09:00'),'%Y/%m/%d %H:%i') AS entry_jst,
+                       status
+                FROM quantflow_live_signals
+                WHERE currency_pair='USDJPY' AND status='OPEN'
+                ORDER BY entry_ts DESC LIMIT 1
+            ")->fetch(PDO::FETCH_ASSOC);
+
+            $closed = $pdo->query("
+                SELECT id, direction, score_at_entry,
+                       entry_price, exit_price, outcome, profit_pips, exit_reason,
+                       DATE_FORMAT(CONVERT_TZ(entry_ts,'+00:00','+09:00'),'%Y/%m/%d %H:%i') AS entry_jst,
+                       DATE_FORMAT(CONVERT_TZ(exit_ts, '+00:00','+09:00'),'%Y/%m/%d %H:%i') AS exit_jst
+                FROM quantflow_live_signals
+                WHERE currency_pair='USDJPY' AND status='CLOSED'
+                ORDER BY exit_ts DESC LIMIT 20
+            ")->fetchAll(PDO::FETCH_ASSOC);
+
+            json_out(['ok' => true, 'open' => $open ?: null, 'closed' => $closed]);
+        } catch (Exception $e) {
+            json_out(['ok' => false, 'error' => $e->getMessage()]);
+        }
+        break;
+
     case 'qf_trades_csv':
         require_login();
         try {
@@ -1673,7 +1703,30 @@ switch ($action) {
                     INDEX idx_custom_ind_active (is_active)
                 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
             ");
-            json_out(['status' => 'ok', 'message' => 'custom_v2_indicators テーブルを作成しました（既存の場合はスキップ）']);
+            $pdo->exec("
+                CREATE TABLE IF NOT EXISTS quantflow_live_signals (
+                    id             BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+                    currency_pair  VARCHAR(10)   NOT NULL,
+                    entry_ts       DATETIME      NOT NULL,
+                    exit_ts        DATETIME      NULL,
+                    direction      VARCHAR(4)    NOT NULL,
+                    score_at_entry INT           NOT NULL,
+                    entry_price    DECIMAL(12,5) NOT NULL,
+                    exit_price     DECIMAL(12,5) NULL,
+                    sl_price       DECIMAL(12,5) NOT NULL,
+                    tp_price       DECIMAL(12,5) NOT NULL,
+                    sl_pips        DECIMAL(8,2)  NOT NULL,
+                    tp_pips        DECIMAL(8,2)  NOT NULL,
+                    outcome        VARCHAR(4)    NULL,
+                    profit_pips    DECIMAL(8,2)  NULL,
+                    status         VARCHAR(8)    NOT NULL DEFAULT 'OPEN',
+                    exit_reason    VARCHAR(16)   NULL,
+                    created_at     DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                    INDEX idx_qls_pair_status (currency_pair, status),
+                    INDEX idx_qls_entry_ts    (entry_ts)
+                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+            ");
+            json_out(['status' => 'ok', 'message' => 'テーブルを作成しました（既存の場合はスキップ）']);
         } catch (Exception $e) {
             json_out(['status' => 'error', 'message' => $e->getMessage()]);
         }

@@ -411,6 +411,29 @@ main{max-width:900px;margin:0 auto;padding:28px 20px}
     </div>
   </div>
 
+  <!-- ===== QuantFlow ライブポジション ===== -->
+  <div class="section">
+    <div class="section-title" style="display:flex;align-items:center;justify-content:space-between">
+      <span>QuantFlow ライブポジション</span>
+      <button onclick="loadLivePosition()" style="background:#1e293b;border:1px solid #334155;color:#94a3b8;font-size:12px;padding:4px 10px;border-radius:6px;cursor:pointer">再読込</button>
+    </div>
+    <div style="background:#1e293b;border:1px solid #334155;border-radius:10px;padding:18px;margin-top:10px">
+      <div id="live-pos-loading" style="text-align:center;color:#64748b;font-size:13px;padding:20px 0">
+        <span class="spin" style="border-color:#33415599;border-top-color:#60a5fa"></span> 読み込み中...
+      </div>
+      <div id="live-pos-content" style="display:none"></div>
+    </div>
+  </div>
+
+  <!-- ===== QuantFlow トレード実績（ライブ） ===== -->
+  <div class="section">
+    <div class="section-title">QuantFlow トレード実績（ライブシグナル）</div>
+    <div id="live-trades-loading" style="text-align:center;color:#64748b;font-size:13px;padding:20px 0">
+      <span class="spin" style="border-color:#33415599;border-top-color:#60a5fa"></span>
+    </div>
+    <div id="live-trades-content" style="display:none"></div>
+  </div>
+
   <!-- ===== DB 使用量内訳 ===== -->
   <div class="section">
     <div class="section-title">データベース使用量内訳</div>
@@ -980,6 +1003,101 @@ function loadQfChart() {
 
 document.getElementById('qf-range').addEventListener('change', loadQfChart);
 loadQfChart();
+
+// ---- QuantFlow ライブポジション ----
+async function loadLivePosition() {
+  var posLoad   = document.getElementById('live-pos-loading');
+  var posEl     = document.getElementById('live-pos-content');
+  var trdLoad   = document.getElementById('live-trades-loading');
+  var trdEl     = document.getElementById('live-trades-content');
+
+  posLoad.style.display = 'block';
+  posEl.style.display   = 'none';
+  trdLoad.style.display = 'block';
+  trdEl.style.display   = 'none';
+
+  try {
+    var res  = await fetch('/admin/api.php?action=quantflow_live_position');
+    var data = await res.json();
+    if (!data.ok) throw new Error(data.error || 'エラー');
+
+    // 現在ポジション
+    if (data.open) {
+      var p        = data.open;
+      var dirColor = p.direction === 'BUY' ? '#4ade80' : '#f87171';
+      var dirLabel = p.direction === 'BUY' ? '買い (BUY)' : '売り (SELL)';
+      posEl.innerHTML =
+        '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:12px">' +
+          '<div style="background:#0f172a;border-radius:8px;padding:12px;text-align:center">' +
+            '<div style="font-size:11px;color:#64748b;margin-bottom:4px">方向</div>' +
+            '<div style="font-size:18px;font-weight:700;color:' + dirColor + '">' + dirLabel + '</div>' +
+          '</div>' +
+          '<div style="background:#0f172a;border-radius:8px;padding:12px;text-align:center">' +
+            '<div style="font-size:11px;color:#64748b;margin-bottom:4px">スコア</div>' +
+            '<div style="font-size:18px;font-weight:700;color:#94a3b8">' + p.score_at_entry + '</div>' +
+          '</div>' +
+          '<div style="background:#0f172a;border-radius:8px;padding:12px;text-align:center">' +
+            '<div style="font-size:11px;color:#64748b;margin-bottom:4px">エントリー価格</div>' +
+            '<div style="font-size:14px;font-weight:700;color:#e2e8f0">' + parseFloat(p.entry_price).toFixed(3) + '</div>' +
+          '</div>' +
+          '<div style="background:#0f172a;border-radius:8px;padding:12px;text-align:center">' +
+            '<div style="font-size:11px;color:#64748b;margin-bottom:4px">SL / TP</div>' +
+            '<div style="font-size:13px;color:#94a3b8">' + parseFloat(p.sl_price).toFixed(3) + ' / ' + parseFloat(p.tp_price).toFixed(3) + '</div>' +
+            '<div style="font-size:11px;color:#64748b">' + p.sl_pips + 'p / ' + p.tp_pips + 'p</div>' +
+          '</div>' +
+          '<div style="background:#0f172a;border-radius:8px;padding:12px;text-align:center">' +
+            '<div style="font-size:11px;color:#64748b;margin-bottom:4px">エントリー日時(JST)</div>' +
+            '<div style="font-size:12px;color:#94a3b8">' + p.entry_jst + '</div>' +
+          '</div>' +
+        '</div>';
+    } else {
+      posEl.innerHTML = '<div style="text-align:center;color:#64748b;font-size:13px;padding:20px 0">現在ポジションなし</div>';
+    }
+    posLoad.style.display = 'none';
+    posEl.style.display   = 'block';
+
+    // トレード履歴
+    if (!data.closed || data.closed.length === 0) {
+      trdEl.innerHTML = '<div style="text-align:center;color:#64748b;font-size:13px;padding:20px 0">実績データなし</div>';
+    } else {
+      var reasonMap = {'TP':'TP達成','SL':'SL到達','SIGNAL_END':'シグナル変更'};
+      var rows = data.closed.map(function(t) {
+        var oc     = t.outcome === 'WIN' ? '#4ade80' : '#f87171';
+        var pp     = t.profit_pips != null
+          ? (parseFloat(t.profit_pips) >= 0 ? '+' : '') + parseFloat(t.profit_pips).toFixed(2)
+          : '-';
+        var reason = reasonMap[t.exit_reason] || t.exit_reason || '-';
+        var dColor = t.direction === 'BUY' ? '#4ade80' : '#f87171';
+        return '<tr>' +
+          '<td>' + (t.entry_jst || '-') + '</td>' +
+          '<td style="color:' + dColor + '">' + t.direction + '</td>' +
+          '<td style="text-align:right">' + t.score_at_entry + '</td>' +
+          '<td style="text-align:right">' + parseFloat(t.entry_price).toFixed(3) + '</td>' +
+          '<td style="text-align:right">' + (t.exit_price ? parseFloat(t.exit_price).toFixed(3) : '-') + '</td>' +
+          '<td style="text-align:center">' + (t.exit_jst || '-') + '</td>' +
+          '<td style="text-align:center;color:' + oc + '">' + (t.outcome || '-') + '</td>' +
+          '<td style="text-align:right;color:' + oc + '">' + pp + '</td>' +
+          '<td style="text-align:center;color:#94a3b8;font-size:11px">' + reason + '</td>' +
+        '</tr>';
+      }).join('');
+      trdEl.innerHTML =
+        '<div class="table-wrap"><table class="data-table">' +
+          '<thead><tr>' +
+            '<th>エントリー(JST)</th><th>方向</th><th class="num">スコア</th>' +
+            '<th class="num">エントリー価格</th><th class="num">決済価格</th>' +
+            '<th>決済日時(JST)</th><th>結果</th><th class="num">損益(pips)</th><th>決済理由</th>' +
+          '</tr></thead>' +
+          '<tbody>' + rows + '</tbody>' +
+        '</table></div>';
+    }
+    trdLoad.style.display = 'none';
+    trdEl.style.display   = 'block';
+
+  } catch(e) {
+    posLoad.textContent = 'エラー: ' + e.message;
+  }
+}
+loadLivePosition();
 
 // ---- カスタム複合指標 ----
 function escHtmlCi(s) {

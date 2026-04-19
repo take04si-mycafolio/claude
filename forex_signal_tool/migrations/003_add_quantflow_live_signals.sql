@@ -1,0 +1,21 @@
+CREATE TABLE IF NOT EXISTS quantflow_live_signals (
+  id             BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  currency_pair  VARCHAR(10)   NOT NULL,
+  entry_ts       DATETIME      NOT NULL,
+  exit_ts        DATETIME      NULL,
+  direction      VARCHAR(4)    NOT NULL,
+  score_at_entry INT           NOT NULL,
+  entry_price    DECIMAL(12,5) NOT NULL,
+  exit_price     DECIMAL(12,5) NULL,
+  sl_price       DECIMAL(12,5) NOT NULL,
+  tp_price       DECIMAL(12,5) NOT NULL,
+  sl_pips        DECIMAL(8,2)  NOT NULL,
+  tp_pips        DECIMAL(8,2)  NOT NULL,
+  outcome        VARCHAR(4)    NULL,
+  profit_pips    DECIMAL(8,2)  NULL,
+  status         VARCHAR(8)    NOT NULL DEFAULT 'OPEN',
+  exit_reason    VARCHAR(16)   NULL,
+  created_at     DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  INDEX idx_qls_pair_status (currency_pair, status),
+  INDEX idx_qls_entry_ts    (entry_ts)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
