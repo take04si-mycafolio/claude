@@ -269,22 +269,27 @@ if ($is_indicator && $ind_slug) {
 }
 ?>
 
-<?php if ($is_indicator): ?>
-  <!-- シグナルの仕組み -->
-  <div class="editor-card" style="margin-bottom:16px;border-color:#1e4028">
-    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
-      <span style="font-size:13px;font-weight:700;color:#86efac">⚡ シグナルの仕組み</span>
-      <div style="display:flex;align-items:center;gap:8px">
-        <span id="feature-save-status" style="font-size:12px;color:#94a3b8"></span>
-        <button onclick="saveFeatureText()" style="background:#14532d;color:#86efac;border:1px solid #16a34a;border-radius:6px;padding:6px 14px;font-size:12px;font-weight:600;cursor:pointer">💾 保存 &amp; ページ更新</button>
-      </div>
-    </div>
-    <div style="font-size:11px;color:#475569;margin-bottom:6px">公開ページの「指標の概要」内「シグナルの仕組み」欄に表示されます。</div>
-    <textarea id="feature-text" rows="3"
-      style="width:100%;background:#0f172a;border:1px solid #334155;border-radius:6px;color:#e2e8f0;padding:10px 12px;font-size:13px;outline:none;resize:vertical"
-      placeholder="例: 上ヒゲピンバー→売りシグナル（上方向への拒絶）、下ヒゲピンバー→買いシグナル（下方向への拒絶）。プライスアクション分析の核心的パターンです。"><?= htmlspecialchars($current_feature) ?></textarea>
+<!-- トップ アクションバー -->
+<div class="editor-card" style="margin-bottom:16px">
+  <div class="editor-actions">
+    <button class="save-btn" id="save-btn-top" onclick="saveContent()">保存する</button>
+    <span id="save-status-top" class="save-status"></span>
+<?php if ($is_indicator && $indicator_name): ?>
+    <a class="csv-btn"
+       href="/admin/api.php?action=indicator_csv&ind=<?= urlencode($indicator_name) ?>"
+       style="margin-left:8px">
+      📥 バックテストCSV（ZIP）
+    </a>
+<?php endif; ?>
+<?php if (($is_indicator && $ind_slug) || $is_pair): ?>
+    <button class="rebuild-btn" id="rebuild-btn-top" onclick="rebuildPage()">🔄 公開ページを更新</button>
+    <span class="rebuild-status" id="rebuild-status-top"></span>
+    <button onclick="previewArticle()" style="background:#1e3a5f;color:#7dd3fc;border:1px solid #1e4976;border-radius:7px;padding:7px 16px;font-size:12px;font-weight:600;cursor:pointer;transition:all .15s">🔍 プレビュー</button>
+<?php endif; ?>
   </div>
+</div>
 
+<?php if ($is_indicator): ?>
   <!-- SEO設定 -->
   <div class="editor-card" style="margin-bottom:16px;border-color:#1e4976">
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
@@ -309,6 +314,86 @@ if ($is_indicator && $ind_slug) {
              placeholder="例: PinSMAの勝率をBUY・SELL別にバックテストで検証。カスタム複合指標によるエントリー精度をデータで解説。"><?= htmlspecialchars($current_seo_desc) ?></textarea>
       <div id="seo-desc-count" style="font-size:11px;color:#64748b;margin-top:3px;text-align:right"></div>
     </div>
+  </div>
+
+<?php if ($is_custom_indicator): ?>
+  <!-- カスタム指標として登録・更新 -->
+  <div id="ci-register-wrap" style="margin-bottom:16px;padding:14px;background:#0d0a1f;border:1px solid #3b1d8a;border-radius:8px">
+    <div style="font-size:12px;font-weight:600;color:#a78bfa;margin-bottom:10px">📌 カスタム指標として登録・更新</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px">
+      <div>
+        <label style="font-size:10px;color:#64748b;display:block;margin-bottom:3px">表示名</label>
+        <input type="text" id="ci-display-name"
+               value="<?= htmlspecialchars($custom_indicator['display_name'] ?? ($article['title'] ?? '')) ?>"
+               style="width:100%;background:#0f172a;border:1px solid #334155;border-radius:5px;color:#e2e8f0;padding:7px 10px;font-size:12px;outline:none">
+      </div>
+      <div>
+        <label style="font-size:10px;color:#64748b;display:block;margin-bottom:3px">内部キー名（変更不可）</label>
+        <input type="text" id="ci-reg-name"
+               value="<?= htmlspecialchars($ind_slug ?? '') ?>"
+               readonly
+               style="width:100%;background:#0f172a;border:1px solid #1e293b;border-radius:5px;color:#64748b;padding:7px 10px;font-size:12px;outline:none;opacity:.7">
+      </div>
+    </div>
+    <div style="margin-bottom:10px">
+      <label style="font-size:10px;color:#64748b;display:block;margin-bottom:3px">説明</label>
+      <textarea id="ci-reg-desc" rows="2"
+                style="width:100%;background:#0f172a;border:1px solid #334155;border-radius:5px;color:#e2e8f0;padding:7px 10px;font-size:12px;resize:vertical;outline:none"><?= htmlspecialchars($custom_indicator['description'] ?? '') ?></textarea>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px">
+      <div>
+        <label style="font-size:10px;color:#64748b;display:block;margin-bottom:3px">得な相場（1行1項目）</label>
+        <textarea id="ci-reg-good" rows="3"
+                  style="width:100%;background:#0f172a;border:1px solid #334155;border-radius:5px;color:#e2e8f0;padding:7px 10px;font-size:12px;resize:vertical;outline:none"><?php
+          if (!empty($custom_indicator['good_markets'])) {
+              $g = is_array($custom_indicator['good_markets'])
+                   ? $custom_indicator['good_markets']
+                   : json_decode($custom_indicator['good_markets'], true);
+              echo htmlspecialchars(is_array($g) ? implode("\n", $g) : '');
+          }
+        ?></textarea>
+      </div>
+      <div>
+        <label style="font-size:10px;color:#64748b;display:block;margin-bottom:3px">苦手な相場（1行1項目）</label>
+        <textarea id="ci-reg-bad" rows="3"
+                  style="width:100%;background:#0f172a;border:1px solid #334155;border-radius:5px;color:#e2e8f0;padding:7px 10px;font-size:12px;resize:vertical;outline:none"><?php
+          if (!empty($custom_indicator['bad_markets'])) {
+              $b = is_array($custom_indicator['bad_markets'])
+                   ? $custom_indicator['bad_markets']
+                   : json_decode($custom_indicator['bad_markets'], true);
+              echo htmlspecialchars(is_array($b) ? implode("\n", $b) : '');
+          }
+        ?></textarea>
+      </div>
+    </div>
+    <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+      <button onclick="registerAsCustomIndicator()"
+              style="background:#7c3aed;color:#fff;border:none;border-radius:7px;padding:8px 20px;font-size:13px;font-weight:600;cursor:pointer">
+        📌 登録・更新
+      </button>
+      <button id="ci-save-rebuild-btn" onclick="saveConfigAndRebuild()"
+              style="background:#0e7490;color:#fff;border:none;border-radius:7px;padding:8px 20px;font-size:13px;font-weight:600;cursor:pointer"
+              title="BT再実行なしで設定保存 & 公開ページ即時反映">
+        🔄 設定保存 &amp; ページ反映
+      </button>
+      <span id="ci-reg-status" style="font-size:12px;color:#94a3b8"></span>
+    </div>
+  </div>
+<?php endif; ?>
+
+  <!-- シグナルの仕組み -->
+  <div class="editor-card" style="margin-bottom:16px;border-color:#1e4028">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+      <span style="font-size:13px;font-weight:700;color:#86efac">⚡ シグナルの仕組み</span>
+      <div style="display:flex;align-items:center;gap:8px">
+        <span id="feature-save-status" style="font-size:12px;color:#94a3b8"></span>
+        <button onclick="saveFeatureText()" style="background:#14532d;color:#86efac;border:1px solid #16a34a;border-radius:6px;padding:6px 14px;font-size:12px;font-weight:600;cursor:pointer">💾 保存 &amp; ページ更新</button>
+      </div>
+    </div>
+    <div style="font-size:11px;color:#475569;margin-bottom:6px">公開ページの「指標の概要」内「シグナルの仕組み」欄に表示されます。</div>
+    <textarea id="feature-text" rows="3"
+      style="width:100%;background:#0f172a;border:1px solid #334155;border-radius:6px;color:#e2e8f0;padding:10px 12px;font-size:13px;outline:none;resize:vertical"
+      placeholder="例: 上ヒゲピンバー→売りシグナル（上方向への拒絶）、下ヒゲピンバー→買いシグナル（下方向への拒絶）。プライスアクション分析の核心的パターンです。"><?= htmlspecialchars($current_feature) ?></textarea>
   </div>
 
   <!-- 指標記事：3フィールド（CSS / HTML / JSON-LD） -->
@@ -988,71 +1073,6 @@ function resetIndicatorPageBt() {
     </button>
     <span id="bt2-reset-status" style="font-size:12px;color:#475569"></span>
     <span style="font-size:11px;color:#475569">間違えた設定で保存した場合はリセットして再実行してください</span>
-  </div>
-  <?php endif; ?>
-
-  <?php if ($is_indicator): ?>
-  <!-- カスタム指標として登録・更新 -->
-  <div id="ci-register-wrap" style="margin-top:12px;padding:14px;background:#0d0a1f;border:1px solid #3b1d8a;border-radius:8px">
-    <div style="font-size:12px;font-weight:600;color:#a78bfa;margin-bottom:10px">📌 カスタム指標として登録・更新</div>
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px">
-      <div>
-        <label style="font-size:10px;color:#64748b;display:block;margin-bottom:3px">表示名</label>
-        <input type="text" id="ci-display-name"
-               value="<?= htmlspecialchars($custom_indicator['display_name'] ?? ($article['title'] ?? '')) ?>"
-               style="width:100%;background:#0f172a;border:1px solid #334155;border-radius:5px;color:#e2e8f0;padding:7px 10px;font-size:12px;outline:none">
-      </div>
-      <div>
-        <label style="font-size:10px;color:#64748b;display:block;margin-bottom:3px">内部キー名（変更不可）</label>
-        <input type="text" id="ci-reg-name"
-               value="<?= htmlspecialchars($ind_slug ?? '') ?>"
-               readonly
-               style="width:100%;background:#0f172a;border:1px solid #1e293b;border-radius:5px;color:#64748b;padding:7px 10px;font-size:12px;outline:none;opacity:.7">
-      </div>
-    </div>
-    <div style="margin-bottom:10px">
-      <label style="font-size:10px;color:#64748b;display:block;margin-bottom:3px">説明</label>
-      <textarea id="ci-reg-desc" rows="2"
-                style="width:100%;background:#0f172a;border:1px solid #334155;border-radius:5px;color:#e2e8f0;padding:7px 10px;font-size:12px;resize:vertical;outline:none"><?= htmlspecialchars($custom_indicator['description'] ?? '') ?></textarea>
-    </div>
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px">
-      <div>
-        <label style="font-size:10px;color:#64748b;display:block;margin-bottom:3px">得な相場（1行1項目）</label>
-        <textarea id="ci-reg-good" rows="3"
-                  style="width:100%;background:#0f172a;border:1px solid #334155;border-radius:5px;color:#e2e8f0;padding:7px 10px;font-size:12px;resize:vertical;outline:none"><?php
-          if (!empty($custom_indicator['good_markets'])) {
-              $g = is_array($custom_indicator['good_markets'])
-                   ? $custom_indicator['good_markets']
-                   : json_decode($custom_indicator['good_markets'], true);
-              echo htmlspecialchars(is_array($g) ? implode("\n", $g) : '');
-          }
-        ?></textarea>
-      </div>
-      <div>
-        <label style="font-size:10px;color:#64748b;display:block;margin-bottom:3px">苦手な相場（1行1項目）</label>
-        <textarea id="ci-reg-bad" rows="3"
-                  style="width:100%;background:#0f172a;border:1px solid #334155;border-radius:5px;color:#e2e8f0;padding:7px 10px;font-size:12px;resize:vertical;outline:none"><?php
-          if (!empty($custom_indicator['bad_markets'])) {
-              $b = is_array($custom_indicator['bad_markets'])
-                   ? $custom_indicator['bad_markets']
-                   : json_decode($custom_indicator['bad_markets'], true);
-              echo htmlspecialchars(is_array($b) ? implode("\n", $b) : '');
-          }
-        ?></textarea>
-      </div>
-    </div>
-    <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
-      <button onclick="registerAsCustomIndicator()"
-              style="background:#7c3aed;color:#fff;border:none;border-radius:7px;padding:8px 20px;font-size:13px;font-weight:600;cursor:pointer">
-        📌 登録・更新
-      </button>
-      <button id="ci-save-rebuild-btn" onclick="saveConfigAndRebuild()"
-              style="background:#0e7490;color:#fff;border:none;border-radius:7px;padding:8px 20px;font-size:13px;font-weight:600;cursor:pointer"
-              title="BT再実行なしで設定保存 & 公開ページ即時反映">
-        🔄 設定保存 &amp; ページ反映
-      </button>
-      <span id="ci-reg-status" style="font-size:12px;color:#94a3b8"></span>
-    </div>
   </div>
   <?php endif; ?>
 
@@ -2302,11 +2322,15 @@ async function _save(key, value) {
 }
 
 async function saveContent() {
-  const st  = document.getElementById('save-status');
-  const btn = document.getElementById('save-btn');
+  const st     = document.getElementById('save-status');
+  const btn    = document.getElementById('save-btn');
+  const stTop  = document.getElementById('save-status-top');
+  const btnTop = document.getElementById('save-btn-top');
   st.textContent = '保存中...';
   st.className   = 'save-status saving';
   btn.disabled   = true;
+  if (stTop)  { stTop.textContent = '保存中...'; stTop.className = 'save-status saving'; }
+  if (btnTop) { btnTop.disabled = true; }
   try {
     const saves = [
       _save(ARTICLE_KEY, document.getElementById('editor').value),
@@ -2326,27 +2350,38 @@ async function saveContent() {
     if (!failed) {
       st.textContent = '✅ 保存完了';
       st.className   = 'save-status ok';
-      setTimeout(() => { st.textContent = ''; st.className = 'save-status'; }, 4000);
+      if (stTop) { stTop.textContent = '✅ 保存完了'; stTop.className = 'save-status ok'; }
+      setTimeout(() => {
+        st.textContent = ''; st.className = 'save-status';
+        if (stTop) { stTop.textContent = ''; stTop.className = 'save-status'; }
+      }, 4000);
     } else {
       st.textContent = '❌ 失敗: ' + (failed.message || '');
       st.className   = 'save-status err';
+      if (stTop) { stTop.textContent = '❌ 失敗'; stTop.className = 'save-status err'; }
     }
   } catch(e) {
     st.textContent = '❌ ネットワークエラー';
     st.className   = 'save-status err';
+    if (stTop) { stTop.textContent = '❌ ネットワークエラー'; stTop.className = 'save-status err'; }
   } finally {
     btn.disabled = false;
+    if (btnTop) { btnTop.disabled = false; }
   }
 }
 
 async function rebuildPage() {
-  const btn  = document.getElementById('rebuild-btn');
-  const stat = document.getElementById('rebuild-status');
-  const log  = document.getElementById('rebuild-log');
+  const btn     = document.getElementById('rebuild-btn');
+  const stat    = document.getElementById('rebuild-status');
+  const log     = document.getElementById('rebuild-log');
+  const btnTop  = document.getElementById('rebuild-btn-top');
+  const statTop = document.getElementById('rebuild-status-top');
   if (!btn || (!IND_SLUG && !PAIR_SLUG)) return;
   btn.disabled   = true;
   stat.textContent = 'ビルド中...';
   stat.className   = 'rebuild-status running';
+  if (btnTop)  { btnTop.disabled = true; }
+  if (statTop) { statTop.textContent = 'ビルド中...'; statTop.className = 'rebuild-status running'; }
   if (log) { log.textContent = ''; log.style.display = 'none'; }
   try {
     const action = IS_PAIR ? 'rebuild_pair_page' : 'rebuild_indicator_page';
@@ -2360,10 +2395,15 @@ async function rebuildPage() {
     if (data.ok) {
       stat.textContent = '✅ 更新完了';
       stat.className   = 'rebuild-status ok';
-      setTimeout(() => { stat.textContent = ''; stat.className = 'rebuild-status'; }, 5000);
+      if (statTop) { statTop.textContent = '✅ 更新完了'; statTop.className = 'rebuild-status ok'; }
+      setTimeout(() => {
+        stat.textContent = ''; stat.className = 'rebuild-status';
+        if (statTop) { statTop.textContent = ''; statTop.className = 'rebuild-status'; }
+      }, 5000);
     } else {
       stat.textContent = '❌ 失敗';
       stat.className   = 'rebuild-status err';
+      if (statTop) { statTop.textContent = '❌ 失敗'; statTop.className = 'rebuild-status err'; }
       if (log && data.output) {
         log.textContent = data.output;
         log.style.display = 'block';
@@ -2380,8 +2420,10 @@ async function rebuildPage() {
   } catch(e) {
     stat.textContent = '❌ ネットワークエラー';
     stat.className   = 'rebuild-status err';
+    if (statTop) { statTop.textContent = '❌ ネットワークエラー'; statTop.className = 'rebuild-status err'; }
   } finally {
     btn.disabled = false;
+    if (btnTop) { btnTop.disabled = false; }
   }
 }
 
