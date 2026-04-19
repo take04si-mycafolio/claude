@@ -686,9 +686,7 @@ main{max-width:900px;margin:0 auto;padding:28px 20px}
       <span id="ci-save-status" style="margin-left:10px;font-size:12px"></span>
     </div>
 
-    <!-- 登録済み一覧 -->
-    <div style="font-size:13px;font-weight:700;color:#94a3b8;margin-bottom:10px">📋 登録済み一覧</div>
-    <div id="custom-indicator-list" style="font-size:12px;color:#475569;text-align:center;padding:12px">読み込み中...</div>
+    <!-- 登録済み一覧は非表示 -->
   </div>
 
 </main>
