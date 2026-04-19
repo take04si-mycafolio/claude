@@ -310,41 +310,42 @@ h2{font-size:20px;font-weight:700;color:#f1f5f9;margin-bottom:6px}
             <label>MAIL_SERVER（SMTPサーバー）</label>
             <input type="text" name="MAIL_SERVER"
                    value="<?= htmlspecialchars($envMail['MAIL_SERVER']) ?>"
-                   placeholder="smtp.gmail.com">
-            <div class="hint">Gmail: smtp.gmail.com</div>
+                   placeholder="sv***.xserver.jp">
+            <div class="hint">Xserver: サーバーパネル → メールアカウント設定 に記載のサーバー名</div>
           </div>
           <div class="field-group">
             <label>MAIL_PORT</label>
             <input type="number" name="MAIL_PORT"
                    value="<?= htmlspecialchars($envMail['MAIL_PORT'] ?: '587') ?>"
                    min="1" max="65535">
-            <div class="hint">TLS: 587 / SSL: 465</div>
+            <div class="hint">Xserver: 587（STARTTLS）</div>
           </div>
           <div class="field-group">
-            <label>MAIL_USERNAME（送信アカウント）</label>
+            <label>MAIL_USERNAME（メールアドレス）</label>
             <input type="email" name="MAIL_USERNAME"
                    value="<?= htmlspecialchars($envMail['MAIL_USERNAME']) ?>"
-                   placeholder="your@gmail.com">
+                   placeholder="info@example.com">
+            <div class="hint">Xserver で作成したメールアドレス</div>
           </div>
           <div class="field-group">
             <label>MAIL_DEFAULT_SENDER（送信者アドレス）</label>
             <input type="email" name="MAIL_DEFAULT_SENDER"
                    value="<?= htmlspecialchars($envMail['MAIL_DEFAULT_SENDER']) ?>"
-                   placeholder="your@gmail.com">
+                   placeholder="info@example.com">
             <div class="hint">通常は MAIL_USERNAME と同じ</div>
           </div>
           <div class="field-group">
-            <label>MAIL_PASSWORD（アプリパスワード）</label>
+            <label>MAIL_PASSWORD</label>
             <input type="password" name="MAIL_PASSWORD"
-                   placeholder="<?= ($envMail['MAIL_PASSWORD'] && strpos($envMail['MAIL_PASSWORD'], 'your_') !== 0) ? '●●●● 設定済み（変更する場合のみ入力）' : '16文字のアプリパスワード' ?>">
-            <div class="hint">Gmail: Googleアカウント → セキュリティ → アプリパスワード で発行</div>
+                   placeholder="<?= ($envMail['MAIL_PASSWORD'] && strpos($envMail['MAIL_PASSWORD'], 'your_') !== 0) ? '●●●● 設定済み（変更する場合のみ入力）' : 'メールアカウントのパスワード' ?>">
+            <div class="hint">Xserver のメールアカウント作成時に設定したパスワード</div>
           </div>
           <div class="field-group">
             <label>MAIL_USE_TLS</label>
             <select name="MAIL_USE_TLS"
                     style="width:100%;background:#0f172a;border:1px solid #475569;border-radius:7px;color:#e2e8f0;padding:9px 10px;font-size:13px;outline:none">
-              <option value="true"  <?= ($envMail['MAIL_USE_TLS'] !== 'false') ? 'selected' : '' ?>>true（推奨・ポート587）</option>
-              <option value="false" <?= ($envMail['MAIL_USE_TLS'] === 'false') ? 'selected' : '' ?>>false（ポート465 SSL等）</option>
+              <option value="true"  <?= ($envMail['MAIL_USE_TLS'] !== 'false') ? 'selected' : '' ?>>true（Xserver ポート587）</option>
+              <option value="false" <?= ($envMail['MAIL_USE_TLS'] === 'false') ? 'selected' : '' ?>>false</option>
             </select>
           </div>
         </div>
