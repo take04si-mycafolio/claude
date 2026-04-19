@@ -8,6 +8,11 @@
 {% endblock %}
 
 {% block content %}
+<!-- 更新日時バー -->
+<div style="font-size:0.72rem;color:#94a3b8;text-align:center;padding:5px 16px 2px;letter-spacing:.02em">
+  更新: {{ updated_at }} JST
+</div>
+
 <!-- 通貨ペアタブ -->
 <div class="pair-tabs">
   {% for pair, filename in pair_pages.items() %}
@@ -803,9 +808,6 @@ function qfhOpen(row){
   {% endif %}
 </div>
 
-<div class="section-card" style="font-size:0.72rem; color:#94a3b8; text-align:center; padding:8px 16px;">
-  チャートデータ: {{ updated_at }} 生成 · 表示価格は30秒ごとに更新
-</div>
 
 <div style="height: 20px;"></div>
 
