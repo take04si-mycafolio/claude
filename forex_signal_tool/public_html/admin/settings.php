@@ -46,6 +46,19 @@ $cfg = [
     'quantflow_signal_recipients'  => setting_get('quantflow_signal_recipients',  ''),
 ];
 
+// ---- .env から SMTP 設定を読み取る ----
+$envFile = dirname(dirname(__DIR__)) . '/.env';
+$envMail = ['MAIL_SERVER' => '', 'MAIL_USERNAME' => '', 'MAIL_PASSWORD' => '', 'MAIL_DEFAULT_SENDER' => ''];
+if (file_exists($envFile)) {
+    foreach (file($envFile, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES) as $line) {
+        foreach (array_keys($envMail) as $key) {
+            if (strpos($line, $key . '=') === 0) {
+                $envMail[$key] = trim(substr($line, strlen($key) + 1));
+            }
+        }
+    }
+}
+
 // ---- システム診断 ----
 $diag = [];
 
@@ -242,20 +255,133 @@ h2{font-size:20px;font-weight:700;color:#f1f5f9;margin-bottom:6px}
   <!-- ===== QuantFlow メール通知設定 ===== -->
   <div class="section">
     <div class="section-title">QuantFlow メール通知</div>
+
+    <!-- SMTP 設定状況 -->
+    <div class="card" style="margin-bottom:16px">
+      <div style="font-size:13px;font-weight:600;color:#94a3b8;margin-bottom:12px">SMTP 設定状況（.env ファイル）</div>
+      <?php
+      $smtpRows = [
+        'MAIL_SERVER'         => 'SMTPサーバー',
+        'MAIL_USERNAME'       => '送信アカウント',
+        'MAIL_PASSWORD'       => 'パスワード / アプリパスワード',
+        'MAIL_DEFAULT_SENDER' => '送信者アドレス',
+      ];
+      foreach ($smtpRows as $key => $label):
+        $val = $envMail[$key];
+        $set = $val !== '' && strpos($val, 'your_') !== 0;
+      ?>
+      <div class="diag-row">
+        <span class="diag-label"><?= htmlspecialchars($label) ?></span>
+        <span class="diag-val">
+          <?php if ($set): ?>
+            <span class="badge-ok">設定済み</span>
+            <?php if ($key !== 'MAIL_PASSWORD'): ?>
+              <span style="font-size:11px;color:#64748b;margin-left:6px"><?= htmlspecialchars($val) ?></span>
+            <?php endif; ?>
+          <?php else: ?>
+            <span class="badge-ng">未設定</span>
+          <?php endif; ?>
+        </span>
+      </div>
+      <?php endforeach; ?>
+      <div style="font-size:11px;color:#64748b;margin-top:10px">
+        ⚠️ メール送信を使うには、サーバー上の <code>.env</code> ファイルに SMTP 情報を設定してください。<br>
+        Gmail の場合は「アプリパスワード」を MAIL_PASSWORD に設定します（通常のパスワードは使用不可）。
+      </div>
+    </div>
+
+    <!-- 通知先リスト -->
     <div class="card">
-      <form method="post">
-        <div class="field-group" style="margin-bottom:20px">
-          <label>通知先メールアドレス（複数の場合はカンマ区切り）</label>
-          <input type="text" name="quantflow_signal_recipients"
-                 value="<?= htmlspecialchars($cfg['quantflow_signal_recipients']) ?>"
-                 placeholder="例: alice@example.com,bob@example.com"
-                 style="width:100%;background:#0f172a;border:1px solid #475569;border-radius:7px;color:#e2e8f0;padding:9px 10px;font-size:13px;outline:none">
-          <div class="hint" style="margin-top:6px">エントリー確定・TP/SL 決済・シグナル変更による決済の際にメールを送信します。空欄の場合は送信しません。</div>
+      <div style="font-size:13px;font-weight:600;color:#94a3b8;margin-bottom:12px">通知先メールアドレス</div>
+      <div id="recipient-list" style="margin-bottom:14px"></div>
+
+      <div style="display:flex;gap:8px;margin-bottom:20px">
+        <input id="new-email" type="email" placeholder="メールアドレスを入力"
+               style="flex:1;background:#0f172a;border:1px solid #475569;border-radius:7px;color:#e2e8f0;padding:8px 10px;font-size:13px;outline:none">
+        <button type="button" onclick="addEmail()"
+                style="background:#0f766e;color:#fff;border:none;border-radius:7px;padding:8px 16px;font-size:13px;cursor:pointer">追加</button>
+      </div>
+
+      <form method="post" onsubmit="syncHidden()">
+        <input type="hidden" id="recipients-hidden" name="quantflow_signal_recipients">
+        <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+          <button type="submit" name="save_settings" class="btn-save">保存</button>
+          <button type="button" id="test-btn" onclick="sendTestEmail()"
+                  style="background:#1e3a5f;color:#60a5fa;border:1px solid #334155;border-radius:8px;padding:10px 20px;font-size:13px;font-weight:600;cursor:pointer">
+            テスト送信
+          </button>
+          <span id="test-msg" style="font-size:12px"></span>
         </div>
-        <button type="submit" name="save_settings" class="btn-save">保存</button>
       </form>
+      <div style="font-size:11px;color:#64748b;margin-top:10px">
+        エントリー確定・TP/SL 決済・シグナル変更での決済時にメールを送信します。
+      </div>
     </div>
   </div>
+
+  <script>
+  var _recipients = <?= json_encode(array_values(array_filter(array_map('trim', explode(',', $cfg['quantflow_signal_recipients']))))) ?>;
+
+  function renderList() {
+    var el = document.getElementById('recipient-list');
+    if (_recipients.length === 0) {
+      el.innerHTML = '<div style="color:#475569;font-size:12px;padding:6px 0">登録なし</div>';
+      return;
+    }
+    el.innerHTML = _recipients.map(function(email, i) {
+      return '<div style="display:flex;align-items:center;justify-content:space-between;padding:8px 12px;background:#0f172a;border-radius:6px;margin-bottom:6px">' +
+        '<span style="font-size:13px;color:#e2e8f0">' + email + '</span>' +
+        '<button type="button" onclick="removeEmail(' + i + ')" style="background:#7f1d1d;color:#f87171;border:none;border-radius:5px;padding:3px 10px;font-size:11px;cursor:pointer">削除</button>' +
+      '</div>';
+    }).join('');
+  }
+
+  function addEmail() {
+    var input = document.getElementById('new-email');
+    var email = input.value.trim();
+    if (!email || !email.includes('@')) { alert('正しいメールアドレスを入力してください'); return; }
+    if (_recipients.indexOf(email) !== -1) { alert('既に追加済みです'); return; }
+    _recipients.push(email);
+    input.value = '';
+    renderList();
+  }
+
+  function removeEmail(i) {
+    _recipients.splice(i, 1);
+    renderList();
+  }
+
+  function syncHidden() {
+    document.getElementById('recipients-hidden').value = _recipients.join(',');
+  }
+
+  document.getElementById('new-email').addEventListener('keydown', function(e) {
+    if (e.key === 'Enter') { e.preventDefault(); addEmail(); }
+  });
+
+  async function sendTestEmail() {
+    var btn = document.getElementById('test-btn');
+    var msg = document.getElementById('test-msg');
+    btn.disabled = true;
+    msg.textContent = '送信中...';
+    msg.style.color = '#94a3b8';
+    try {
+      var res = await fetch('/admin/api.php', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({action: 'test_quantflow_email'}),
+      }).then(function(r){ return r.json(); });
+      msg.textContent = res.status === 'ok' ? '✅ ' + res.message : '❌ ' + res.message;
+      msg.style.color  = res.status === 'ok' ? '#4ade80' : '#f87171';
+    } catch(e) {
+      msg.textContent = '❌ 通信エラー';
+      msg.style.color  = '#f87171';
+    }
+    btn.disabled = false;
+  }
+
+  renderList();
+  </script>
 
   <!-- ===== システム診断 ===== -->
   <div class="section">

@@ -189,6 +189,19 @@ switch ($action) {
         }
         break;
 
+    case 'test_quantflow_email':
+        require_login();
+        $py     = escapeshellarg(PYTHON_BIN);
+        $script = escapeshellarg(TASKS_DIR . '/test_signal_email.py');
+        $output = shell_exec("{$py} {$script} 2>&1");
+        if ($output !== null && strpos($output, 'OK') !== false) {
+            json_out(['status' => 'ok', 'message' => 'テストメールを送信しました']);
+        } else {
+            $detail = trim($output ?: '出力なし');
+            json_out(['status' => 'error', 'message' => $detail]);
+        }
+        break;
+
     case 'quantflow_live_position':
         require_login();
         try {
