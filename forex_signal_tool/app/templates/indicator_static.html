@@ -129,6 +129,11 @@ tr.trade-row.sim-active td{background:rgba(59,130,246,.10)!important}
     {% endif %}
   </div>
 
+  <!-- 最終更新日 -->
+  <div class="section-card" style="text-align:center;padding:10px 16px;">
+    <time datetime="{{ updated_at[:10] }}" style="font-size:14px;">最終更新：{{ updated_at[:10] }}</time>
+  </div>
+
   <!-- 指標の説明 -->
   <div class="section-card">
     <h2 class="ind-section-title"><i class="bi bi-info-circle-fill text-primary me-2"></i>指標の概要</h2>
@@ -758,10 +763,6 @@ tr.trade-row.sim-active td{background:rgba(59,130,246,.10)!important}
     </div>
   </div>
 
-  <!-- 最終更新日 -->
-  <div class="section-card" style="text-align:center;">
-    <time datetime="{{ updated_at[:10] }}">最終更新：{{ updated_at[:10] }}</time>
-  </div>
   <div style="height:20px"></div>
 
 </main>
