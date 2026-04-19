@@ -1306,36 +1306,35 @@ def get_indicator_page_data(indicator_name: str, app) -> dict | None:
     _COMP_LABELS = {
         "less_than": "<", "less_than_or_equal": "≤",
         "greater_than": ">", "greater_than_or_equal": "≥",
+        "crosses_above": "上抜け", "crosses_below": "下抜け",
         "cross_above": "上抜け", "cross_below": "下抜け",
         "equals": "=", "is_true": "発生",
     }
 
     def _fmt_cond(c):
-        ind   = c.get("indicator", "")
+        ind    = c.get("indicator", "")
         params = c.get("params", {})
-        comp  = c.get("comparator", "")
-        rhs_type = c.get("rhs_type", "value")
+        comp   = c.get("comparison") or c.get("comparator", "")
         lbl = _IND_LABELS.get(ind, ind)
         if params:
             lbl += "(" + ",".join(str(v) for v in params.values()) + ")"
-        if comp in ("is_true", "") or not comp:
-            return f"{lbl} 発生"
-        comp_lbl = _COMP_LABELS.get(comp, comp)
-        if rhs_type == "value":
-            rhs = str(c.get("rhs_value", ""))
-        elif rhs_type == "indicator":
-            ri = c.get("rhs_indicator", "")
-            rp = c.get("rhs_params", {})
-            rhs = _IND_LABELS.get(ri, ri)
+        cmp_ind = c.get("compare_to_indicator") or c.get("rhs_indicator", "")
+        if cmp_ind:
+            comp_lbl = _COMP_LABELS.get(comp, comp)
+            rp = c.get("compare_to_params") or c.get("rhs_params", {})
+            rhs = _IND_LABELS.get(cmp_ind, cmp_ind)
             if rp:
                 rhs += "(" + ",".join(str(v) for v in rp.values()) + ")"
-        elif rhs_type == "price":
-            rhs = "終値"
-        else:
-            rhs = str(c.get("rhs_value", ""))
-        if comp in ("cross_above", "cross_below"):
-            return f"{lbl} が {rhs} を{comp_lbl}"
-        return f"{lbl} {comp_lbl} {rhs}"
+            if comp in ("crosses_above", "crosses_below", "cross_above", "cross_below"):
+                return f"{lbl} が {rhs} を{comp_lbl}"
+            return f"{lbl} {comp_lbl} {rhs}"
+        val = c.get("value")
+        if val is None:
+            val = c.get("rhs_value")
+        if val is None or comp in ("is_true", "") or not comp:
+            return f"{lbl} 発生"
+        comp_lbl = _COMP_LABELS.get(comp, comp)
+        return f"{lbl} {comp_lbl} {val}"
 
     def _fmt_side_conds(entry_conds):
         conds = entry_conds.get("conditions", [])
@@ -1667,14 +1666,14 @@ def get_indicator_page_data(indicator_name: str, app) -> dict | None:
             _sd = _strategy_config.get(_sk) if _sk else _strategy_config
             if not _sd:
                 continue
+            # v2.0: only show conditions for directions that have actual BT results
+            if _sk and _sk.upper() not in results_by_direction:
+                continue
             _ec = _sd.get("entry_conditions", {})
             _cf = _fmt_side_conds(_ec)
             if _cf:
                 _tip_lines.append(f"▶ {_slabel}")
                 _tip_lines.append(f"  {_cf}")
-
-    _tip_lines.append("")
-    _tip_lines.append("初期資金: 1,000,000円")
 
     _raw_tip = "\n".join(_tip_lines)
     bt_summary_tooltip = _html_mod.escape(_raw_tip).replace("\n", "&#10;")
