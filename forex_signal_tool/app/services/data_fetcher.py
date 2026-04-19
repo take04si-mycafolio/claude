@@ -42,11 +42,12 @@ YF_INTERVAL_MAP = {
 # タイムフレームごとの取得ウィンドウ（時間単位）
 # Cron が5分ごとに動くため、直近数時間分だけ取得すれば十分
 YF_HOURS_BACK = {
-    "5min":  2,   # 直近2時間（5min×24本）
-    "15min": 6,   # 直近6時間
-    "30min": 6,   # 直近6時間
-    "1hr":   6,   # 直近6時間
-    "4hr":   12,  # 直近12時間（1hrで取得して4hrにリサンプリング）
+    "5min":  2,    # 直近2時間（5min×24本）
+    "15min": 6,    # 直近6時間
+    "30min": 6,    # 直近6時間
+    "1hr":   6,    # 直近6時間
+    "4hr":   12,   # 直近12時間（1hrで取得して4hrにリサンプリング）
+    "daily": 240,  # 直近10日間
 }
 
 # マクロ指標（US10Y / DXY）の取得対象タイムフレーム
@@ -80,7 +81,6 @@ def fetch_yfinance(pair: str, timeframe: str) -> Optional[pd.DataFrame]:
         ticker = yf.Ticker(ticker_symbol)
 
         # 短期足: 直近N時間のみ取得（Cronが5分ごとのため長期取得は不要）
-        # timeframe基準でウィンドウを決める（4hrは1hrで取得するため元のtimeframeを参照）
         hours_back = YF_HOURS_BACK.get(timeframe, 6)
         end_dt     = datetime.now(timezone.utc)
         start_dt   = end_dt - timedelta(hours=hours_back)
@@ -315,7 +315,7 @@ def fetch_alphavantage_daily(pair: str) -> Optional[pd.DataFrame]:
 def fetch_and_store_all(pairs=None, timeframes=None) -> dict:
     """
     全通貨ペア・タイムフレームのデータを取得してDBに保存する。
-    日足は廃止（Alpha Vantage API 制限のため）。
+    日足は廃止（Alpha Vantage API 制限のため fetch_daily.py を使用）。
     5min/15min/30min/1hr/4hr は yfinance で直近N時間のみ取得。
     """
     if pairs is None:
@@ -329,7 +329,7 @@ def fetch_and_store_all(pairs=None, timeframes=None) -> dict:
         results[pair] = {}
         for tf in timeframes:
             if tf == "daily":
-                # 日足は廃止
+                # 日足は Alpha Vantage（fetch_daily.py）を使用
                 continue
 
             logger.info("Fetching %s %s ...", pair, tf)

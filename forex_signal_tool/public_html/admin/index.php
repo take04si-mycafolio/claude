@@ -642,19 +642,18 @@ var _pollTimers = {};
 
 function runOp(op) {
   var cfgs = {
-    fetch:    { action: 'run_fetch',         btnSel: '.run-btn.fetch', msgId: 'msg-fetch',      rtId: 'rt-fetch',  opKey: 'fetch_status',       rtKey: 'last_fetch' },
-    backtest: { action: 'run_backtest',      btnSel: '.run-btn.bt',    msgId: 'msg-backtest',   rtId: 'rt-bt',     opKey: 'backtest_status',    rtKey: 'last_bt' },
-    signals:  { action: 'run_signals',       btnSel: '.run-btn.sig',   msgId: 'msg-signals',    rtId: 'rt-signal', opKey: 'signal_status',      rtKey: 'last_signal' },
-    qfscores: { action: 'run_quantflow_scores', btnSel: '.run-btn.qf', msgId: 'msg-qfscores',   rtId: null, opKey: 'quantflow_scores_status', rtKey: null },
-    quantflow:{ action: 'run_quantflow_bt',    btnSel: '.run-btn.qf-bt', msgId: 'msg-quantflow', rtId: null, opKey: 'quantflow_bt_status', rtKey: null },
+    fetch:       { action: 'run_fetch',         btnSel: '.run-btn.fetch', msgId: 'msg-fetch',        rtId: 'rt-fetch',  opKey: 'fetch_status',         rtKey: 'last_fetch' },
+    backtest:    { action: 'run_backtest',      btnSel: '.run-btn.bt',    msgId: 'msg-backtest',     rtId: 'rt-bt',     opKey: 'backtest_status',      rtKey: 'last_bt' },
+    signals:     { action: 'run_signals',       btnSel: '.run-btn.sig',   msgId: 'msg-signals',      rtId: 'rt-signal', opKey: 'signal_status',        rtKey: 'last_signal' },
+    qfscores:    { action: 'run_quantflow_scores', btnSel: '.run-btn.qf', msgId: 'msg-qfscores',     rtId: null,        opKey: 'quantflow_scores_status', rtKey: null },
+    quantflow:   { action: 'run_quantflow_bt',    btnSel: '.run-btn.qf-bt', msgId: 'msg-quantflow', rtId: null,        opKey: 'quantflow_bt_status',  rtKey: null },
   };
   var cfg = cfgs[op];
   var btn = document.querySelector(cfg.btnSel);
   var msg = document.getElementById(cfg.msgId);
-  var origText = btn.textContent;
+  var origText = btn ? btn.textContent : '';
 
-  btn.disabled = true;
-  btn.innerHTML = '<span class="spin"></span>開始中...';
+  if (btn) { btn.disabled = true; btn.innerHTML = '<span class="spin"></span>開始中...'; }
   msg.className = 'result-msg info';
   msg.textContent = '';
 
