@@ -948,6 +948,14 @@ function resetIndicatorPageBt() {
   <!-- 実行ボタン -->
   <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:10px">
     <button class="bt2-run-btn" id="bt2-run-btn" onclick="runBt2Inline()">バックテスト実行</button>
+    <?php if ($is_custom_indicator): ?>
+    <label style="display:flex;align-items:center;gap:5px;font-size:12px;color:#34d399;cursor:pointer">
+      <input type="checkbox" id="bt2-run-buy" checked style="accent-color:#34d399"> BUY
+    </label>
+    <label style="display:flex;align-items:center;gap:5px;font-size:12px;color:#f87171;cursor:pointer">
+      <input type="checkbox" id="bt2-run-sell" checked style="accent-color:#f87171"> SELL
+    </label>
+    <?php endif; ?>
     <span id="bt2-log" style="font-size:12px;color:#94a3b8"></span>
   </div>
 
@@ -1572,8 +1580,12 @@ async function _runBt2InlineWithSides() {
   });
   if (!Object.keys(tfRanges).length) { alert('時間足を1つ以上選択してください'); return; }
 
-  const buyConds  = bt2BuildCondsSide('buy');
-  const sellConds = bt2BuildCondsSide('sell');
+  const runBuy  = document.getElementById('bt2-run-buy')?.checked !== false;
+  const runSell = document.getElementById('bt2-run-sell')?.checked !== false;
+  if (!runBuy && !runSell) { alert('BUY または SELL を少なくとも1つチェックしてください'); return; }
+
+  const buyConds  = runBuy  ? bt2BuildCondsSide('buy')  : [];
+  const sellConds = runSell ? bt2BuildCondsSide('sell') : [];
   if (!buyConds.length && !sellConds.length) { alert('BUY または SELL の条件を1つ以上追加してください'); return; }
 
   const simParams = {
