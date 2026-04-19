@@ -26,7 +26,7 @@
     "description": "{{ info.seo_description }}",
     "author": {"@type": "Organization", "name": "FXシグナル", "url": "https://fx-trend.net"},
     "publisher": {"@type": "Organization", "name": "FXシグナル"},
-    "dateModified": "{{ updated_at }}",
+    "dateModified": "{{ updated_at[:10] | replace('/', '-') }}",
     "inLanguage": "ja"
   }
   </script>
@@ -128,6 +128,9 @@ tr.trade-row.sim-active td{background:rgba(59,130,246,.10)!important}
     </div>
     {% endif %}
   </div>
+
+  <!-- 最終更新日 -->
+  <div style="font-size:0.72rem;color:#94a3b8;text-align:right;padding:2px 4px 8px;"><time datetime="{{ updated_at[:10] }}">最終更新: {{ updated_at[:10] }}</time></div>
 
   <!-- 指標の説明 -->
   <div class="section-card">
@@ -648,6 +651,13 @@ tr.trade-row.sim-active td{background:rgba(59,130,246,.10)!important}
   </div>
   {% endif %}
 
+  <!-- ご利用上の注意 -->
+  <div class="section-card" style="font-size:0.75rem;color:#94a3b8;line-height:1.8;border-left:3px solid #334155;">
+    <p style="font-weight:600;color:#64748b;margin-bottom:6px;">【ご利用上の注意】</p>
+    <p style="margin-bottom:6px;">本ページで公開されている数値、各テクニカル指標のシグナル、およびシミュレーショントレードは、バックテストツールに基づく統計的情報の提供を目的としたものであり、投資の勧誘や売買の指示を目的としたものではありません。</p>
+    <p style="margin-bottom:0;">過去のシミュレーション結果は将来の投資成果を示唆あるいは保証するものではありません。外国為替証拠金取引（FX）は元本超過損のリスクを伴います。最終的な投資判断は、ご自身の責任において行っていただけますようお願い申し上げます。</p>
+  </div>
+
   <!-- AI考察・分析（折りたたみ） -->
   {% if ai_notes %}
   <div class="ai-collapse-wrap" style="margin-top:8px;margin-bottom:12px">
@@ -751,9 +761,6 @@ tr.trade-row.sim-active td{background:rgba(59,130,246,.10)!important}
     </div>
   </div>
 
-  <div class="section-card" style="font-size:0.72rem;color:#94a3b8;text-align:center;padding:8px 16px;">
-    最終更新: {{ updated_at }} ／ バックテスト期間: 直近12時間
-  </div>
   <div style="height:20px"></div>
 
 </main>
