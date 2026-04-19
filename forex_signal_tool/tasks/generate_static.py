@@ -1678,6 +1678,23 @@ def get_indicator_page_data(indicator_name: str, app) -> dict | None:
     _raw_tip = "\n".join(_tip_lines)
     bt_summary_tooltip = _html_mod.escape(_raw_tip).replace("\n", "&#10;")
 
+    # ---- シミュレーションツールチップ ----
+    _sim_lines = ["シグナル発生時にエントリーしたと仮定した損益シミュレーションです。",
+                  "実際の取引結果ではありません。"]
+    if _sl_tp_lines:
+        _sim_lines.append("")
+        _sim_lines.append("【SL / TP 設定】")
+        _sim_lines.extend(_sl_tp_lines)
+    elif _page_bt_tf_dates:
+        _first = next(iter(_page_bt_tf_dates.values()), {})
+        if _first.get("sl_pips"):
+            _sim_lines.append(f"SL: {_first['sl_pips']}pips / TP: {_first['tp_pips']}pips")
+    else:
+        _sim_lines.append(f"SL: {int(sl)}pips / TP: {int(tp)}pips")
+    _sim_lines.append("")
+    _sim_lines.append("TF別最新20件表示。")
+    sim_tooltip = _html_mod.escape("\n".join(_sim_lines)).replace("\n", "&#10;")
+
     return {
         "info":                 info,
         "category_slug":        CATEGORY_SLUGS.get(info["category"], ""),
@@ -1699,6 +1716,7 @@ def get_indicator_page_data(indicator_name: str, app) -> dict | None:
         "page_bt_end_date":     _page_bt_end   or "",
         "page_bt_tf_dates":     _page_bt_tf_dates,
         "bt_summary_tooltip":   bt_summary_tooltip,
+        "sim_tooltip":          sim_tooltip,
     }
 
 
