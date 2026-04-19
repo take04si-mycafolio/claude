@@ -48,14 +48,57 @@ $cfg = [
 
 // ---- .env から SMTP 設定を読み取る ----
 $envFile = dirname(dirname(__DIR__)) . '/.env';
-$envMail = ['MAIL_SERVER' => '', 'MAIL_USERNAME' => '', 'MAIL_PASSWORD' => '', 'MAIL_DEFAULT_SENDER' => ''];
+$smtpKeys = ['MAIL_SERVER', 'MAIL_PORT', 'MAIL_USE_TLS', 'MAIL_USERNAME', 'MAIL_PASSWORD', 'MAIL_DEFAULT_SENDER'];
+$envMail  = array_fill_keys($smtpKeys, '');
+$envLines = [];
 if (file_exists($envFile)) {
-    foreach (file($envFile, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES) as $line) {
-        foreach (array_keys($envMail) as $key) {
+    $envLines = file($envFile, FILE_IGNORE_NEW_LINES);
+    foreach ($envLines as $line) {
+        foreach ($smtpKeys as $key) {
             if (strpos($line, $key . '=') === 0) {
                 $envMail[$key] = trim(substr($line, strlen($key) + 1));
             }
         }
+    }
+}
+
+// ---- .env への SMTP 保存 ----
+$savedSmtp  = '';
+$smtpError  = '';
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save_smtp'])) {
+    if (!file_exists($envFile) || !is_writable($envFile)) {
+        $smtpError = '.env ファイルが見つからないか書き込み権限がありません';
+    } else {
+        $newEnv    = [];
+        $replaced  = array_fill_keys($smtpKeys, false);
+        foreach ($envLines as $line) {
+            $matched = false;
+            foreach ($smtpKeys as $key) {
+                if (strpos($line, $key . '=') === 0) {
+                    $val = $_POST[$key] ?? '';
+                    // パスワードは空欄なら変更しない
+                    if ($key === 'MAIL_PASSWORD' && $val === '') {
+                        $newEnv[] = $line;
+                    } else {
+                        $newEnv[] = $key . '=' . $val;
+                        $envMail[$key] = $val;
+                    }
+                    $replaced[$key] = true;
+                    $matched = true;
+                    break;
+                }
+            }
+            if (!$matched) $newEnv[] = $line;
+        }
+        // .env に存在しなかったキーを末尾に追加
+        foreach ($smtpKeys as $key) {
+            if (!$replaced[$key] && isset($_POST[$key]) && $_POST[$key] !== '') {
+                $newEnv[] = $key . '=' . $_POST[$key];
+                $envMail[$key] = $_POST[$key];
+            }
+        }
+        file_put_contents($envFile, implode("\n", $newEnv) . "\n");
+        $savedSmtp = 'SMTP 設定を保存しました（次回タスク実行から反映されます）';
     }
 }
 
@@ -256,38 +299,57 @@ h2{font-size:20px;font-weight:700;color:#f1f5f9;margin-bottom:6px}
   <div class="section">
     <div class="section-title">QuantFlow メール通知</div>
 
-    <!-- SMTP 設定状況 -->
+    <!-- SMTP 設定フォーム -->
     <div class="card" style="margin-bottom:16px">
-      <div style="font-size:13px;font-weight:600;color:#94a3b8;margin-bottom:12px">SMTP 設定状況（.env ファイル）</div>
-      <?php
-      $smtpRows = [
-        'MAIL_SERVER'         => 'SMTPサーバー',
-        'MAIL_USERNAME'       => '送信アカウント',
-        'MAIL_PASSWORD'       => 'パスワード / アプリパスワード',
-        'MAIL_DEFAULT_SENDER' => '送信者アドレス',
-      ];
-      foreach ($smtpRows as $key => $label):
-        $val = $envMail[$key];
-        $set = $val !== '' && strpos($val, 'your_') !== 0;
-      ?>
-      <div class="diag-row">
-        <span class="diag-label"><?= htmlspecialchars($label) ?></span>
-        <span class="diag-val">
-          <?php if ($set): ?>
-            <span class="badge-ok">設定済み</span>
-            <?php if ($key !== 'MAIL_PASSWORD'): ?>
-              <span style="font-size:11px;color:#64748b;margin-left:6px"><?= htmlspecialchars($val) ?></span>
-            <?php endif; ?>
-          <?php else: ?>
-            <span class="badge-ng">未設定</span>
-          <?php endif; ?>
-        </span>
-      </div>
-      <?php endforeach; ?>
-      <div style="font-size:11px;color:#64748b;margin-top:10px">
-        ⚠️ メール送信を使うには、サーバー上の <code>.env</code> ファイルに SMTP 情報を設定してください。<br>
-        Gmail の場合は「アプリパスワード」を MAIL_PASSWORD に設定します（通常のパスワードは使用不可）。
-      </div>
+      <div style="font-size:13px;font-weight:600;color:#94a3b8;margin-bottom:16px">SMTP 設定（.env ファイルに保存）</div>
+      <?php if ($savedSmtp): ?><div class="flash-ok" style="margin-bottom:14px"><?= htmlspecialchars($savedSmtp) ?></div><?php endif; ?>
+      <?php if ($smtpError):  ?><div class="flash-err" style="margin-bottom:14px"><?= htmlspecialchars($smtpError) ?></div><?php endif; ?>
+      <form method="post">
+        <div class="field-grid" style="margin-bottom:14px">
+          <div class="field-group">
+            <label>MAIL_SERVER（SMTPサーバー）</label>
+            <input type="text" name="MAIL_SERVER"
+                   value="<?= htmlspecialchars($envMail['MAIL_SERVER']) ?>"
+                   placeholder="smtp.gmail.com">
+            <div class="hint">Gmail: smtp.gmail.com</div>
+          </div>
+          <div class="field-group">
+            <label>MAIL_PORT</label>
+            <input type="number" name="MAIL_PORT"
+                   value="<?= htmlspecialchars($envMail['MAIL_PORT'] ?: '587') ?>"
+                   min="1" max="65535">
+            <div class="hint">TLS: 587 / SSL: 465</div>
+          </div>
+          <div class="field-group">
+            <label>MAIL_USERNAME（送信アカウント）</label>
+            <input type="email" name="MAIL_USERNAME"
+                   value="<?= htmlspecialchars($envMail['MAIL_USERNAME']) ?>"
+                   placeholder="your@gmail.com">
+          </div>
+          <div class="field-group">
+            <label>MAIL_DEFAULT_SENDER（送信者アドレス）</label>
+            <input type="email" name="MAIL_DEFAULT_SENDER"
+                   value="<?= htmlspecialchars($envMail['MAIL_DEFAULT_SENDER']) ?>"
+                   placeholder="your@gmail.com">
+            <div class="hint">通常は MAIL_USERNAME と同じ</div>
+          </div>
+          <div class="field-group">
+            <label>MAIL_PASSWORD（アプリパスワード）</label>
+            <input type="password" name="MAIL_PASSWORD"
+                   placeholder="<?= ($envMail['MAIL_PASSWORD'] && strpos($envMail['MAIL_PASSWORD'], 'your_') !== 0) ? '●●●● 設定済み（変更する場合のみ入力）' : '16文字のアプリパスワード' ?>">
+            <div class="hint">Gmail: Googleアカウント → セキュリティ → アプリパスワード で発行</div>
+          </div>
+          <div class="field-group">
+            <label>MAIL_USE_TLS</label>
+            <select name="MAIL_USE_TLS"
+                    style="width:100%;background:#0f172a;border:1px solid #475569;border-radius:7px;color:#e2e8f0;padding:9px 10px;font-size:13px;outline:none">
+              <option value="true"  <?= ($envMail['MAIL_USE_TLS'] !== 'false') ? 'selected' : '' ?>>true（推奨・ポート587）</option>
+              <option value="false" <?= ($envMail['MAIL_USE_TLS'] === 'false') ? 'selected' : '' ?>>false（ポート465 SSL等）</option>
+            </select>
+          </div>
+        </div>
+        <button type="submit" name="save_smtp" class="btn-save">SMTP設定を保存</button>
+      </form>
     </div>
 
     <!-- 通知先リスト -->
