@@ -606,7 +606,7 @@ function resetIndicatorPageBt() {
 </script>
 <?php endif; ?>
 
-<?php if ($is_indicator && $ind_slug): ?>
+<?php if ($is_indicator && $ind_slug && $is_custom_indicator): ?>
 <style>
 /* ===== BT2 inline card ===== */
 .bt2-inline-card{background:#0b1a2b;border:1px solid #1e3a5f;border-radius:10px;padding:18px 20px;margin-top:16px}
