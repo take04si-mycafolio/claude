@@ -594,6 +594,8 @@ def run_backtest_for_indicator(
         "backtest_hours": backtest_hours,
         "max_drawdown": round(max_drawdown, 0),
         "profit_factor": round(profit_factor, 4),
+        "start_date": backtest_df["timestamp"].min().to_pydatetime() if len(backtest_df) > 0 else None,
+        "end_date":   backtest_df["timestamp"].max().to_pydatetime() if len(backtest_df) > 0 else None,
         "calculated_at": datetime.now(timezone.utc),
         "trades": trades_log,
     }
@@ -863,6 +865,8 @@ def save_backtest_results(results: list, recompute_stats: bool = False) -> int:
         record.max_drawdown       = r.get("max_drawdown")
         record.profit_factor      = r.get("profit_factor")
         record.calculated_at      = r["calculated_at"]
+        record.start_date         = r.get("start_date")
+        record.end_date           = r.get("end_date")
 
         db.session.flush()  # record.id を確定させる
 

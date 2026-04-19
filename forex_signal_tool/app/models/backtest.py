@@ -23,6 +23,8 @@ class BacktestResult(db.Model):
     backtest_hours = db.Column(db.Integer, default=12)
     max_drawdown = db.Column(db.Numeric(15, 2))
     profit_factor = db.Column(db.Numeric(8, 4))
+    start_date = db.Column(db.DateTime, nullable=True)
+    end_date   = db.Column(db.DateTime, nullable=True)
     calculated_at = db.Column(db.DateTime(timezone=True), nullable=False)
     created_at = db.Column(
         db.DateTime(timezone=True), default=lambda: datetime.now(timezone.utc)
@@ -53,5 +55,7 @@ class BacktestResult(db.Model):
             "backtest_hours": self.backtest_hours,
             "max_drawdown": float(self.max_drawdown) if self.max_drawdown else None,
             "profit_factor": float(self.profit_factor) if self.profit_factor else None,
+            "start_date": self.start_date.strftime("%Y/%m/%d") if self.start_date else None,
+            "end_date":   self.end_date.strftime("%Y/%m/%d")   if self.end_date   else None,
             "calculated_at": self.calculated_at.isoformat(),
         }

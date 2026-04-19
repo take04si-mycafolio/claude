@@ -1432,14 +1432,15 @@ def get_indicator_page_data(indicator_name: str, app) -> dict | None:
         else:
             results_dicts = [r.to_dict() for r in results_orm]
             best_dict = results_dicts[0]
-        sl = Setting.get_float("sl_pips", 20)
-        tp = Setting.get_float("tp_pips", 40)
-
     best = SimpleNamespace(**best_dict)
     if not _use_page_bt:
-        sl = Setting.get_float("sl_pips", 20)
-        tp = Setting.get_float("tp_pips", 40)
-    bt_period = Setting.get("backtest_period", "")
+        sl = float(best_dict.get("sl_pips") or Setting.get_float("sl_pips", 20))
+        tp = float(best_dict.get("tp_pips") or Setting.get_float("tp_pips", 40))
+        _bd_start = best_dict.get("start_date")
+        _bd_end   = best_dict.get("end_date")
+        bt_period = f"{_bd_start}〜{_bd_end}" if (_bd_start and _bd_end) else Setting.get("backtest_period", "")
+    else:
+        bt_period = Setting.get("backtest_period", "")
 
     def _to_unix(dt):
         """naive UTC datetime → Unix timestamp"""
