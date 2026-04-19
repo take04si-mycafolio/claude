@@ -1041,10 +1041,15 @@ function resetIndicatorPageBt() {
         ?></textarea>
       </div>
     </div>
-    <div style="display:flex;align-items:center;gap:12px">
+    <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
       <button onclick="registerAsCustomIndicator()"
               style="background:#7c3aed;color:#fff;border:none;border-radius:7px;padding:8px 20px;font-size:13px;font-weight:600;cursor:pointer">
         📌 登録・更新
+      </button>
+      <button id="ci-save-rebuild-btn" onclick="saveConfigAndRebuild()"
+              style="background:#0e7490;color:#fff;border:none;border-radius:7px;padding:8px 20px;font-size:13px;font-weight:600;cursor:pointer"
+              title="BT再実行なしで設定保存 & 公開ページ即時反映">
+        🔄 設定保存 &amp; ページ反映
       </button>
       <span id="ci-reg-status" style="font-size:12px;color:#94a3b8"></span>
     </div>
@@ -1951,6 +1956,64 @@ async function registerAsCustomIndicator() {
     stat.style.color = '#ef4444';
   }
   setTimeout(() => { stat.textContent = ''; }, 6000);
+}
+
+async function saveConfigAndRebuild() {
+  const buyConds  = bt2BuildCondsSide('buy');
+  const sellConds = bt2BuildCondsSide('sell');
+  if (!buyConds.length && !sellConds.length) { alert('BUY または SELL の条件を少なくとも1つ追加してください'); return; }
+  if (!IND_SLUG) { alert('指標スラッグが取得できません'); return; }
+
+  const makeOneSide = (dir, conds, logic) => ({
+    strategy_version: '1.0',
+    direction: dir,
+    entry_conditions: { logic, conditions: conds },
+    filters:         bt2BuildFilters(),
+    sl_config:       bt2BuildSl(),
+    tp_config:       bt2BuildTp(),
+    trailing_config: bt2BuildTrailing(),
+  });
+  const strategy = {
+    version: '2.0',
+    buy:  buyConds.length  ? makeOneSide('BUY',  buyConds,  _bt2LogicBuy)  : null,
+    sell: sellConds.length ? makeOneSide('SELL', sellConds, _bt2LogicSell) : null,
+  };
+  const toArr = t => t.split('\n').map(s => s.trim()).filter(Boolean);
+  const btn  = document.getElementById('ci-save-rebuild-btn');
+  const stat = document.getElementById('ci-reg-status');
+  btn.disabled = true;
+  stat.textContent = '設定保存中...'; stat.style.color = '#94a3b8';
+  try {
+    // 1) strategy_config を DB 保存（BT はトリガーしない専用エンドポイント）
+    const saveRes = await fetch('/admin/api.php', {
+      method: 'POST', headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({
+        action:          'save_indicator_config_only',
+        name:            document.getElementById('ci-reg-name').value,
+        display_name:    document.getElementById('ci-display-name').value,
+        description:     document.getElementById('ci-reg-desc').value,
+        good_markets:    toArr(document.getElementById('ci-reg-good').value),
+        bad_markets:     toArr(document.getElementById('ci-reg-bad').value),
+        strategy_config: strategy,
+      }),
+    }).then(r => r.json());
+    if (saveRes.status !== 'ok') throw new Error(saveRes.message || '保存エラー');
+
+    // 2) 公開ページ再生成
+    stat.textContent = 'ページ再生成中...'; stat.style.color = '#67e8f9';
+    const rebuildRes = await fetch('/admin/api.php', {
+      method: 'POST', headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({ action: 'rebuild_indicator_page', slug: IND_SLUG }),
+    }).then(r => r.json());
+
+    stat.textContent = rebuildRes.ok ? '✅ 設定保存 & ページ反映完了' : '✅ 保存完了（ページ反映失敗: ' + (rebuildRes.error || '') + '）';
+    stat.style.color = rebuildRes.ok ? '#4ade80' : '#facc15';
+  } catch(e) {
+    stat.textContent = '❌ ' + e.message;
+    stat.style.color = '#ef4444';
+  }
+  btn.disabled = false;
+  setTimeout(() => { stat.textContent = ''; }, 8000);
 }
 
 async function resetBt2Db() {

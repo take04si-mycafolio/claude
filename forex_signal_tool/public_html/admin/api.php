@@ -1529,6 +1529,49 @@ switch ($action) {
         }
         break;
 
+    // ---- カスタム複合指標: 設定保存のみ（BT再実行なし・ページ反映用）----
+    case 'save_indicator_config_only':
+        require_login();
+        try {
+            $name         = trim($body['name']         ?? '');
+            $display_name = trim($body['display_name'] ?? '');
+            $description  = trim($body['description']  ?? '');
+            $good_markets = $body['good_markets'] ?? '[]';
+            $bad_markets  = $body['bad_markets']  ?? '[]';
+            $strategy_cfg = $body['strategy_config'] ?? null;
+
+            if (!$name || !$display_name || !$strategy_cfg) {
+                json_out(['status' => 'error', 'message' => 'name / display_name / strategy_config は必須です']);
+            }
+            if (!is_array($strategy_cfg)) {
+                json_out(['status' => 'error', 'message' => 'strategy_config が不正です']);
+            }
+
+            $cfgJson  = json_encode($strategy_cfg, JSON_UNESCAPED_UNICODE);
+            $goodJson = is_array($good_markets) ? json_encode($good_markets, JSON_UNESCAPED_UNICODE) : (string)$good_markets;
+            $badJson  = is_array($bad_markets)  ? json_encode($bad_markets,  JSON_UNESCAPED_UNICODE) : (string)$bad_markets;
+
+            $pdo  = get_pdo();
+            $stmt = $pdo->prepare(
+                "INSERT INTO custom_v2_indicators
+                    (name, display_name, description, good_markets, bad_markets, strategy_config)
+                 VALUES (?, ?, ?, ?, ?, ?)
+                 ON DUPLICATE KEY UPDATE
+                    display_name   = VALUES(display_name),
+                    description    = VALUES(description),
+                    good_markets   = VALUES(good_markets),
+                    bad_markets    = VALUES(bad_markets),
+                    strategy_config= VALUES(strategy_config),
+                    is_active      = 1"
+            );
+            $stmt->execute([$name, $display_name, $description, $goodJson, $badJson, $cfgJson]);
+            // BT は起動しない
+            json_out(['status' => 'ok', 'message' => '設定を保存しました']);
+        } catch (Exception $e) {
+            json_out(['status' => 'error', 'message' => $e->getMessage()]);
+        }
+        break;
+
     // ---- カスタム複合指標: 一覧取得 ----
     case 'list_custom_indicators':
         require_login();
