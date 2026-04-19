@@ -22,7 +22,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save_settings'])) {
     try {
         $fields = [
             'initial_capital', 'sl_pips', 'tp_pips', 'backtest_hours',
-            'min_win_rate', 'min_trades',
+            'min_win_rate', 'min_trades', 'quantflow_signal_recipients',
         ];
         foreach ($fields as $key) {
             if (isset($_POST[$key])) {
@@ -37,12 +37,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save_settings'])) {
 
 // 設定値
 $cfg = [
-    'initial_capital' => setting_get('initial_capital', '1000000'),
-    'sl_pips'         => setting_get('sl_pips',         '20'),
-    'tp_pips'         => setting_get('tp_pips',         '40'),
-    'backtest_hours'  => setting_get('backtest_hours',  '12'),
-    'min_win_rate'    => setting_get('min_win_rate',    '55'),
-    'min_trades'      => setting_get('min_trades',      '3'),
+    'initial_capital'              => setting_get('initial_capital',              '1000000'),
+    'sl_pips'                      => setting_get('sl_pips',                      '20'),
+    'tp_pips'                      => setting_get('tp_pips',                      '40'),
+    'backtest_hours'               => setting_get('backtest_hours',               '12'),
+    'min_win_rate'                 => setting_get('min_win_rate',                 '55'),
+    'min_trades'                   => setting_get('min_trades',                   '3'),
+    'quantflow_signal_recipients'  => setting_get('quantflow_signal_recipients',  ''),
 ];
 
 // ---- システム診断 ----
@@ -234,6 +235,24 @@ h2{font-size:20px;font-weight:700;color:#f1f5f9;margin-bottom:6px}
           </div>
         </div>
         <button type="submit" name="save_settings" class="btn-save">設定を保存</button>
+      </form>
+    </div>
+  </div>
+
+  <!-- ===== QuantFlow メール通知設定 ===== -->
+  <div class="section">
+    <div class="section-title">QuantFlow メール通知</div>
+    <div class="card">
+      <form method="post">
+        <div class="field-group" style="margin-bottom:20px">
+          <label>通知先メールアドレス（複数の場合はカンマ区切り）</label>
+          <input type="text" name="quantflow_signal_recipients"
+                 value="<?= htmlspecialchars($cfg['quantflow_signal_recipients']) ?>"
+                 placeholder="例: alice@example.com,bob@example.com"
+                 style="width:100%;background:#0f172a;border:1px solid #475569;border-radius:7px;color:#e2e8f0;padding:9px 10px;font-size:13px;outline:none">
+          <div class="hint" style="margin-top:6px">エントリー確定・TP/SL 決済・シグナル変更による決済の際にメールを送信します。空欄の場合は送信しません。</div>
+        </div>
+        <button type="submit" name="save_settings" class="btn-save">保存</button>
       </form>
     </div>
   </div>
