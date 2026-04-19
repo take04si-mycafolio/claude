@@ -174,7 +174,7 @@ tr.trade-row.sim-active td{background:rgba(59,130,246,.10)!important}
         {%- set _tip = "【検証条件】SL: " ~ sl ~ "pips / TP: " ~ tp ~ "pips / 初期資金: 1,000,000円" -%}
         {%- if bt_period -%}{%- set _tip = _tip ~ " / 検証期間: " ~ bt_period -%}{%- endif -%}
       {%- endif -%}
-      <span class="info-tip" data-tip="{{ _tip }}">
+      <span class="info-tip" data-tip="{{ _tip | safe }}">
         <i class="bi bi-info-circle" style="font-size:0.9rem;color:#94a3b8;cursor:pointer"></i>
       </span>
     </h2>

@@ -601,6 +601,8 @@ function resetIndicatorPageBt() {
   })
   .catch(e => { btn.disabled = false; document.getElementById('ind-bt-log').textContent = 'ネットワークエラー: ' + e; });
 }
+
+
 </script>
 <?php endif; ?>
 
@@ -979,12 +981,13 @@ function resetIndicatorPageBt() {
     </div>
   </div>
   <?php if ($is_custom_indicator): ?>
-  <div style="margin-top:8px">
-    <button onclick="resetIndicatorPageBt()"
+  <div style="margin-top:8px;display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+    <button id="bt2-reset-btn" onclick="resetBt2Db()"
             style="background:#450a0a;color:#fca5a5;border:1px solid #7f1d1d;border-radius:6px;padding:6px 14px;font-size:12px;font-weight:600;cursor:pointer">
       🗑️ DBのバックテスト結果をリセット
     </button>
-    <span style="font-size:11px;color:#475569;margin-left:8px">間違えた設定で保存した場合はリセットして再実行してください</span>
+    <span id="bt2-reset-status" style="font-size:12px;color:#475569"></span>
+    <span style="font-size:11px;color:#475569">間違えた設定で保存した場合はリセットして再実行してください</span>
   </div>
   <?php endif; ?>
 
@@ -1948,6 +1951,32 @@ async function registerAsCustomIndicator() {
     stat.style.color = '#ef4444';
   }
   setTimeout(() => { stat.textContent = ''; }, 6000);
+}
+
+async function resetBt2Db() {
+  const indName = (typeof IND_SLUG !== 'undefined' ? IND_SLUG : null);
+  if (!indName) { alert('指標名が取得できませんでした'); return; }
+  if (!confirm('バックテスト結果をDBからリセットしますか？\n保存済みの全結果・トレード履歴が削除されます。')) return;
+  const btn  = document.getElementById('bt2-reset-btn');
+  const stat = document.getElementById('bt2-reset-status');
+  if (btn) btn.disabled = true;
+  if (stat) { stat.textContent = 'リセット中...'; stat.style.color = '#94a3b8'; }
+  try {
+    const d = await fetch('/admin/api.php?action=reset_indicator_page_bt', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({ indicator_name: indName }),
+    }).then(r => r.json());
+    if (d.ok) {
+      if (stat) { stat.textContent = '✅ リセット完了。再度バックテストを実行してください。'; stat.style.color = '#4ade80'; }
+    } else {
+      if (stat) { stat.textContent = '❌ ' + (d.error || JSON.stringify(d)); stat.style.color = '#f87171'; }
+      if (btn) btn.disabled = false;
+    }
+  } catch(e) {
+    if (stat) { stat.textContent = '❌ ' + e.message; stat.style.color = '#f87171'; }
+    if (btn) btn.disabled = false;
+  }
 }
 
 <?php if ($is_custom_indicator && $custom_indicator && !empty($custom_indicator['strategy_config'])): ?>
