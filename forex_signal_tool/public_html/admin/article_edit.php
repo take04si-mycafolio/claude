@@ -1537,6 +1537,36 @@ function bt2BuildTrailing() {
            trail_pips:on?parseFloat(document.getElementById('bt2-trail-pips').value):null };
 }
 
+// ---- BT重複スキップ用ヘルパー ----
+function _bt2Canonicalize(obj) {
+  if (typeof obj !== 'object' || obj === null) return JSON.stringify(obj);
+  if (Array.isArray(obj)) return '[' + obj.map(_bt2Canonicalize).join(',') + ']';
+  return '{' + Object.keys(obj).sort().map(k => JSON.stringify(k) + ':' + _bt2Canonicalize(obj[k])).join(',') + '}';
+}
+function _bt2StrategyHash(strategy) {
+  const s = _bt2Canonicalize(strategy);
+  let h = 5381;
+  for (let i = 0; i < s.length; i++) h = ((h << 5) + h + s.charCodeAt(i)) & 0xffffffff;
+  return (h >>> 0).toString(16).padStart(8, '0');
+}
+async function _bt2FetchExisting(indicatorName) {
+  if (!indicatorName) return {};
+  try {
+    const res = await fetch('/admin/api.php', {
+      method: 'POST', headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({ action: 'get_bt2_existing_results', indicator_name: indicatorName }),
+    }).then(r => r.json());
+    return res.ok ? (res.data || {}) : {};
+  } catch { return {}; }
+}
+function _bt2ShouldSkip(existing, pair, tf, dir, rng, stratHash) {
+  const key = pair + '_' + tf + '_' + (dir || 'BOTH');
+  const ex  = existing[key];
+  if (!ex || ex.strategy_hash !== stratHash) return false;
+  if (rng.start && rng.end) return ex.start_date === rng.start && ex.end_date === rng.end;
+  return !!ex.start_date; // limit-based: データがあればスキップ
+}
+
 async function runBt2Inline() {
   if (IS_CUSTOM_IND) { await _runBt2InlineWithSides(); return; }
 
@@ -1586,11 +1616,20 @@ async function runBt2Inline() {
   const total = pairs.length * tfs.length;
   let done    = 0;
   const TF_LBL = {'5min':'5分足','15min':'15分足','30min':'30分足','1hr':'1時間足','4hr':'4時間足','daily':'日足'};
+  const _existingData = await _bt2FetchExisting(IND_SLUG);
+  const _stratHash    = _bt2StrategyHash(strategy);
 
   for (const tf of tfs) {
     const rng = tfRanges[tf];
     for (const pair of pairs) {
       done++;
+      if (_bt2ShouldSkip(_existingData, pair, tf, '', rng, _stratHash)) {
+        log.textContent = `スキップ (${done}/${total}): ${pair} ${TF_LBL[tf]||tf}`;
+        const tr = document.createElement('tr');
+        tr.innerHTML = `<td>${pair}</td><td>${TF_LBL[tf]||tf}</td><td colspan="5" style="color:#475569;font-size:11px">スキップ（条件・期間が一致）</td>`;
+        tbody.appendChild(tr); tbl.style.display = 'table';
+        continue;
+      }
       log.textContent = `実行中 (${done}/${total}): ${pair} ${TF_LBL[tf]||tf}...`;
       const tr = document.createElement('tr');
       try {
@@ -1624,7 +1663,7 @@ async function runBt2Inline() {
             <td>${pf}</td><td>${m.total_trades||0}件</td>
             <td style="color:${m.total_profit>=0?'#4ade80':'#f87171'}">${tp}円</td>
             <td style="font-size:11px;color:#64748b">${period}</td>`;
-          _bt2InlineResults.push({ pair, tf, metrics: m, trades: (res.trades || []).slice(-300) });
+          _bt2InlineResults.push({ pair, tf, metrics: m, trades: (res.trades || []).slice(-300), strategy_hash: _stratHash });
         }
       } catch(e) {
         tr.innerHTML = `<td>${pair}</td><td>${TF_LBL[tf]||tf}</td>
@@ -1691,6 +1730,7 @@ async function _runBt2InlineWithSides() {
   const total = pairs.length * tfs.length * sides.length;
   let done = 0;
   const TF_LBL = {'5min':'5分足','15min':'15分足','30min':'30分足','1hr':'1時間足','4hr':'4時間足','daily':'日足'};
+  const _existingData = await _bt2FetchExisting(IND_SLUG);
 
   for (const s of sides) {
     const strategy = {
@@ -1702,10 +1742,19 @@ async function _runBt2InlineWithSides() {
       tp_config:       bt2BuildTp(),
       trailing_config: bt2BuildTrailing(),
     };
+    const _stratHash = _bt2StrategyHash(strategy);
     for (const tf of tfs) {
       const rng = tfRanges[tf];
       for (const pair of pairs) {
         done++;
+        if (_bt2ShouldSkip(_existingData, pair, tf, s.dir, rng, _stratHash)) {
+          log.textContent = `スキップ (${done}/${total}): ${pair} ${TF_LBL[tf]||tf} [${s.dir}]`;
+          const tr = document.createElement('tr');
+          const dc = s.dir === 'BUY' ? '#34d399' : '#f87171';
+          tr.innerHTML = `<td>${pair}</td><td>${TF_LBL[tf]||tf}</td><td style="color:${dc}">${s.dir}</td><td colspan="5" style="color:#475569;font-size:11px">スキップ（条件・期間が一致）</td>`;
+          tbody.appendChild(tr); tbl.style.display = 'table';
+          continue;
+        }
         log.textContent = `実行中 (${done}/${total}): ${pair} ${TF_LBL[tf]||tf} [${s.dir}]...`;
         const tr = document.createElement('tr');
         try {
@@ -1735,7 +1784,7 @@ async function _runBt2InlineWithSides() {
               <td>${pf}</td><td>${m.total_trades||0}件</td>
               <td style="color:${m.total_profit>=0?'#4ade80':'#f87171'}">${tp}円</td>
               <td style="font-size:11px;color:#64748b">${period}</td>`;
-            _bt2InlineResults.push({ pair, tf, dir: s.dir, metrics: m, trades: (res.trades || []).slice(-300), data_from: res.data_from || '', data_to: res.data_to || '' });
+            _bt2InlineResults.push({ pair, tf, dir: s.dir, metrics: m, trades: (res.trades || []).slice(-300), data_from: res.data_from || '', data_to: res.data_to || '', strategy_hash: _stratHash });
           }
         } catch(e) {
           tr.innerHTML = `<td>${pair}</td><td>${TF_LBL[tf]||tf}</td>
@@ -1827,11 +1876,12 @@ async function _bt2AutoSave() {
           action:          'save_bt2_page_results',
           indicator_name:  IND_SLUG,
           results: _bt2InlineResults.map(r => ({
-            pair:    r.pair,
-            tf:      r.tf,
-            dir:     r.dir || '',
-            metrics: r.metrics,
-            period:  periodFn(r),
+            pair:          r.pair,
+            tf:            r.tf,
+            dir:           r.dir || '',
+            metrics:       r.metrics,
+            period:        periodFn(r),
+            strategy_hash: r.strategy_hash || '',
             trades:  (r.trades || []).map(t => ({
               entry_time:      t.entry_time,
               exit_time:       t.exit_time,

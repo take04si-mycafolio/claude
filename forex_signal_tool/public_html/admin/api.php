@@ -492,13 +492,18 @@ switch ($action) {
                 $pdo->exec("ALTER TABLE indicator_page_bt_results ADD UNIQUE KEY uq_ind_page_bt (indicator_name, currency_pair, timeframe, signal_direction)");
             } catch (Exception $_e) { /* 既に新キーか、テーブルが空 → 無視 */ }
 
+            // strategy_hash カラムを追加（初回のみ）
+            try {
+                $pdo->exec("ALTER TABLE indicator_page_bt_results ADD COLUMN strategy_hash VARCHAR(32) NULL DEFAULT NULL");
+            } catch (Exception $_e) {}
+
             $stmt = $pdo->prepare("INSERT INTO indicator_page_bt_results
                 (indicator_name, currency_pair, timeframe, signal_direction,
                  win_rate, total_trades, winning_trades, losing_trades,
                  total_profit, initial_capital, final_capital,
                  sl_pips, tp_pips, max_drawdown, profit_factor,
-                 start_date, end_date, calculated_at)
-                VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,NOW())
+                 start_date, end_date, strategy_hash, calculated_at)
+                VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,NOW())
                 ON DUPLICATE KEY UPDATE
                     win_rate=VALUES(win_rate),
                     total_trades=VALUES(total_trades),
@@ -513,6 +518,7 @@ switch ($action) {
                     profit_factor=VALUES(profit_factor),
                     start_date=VALUES(start_date),
                     end_date=VALUES(end_date),
+                    strategy_hash=VALUES(strategy_hash),
                     calculated_at=NOW()");
 
             // BUY/SELL それぞれ別行で保存（マージしない）
@@ -543,13 +549,14 @@ switch ($action) {
                     $endDate   = $parts[1] ?? null ?: null;
                 }
 
+                $stratHash = isset($r['strategy_hash']) ? substr((string)$r['strategy_hash'], 0, 32) : null;
                 $stmt->execute([
                     $indicatorName, $pair, $tf, $dir,
                     round($wr01 * 100, 2), $tt, $wt, $lt,
                     round($prof, 2), round($ic, 2), round($fc, 2),
                     round($sl, 2), round($tp, 2),
                     round($md, 2), round(is_finite($pf) ? $pf : 0, 4),
-                    $startDate, $endDate,
+                    $startDate, $endDate, $stratHash,
                 ]);
             }
 
@@ -628,6 +635,32 @@ switch ($action) {
             json_out(['ok' => true, 'saved' => count($results)]);
         } catch (Exception $e) {
             json_out(['ok' => false, 'error' => $e->getMessage()]);
+        }
+        break;
+
+    case 'get_bt2_existing_results':
+        require_login();
+        $indicatorName = trim($body['indicator_name'] ?? '');
+        if (!$indicatorName) { json_out(['ok' => false, 'data' => []]); break; }
+        try {
+            $pdo  = get_pdo();
+            $rows = $pdo->prepare(
+                "SELECT currency_pair, timeframe, signal_direction, strategy_hash, start_date, end_date
+                 FROM indicator_page_bt_results WHERE indicator_name = ?"
+            );
+            $rows->execute([$indicatorName]);
+            $data = [];
+            foreach ($rows->fetchAll(PDO::FETCH_ASSOC) as $row) {
+                $key = $row['currency_pair'] . '_' . $row['timeframe'] . '_' . ($row['signal_direction'] ?: 'BOTH');
+                $data[$key] = [
+                    'strategy_hash' => $row['strategy_hash'] ?? '',
+                    'start_date'    => $row['start_date']    ? substr($row['start_date'], 0, 10) : '',
+                    'end_date'      => $row['end_date']      ? substr($row['end_date'],   0, 10) : '',
+                ];
+            }
+            json_out(['ok' => true, 'data' => $data]);
+        } catch (Exception $e) {
+            json_out(['ok' => false, 'data' => [], 'error' => $e->getMessage()]);
         }
         break;
 
