@@ -1442,6 +1442,16 @@ def get_indicator_page_data(indicator_name: str, app) -> dict | None:
     else:
         bt_period = Setting.get("backtest_period", "")
 
+    # ranking BT 結果から TF 別の検証期間を抽出（ツールチップ用）
+    _bt_dates_by_tf = {}
+    if not _use_page_bt:
+        for _r in results_dicts:
+            _rtf = _r.get("timeframe", "")
+            if _rtf and _rtf not in _bt_dates_by_tf:
+                _sd = _r.get("start_date") or ""
+                _ed = _r.get("end_date") or ""
+                _bt_dates_by_tf[_rtf] = {"start": str(_sd), "end": str(_ed)}
+
     def _to_unix(dt):
         """naive UTC datetime → Unix timestamp"""
         if dt is None:
@@ -1639,6 +1649,16 @@ def get_indicator_page_data(indicator_name: str, app) -> dict | None:
             _tip_lines.append(
                 f"{_tf_names.get(_tf, _tf)}: {_start_label} 〜 {_end_label}"
             )
+    elif _bt_dates_by_tf:
+        _tip_lines.append("【時間足別検証期間】")
+        for _tf in TF_ORDER:
+            if _tf in _bt_dates_by_tf:
+                _rng = _bt_dates_by_tf[_tf]
+                _end_label   = _rng["end"]   or "最新"
+                _start_label = _rng["start"] or "（全期間）"
+                _tip_lines.append(
+                    f"{_tf_names.get(_tf, _tf)}: {_start_label} 〜 {_end_label}"
+                )
     else:
         _tip_lines.append(
             f"【検証期間】" + (f"{bt_period}" if bt_period else "全期間")
@@ -1657,6 +1677,12 @@ def get_indicator_page_data(indicator_name: str, app) -> dict | None:
             _tip_lines.append(f"SL: {_first['sl_pips']}pips / TP: {_first['tp_pips']}pips")
     else:
         _tip_lines.append(f"SL: {int(sl)}pips / TP: {int(tp)}pips")
+
+    _feature_txt = info.get("feature", "").strip()
+    if _feature_txt and not _strategy_config:
+        _tip_lines.append("")
+        _tip_lines.append("【エントリー条件】")
+        _tip_lines.append(_feature_txt)
 
     if _strategy_config:
         _tip_lines.append("")
