@@ -96,7 +96,7 @@
 {% endif %}
 
 <!-- トレンドスコア（USD/JPY のみ） -->
-{% if data.trend_score and not data.trend_score.error %}
+{% if false %}{# QuantFlow表示OFF: 再表示するには → data.trend_score and not data.trend_score.error #}
 {% set ts = data.trend_score %}
 {% set ts_cls = ts.level | lower | replace(' ', '-') %}
 <div class="section-card">
@@ -191,7 +191,7 @@
 {% endif %}
 
 <!-- QuantFlow 月次バックテスト実績 -->
-{% if data.quantflow_monthly %}
+{% if false %}{# QuantFlow月次バックテスト実績表示OFF: 再表示するには → data.quantflow_monthly #}
 {% set all_months = data.quantflow_monthly %}
 {% set grand = namespace(t=0,w=0,l=0,p=0.0,bt=0,bw=0,bl=0,bp=0.0,st=0,sw=0,sl_=0,sp=0.0) %}
 {% for m in all_months %}
@@ -333,7 +333,7 @@ function qfTab(ym) {
 {% endif %}
 
 <!-- QuantFlow トレード履歴 -->
-{% if data.quantflow_trades_by_month %}
+{% if false %}{# QuantFlowトレード履歴表示OFF: 再表示するには → data.quantflow_trades_by_month #}
 <style>
 .qfh-panel{display:none}.qfh-panel.active{display:block}
 .qfh-tab{display:inline-block;padding:5px 12px;border-radius:6px;cursor:pointer;font-size:12px;font-weight:600;color:#374151;background:#f1f5f9;white-space:nowrap;transition:background .15s}
