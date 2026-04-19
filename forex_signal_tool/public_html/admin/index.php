@@ -635,60 +635,6 @@ main{max-width:900px;margin:0 auto;padding:28px 20px}
     </div>
   </div>
 
-  <!-- カスタム複合指標 管理 -->
-  <div class="section">
-    <div class="section-title">カスタム複合指標</div>
-    <p style="font-size:12px;color:#64748b;margin-bottom:16px">バックテストv2で作成した戦略をテクニカル指標として登録できます。登録後はシグナルページ・ランキングに反映されます。</p>
-
-    <!-- 新規登録フォーム -->
-    <div style="background:#0b1525;border:1px solid #1e3a5f;border-radius:10px;padding:18px;margin-bottom:20px">
-      <div style="font-size:13px;font-weight:700;color:#38bdf8;margin-bottom:14px">➕ 新規登録</div>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px">
-        <div>
-          <label style="font-size:11px;color:#94a3b8;display:block;margin-bottom:4px">内部キー名（半角英数字・_のみ）<span style="color:#ef4444">*</span></label>
-          <input id="ci-name" type="text" placeholder="例: CustomV2_RSI_BB_Combo"
-                 style="width:100%;background:#0f172a;border:1px solid #334155;border-radius:6px;color:#e2e8f0;padding:8px 10px;font-size:13px;outline:none">
-        </div>
-        <div>
-          <label style="font-size:11px;color:#94a3b8;display:block;margin-bottom:4px">表示名（日本語可）<span style="color:#ef4444">*</span></label>
-          <input id="ci-display-name" type="text" placeholder="例: RSI＋BB 複合シグナル"
-                 style="width:100%;background:#0f172a;border:1px solid #334155;border-radius:6px;color:#e2e8f0;padding:8px 10px;font-size:13px;outline:none">
-        </div>
-      </div>
-      <div style="margin-bottom:12px">
-        <label style="font-size:11px;color:#94a3b8;display:block;margin-bottom:4px">説明（任意）</label>
-        <textarea id="ci-description" rows="2"
-                  style="width:100%;background:#0f172a;border:1px solid #334155;border-radius:6px;color:#e2e8f0;padding:8px 10px;font-size:12px;resize:vertical;font-family:inherit;outline:none"
-                  placeholder="この指標の概要を入力（省略可）"></textarea>
-      </div>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px">
-        <div>
-          <label style="font-size:11px;color:#94a3b8;display:block;margin-bottom:4px">得な相場（1行1項目）</label>
-          <textarea id="ci-good" rows="3"
-                    style="width:100%;background:#0f172a;border:1px solid #334155;border-radius:6px;color:#e2e8f0;padding:8px 10px;font-size:12px;resize:vertical;font-family:inherit;outline:none"
-                    placeholder="例)&#10;トレンド相場&#10;ボラティリティ高め"></textarea>
-        </div>
-        <div>
-          <label style="font-size:11px;color:#94a3b8;display:block;margin-bottom:4px">苦手な相場（1行1項目）</label>
-          <textarea id="ci-bad" rows="3"
-                    style="width:100%;background:#0f172a;border:1px solid #334155;border-radius:6px;color:#e2e8f0;padding:8px 10px;font-size:12px;resize:vertical;font-family:inherit;outline:none"
-                    placeholder="例)&#10;レンジ相場&#10;急騰・急落局面"></textarea>
-        </div>
-      </div>
-      <div style="font-size:11px;color:#64748b;margin-bottom:10px">
-        ⚠️ strategy_config は <a href="/admin/backtest_v2.php" style="color:#60a5fa">バックテストv2</a> で戦略を保存し、その内部キー名を上記に入力してください。登録ボタンを押すと保存済み戦略の設定が自動で読み込まれます。
-      </div>
-      <button onclick="saveCustomIndicator()"
-              id="ci-save-btn"
-              style="background:#0f766e;color:#fff;border:none;border-radius:7px;padding:8px 20px;font-size:13px;font-weight:600;cursor:pointer">
-        📊 指標として登録してバックテスト開始
-      </button>
-      <span id="ci-save-status" style="margin-left:10px;font-size:12px"></span>
-    </div>
-
-    <!-- 登録済み一覧は非表示 -->
-  </div>
-
 </main>
 
 <script>
