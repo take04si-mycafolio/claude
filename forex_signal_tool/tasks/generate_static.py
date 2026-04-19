@@ -2114,12 +2114,21 @@ def main():
                 _ci_sc = {}
                 try: _ci_sc = _cvi_json.loads(_ci.strategy_config or "{}") if isinstance(_ci.strategy_config, str) else (_ci.strategy_config or {})
                 except Exception: pass
+                _ci_desc_sc = content_db_top.get(f"indicator_description_{_ci_slug}")
+                _ci_good_sc = content_db_top.get(f"indicator_good_{_ci_slug}")
+                _ci_bad_sc  = content_db_top.get(f"indicator_bad_{_ci_slug}")
+                if _ci_good_sc:
+                    try: _good_list = _cvi_json.loads(_ci_good_sc)
+                    except Exception: pass
+                if _ci_bad_sc:
+                    try: _bad_list = _cvi_json.loads(_ci_bad_sc)
+                    except Exception: pass
                 INDICATOR_INFO[_ci.name] = {
                     "display":         _ci.display_name,
                     "slug":            _ci_slug,
                     "category":        "コンポジット",
                     "feature":         content_db_top.get(f"indicator_feature_{_ci_slug}", ""),
-                    "description":     _ci.description or "",
+                    "description":     _ci_desc_sc or _ci.description or "",
                     "good":            _good_list,
                     "bad":             _bad_list,
                     "url":             "",

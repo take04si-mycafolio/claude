@@ -244,6 +244,53 @@ if ($is_indicator && $ind_slug) {
     } catch (Exception $e) {}
 }
 
+// 指標情報（説明・得な相場・苦手な相場）を取得
+$current_ind_desc = '';
+$current_ind_good = '';
+$current_ind_bad  = '';
+if ($is_indicator && $ind_slug) {
+    try {
+        $pdo  = get_pdo();
+        $stmt = $pdo->prepare("SELECT content_key, content_value FROM site_content WHERE content_key IN (?,?,?)");
+        $stmt->execute([
+            "indicator_description_{$ind_slug}",
+            "indicator_good_{$ind_slug}",
+            "indicator_bad_{$ind_slug}",
+        ]);
+        foreach ($stmt->fetchAll(PDO::FETCH_ASSOC) as $row) {
+            $k = $row['content_key'] ?? '';
+            $v = $row['content_value'] ?? '';
+            if ($k === "indicator_description_{$ind_slug}") {
+                $current_ind_desc = $v;
+            } elseif ($k === "indicator_good_{$ind_slug}") {
+                $arr = json_decode($v, true);
+                $current_ind_good = is_array($arr) ? implode("\n", $arr) : $v;
+            } elseif ($k === "indicator_bad_{$ind_slug}") {
+                $arr = json_decode($v, true);
+                $current_ind_bad = is_array($arr) ? implode("\n", $arr) : $v;
+            }
+        }
+        // フォールバック: site_content がなければ custom_v2_indicators から取得
+        if ($is_custom_indicator && !empty($custom_indicator)) {
+            if (!$current_ind_desc && !empty($custom_indicator['description'])) {
+                $current_ind_desc = $custom_indicator['description'];
+            }
+            if (!$current_ind_good && !empty($custom_indicator['good_markets'])) {
+                $g = is_array($custom_indicator['good_markets'])
+                     ? $custom_indicator['good_markets']
+                     : json_decode($custom_indicator['good_markets'], true);
+                $current_ind_good = is_array($g) ? implode("\n", $g) : '';
+            }
+            if (!$current_ind_bad && !empty($custom_indicator['bad_markets'])) {
+                $b = is_array($custom_indicator['bad_markets'])
+                     ? $custom_indicator['bad_markets']
+                     : json_decode($custom_indicator['bad_markets'], true);
+                $current_ind_bad = is_array($b) ? implode("\n", $b) : '';
+            }
+        }
+    } catch (Exception $e) {}
+}
+
 // SEO設定を取得
 $current_seo_title = '';
 $current_seo_desc  = '';
@@ -320,7 +367,7 @@ if ($is_indicator && $ind_slug) {
   <!-- カスタム指標として登録・更新 -->
   <div id="ci-register-wrap" style="margin-bottom:16px;padding:14px;background:#0d0a1f;border:1px solid #3b1d8a;border-radius:8px">
     <div style="font-size:12px;font-weight:600;color:#a78bfa;margin-bottom:10px">📌 カスタム指標として登録・更新</div>
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px">
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px">
       <div>
         <label style="font-size:10px;color:#64748b;display:block;margin-bottom:3px">表示名</label>
         <input type="text" id="ci-display-name"
@@ -333,37 +380,6 @@ if ($is_indicator && $ind_slug) {
                value="<?= htmlspecialchars($ind_slug ?? '') ?>"
                readonly
                style="width:100%;background:#0f172a;border:1px solid #1e293b;border-radius:5px;color:#64748b;padding:7px 10px;font-size:12px;outline:none;opacity:.7">
-      </div>
-    </div>
-    <div style="margin-bottom:10px">
-      <label style="font-size:10px;color:#64748b;display:block;margin-bottom:3px">説明</label>
-      <textarea id="ci-reg-desc" rows="2"
-                style="width:100%;background:#0f172a;border:1px solid #334155;border-radius:5px;color:#e2e8f0;padding:7px 10px;font-size:12px;resize:vertical;outline:none"><?= htmlspecialchars($custom_indicator['description'] ?? '') ?></textarea>
-    </div>
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px">
-      <div>
-        <label style="font-size:10px;color:#64748b;display:block;margin-bottom:3px">得な相場（1行1項目）</label>
-        <textarea id="ci-reg-good" rows="3"
-                  style="width:100%;background:#0f172a;border:1px solid #334155;border-radius:5px;color:#e2e8f0;padding:7px 10px;font-size:12px;resize:vertical;outline:none"><?php
-          if (!empty($custom_indicator['good_markets'])) {
-              $g = is_array($custom_indicator['good_markets'])
-                   ? $custom_indicator['good_markets']
-                   : json_decode($custom_indicator['good_markets'], true);
-              echo htmlspecialchars(is_array($g) ? implode("\n", $g) : '');
-          }
-        ?></textarea>
-      </div>
-      <div>
-        <label style="font-size:10px;color:#64748b;display:block;margin-bottom:3px">苦手な相場（1行1項目）</label>
-        <textarea id="ci-reg-bad" rows="3"
-                  style="width:100%;background:#0f172a;border:1px solid #334155;border-radius:5px;color:#e2e8f0;padding:7px 10px;font-size:12px;resize:vertical;outline:none"><?php
-          if (!empty($custom_indicator['bad_markets'])) {
-              $b = is_array($custom_indicator['bad_markets'])
-                   ? $custom_indicator['bad_markets']
-                   : json_decode($custom_indicator['bad_markets'], true);
-              echo htmlspecialchars(is_array($b) ? implode("\n", $b) : '');
-          }
-        ?></textarea>
       </div>
     </div>
     <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
@@ -394,6 +410,37 @@ if ($is_indicator && $ind_slug) {
     <textarea id="feature-text" rows="3"
       style="width:100%;background:#0f172a;border:1px solid #334155;border-radius:6px;color:#e2e8f0;padding:10px 12px;font-size:13px;outline:none;resize:vertical"
       placeholder="例: 上ヒゲピンバー→売りシグナル（上方向への拒絶）、下ヒゲピンバー→買いシグナル（下方向への拒絶）。プライスアクション分析の核心的パターンです。"><?= htmlspecialchars($current_feature) ?></textarea>
+  </div>
+
+  <!-- 指標情報（説明・得な相場・苦手な相場） -->
+  <div class="editor-card" style="margin-bottom:16px;border-color:#1e3a2e">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+      <span style="font-size:13px;font-weight:700;color:#6ee7b7">📝 指標情報（説明・相場適性）</span>
+      <div style="display:flex;align-items:center;gap:8px">
+        <span id="ind-info-save-status" style="font-size:12px;color:#94a3b8"></span>
+        <button onclick="saveIndInfo()" style="background:#14532d;color:#86efac;border:1px solid #16a34a;border-radius:6px;padding:6px 14px;font-size:12px;font-weight:600;cursor:pointer">💾 保存 &amp; ページ更新</button>
+      </div>
+    </div>
+    <div style="margin-bottom:12px">
+      <label class="editor-label" style="margin-bottom:4px">説明</label>
+      <textarea id="ind-desc-text" rows="3"
+        style="width:100%;background:#0f172a;border:1px solid #334155;border-radius:6px;color:#e2e8f0;padding:10px 12px;font-size:13px;outline:none;resize:vertical"
+        placeholder="この指標の概要・特徴を記述します。"><?= htmlspecialchars($current_ind_desc) ?></textarea>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+      <div>
+        <label class="editor-label" style="margin-bottom:4px">得な相場（1行1項目）</label>
+        <textarea id="ind-good-text" rows="4"
+          style="width:100%;background:#0f172a;border:1px solid #334155;border-radius:6px;color:#e2e8f0;padding:10px 12px;font-size:12px;outline:none;resize:vertical"
+          placeholder="トレンド相場&#10;ボラティリティが高い時期"><?= htmlspecialchars($current_ind_good) ?></textarea>
+      </div>
+      <div>
+        <label class="editor-label" style="margin-bottom:4px">苦手な相場（1行1項目）</label>
+        <textarea id="ind-bad-text" rows="4"
+          style="width:100%;background:#0f172a;border:1px solid #334155;border-radius:6px;color:#e2e8f0;padding:10px 12px;font-size:12px;outline:none;resize:vertical"
+          placeholder="レンジ相場&#10;低ボラティリティ"><?= htmlspecialchars($current_ind_bad) ?></textarea>
+      </div>
+    </div>
   </div>
 
   <!-- 指標記事：3フィールド（CSS / HTML / JSON-LD） -->
@@ -1958,9 +2005,9 @@ async function registerAsCustomIndicator() {
         action:          'save_custom_indicator',
         name:            document.getElementById('ci-reg-name').value,
         display_name:    document.getElementById('ci-display-name').value,
-        description:     document.getElementById('ci-reg-desc').value,
-        good_markets:    toArr(document.getElementById('ci-reg-good').value),
-        bad_markets:     toArr(document.getElementById('ci-reg-bad').value),
+        description:     document.getElementById('ind-desc-text')?.value || '',
+        good_markets:    toArr(document.getElementById('ind-good-text')?.value || ''),
+        bad_markets:     toArr(document.getElementById('ind-bad-text')?.value  || ''),
         strategy_config: strategy,
       }),
     }).then(r => r.json());
@@ -2011,9 +2058,9 @@ async function saveConfigAndRebuild() {
         action:          'save_indicator_config_only',
         name:            document.getElementById('ci-reg-name').value,
         display_name:    document.getElementById('ci-display-name').value,
-        description:     document.getElementById('ci-reg-desc').value,
-        good_markets:    toArr(document.getElementById('ci-reg-good').value),
-        bad_markets:     toArr(document.getElementById('ci-reg-bad').value),
+        description:     document.getElementById('ind-desc-text')?.value || '',
+        good_markets:    toArr(document.getElementById('ind-good-text')?.value || ''),
+        bad_markets:     toArr(document.getElementById('ind-bad-text')?.value  || ''),
         strategy_config: strategy,
       }),
     }).then(r => r.json());
@@ -2189,6 +2236,19 @@ async function loadContent() {
       if (IS_INDICATOR) {
         document.getElementById('editor-css').value    = data[ARTICLE_KEY + '_css']?.value    || '';
         document.getElementById('editor-jsonld').value = data[ARTICLE_KEY + '_jsonld']?.value || '';
+        // 説明・得な相場・苦手な相場を復元
+        const descEl = document.getElementById('ind-desc-text');
+        const goodEl = document.getElementById('ind-good-text');
+        const badEl  = document.getElementById('ind-bad-text');
+        if (descEl) { const v = data['indicator_description_' + IND_SLUG]; if (v?.value) descEl.value = v.value; }
+        if (goodEl) {
+          const v = data['indicator_good_' + IND_SLUG];
+          if (v?.value) { try { const a = JSON.parse(v.value); goodEl.value = Array.isArray(a) ? a.join('\n') : v.value; } catch(e) { goodEl.value = v.value; } }
+        }
+        if (badEl) {
+          const v = data['indicator_bad_' + IND_SLUG];
+          if (v?.value) { try { const a = JSON.parse(v.value); badEl.value = Array.isArray(a) ? a.join('\n') : v.value; } catch(e) { badEl.value = v.value; } }
+        }
         // AIフィードバックを復元
         if (AI_NOTES_KEY && document.getElementById('ai-feedback-ta')) {
           const notes = data[AI_NOTES_KEY];
@@ -2467,6 +2527,35 @@ async function saveSeoData() {
       method: 'POST', headers: {'Content-Type': 'application/json'},
       body: JSON.stringify({ action: 'rebuild_indicator_page', slug: IND_SLUG }),
     }).then(r => r.json());
+    stat.textContent = rb.ok ? '✅ 保存・ページ更新完了' : '✅ 保存済み（ページ更新失敗）';
+    stat.style.color = rb.ok ? '#4ade80' : '#facc15';
+  } catch(e) {
+    stat.textContent = '❌ エラー: ' + e.message;
+    stat.style.color = '#f87171';
+  }
+}
+
+async function saveIndInfo() {
+  if (!IND_SLUG) return;
+  const stat = document.getElementById('ind-info-save-status');
+  const desc = document.getElementById('ind-desc-text')?.value.trim() || '';
+  const goodLines = (document.getElementById('ind-good-text')?.value || '').split('\n').map(s => s.trim()).filter(Boolean);
+  const badLines  = (document.getElementById('ind-bad-text')?.value  || '').split('\n').map(s => s.trim()).filter(Boolean);
+  stat.textContent = '保存中...'; stat.style.color = '#94a3b8';
+  try {
+    await Promise.all([
+      fetch('/admin/api.php', { method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ action:'content_save', key:'indicator_description_'+IND_SLUG, value:desc }) }).then(r=>r.json()),
+      fetch('/admin/api.php', { method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ action:'content_save', key:'indicator_good_'+IND_SLUG, value:JSON.stringify(goodLines) }) }).then(r=>r.json()),
+      fetch('/admin/api.php', { method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ action:'content_save', key:'indicator_bad_'+IND_SLUG, value:JSON.stringify(badLines) }) }).then(r=>r.json()),
+    ]);
+    stat.textContent = 'ページ更新中...'; stat.style.color = '#67e8f9';
+    const rb = await fetch('/admin/api.php', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ action:'rebuild_indicator_page', slug:IND_SLUG }),
+    }).then(r=>r.json());
     stat.textContent = rb.ok ? '✅ 保存・ページ更新完了' : '✅ 保存済み（ページ更新失敗）';
     stat.style.color = rb.ok ? '#4ade80' : '#facc15';
   } catch(e) {
