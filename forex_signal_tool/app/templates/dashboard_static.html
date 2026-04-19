@@ -727,11 +727,10 @@ function qfhOpen(row){
   <div class="section-title section-title-row">
     <div class="section-title-left">
       <i class="bi bi-clock-history text-info me-2"></i>シミュレーショントレード
-      <span class="info-tip" data-tip="シグナル発生時点でエントリーしたと仮定した場合の損益シミュレーションです。実際の取引結果ではありません。タイムフレーム別・最新5件。行をタップするとチャートが表示されます。">
+      <span class="info-tip" data-tip="シグナルの発生に応じてポジションを持ちそれぞれのテクニカルのSL/TPルールに従ってシミュレートトレードした結果です。テクニカルの詳細はテクニカルのページをご覧ください。">
         <i class="bi bi-info-circle-fill"></i>
       </span>
     </div>
-    <span class="sim-rr-badge">SL {{ data.sl_pips|int }}p / TP {{ data.tp_pips|int }}p &nbsp;1:{{ data.rr_ratio }}</span>
   </div>
   {% if data.sim_no_data %}
   <div class="empty-state">
