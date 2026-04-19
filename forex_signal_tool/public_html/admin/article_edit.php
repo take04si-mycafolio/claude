@@ -397,25 +397,10 @@ if ($is_indicator && $ind_slug) {
   </div>
 <?php endif; ?>
 
-  <!-- シグナルの仕組み -->
-  <div class="editor-card" style="margin-bottom:16px;border-color:#1e4028">
-    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
-      <span style="font-size:13px;font-weight:700;color:#86efac">⚡ シグナルの仕組み</span>
-      <div style="display:flex;align-items:center;gap:8px">
-        <span id="feature-save-status" style="font-size:12px;color:#94a3b8"></span>
-        <button onclick="saveFeatureText()" style="background:#14532d;color:#86efac;border:1px solid #16a34a;border-radius:6px;padding:6px 14px;font-size:12px;font-weight:600;cursor:pointer">💾 保存 &amp; ページ更新</button>
-      </div>
-    </div>
-    <div style="font-size:11px;color:#475569;margin-bottom:6px">公開ページの「指標の概要」内「シグナルの仕組み」欄に表示されます。</div>
-    <textarea id="feature-text" rows="3"
-      style="width:100%;background:#0f172a;border:1px solid #334155;border-radius:6px;color:#e2e8f0;padding:10px 12px;font-size:13px;outline:none;resize:vertical"
-      placeholder="例: 上ヒゲピンバー→売りシグナル（上方向への拒絶）、下ヒゲピンバー→買いシグナル（下方向への拒絶）。プライスアクション分析の核心的パターンです。"><?= htmlspecialchars($current_feature) ?></textarea>
-  </div>
-
-  <!-- 指標情報（説明・得な相場・苦手な相場） -->
+  <!-- 指標情報（説明・シグナルの仕組み・得な相場・苦手な相場） -->
   <div class="editor-card" style="margin-bottom:16px;border-color:#1e3a2e">
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
-      <span style="font-size:13px;font-weight:700;color:#6ee7b7">📝 指標情報（説明・相場適性）</span>
+      <span style="font-size:13px;font-weight:700;color:#6ee7b7">📝 指標情報（説明・シグナル・相場適性）</span>
       <div style="display:flex;align-items:center;gap:8px">
         <span id="ind-info-save-status" style="font-size:12px;color:#94a3b8"></span>
         <button onclick="saveIndInfo()" style="background:#14532d;color:#86efac;border:1px solid #16a34a;border-radius:6px;padding:6px 14px;font-size:12px;font-weight:600;cursor:pointer">💾 保存 &amp; ページ更新</button>
@@ -426,6 +411,13 @@ if ($is_indicator && $ind_slug) {
       <textarea id="ind-desc-text" rows="3"
         style="width:100%;background:#0f172a;border:1px solid #334155;border-radius:6px;color:#e2e8f0;padding:10px 12px;font-size:13px;outline:none;resize:vertical"
         placeholder="この指標の概要・特徴を記述します。"><?= htmlspecialchars($current_ind_desc) ?></textarea>
+    </div>
+    <div style="margin-bottom:12px">
+      <label class="editor-label" style="margin-bottom:4px">⚡ シグナルの仕組み</label>
+      <div style="font-size:11px;color:#475569;margin-bottom:6px">公開ページの「指標の概要」内「シグナルの仕組み」欄に表示されます。</div>
+      <textarea id="feature-text" rows="3"
+        style="width:100%;background:#0f172a;border:1px solid #334155;border-radius:6px;color:#e2e8f0;padding:10px 12px;font-size:13px;outline:none;resize:vertical"
+        placeholder="例: 上ヒゲピンバー→売りシグナル（上方向への拒絶）、下ヒゲピンバー→買いシグナル（下方向への拒絶）。プライスアクション分析の核心的パターンです。"><?= htmlspecialchars($current_feature) ?></textarea>
     </div>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
       <div>
@@ -2538,7 +2530,8 @@ async function saveSeoData() {
 async function saveIndInfo() {
   if (!IND_SLUG) return;
   const stat = document.getElementById('ind-info-save-status');
-  const desc = document.getElementById('ind-desc-text')?.value.trim() || '';
+  const desc    = document.getElementById('ind-desc-text')?.value.trim() || '';
+  const feature = document.getElementById('feature-text')?.value.trim() || '';
   const goodLines = (document.getElementById('ind-good-text')?.value || '').split('\n').map(s => s.trim()).filter(Boolean);
   const badLines  = (document.getElementById('ind-bad-text')?.value  || '').split('\n').map(s => s.trim()).filter(Boolean);
   stat.textContent = '保存中...'; stat.style.color = '#94a3b8';
@@ -2546,6 +2539,8 @@ async function saveIndInfo() {
     await Promise.all([
       fetch('/admin/api.php', { method:'POST', headers:{'Content-Type':'application/json'},
         body: JSON.stringify({ action:'content_save', key:'indicator_description_'+IND_SLUG, value:desc }) }).then(r=>r.json()),
+      fetch('/admin/api.php', { method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ action:'content_save', key:'indicator_feature_'+IND_SLUG, value:feature }) }).then(r=>r.json()),
       fetch('/admin/api.php', { method:'POST', headers:{'Content-Type':'application/json'},
         body: JSON.stringify({ action:'content_save', key:'indicator_good_'+IND_SLUG, value:JSON.stringify(goodLines) }) }).then(r=>r.json()),
       fetch('/admin/api.php', { method:'POST', headers:{'Content-Type':'application/json'},
