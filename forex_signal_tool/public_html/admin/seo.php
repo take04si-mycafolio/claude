@@ -80,12 +80,14 @@ h2{font-size:19px;font-weight:700;color:#f1f5f9;margin-bottom:4px}
   <h1>📝 SEO管理</h1>
   <nav class="nav">
     <a href="/admin/">ダッシュボード</a>
-    <a href="/admin/backtest.php">バックテスト</a>
-    <a href="/admin/seo.php" class="active">SEO管理</a>
     <a href="/admin/articles.php">記事管理</a>
+    <a href="/admin/backtest.php">バックテスト v1</a>
+    <a href="/admin/backtest_v2.php">バックテスト v2</a>
+    <a href="/admin/seo.php" class="active">SEO管理</a>
     <a href="/admin/export.php">エクスポート</a>
     <a href="/admin/settings.php">設定</a>
-    <a href="#" class="logout-btn" onclick="logout()">ログアウト</a>
+    <a href="/" target="_blank">サイトを見る</a>
+    <a href="/admin/?logout=1" class="logout-btn">ログアウト</a>
   </nav>
 </header>
 

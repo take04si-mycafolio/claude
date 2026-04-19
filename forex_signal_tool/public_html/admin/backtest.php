@@ -128,10 +128,12 @@ h2{font-size:20px;font-weight:700;color:#f1f5f9;margin-bottom:6px}
   <h1>FX Trend 管理パネル</h1>
   <nav class="nav">
     <a href="/admin/">ダッシュボード</a>
-    <a href="/admin/backtest.php" class="active">バックテストツール</a>
-    <a href="/admin/export.php">CSVエクスポート</a>
+    <a href="/admin/articles.php">記事管理</a>
+    <a href="/admin/backtest.php" class="active">バックテスト v1</a>
+    <a href="/admin/backtest_v2.php">バックテスト v2</a>
     <a href="/admin/seo.php">SEO管理</a>
-    <a href="/admin/settings.php">設定 &amp; 診断</a>
+    <a href="/admin/export.php">エクスポート</a>
+    <a href="/admin/settings.php">設定</a>
     <a href="/" target="_blank">サイトを見る</a>
     <a href="/admin/?logout=1" class="logout-btn">ログアウト</a>
   </nav>

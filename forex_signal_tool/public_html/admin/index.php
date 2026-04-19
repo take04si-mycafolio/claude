@@ -239,11 +239,12 @@ main{max-width:900px;margin:0 auto;padding:28px 20px}
   <?php if ($isLoggedIn): ?>
   <nav class="nav">
     <a href="/admin/" class="active">ダッシュボード</a>
+    <a href="/admin/articles.php">記事管理</a>
     <a href="/admin/backtest.php">バックテスト v1</a>
     <a href="/admin/backtest_v2.php">バックテスト v2</a>
-    <a href="/admin/export.php">CSVエクスポート</a>
     <a href="/admin/seo.php">SEO管理</a>
-    <a href="/admin/settings.php">設定 &amp; 診断</a>
+    <a href="/admin/export.php">エクスポート</a>
+    <a href="/admin/settings.php">設定</a>
     <a href="/" target="_blank">サイトを見る</a>
     <a href="/admin/?logout=1" class="logout-btn">ログアウト</a>
   </nav>
