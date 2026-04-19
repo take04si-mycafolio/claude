@@ -163,18 +163,7 @@ tr.trade-row.sim-active td{background:rgba(59,130,246,.10)!important}
   <div class="section-card">
     <h2 class="ind-section-title" style="display:flex;align-items:center;justify-content:space-between">
       <span><i class="bi bi-bar-chart-fill text-warning me-2"></i>バックテスト結果サマリー</span>
-      {%- if page_bt_tf_dates -%}
-        {%- set _tf_label = {"5min":"5分足","15min":"15分足","30min":"30分足","1hr":"1時間足","4hr":"4時間足","daily":"日足"} -%}
-        {%- set _tip = "【時間足別検証条件】" -%}
-        {%- for tf, rng in page_bt_tf_dates.items() -%}
-          {%- set _tip = _tip ~ "&#10;" ~ _tf_label.get(tf, tf) ~ "：SL " ~ rng.sl_pips ~ "pips / TP " ~ rng.tp_pips ~ "pips / " ~ rng.start ~ " 〜 " ~ (rng.end if rng.end else "最新") -%}
-        {%- endfor -%}
-        {%- set _tip = _tip ~ "&#10;&#10;初期資金: 1,000,000円" -%}
-      {%- else -%}
-        {%- set _tip = "【検証条件】SL: " ~ sl ~ "pips / TP: " ~ tp ~ "pips / 初期資金: 1,000,000円" -%}
-        {%- if bt_period -%}{%- set _tip = _tip ~ " / 検証期間: " ~ bt_period -%}{%- endif -%}
-      {%- endif -%}
-      <span class="info-tip" data-tip="{{ _tip | safe }}">
+      <span class="info-tip" data-tip="{{ bt_summary_tooltip | safe }}">
         <i class="bi bi-info-circle" style="font-size:0.9rem;color:#94a3b8;cursor:pointer"></i>
       </span>
     </h2>
@@ -239,40 +228,42 @@ tr.trade-row.sim-active td{background:rgba(59,130,246,.10)!important}
     {% endmacro %}
 
     {% if has_direction_split %}
-    {# BUY/SELL タブ #}
+    {%- set _has_sell = results_by_direction.get('SELL') -%}
+    {%- set _has_buy  = results_by_direction.get('BUY')  -%}
+    {# BUY/SELL タブ — データがある方向のみ表示 #}
     <ul class="nav nav-tabs mb-2" role="tablist" style="gap:4px;border-bottom:2px solid #1e293b">
+      {% if _has_buy %}
       <li class="nav-item">
-        <button class="nav-link active" id="dir-buy-tab"
+        <button class="nav-link {% if _has_buy %}active{% endif %}" id="dir-buy-tab"
                 data-bs-toggle="tab" data-bs-target="#dir-buy"
                 type="button" role="tab"
                 style="color:#34d399;font-weight:600;font-size:13px">
           📈 BUY（買い）
         </button>
       </li>
+      {% endif %}
+      {% if _has_sell %}
       <li class="nav-item">
-        <button class="nav-link" id="dir-sell-tab"
+        <button class="nav-link {% if not _has_buy %}active{% endif %}" id="dir-sell-tab"
                 data-bs-toggle="tab" data-bs-target="#dir-sell"
                 type="button" role="tab"
                 style="color:#f87171;font-weight:600;font-size:13px">
           📉 SELL（売り）
         </button>
       </li>
+      {% endif %}
     </ul>
     <div class="tab-content">
+      {% if _has_buy %}
       <div class="tab-pane fade show active" id="dir-buy" role="tabpanel">
-        {% if results_by_direction.get('BUY') %}
-          {{ render_pair_tabs(results_by_direction['BUY'], 'btbuy') }}
-        {% else %}
-          <div class="empty-state small">BUY のデータがありません</div>
-        {% endif %}
+        {{ render_pair_tabs(results_by_direction['BUY'], 'btbuy') }}
       </div>
-      <div class="tab-pane fade" id="dir-sell" role="tabpanel">
-        {% if results_by_direction.get('SELL') %}
-          {{ render_pair_tabs(results_by_direction['SELL'], 'btsell') }}
-        {% else %}
-          <div class="empty-state small">SELL のデータがありません</div>
-        {% endif %}
+      {% endif %}
+      {% if _has_sell %}
+      <div class="tab-pane fade {% if not _has_buy %}show active{% endif %}" id="dir-sell" role="tabpanel">
+        {{ render_pair_tabs(results_by_direction['SELL'], 'btsell') }}
       </div>
+      {% endif %}
     </div>
     {% else %}
     {{ render_pair_tabs(results_by_pair, 'bt') }}

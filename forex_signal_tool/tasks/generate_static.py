@@ -1288,6 +1288,62 @@ def get_indicator_page_data(indicator_name: str, app) -> dict | None:
     from app import db
     from sqlalchemy import text as _text
     from types import SimpleNamespace
+    import html as _html_mod
+
+    # ---- エントリー条件を読みやすい文字列に変換するヘルパー ----
+    _IND_LABELS = {
+        "RSI": "RSI", "EMA": "EMA", "EMA_SLOPE": "EMA向き", "SMA": "SMA",
+        "MACD_HIST": "MACDヒスト", "MACD_LINE": "MACDライン", "MACD_SIGNAL": "MACDシグナル",
+        "STOCH_K": "Stoch%K", "STOCH_D": "Stoch%D", "CCI": "CCI",
+        "WILLIAMS_R": "Williams%R", "ATR": "ATR",
+        "BB_UPPER": "BB上バンド", "BB_LOWER": "BB下バンド", "BB_MID": "BB中央",
+        "CLOSE": "終値", "HIGH": "高値", "LOW": "安値",
+        "BULLISH_ENGULFING": "強気の包み足", "BEARISH_ENGULFING": "弱気の包み足",
+        "HAMMER": "ハンマー", "INVERTED_HAMMER": "逆ハンマー", "DOJI": "十字線",
+        "THREE_WHITE_SOLDIERS": "三白兵", "THREE_BLACK_CROWS": "三羽烏",
+        "BULLISH_PIN_BAR": "ピンバー(陽)", "BEARISH_PIN_BAR": "ピンバー(陰)",
+    }
+    _COMP_LABELS = {
+        "less_than": "<", "less_than_or_equal": "≤",
+        "greater_than": ">", "greater_than_or_equal": "≥",
+        "cross_above": "上抜け", "cross_below": "下抜け",
+        "equals": "=", "is_true": "発生",
+    }
+
+    def _fmt_cond(c):
+        ind   = c.get("indicator", "")
+        params = c.get("params", {})
+        comp  = c.get("comparator", "")
+        rhs_type = c.get("rhs_type", "value")
+        lbl = _IND_LABELS.get(ind, ind)
+        if params:
+            lbl += "(" + ",".join(str(v) for v in params.values()) + ")"
+        if comp in ("is_true", "") or not comp:
+            return f"{lbl} 発生"
+        comp_lbl = _COMP_LABELS.get(comp, comp)
+        if rhs_type == "value":
+            rhs = str(c.get("rhs_value", ""))
+        elif rhs_type == "indicator":
+            ri = c.get("rhs_indicator", "")
+            rp = c.get("rhs_params", {})
+            rhs = _IND_LABELS.get(ri, ri)
+            if rp:
+                rhs += "(" + ",".join(str(v) for v in rp.values()) + ")"
+        elif rhs_type == "price":
+            rhs = "終値"
+        else:
+            rhs = str(c.get("rhs_value", ""))
+        if comp in ("cross_above", "cross_below"):
+            return f"{lbl} が {rhs} を{comp_lbl}"
+        return f"{lbl} {comp_lbl} {rhs}"
+
+    def _fmt_side_conds(entry_conds):
+        conds = entry_conds.get("conditions", [])
+        logic = entry_conds.get("logic", "AND")
+        if not conds:
+            return ""
+        sep = "\n  かつ " if logic == "AND" else "\n  または "
+        return sep.join(_fmt_cond(c) for c in conds)
 
     info = INDICATOR_INFO.get(indicator_name)
     if not info:
@@ -1430,7 +1486,8 @@ def get_indicator_page_data(indicator_name: str, app) -> dict | None:
     if has_direction_split:
         for _d in ["BUY", "SELL"]:
             _d_results = [r for r in results_dicts if r.get("signal_direction") == _d]
-            results_by_direction[_d] = {pair: [r for r in _d_results if r["currency_pair"] == pair] for pair in all_pairs}
+            if _d_results:  # 結果がある方向のみ登録（空だとタブが表示されてしまう）
+                results_by_direction[_d] = {pair: [r for r in _d_results if r["currency_pair"] == pair] for pair in all_pairs}
 
     # 通貨ペアごとの最良バックテスト結果（ヒーロー3カラム用）
     best_by_pair = {}
@@ -1538,6 +1595,47 @@ def get_indicator_page_data(indicator_name: str, app) -> dict | None:
     related.sort(key=lambda x: (0 if x["category"] == cat else 1, -(x["win_rate"] or 0)))
     related = related[:8]
 
+    # ---- ツールチップ文字列を Python 側で生成（Jinja2 エスケープ問題回避）----
+    _tf_names = {"5min":"5分足","15min":"15分足","30min":"30分足","1hr":"1時間足","4hr":"4時間足","daily":"日足"}
+    _strategy_config = info.get("strategy_config") or {}
+    _tip_lines: list[str] = []
+
+    if _page_bt_tf_dates:
+        _tip_lines.append("【時間足別検証条件】")
+        for _tf, _rng in _page_bt_tf_dates.items():
+            _end_label = _rng["end"] or "最新"
+            _tip_lines.append(
+                f"{_tf_names.get(_tf, _tf)}："
+                f"SL {_rng['sl_pips']}pips / TP {_rng['tp_pips']}pips"
+                f" / {_rng['start']} 〜 {_end_label}"
+            )
+    else:
+        _tip_lines.append(
+            f"【検証条件】SL: {int(sl)}pips / TP: {int(tp)}pips"
+            + (f" / 検証期間: {bt_period}" if bt_period else "")
+        )
+
+    if _strategy_config:
+        _tip_lines.append("")
+        _tip_lines.append("【エントリー条件】")
+        _ver = _strategy_config.get("version", "1.0")
+        _sides = [("buy", "BUY（買い）"), ("sell", "SELL（売り）")] if _ver == "2.0" else [("", "")]
+        for _sk, _slabel in _sides:
+            _sd = _strategy_config.get(_sk) if _sk else _strategy_config
+            if not _sd:
+                continue
+            _ec = _sd.get("entry_conditions", {})
+            _cf = _fmt_side_conds(_ec)
+            if _cf:
+                _tip_lines.append(f"▶ {_slabel}")
+                _tip_lines.append(f"  {_cf}")
+
+    _tip_lines.append("")
+    _tip_lines.append("初期資金: 1,000,000円")
+
+    _raw_tip = "\n".join(_tip_lines)
+    bt_summary_tooltip = _html_mod.escape(_raw_tip).replace("\n", "&#10;")
+
     return {
         "info":                 info,
         "category_slug":        CATEGORY_SLUGS.get(info["category"], ""),
@@ -1558,6 +1656,7 @@ def get_indicator_page_data(indicator_name: str, app) -> dict | None:
         "page_bt_start_date":   _page_bt_start or "",
         "page_bt_end_date":     _page_bt_end   or "",
         "page_bt_tf_dates":     _page_bt_tf_dates,
+        "bt_summary_tooltip":   bt_summary_tooltip,
     }
 
 
@@ -1724,15 +1823,19 @@ def main():
                     try: _bad_list  = _cvi_json.loads(_ci.bad_markets  or "[]")
                     except Exception: pass
                     _ci_slug = _ci.name.lower()
+                    _ci_sc = {}
+                    try: _ci_sc = _cvi_json.loads(_ci.strategy_config or "{}") if isinstance(_ci.strategy_config, str) else (_ci.strategy_config or {})
+                    except Exception: pass
                     INDICATOR_INFO[_ci.name] = {
-                        "display":     _ci.display_name,
-                        "slug":        _ci_slug,
-                        "category":    "コンポジット",
-                        "feature":     content_db.get(f"indicator_feature_{_ci_slug}", ""),
-                        "description": _ci.description or "",
-                        "good":        _good_list,
-                        "bad":         _bad_list,
-                        "url":         "",
+                        "display":         _ci.display_name,
+                        "slug":            _ci_slug,
+                        "category":        "コンポジット",
+                        "feature":         content_db.get(f"indicator_feature_{_ci_slug}", ""),
+                        "description":     _ci.description or "",
+                        "good":            _good_list,
+                        "bad":             _bad_list,
+                        "url":             "",
+                        "strategy_config": _ci_sc,
                     }
             except Exception as _cve:
                 logger.warning("カスタム複合指標のロード失敗 (--slug): %s", _cve)
@@ -1947,15 +2050,19 @@ def main():
                 try: _bad_list  = _cvi_json.loads(_ci.bad_markets  or "[]")
                 except Exception: pass
                 _ci_slug = _ci.name.lower()
+                _ci_sc = {}
+                try: _ci_sc = _cvi_json.loads(_ci.strategy_config or "{}") if isinstance(_ci.strategy_config, str) else (_ci.strategy_config or {})
+                except Exception: pass
                 INDICATOR_INFO[_ci.name] = {
-                    "display":     _ci.display_name,
-                    "slug":        _ci_slug,
-                    "category":    "コンポジット",
-                    "feature":     content_db_top.get(f"indicator_feature_{_ci_slug}", ""),
-                    "description": _ci.description or "",
-                    "good":        _good_list,
-                    "bad":         _bad_list,
-                    "url":         "",
+                    "display":         _ci.display_name,
+                    "slug":            _ci_slug,
+                    "category":        "コンポジット",
+                    "feature":         content_db_top.get(f"indicator_feature_{_ci_slug}", ""),
+                    "description":     _ci.description or "",
+                    "good":            _good_list,
+                    "bad":             _bad_list,
+                    "url":             "",
+                    "strategy_config": _ci_sc,
                 }
                 ind_url_map[_ci.name]  = f"/composite/{_ci_slug}/"
                 slug_map[_ci.name]     = _ci_slug
