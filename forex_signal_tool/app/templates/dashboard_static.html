@@ -8,11 +8,6 @@
 {% endblock %}
 
 {% block content %}
-<!-- 更新日時バー -->
-<div style="font-size:0.72rem;color:#94a3b8;text-align:center;padding:5px 16px 2px;letter-spacing:.02em">
-  {{ updated_at.split(' ')[0] }}
-</div>
-
 <!-- 通貨ペアタブ -->
 <div class="pair-tabs">
   {% for pair, filename in pair_pages.items() %}
@@ -86,6 +81,10 @@
       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" style="animation:spin 0.8s linear infinite;flex-shrink:0"><circle cx="12" cy="12" r="9" stroke="#3b82f6" stroke-width="3" stroke-dasharray="28 56" stroke-linecap="round"/></svg>読込中...
     </div>
   </div>
+</div>
+
+<div class="section-card" style="font-size:0.72rem;color:#94a3b8;text-align:center;padding:8px 16px;">
+  最終更新: {{ updated_at }}
 </div>
 
 {% if pair_article_css %}
