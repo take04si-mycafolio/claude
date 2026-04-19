@@ -1600,20 +1600,63 @@ def get_indicator_page_data(indicator_name: str, app) -> dict | None:
     _strategy_config = info.get("strategy_config") or {}
     _tip_lines: list[str] = []
 
+    # SL/TP 設定を strategy_config から取得（BUY/SELL 共通想定のため buy 優先）
+    def _sl_tp_text(sc):
+        """strategy_config の sl_config/tp_config/trailing_config を日本語に変換"""
+        _ver = sc.get("version", "1.0")
+        _sd  = sc.get("buy") or sc.get("sell") or sc if _ver == "2.0" else sc
+        sl_c = _sd.get("sl_config") or {}
+        tp_c = _sd.get("tp_config") or {}
+        tr_c = _sd.get("trailing_config") or {}
+        lines = []
+        st = sl_c.get("type", "")
+        if st == "fixed":
+            lines.append(f"SL: 固定 {sl_c.get('pips', 0)}pips")
+        elif st == "recentHighLow":
+            lb  = sl_c.get("lookback_bars", 10)
+            buf = sl_c.get("buffer_pips", 0)
+            lines.append(f"SL: 直近高値/安値 (ルックバック{lb}本, バッファ{buf}pips)")
+        elif st == "atr":
+            lines.append(f"SL: ATR×{sl_c.get('atr_multiplier', 2)} (期間{sl_c.get('atr_period', 14)})")
+        tt = tp_c.get("type", "")
+        if tt == "fixed":
+            lines.append(f"TP: 固定 {tp_c.get('pips', 0)}pips")
+        elif tt == "rr":
+            lines.append(f"TP: RR 1:{tp_c.get('rr_ratio', 2)}")
+        elif tt == "atr":
+            lines.append(f"TP: ATR×{tp_c.get('atr_multiplier', 3)} (期間{tp_c.get('atr_period', 14)})")
+        if tr_c.get("enabled"):
+            lines.append(f"トレーリングSL: {tr_c.get('trail_pips', 0)}pips")
+        return lines
+
+    _sl_tp_lines = _sl_tp_text(_strategy_config) if _strategy_config else []
+
     if _page_bt_tf_dates:
-        _tip_lines.append("【時間足別検証条件】")
+        _tip_lines.append("【時間足別検証期間】")
         for _tf, _rng in _page_bt_tf_dates.items():
             _end_label = _rng["end"] or "最新"
+            _start_label = _rng["start"] or "（全期間）"
             _tip_lines.append(
-                f"{_tf_names.get(_tf, _tf)}："
-                f"SL {_rng['sl_pips']}pips / TP {_rng['tp_pips']}pips"
-                f" / {_rng['start']} 〜 {_end_label}"
+                f"{_tf_names.get(_tf, _tf)}: {_start_label} 〜 {_end_label}"
             )
     else:
         _tip_lines.append(
-            f"【検証条件】SL: {int(sl)}pips / TP: {int(tp)}pips"
-            + (f" / 検証期間: {bt_period}" if bt_period else "")
+            f"【検証期間】" + (f"{bt_period}" if bt_period else "全期間")
         )
+
+    if _sl_tp_lines:
+        _tip_lines.append("")
+        _tip_lines.append("【SL / TP 設定】")
+        _tip_lines.extend(_sl_tp_lines)
+    elif _page_bt_tf_dates:
+        # SL/TP設定が不明な場合は従来の pips 表示
+        _tip_lines.append("")
+        _tip_lines.append("【SL / TP】")
+        _first = next(iter(_page_bt_tf_dates.values()), {})
+        if _first.get("sl_pips"):
+            _tip_lines.append(f"SL: {_first['sl_pips']}pips / TP: {_first['tp_pips']}pips")
+    else:
+        _tip_lines.append(f"SL: {int(sl)}pips / TP: {int(tp)}pips")
 
     if _strategy_config:
         _tip_lines.append("")

@@ -1669,7 +1669,7 @@ async function _runBt2InlineWithSides() {
               <td>${pf}</td><td>${m.total_trades||0}件</td>
               <td style="color:${m.total_profit>=0?'#4ade80':'#f87171'}">${tp}円</td>
               <td style="font-size:11px;color:#64748b">${period}</td>`;
-            _bt2InlineResults.push({ pair, tf, dir: s.dir, metrics: m, trades: (res.trades || []).slice(-300) });
+            _bt2InlineResults.push({ pair, tf, dir: s.dir, metrics: m, trades: (res.trades || []).slice(-300), data_from: res.data_from || '', data_to: res.data_to || '' });
           }
         } catch(e) {
           tr.innerHTML = `<td>${pair}</td><td>${TF_LBL[tf]||tf}</td>
@@ -1752,8 +1752,8 @@ async function _bt2AutoSave() {
     // indicator_page_bt_results に保存（公開ページ反映用）
     if (IND_SLUG) {
       const periodFn = r => {
-        const s = r.metrics?.start_date, e = r.metrics?.end_date;
-        return (s && e) ? `${s}〜${e}` : '';
+        const s = r.data_from, e = r.data_to;
+        return (s && e) ? `${s}〜${e}` : (s || '');
       };
       const pageRes = await fetch('/admin/api.php', {
         method: 'POST', headers: {'Content-Type': 'application/json'},
