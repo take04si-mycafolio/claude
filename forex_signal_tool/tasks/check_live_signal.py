@@ -2,7 +2,7 @@
 """
 QuantFlow ライブシグナル監視タスク
 
-quantflow_scores テーブルを読み、スコア方向転換を検出してポジションを記録する。
+quantflow_scores_5min テーブルを読み、スコア方向転換を検出してポジションを記録する。
 OPEN ポジションがあれば最新5分足でTP/SLをチェックする。
 エントリー・決済時にメール通知を送る。
 
@@ -166,9 +166,9 @@ def main():
         sl_pips = float(Setting.get("quantflow_sl_pips") or 10.0)
         tp_pips = float(Setting.get("quantflow_tp_pips") or 20.0)
 
-        # 1. quantflow_scores から直近2件取得
+        # 1. quantflow_scores_5min から直近2件取得
         rows = db.session.execute(text(
-            "SELECT score, `timestamp` FROM quantflow_scores "
+            "SELECT score, `timestamp` FROM quantflow_scores_5min "
             "WHERE currency_pair = :pair "
             "ORDER BY `timestamp` DESC LIMIT 2"
         ), {"pair": PAIR}).fetchall()
