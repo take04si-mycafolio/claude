@@ -1997,13 +1997,48 @@ async function resetBt2Db() {
     }
   }
 
+  // SL/TP/トレーリング設定を復元（最初に見つかったサイドの設定を使用）
+  function restoreSlTp(sideData) {
+    if (!sideData) return;
+    const sl = sideData.sl_config || {};
+    const tp = sideData.tp_config || {};
+    const tr = sideData.trailing_config || {};
+    const setV = (id, v) => { const el = document.getElementById(id); if (el && v != null) el.value = v; };
+    const setC = (id, v) => { const el = document.getElementById(id); if (el) el.checked = !!v; };
+
+    // SL
+    if (sl.type) {
+      setV('bt2-sl-type', sl.type);
+      bt2OnSlType();
+      if (sl.type === 'fixed')          setV('bt2-sl-pips',       sl.pips);
+      if (sl.type === 'recentHighLow') { setV('bt2-sl-lookback',   sl.lookback_bars); setV('bt2-sl-buffer', sl.buffer_pips); }
+      if (sl.type === 'atr')           { setV('bt2-sl-atr-period', sl.atr_period);    setV('bt2-sl-atr-mult', sl.atr_multiplier); }
+    }
+    // TP
+    if (tp.type) {
+      setV('bt2-tp-type', tp.type);
+      bt2OnTpType();
+      if (tp.type === 'fixed') setV('bt2-tp-pips',    tp.pips);
+      if (tp.type === 'rr')    setV('bt2-tp-rr-ratio', tp.rr_ratio);
+      if (tp.type === 'atr')  { setV('bt2-tp-atr-period', tp.atr_period); setV('bt2-tp-atr-mult', tp.atr_multiplier); }
+    }
+    // トレーリング
+    if (tr.enabled != null) {
+      setC('bt2-trailing-on', tr.enabled);
+      bt2OnTrailing();
+      if (tr.enabled) setV('bt2-trail-pips', tr.trail_pips);
+    }
+  }
+
   if (cfg.version === '2.0') {
     restoreSide('buy',  cfg.buy  || null);
     restoreSide('sell', cfg.sell || null);
+    restoreSlTp(cfg.buy || cfg.sell || null);
   } else {
     // 旧フォーマット: BUY/SELL どちらかに移行
     const side = (cfg.direction === 'SELL') ? 'sell' : 'buy';
     restoreSide(side, cfg);
+    restoreSlTp(cfg);
     bt2SwitchSide(side);
   }
 })();
