@@ -460,7 +460,20 @@ if ($is_indicator && $ind_slug) {
 }'></textarea>
   </div>
 <?php elseif ($is_pair): ?>
-  <!-- 通貨ペアページ：見出し + CSS + HTML -->
+  <!-- 通貨ペアページ：SEO + 見出し + CSS + HTML -->
+  <div class="editor-card" style="margin-bottom:16px">
+    <label class="editor-label">⓪ タイトルタグ（&lt;title&gt;）</label>
+    <div style="font-size:11px;color:#475569;margin-bottom:6px">空白の場合はデフォルトのタイトルが使用されます。</div>
+    <input type="text" id="editor-seo-title" class="editor-textarea"
+           style="min-height:auto;padding:9px 12px;font-size:14px"
+           placeholder="例: ドル円リアルタイム予想【テクニカル分析】| FXシグナル">
+  </div>
+  <div class="editor-card" style="margin-bottom:16px">
+    <label class="editor-label">⓪ META ディスクリプション</label>
+    <div style="font-size:11px;color:#475569;margin-bottom:6px">検索結果に表示される説明文（120〜160文字推奨）。空白の場合はデフォルトが使用されます。</div>
+    <textarea id="editor-seo-meta" class="editor-textarea" style="min-height:100px"
+              placeholder="ドル円のリアルタイムテクニカル分析..."></textarea>
+  </div>
   <div class="editor-card" style="margin-bottom:16px">
     <label class="editor-label">① 見出し（QuantFlowの上に表示される記事エリアのタイトル）</label>
     <div style="font-size:11px;color:#475569;margin-bottom:6px">空白の場合は見出しなしで記事コンテンツのみ表示されます。</div>
@@ -2309,6 +2322,19 @@ async function loadContent() {
         if (headingEl) headingEl.value = data[ARTICLE_KEY + '_heading']?.value || '';
       }
     }
+    if (IS_PAIR && PAIR_SLUG) {
+      try {
+        const seoRes = await fetch('/admin/api.php?action=seo_init');
+        const seoD   = await seoRes.json();
+        if (seoD.status === 'ok') {
+          const rec = seoD.data?.['pair:' + PAIR_SLUG] || {};
+          const titleEl = document.getElementById('editor-seo-title');
+          const metaEl  = document.getElementById('editor-seo-meta');
+          if (titleEl) titleEl.value = rec.title            || '';
+          if (metaEl)  metaEl.value  = rec.meta_description || '';
+        }
+      } catch(e) { console.error('SEO load error', e); }
+    }
   } catch(e) {
     console.error('Failed to load content', e);
   } finally {
@@ -2448,6 +2474,21 @@ async function saveContent() {
       const headingEl = document.getElementById('editor-heading');
       if (cssEl)     saves.push(_save(ARTICLE_KEY + '_css',     cssEl.value));
       if (headingEl) saves.push(_save(ARTICLE_KEY + '_heading', headingEl.value));
+      const titleEl = document.getElementById('editor-seo-title');
+      const metaEl  = document.getElementById('editor-seo-meta');
+      if (titleEl || metaEl) {
+        saves.push(fetch('/admin/api.php', {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({
+            action: 'seo_save',
+            page_type: 'pair',
+            page_key: PAIR_SLUG,
+            title:            titleEl ? titleEl.value : '',
+            meta_description: metaEl  ? metaEl.value  : '',
+          }),
+        }).then(r => r.json()));
+      }
     }
     const results = await Promise.all(saves);
     const failed  = results.find(d => d.status !== 'ok');

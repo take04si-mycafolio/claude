@@ -2004,9 +2004,11 @@ def main():
             slug_map    = {name: info["slug"]    for name, info in INDICATOR_INFO.items()}
             display_map = {name: info["display"] for name, info in INDICATOR_INFO.items()}
             content_db  = load_content_db()
+            seo_db      = load_seo_db()
             _pair_key   = f"pair_article_{target_pair.lower()}"
             _raw_css    = content_db.get(f"{_pair_key}_css", "")
             _pair_data  = get_pair_data(target_pair)
+            _pair_seo   = seo_db.get(f"pair:{target_pair.lower()}", {})
             html = render_html(app, "dashboard_static.html", {
                 "pairs":                pairs,
                 "pair_pages":           _pair_pages,
@@ -2018,6 +2020,8 @@ def main():
                 "pair_article":         content_db.get(_pair_key, ""),
                 "pair_article_heading": content_db.get(f"{_pair_key}_heading", ""),
                 "pair_article_css":     scope_article_css(_raw_css),
+                "pair_seo_title":       _pair_seo.get("title", ""),
+                "pair_seo_meta":        _pair_seo.get("meta_description", ""),
                 "updated_at":           updated_at,
                 "active_page":          "home",
             })
@@ -2333,10 +2337,12 @@ def main():
         logger.info("TOP ページ（記事）生成完了")
 
         # 各通貨ペアのダッシュボード
+        seo_db_pairs = load_seo_db()
         for pair, filename in pair_pages.items():
             data = _pair_data_cache.get(pair) or get_pair_data(pair)
             _pair_key = f"pair_article_{pair.lower()}"
             _pair_raw_css = content_db_top.get(f"{_pair_key}_css", "")
+            _pair_seo = seo_db_pairs.get(f"pair:{pair.lower()}", {})
             html = render_html(app, "dashboard_static.html", {
                 "pairs":                pairs,
                 "pair_pages":           pair_pages,
@@ -2348,6 +2354,8 @@ def main():
                 "pair_article":         content_db_top.get(_pair_key, ""),
                 "pair_article_heading": content_db_top.get(f"{_pair_key}_heading", ""),
                 "pair_article_css":     scope_article_css(_pair_raw_css),
+                "pair_seo_title":       _pair_seo.get("title", ""),
+                "pair_seo_meta":        _pair_seo.get("meta_description", ""),
                 "updated_at":           updated_at,
                 "active_page":          "home",
             })

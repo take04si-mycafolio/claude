@@ -1,8 +1,10 @@
 {% extends "base_static.html" %}
-{% block title %}{% if current_pair == "USDJPY" %}ドル円リアルタイム予想【QuantFlow（クオンツ・フロー）で見るテクニカル分析】{% else %}{{ data.display }} - FXシグナル{% endif %}{% endblock %}
+{% block title %}{% if pair_seo_title %}{{ pair_seo_title }}{% elif current_pair == "USDJPY" %}ドル円リアルタイム予想【QuantFlow（クオンツ・フロー）で見るテクニカル分析】{% else %}{{ data.display }} - FXシグナル{% endif %}{% endblock %}
 
 {% block head_extra %}
-{% if current_pair == "USDJPY" %}
+{% if pair_seo_meta %}
+<meta name="description" content="{{ pair_seo_meta | e }}">
+{% elif current_pair == "USDJPY" %}
 <meta name="description" content="ドル円の方向性を-100〜+100でリアルタイムに可視化。マルチタイムフレーム分析とマクロ要因（米金利・DXY）を融合した独自シグナルエンジン「QuantFlow（クオンツ・フロー）」を搭載。直近バックテストで勝率62.5%（RR1:2）を記録した期待値の高いロジックで、プロの相場分析を客観的な数値で提供します。">
 {% endif %}
 {% endblock %}

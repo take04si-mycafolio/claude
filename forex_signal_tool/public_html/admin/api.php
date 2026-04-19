@@ -960,7 +960,7 @@ switch ($action) {
         $pageKey  = $body['page_key']  ?? '';
         $title    = trim($body['title']            ?? '');
         $meta     = trim($body['meta_description'] ?? '');
-        if (!in_array($pageType, ['indicator', 'category'], true) || $pageKey === '') {
+        if (!in_array($pageType, ['indicator', 'category', 'pair'], true) || $pageKey === '') {
             json_out(['status' => 'error', 'message' => '無効なパラメータ']);
         }
         try {
