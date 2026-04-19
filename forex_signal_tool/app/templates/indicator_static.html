@@ -163,14 +163,16 @@ tr.trade-row.sim-active td{background:rgba(59,130,246,.10)!important}
   <div class="section-card">
     <h2 class="ind-section-title" style="display:flex;align-items:center;justify-content:space-between">
       <span><i class="bi bi-bar-chart-fill text-warning me-2"></i>バックテスト結果サマリー</span>
-      {%- set _tip = "【検証条件】SL: " ~ sl ~ "pips / TP: " ~ tp ~ "pips / 初期資金: 1,000,000円" -%}
-      {%- if bt_period -%}{%- set _tip = _tip ~ " / 検証期間: " ~ bt_period -%}{%- endif -%}
       {%- if page_bt_tf_dates -%}
         {%- set _tf_label = {"5min":"5分足","15min":"15分足","30min":"30分足","1hr":"1時間足","4hr":"4時間足","daily":"日足"} -%}
-        {%- set _tip = _tip ~ "&#10;&#10;【テクニカルページ専用検証期間】" -%}
+        {%- set _tip = "【時間足別検証条件】" -%}
         {%- for tf, rng in page_bt_tf_dates.items() -%}
-          {%- set _tip = _tip ~ "&#10;" ~ _tf_label.get(tf, tf) ~ "：" ~ rng.start ~ " 〜 " ~ (rng.end if rng.end else "最新") -%}
+          {%- set _tip = _tip ~ "&#10;" ~ _tf_label.get(tf, tf) ~ "：SL " ~ rng.sl_pips ~ "pips / TP " ~ rng.tp_pips ~ "pips / " ~ rng.start ~ " 〜 " ~ (rng.end if rng.end else "最新") -%}
         {%- endfor -%}
+        {%- set _tip = _tip ~ "&#10;&#10;初期資金: 1,000,000円" -%}
+      {%- else -%}
+        {%- set _tip = "【検証条件】SL: " ~ sl ~ "pips / TP: " ~ tp ~ "pips / 初期資金: 1,000,000円" -%}
+        {%- if bt_period -%}{%- set _tip = _tip ~ " / 検証期間: " ~ bt_period -%}{%- endif -%}
       {%- endif -%}
       <span class="info-tip" data-tip="{{ _tip }}">
         <i class="bi bi-info-circle" style="font-size:0.9rem;color:#94a3b8;cursor:pointer"></i>

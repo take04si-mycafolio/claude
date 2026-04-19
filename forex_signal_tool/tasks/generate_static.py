@@ -1316,8 +1316,10 @@ def get_indicator_page_data(indicator_name: str, app) -> dict | None:
                 _tf = _rd.get("timeframe", "")
                 if _tf:
                     _raw_tf_dates[_tf] = {
-                        "start": str(_rd.get("start_date") or ""),
-                        "end":   str(_rd.get("end_date")   or ""),
+                        "start":   str(_rd.get("start_date") or ""),
+                        "end":     str(_rd.get("end_date")   or ""),
+                        "sl_pips": int(_rd.get("sl_pips") or 0),
+                        "tp_pips": int(_rd.get("tp_pips") or 0),
                     }
             for _tf in TF_ORDER:
                 if _tf in _raw_tf_dates:

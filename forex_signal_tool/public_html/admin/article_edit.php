@@ -978,6 +978,15 @@ function resetIndicatorPageBt() {
       <span id="bt2-save-status" style="font-size:12px;color:#94a3b8"></span>
     </div>
   </div>
+  <?php if ($is_custom_indicator): ?>
+  <div style="margin-top:8px">
+    <button onclick="resetIndicatorPageBt()"
+            style="background:#450a0a;color:#fca5a5;border:1px solid #7f1d1d;border-radius:6px;padding:6px 14px;font-size:12px;font-weight:600;cursor:pointer">
+      🗑️ DBのバックテスト結果をリセット
+    </button>
+    <span style="font-size:11px;color:#475569;margin-left:8px">間違えた設定で保存した場合はリセットして再実行してください</span>
+  </div>
+  <?php endif; ?>
 
   <?php if ($is_indicator): ?>
   <!-- カスタム指標として登録・更新 -->
