@@ -10,7 +10,7 @@
 {% block content %}
 <!-- 更新日時バー -->
 <div style="font-size:0.72rem;color:#94a3b8;text-align:center;padding:5px 16px 2px;letter-spacing:.02em">
-  更新: {{ updated_at }} JST
+  {{ updated_at.split(' ')[0] }}
 </div>
 
 <!-- 通貨ペアタブ -->
