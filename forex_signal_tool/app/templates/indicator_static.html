@@ -759,9 +759,8 @@ tr.trade-row.sim-active td{background:rgba(59,130,246,.10)!important}
   </div>
 
   <!-- 最終更新日 -->
-  <div class="section-card" style="text-align:center;padding:18px 16px;">
-    <div style="font-size:0.72rem;color:#94a3b8;margin-bottom:4px;">最終更新</div>
-    <time datetime="{{ updated_at[:10] }}" style="font-size:1.25rem;font-weight:700;color:#1e293b;letter-spacing:0.03em;">{{ updated_at[:10] }}</time>
+  <div class="section-card" style="text-align:center;">
+    <time datetime="{{ updated_at[:10] }}">最終更新：{{ updated_at[:10] }}</time>
   </div>
   <div style="height:20px"></div>
 
