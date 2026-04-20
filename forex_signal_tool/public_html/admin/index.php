@@ -1037,6 +1037,9 @@ document.getElementById('qf1h-range').addEventListener('change', loadQf1hChart);
 document.getElementById('qf5m-range').addEventListener('change', loadQf5mChart);
 loadQf1hChart();
 loadQf5mChart();
+// 1時間足は5分ごと、5分足は5分ごとに自動更新
+setInterval(loadQf1hChart, 5 * 60 * 1000);
+setInterval(loadQf5mChart, 5 * 60 * 1000);
 
 // ---- QuantFlow ライブポジション ----
 async function loadLivePosition() {
