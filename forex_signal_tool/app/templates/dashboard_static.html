@@ -626,7 +626,12 @@ function qfhOpen(row){
               {{ '買い' if s.signal_type == 'BUY' else '売り' }}
             </span>
             <div class="signal-item-info">
+              {% set sig_url = ind_url_map.get(s.indicator_name) %}
+              {% if sig_url %}
+              <div class="signal-name"><a href="{{ sig_url }}" style="color:inherit;text-decoration:underline;text-decoration-color:rgba(255,255,255,0.3);text-underline-offset:2px">{{ display_map.get(s.indicator_name, s.indicator_name) }}</a></div>
+              {% else %}
               <div class="signal-name">{{ display_map.get(s.indicator_name, s.indicator_name) }}</div>
+              {% endif %}
               <div class="signal-tf text-muted">勝率 {{ "%.1f"|format(s.win_rate) if s.win_rate else '--' }}%</div>
               {% if s.signal_time_jst %}
               <div class="signal-time-jst">{{ s.signal_time_jst }}</div>
