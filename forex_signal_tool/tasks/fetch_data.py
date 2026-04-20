@@ -22,8 +22,21 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 
+def purge_weekend_data(db):
+    """price_data テーブルから週末（土・日）データを削除する。"""
+    from sqlalchemy import text
+    # MySQL: DAYOFWEEK は 1=日, 7=土
+    result = db.session.execute(text(
+        "DELETE FROM price_data WHERE DAYOFWEEK(`timestamp`) IN (1, 7)"
+    ))
+    db.session.commit()
+    deleted = result.rowcount
+    if deleted:
+        logger.info("週末データ自動削除: %d件", deleted)
+
+
 def main():
-    from app import create_app
+    from app import create_app, db
     from app.services.data_fetcher import fetch_and_store_all
     from app.models.settings import Setting
     from datetime import datetime, timezone, timedelta
@@ -36,6 +49,8 @@ def main():
         for pair, tf_results in results.items():
             for tf, saved in tf_results.items():
                 logger.info("  %s %s: %d件保存", pair, tf, saved)
+
+        purge_weekend_data(db)
 
         now_str = datetime.now(JST).strftime("%Y/%m/%d %H:%M JST")
         Setting.set("last_data_fetch_at", now_str)
