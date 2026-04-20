@@ -517,6 +517,31 @@ main{max-width:900px;margin:0 auto;padding:28px 20px}
 
   </div>
 
+  <!-- ===== アクティブシグナル ===== -->
+  <div class="section">
+    <div class="section-title" style="display:flex;align-items:center;justify-content:space-between">
+      <span>アクティブシグナル</span>
+      <div style="display:flex;align-items:center;gap:8px">
+        <span id="signals-updated-at" style="font-size:11px;color:#64748b"></span>
+        <button onclick="loadActiveSignals()" style="background:#1e293b;border:1px solid #334155;color:#94a3b8;font-size:12px;padding:4px 10px;border-radius:6px;cursor:pointer">再読込</button>
+      </div>
+    </div>
+    <!-- ペアタブ -->
+    <div id="signals-tabs" style="display:flex;gap:8px;margin:10px 0">
+      <button class="sig-tab active-tab" data-pair="USDJPY" onclick="sigSwitchTab('USDJPY')" style="padding:6px 14px;border-radius:6px;border:1px solid #4f46e5;background:#312e81;color:#a5b4fc;font-size:13px;cursor:pointer">USDJPY</button>
+      <button class="sig-tab" data-pair="GBPJPY" onclick="sigSwitchTab('GBPJPY')" style="padding:6px 14px;border-radius:6px;border:1px solid #334155;background:#1e293b;color:#64748b;font-size:13px;cursor:pointer">GBPJPY</button>
+      <button class="sig-tab" data-pair="EURJPY" onclick="sigSwitchTab('EURJPY')" style="padding:6px 14px;border-radius:6px;border:1px solid #334155;background:#1e293b;color:#64748b;font-size:13px;cursor:pointer">EURJPY</button>
+    </div>
+    <!-- ローディング -->
+    <div id="signals-loading" style="text-align:center;color:#64748b;font-size:13px;padding:20px 0">
+      <span class="spin" style="border-color:#33415599;border-top-color:#60a5fa"></span> 読み込み中...
+    </div>
+    <!-- ペアごとコンテンツ -->
+    <div id="signals-USDJPY" class="sig-panel" style="display:none"></div>
+    <div id="signals-GBPJPY" class="sig-panel" style="display:none"></div>
+    <div id="signals-EURJPY" class="sig-panel" style="display:none"></div>
+  </div>
+
   <!-- ===== DB 使用量内訳 ===== -->
   <div class="section">
     <div class="section-title">データベース使用量内訳</div>
@@ -1475,6 +1500,100 @@ async function loadCronHealth() {
 }
 loadCronHealth();
 setInterval(loadCronHealth, 60 * 1000);
+
+// ===== アクティブシグナル =====
+let _sigData = null;
+let _sigCurrentPair = 'USDJPY';
+
+function sigSwitchTab(pair) {
+  _sigCurrentPair = pair;
+  document.querySelectorAll('.sig-tab').forEach(btn => {
+    const active = btn.dataset.pair === pair;
+    btn.style.background = active ? '#312e81' : '#1e293b';
+    btn.style.borderColor = active ? '#4f46e5' : '#334155';
+    btn.style.color       = active ? '#a5b4fc' : '#64748b';
+  });
+  ['USDJPY','GBPJPY','EURJPY'].forEach(p => {
+    document.getElementById('signals-' + p).style.display = p === pair ? 'block' : 'none';
+  });
+  if (_sigData) renderSignalPanel(pair, _sigData[pair] || []);
+}
+
+function renderSignalPanel(pair, signals) {
+  const el = document.getElementById('signals-' + pair);
+  if (!signals || signals.length === 0) {
+    el.innerHTML = '<div style="text-align:center;color:#64748b;font-size:13px;padding:20px 0">アクティブシグナルなし</div>';
+    return;
+  }
+
+  const tfs = ['15min','1hr','4hr','daily'];
+  const buy  = signals.filter(s => s.signal_type === 'BUY');
+  const sell = signals.filter(s => s.signal_type === 'SELL');
+
+  function buildTable(list, color) {
+    if (!list.length) return '<div style="color:#64748b;font-size:12px;padding:8px 0">なし</div>';
+    const rows = list.map(s => {
+      const wr = s.win_rate != null ? parseFloat(s.win_rate).toFixed(1) + '%' : '-';
+      const cs = parseFloat(s.confidence_score || 0).toFixed(0);
+      return `<tr>
+        <td style="color:#94a3b8;font-size:11px">${s.timeframe}</td>
+        <td>${s.indicator_name}</td>
+        <td style="color:#64748b;font-size:11px">${s.indicator_category || '-'}</td>
+        <td style="text-align:right">${parseFloat(s.entry_price).toFixed(3)}</td>
+        <td style="text-align:right">${wr}</td>
+        <td style="text-align:right">${cs}</td>
+        <td style="color:#64748b;font-size:11px">${s.signal_jst}</td>
+      </tr>`;
+    }).join('');
+    return `<table style="width:100%;border-collapse:collapse;font-size:12px">
+      <thead><tr style="color:#64748b;font-size:11px">
+        <th style="text-align:left;padding:4px 6px">TF</th>
+        <th style="text-align:left;padding:4px 6px">指標</th>
+        <th style="text-align:left;padding:4px 6px">カテゴリ</th>
+        <th style="text-align:right;padding:4px 6px">価格</th>
+        <th style="text-align:right;padding:4px 6px">勝率(BT)</th>
+        <th style="text-align:right;padding:4px 6px">信頼度</th>
+        <th style="text-align:left;padding:4px 6px">発生(JST)</th>
+      </tr></thead>
+      <tbody>${rows}</tbody>
+    </table>`;
+  }
+
+  el.innerHTML = `
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+      <div style="background:#052e16;border:1px solid #166534;border-radius:8px;padding:12px">
+        <div style="color:#4ade80;font-weight:700;font-size:13px;margin-bottom:8px">BUY ×${buy.length}</div>
+        ${buildTable(buy, '#4ade80')}
+      </div>
+      <div style="background:#2d0909;border:1px solid #7f1d1d;border-radius:8px;padding:12px">
+        <div style="color:#f87171;font-weight:700;font-size:13px;margin-bottom:8px">SELL ×${sell.length}</div>
+        ${buildTable(sell, '#f87171')}
+      </div>
+    </div>`;
+}
+
+async function loadActiveSignals() {
+  document.getElementById('signals-loading').style.display = 'block';
+  ['USDJPY','GBPJPY','EURJPY'].forEach(p => {
+    document.getElementById('signals-' + p).style.display = 'none';
+  });
+  try {
+    const res  = await fetch('/admin/api.php?action=active_signals');
+    const data = await res.json();
+    if (!data.ok) throw new Error(data.error);
+    _sigData = data.signals;
+    document.getElementById('signals-loading').style.display = 'none';
+    document.getElementById('signals-' + _sigCurrentPair).style.display = 'block';
+    ['USDJPY','GBPJPY','EURJPY'].forEach(p => renderSignalPanel(p, data.signals[p] || []));
+    const now = new Date();
+    document.getElementById('signals-updated-at').textContent =
+      '更新: ' + now.getHours().toString().padStart(2,'0') + ':' + now.getMinutes().toString().padStart(2,'0');
+  } catch(e) {
+    document.getElementById('signals-loading').textContent = 'エラー: ' + e.message;
+  }
+}
+loadActiveSignals();
+setInterval(loadActiveSignals, 5 * 60 * 1000);
 </script>
 <?php endif; // end logged-in ?>
 </body>

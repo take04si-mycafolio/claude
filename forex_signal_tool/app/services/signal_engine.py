@@ -128,13 +128,14 @@ def generate_signals_for_pair_tf(pair: str, timeframe: str, df: pd.DataFrame,
         if signal_type == "NEUTRAL":
             continue
 
-        # バックテスト結果で検証
+        # バックテスト結果で勝率を補完（なくても通す）
         bt_result = bt_map.get(ind_name)
-        if bt_result is None:
-            # バックテスト未実施 or 勝率不足 → スキップ
-            continue
-
-        win_rate = float(bt_result.win_rate)
+        if bt_result is not None:
+            win_rate   = float(bt_result.win_rate)
+            confidence = calculate_confidence_score(win_rate, bt_result.total_trades)
+        else:
+            win_rate   = None   # BT未実施
+            confidence = 0.0
 
         # TP/SL価格計算
         if signal_type == "BUY":
@@ -143,8 +144,6 @@ def generate_signals_for_pair_tf(pair: str, timeframe: str, df: pd.DataFrame,
         else:
             tp_price = current_price - tp_pips * 0.01
             sl_price = current_price + sl_pips * 0.01
-
-        confidence = calculate_confidence_score(win_rate, bt_result.total_trades)
 
         signals.append({
             "currency_pair": pair,

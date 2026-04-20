@@ -448,6 +448,32 @@ switch ($action) {
         }
         break;
 
+    case 'active_signals':
+        require_login();
+        try {
+            $pdo  = get_pdo();
+            $pairs = ['USDJPY', 'GBPJPY', 'EURJPY'];
+            $data  = [];
+            foreach ($pairs as $pair) {
+                $stmt = $pdo->prepare("
+                    SELECT signal_type, indicator_name, indicator_category, timeframe,
+                           entry_price, sl_price, tp_price, win_rate, confidence_score,
+                           DATE_FORMAT(CONVERT_TZ(signal_time,'+00:00','+09:00'),'%m/%d %H:%i') AS signal_jst
+                    FROM trading_signals
+                    WHERE currency_pair = ? AND is_active = 1
+                      AND (expired_at IS NULL OR expired_at > UTC_TIMESTAMP())
+                    ORDER BY confidence_score DESC
+                    LIMIT 50
+                ");
+                $stmt->execute([$pair]);
+                $data[$pair] = $stmt->fetchAll(PDO::FETCH_ASSOC);
+            }
+            json_out(['ok' => true, 'signals' => $data]);
+        } catch (Exception $e) {
+            json_out(['ok' => false, 'error' => $e->getMessage()]);
+        }
+        break;
+
     case 'qf_trades_csv':
         require_login();
         try {
