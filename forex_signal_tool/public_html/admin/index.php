@@ -1095,6 +1095,36 @@ async function loadLivePosition() {
 loadLivePosition();
 
 // ---- QuantFlow バックテスト トレード履歴 ----
+var _btActiveMonth = null;
+
+function _btSwitchTab(ym) {
+  _btActiveMonth = ym;
+  document.querySelectorAll('.bt-month-tab').forEach(function(t) {
+    t.style.background  = t.dataset.ym === ym ? '#1d4ed8' : '#1e293b';
+    t.style.color       = t.dataset.ym === ym ? '#fff'    : '#94a3b8';
+    t.style.borderColor = t.dataset.ym === ym ? '#1d4ed8' : '#334155';
+  });
+  document.querySelectorAll('.bt-month-panel').forEach(function(p) {
+    p.style.display = p.dataset.ym === ym ? 'block' : 'none';
+  });
+}
+
+function _btMakeRow(t) {
+  var oc = t.outcome === 'WIN' ? '#4ade80' : '#f87171';
+  var pp = t.profit_pips !== null ? (parseFloat(t.profit_pips)>=0?'+':'')+parseFloat(t.profit_pips).toFixed(2) : '-';
+  return '<tr>'
+    + '<td>' + (t.entry_jst||'-') + '</td>'
+    + '<td style="color:'+(t.direction==='BUY'?'#4ade80':'#f87171')+'">' + t.direction + '</td>'
+    + '<td style="text-align:right">' + (t.score_at_entry||'-') + '</td>'
+    + '<td style="text-align:right">' + parseFloat(t.entry_price).toFixed(3) + '</td>'
+    + '<td style="text-align:right">' + (t.exit_price ? parseFloat(t.exit_price).toFixed(3) : '-') + '</td>'
+    + '<td>' + (t.exit_jst||'-') + '</td>'
+    + '<td style="text-align:center;color:'+oc+'">' + (t.outcome||'-') + '</td>'
+    + '<td style="text-align:right;color:'+oc+'">' + pp + '</td>'
+    + '<td style="text-align:right;color:#64748b;font-size:11px">' + (t.sl_pips||'-') + 'p / ' + (t.tp_pips||'-') + 'p</td>'
+    + '</tr>';
+}
+
 async function loadAllTrades() {
   var loading = document.getElementById('live-hist-loading');
   var errDiv  = document.getElementById('live-hist-error');
@@ -1108,20 +1138,19 @@ async function loadAllTrades() {
     var data = await res.json();
     if (!data.ok) throw new Error(data.error || 'エラー');
 
+    // --- 統計カード ---
     var s = data.stats;
     var winRate = s.total > 0 ? (s.wins / s.total * 100).toFixed(1) : '-';
-    var pfStr   = (s.loss_pips && s.loss_pips < 0)
-                  ? Math.abs(s.win_pips / s.loss_pips).toFixed(2) : '-';
-
+    var pfStr   = (s.loss_pips && s.loss_pips < 0) ? Math.abs(s.win_pips / s.loss_pips).toFixed(2) : '-';
     var statsCards = [
-      { label:'総トレード数',           val: s.total,                                                      color:'#94a3b8' },
-      { label:'勝ち',                   val: s.wins,                                                       color:'#4ade80' },
-      { label:'負け',                   val: s.losses,                                                     color:'#f87171' },
-      { label:'勝率',                   val: winRate !== '-' ? winRate+'%' : '-',                          color: parseFloat(winRate)>=50?'#4ade80':'#f87171' },
-      { label:'合計損益(pips)',          val: s.total_pips !== null ? (s.total_pips>=0?'+':'')+s.total_pips : '-', color: (s.total_pips||0)>=0?'#4ade80':'#f87171' },
-      { label:'平均利益(pips)',          val: s.avg_win  !== null ? '+'+s.avg_win  : '-',                  color:'#4ade80' },
-      { label:'平均損失(pips)',          val: s.avg_loss !== null ? s.avg_loss+''  : '-',                  color:'#f87171' },
-      { label:'プロフィットファクター',  val: pfStr,                                                        color:'#60a5fa' },
+      { label:'総トレード数',          val: s.total,                                                             color:'#94a3b8' },
+      { label:'勝ち',                  val: s.wins,                                                              color:'#4ade80' },
+      { label:'負け',                  val: s.losses,                                                            color:'#f87171' },
+      { label:'勝率',                  val: winRate !== '-' ? winRate+'%' : '-',                                 color: parseFloat(winRate)>=50?'#4ade80':'#f87171' },
+      { label:'合計損益(pips)',         val: s.total_pips !== null ? (s.total_pips>=0?'+':'')+s.total_pips : '-', color:(s.total_pips||0)>=0?'#4ade80':'#f87171' },
+      { label:'平均利益(pips)',         val: s.avg_win  !== null ? '+'+s.avg_win  : '-',                          color:'#4ade80' },
+      { label:'平均損失(pips)',         val: s.avg_loss !== null ? s.avg_loss+''  : '-',                          color:'#f87171' },
+      { label:'プロフィットファクター', val: pfStr,                                                               color:'#60a5fa' },
     ];
     document.getElementById('live-hist-stats').innerHTML = statsCards.map(function(c) {
       return '<div style="background:#0f172a;border:1px solid #1e293b;border-radius:8px;padding:12px;text-align:center">'
@@ -1132,33 +1161,88 @@ async function loadAllTrades() {
 
     if (data.trades.length === 0) {
       document.getElementById('live-hist-table').innerHTML = '<div style="text-align:center;color:#64748b;font-size:13px;padding:20px 0">トレード履歴なし</div>';
-    } else {
-      var rows = data.trades.map(function(t) {
-        var oc = t.outcome === 'WIN' ? '#4ade80' : '#f87171';
-        var pp = t.profit_pips !== null ? (parseFloat(t.profit_pips)>=0?'+':'')+parseFloat(t.profit_pips).toFixed(2) : '-';
-        return '<tr>'
-          + '<td>' + (t.entry_jst||'-') + '</td>'
-          + '<td style="color:'+(t.direction==='BUY'?'#4ade80':'#f87171')+'">' + t.direction + '</td>'
-          + '<td style="text-align:right">' + (t.score_at_entry||'-') + '</td>'
-          + '<td style="text-align:right">' + parseFloat(t.entry_price).toFixed(3) + '</td>'
-          + '<td style="text-align:right">' + (t.exit_price ? parseFloat(t.exit_price).toFixed(3) : '-') + '</td>'
-          + '<td>' + (t.exit_jst||'-') + '</td>'
-          + '<td style="text-align:center;color:'+oc+'">' + (t.outcome||'-') + '</td>'
-          + '<td style="text-align:right;color:'+oc+'">' + pp + '</td>'
-          + '<td style="text-align:right;color:#64748b;font-size:11px">' + (t.sl_pips||'-') + 'p / ' + (t.tp_pips||'-') + 'p</td>'
-          + '</tr>';
-      }).join('');
-      document.getElementById('live-hist-table').innerHTML =
-        '<div class="table-wrap"><table class="data-table">'
-        + '<thead><tr>'
-        + '<th>エントリー(JST)</th><th>方向</th><th class="num">スコア</th>'
-        + '<th class="num">エントリー価格</th><th class="num">決済価格</th>'
-        + '<th>決済日時(JST)</th><th>結果</th><th class="num">損益(pips)</th><th class="num">SL/TP</th>'
-        + '</tr></thead>'
-        + '<tbody>' + rows + '</tbody>'
-        + '</table></div>';
+      loading.style.display = 'none';
+      content.style.display = 'block';
+      return;
     }
 
+    // --- 月ごとにグループ化 ---
+    var grouped = {};
+    var months  = [];
+    data.trades.forEach(function(t) {
+      var ym = t.year_month || '不明';
+      if (!grouped[ym]) { grouped[ym] = []; months.push(ym); }
+      grouped[ym].push(t);
+    });
+    // 降順ソート（例: "2025-04" > "2025-03"）
+    months.sort(function(a, b) { return b > a ? 1 : -1; });
+    if (!_btActiveMonth || !grouped[_btActiveMonth]) _btActiveMonth = months[0];
+
+    var thead = '<thead><tr>'
+      + '<th>エントリー(JST)</th><th>方向</th><th class="num">スコア</th>'
+      + '<th class="num">Entry価格</th><th class="num">Exit価格</th>'
+      + '<th>決済日時(JST)</th><th>結果</th><th class="num">損益(pips)</th><th class="num">SL/TP</th>'
+      + '</tr></thead>';
+
+    // --- タブ ---
+    var tabsHtml = '<div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:14px">';
+    months.forEach(function(ym) {
+      var cnt = grouped[ym].length;
+      var wins = grouped[ym].filter(function(t){ return t.outcome==='WIN'; }).length;
+      var wr   = cnt > 0 ? Math.round(wins/cnt*100) : 0;
+      var isActive = ym === _btActiveMonth;
+      tabsHtml += '<button class="bt-month-tab" data-ym="' + ym + '" onclick="_btSwitchTab(\'' + ym + '\')"'
+        + ' style="background:' + (isActive?'#1d4ed8':'#1e293b') + ';border:1px solid '+(isActive?'#1d4ed8':'#334155')+';'
+        + 'color:'+(isActive?'#fff':'#94a3b8')+';font-size:12px;padding:5px 12px;border-radius:6px;cursor:pointer">'
+        + ym + ' <span style="font-size:10px;opacity:0.8">(' + cnt + '件 ' + wr + '%)</span></button>';
+    });
+    tabsHtml += '</div>';
+
+    // --- 月ごとパネル（10件 + 折りたたみ）---
+    var panelsHtml = '';
+    months.forEach(function(ym) {
+      var trades = grouped[ym];
+      var first10 = trades.slice(0, 10);
+      var rest    = trades.slice(10);
+      var panelId = 'bt-panel-' + ym.replace('-','');
+      var restId  = 'bt-rest-'  + ym.replace('-','');
+      var btnId   = 'bt-btn-'   + ym.replace('-','');
+
+      var rowsFirst = first10.map(_btMakeRow).join('');
+      var rowsRest  = rest.map(_btMakeRow).join('');
+
+      var monthStats = (function() {
+        var tc = trades.length;
+        var wc = trades.filter(function(t){ return t.outcome==='WIN'; }).length;
+        var tp = trades.reduce(function(acc,t){ return acc + (parseFloat(t.profit_pips)||0); }, 0);
+        var wr = tc > 0 ? (wc/tc*100).toFixed(1)+'%' : '-';
+        return '月計: ' + tc + '件 / 勝率 ' + wr + ' / ' + (tp>=0?'+':'') + tp.toFixed(2) + 'pips';
+      })();
+
+      panelsHtml += '<div class="bt-month-panel" data-ym="' + ym + '" style="display:' + (ym===_btActiveMonth?'block':'none') + '">'
+        + '<div style="font-size:11px;color:#64748b;margin-bottom:8px">' + monthStats + '</div>'
+        + '<div class="table-wrap"><table class="data-table">' + thead
+        + '<tbody>' + rowsFirst;
+
+      if (rest.length > 0) {
+        panelsHtml += '<tr id="' + restId + '" style="display:none"><td colspan="9" style="padding:0">'
+          + '<table style="width:100%;border-collapse:collapse">' + rowsRest + '</table>'
+          + '</td></tr>'
+          + '<tr><td colspan="9" style="text-align:center;padding:8px">'
+          + '<button id="' + btnId + '" onclick="(function(){'
+          + 'var r=document.getElementById(\'' + restId + '\');'
+          + 'var b=document.getElementById(\'' + btnId + '\');'
+          + 'var open=r.style.display!==\'none\';'
+          + 'r.style.display=open?\'none\':\'table-row\';'
+          + 'b.textContent=open?\'▼ 残り'+rest.length+'件を表示\':\'▲ 折りたたむ\';'
+          + '})()" style="background:none;border:1px solid #334155;color:#64748b;font-size:12px;padding:5px 16px;border-radius:6px;cursor:pointer">'
+          + '▼ 残り' + rest.length + '件を表示</button></td></tr>';
+      }
+
+      panelsHtml += '</tbody></table></div></div>';
+    });
+
+    document.getElementById('live-hist-table').innerHTML = tabsHtml + panelsHtml;
     loading.style.display = 'none';
     content.style.display = 'block';
   } catch(e) {
