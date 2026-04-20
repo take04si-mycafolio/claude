@@ -202,6 +202,24 @@ switch ($action) {
         }
         break;
 
+    case 'quantflow_scores_5min_status':
+        require_login();
+        try {
+            $pdo = get_pdo();
+            $count = $pdo->query("SELECT COUNT(*) FROM quantflow_scores_5min WHERE currency_pair='USDJPY'")->fetchColumn();
+            $latest = $pdo->query("
+                SELECT score, close_price,
+                       DATE_FORMAT(CONVERT_TZ(`timestamp`,'+00:00','+09:00'),'%Y/%m/%d %H:%i') AS ts_jst
+                FROM quantflow_scores_5min
+                WHERE currency_pair='USDJPY'
+                ORDER BY `timestamp` DESC LIMIT 5
+            ")->fetchAll(PDO::FETCH_ASSOC);
+            json_out(['ok' => true, 'count' => (int)$count, 'latest' => $latest]);
+        } catch (Exception $e) {
+            json_out(['ok' => false, 'error' => $e->getMessage()]);
+        }
+        break;
+
     case 'quantflow_live_position':
         require_login();
         try {
