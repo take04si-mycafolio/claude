@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
 """
 データ取得Cronジョブ
-Alpha Vantage APIから為替データを取得してDBに保存する。
+Yahoo Finance (yfinance) から為替データを取得してDBに保存する。
+リクエスト制限なし。5分ごとのcronで直近1時間分を取得・差分保存。
 
 Xサーバー Cronジョブ設定例:
-  # 1日2回 (無料プランの25リクエスト/日制限に注意)
-  0 0,12 * * * cd /home/user/public_html && python3 tasks/fetch_data.py >> logs/fetch.log 2>&1
+  */5 * * * * /path/to/python3 /path/to/tasks/fetch_data.py >> /tmp/fetch_data.log 2>&1
 """
 
 import sys
