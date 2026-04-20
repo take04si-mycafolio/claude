@@ -178,7 +178,7 @@ def resample_to_4hr(df_1hr: pd.DataFrame) -> pd.DataFrame:
 def save_price_data(pair: str, timeframe: str, df: pd.DataFrame) -> int:
     """DataFrameをDBのprice_dataテーブルに保存。
     既存レコードは値が異なる場合に上書き更新（取得タイミングによる欠損値修正に対応）。
-    新規レコードは INSERT。
+    新規レコードは INSERT。週末（土・日）は除外する。
     """
     from app import db
     from app.models.price_data import PriceData
@@ -193,6 +193,10 @@ def save_price_data(pair: str, timeframe: str, df: pd.DataFrame) -> int:
             ts = ts.to_pydatetime()
         if hasattr(ts, "tzinfo") and ts.tzinfo is not None:
             ts = ts.replace(tzinfo=None)
+
+        # 週末データ（土=5, 日=6）は保存しない
+        if ts.weekday() >= 5:
+            continue
 
         new_open   = _round(row["open"])
         new_high   = _round(row["high"])
