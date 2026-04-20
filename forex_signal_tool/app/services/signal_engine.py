@@ -54,6 +54,19 @@ def get_active_backtest_results(pair: str, timeframe: str, min_win_rate: float, 
     return results
 
 
+def get_all_backtest_results(pair: str, timeframe: str) -> list:
+    """全バックテスト結果を取得（閾値なし・暫定勝率表示用）"""
+    from app.models.backtest import BacktestResult
+    return (
+        BacktestResult.query
+        .filter(
+            BacktestResult.currency_pair == pair,
+            BacktestResult.timeframe == timeframe,
+        )
+        .all()
+    )
+
+
 def calculate_confidence_score(win_rate: float, total_trades: int,
                                 mtf_agreement: int = 0) -> float:
     """
@@ -122,15 +135,18 @@ def generate_signals_for_pair_tf(pair: str, timeframe: str, df: pd.DataFrame,
         logger.error("Indicator calculation failed for %s %s: %s", pair, timeframe, exc)
         return []
 
-    # 勝率の高い指標を取得
+    # 勝率の高い指標を取得（信頼度スコア計算用）
     active_bt = get_active_backtest_results(
         pair, timeframe,
         min_win_rate=settings["min_win_rate"],
         min_trades=settings["min_trades"],
     )
 
-    # バックテスト結果をインデックス化
+    # バックテスト結果をインデックス化（閾値以上のみ）
     bt_map = {r.indicator_name: r for r in active_bt}
+
+    # 閾値未満を含む全BT結果（暫定勝率表示用）
+    all_bt_map = {r.indicator_name: r for r in get_all_backtest_results(pair, timeframe)}
 
     current_price = float(df["close"].iloc[-1])
     sl_pips = settings["sl_pips"]
@@ -146,10 +162,13 @@ def generate_signals_for_pair_tf(pair: str, timeframe: str, df: pd.DataFrame,
         # バックテスト結果で勝率を補完（なくても通す）
         bt_result = bt_map.get(ind_name)
         if bt_result is not None:
+            # 閾値以上: 正式な勝率・信頼度
             win_rate   = float(bt_result.win_rate)
             confidence = calculate_confidence_score(win_rate, bt_result.total_trades)
         else:
-            win_rate   = None   # BT未実施（表示は「-」）
+            # 閾値未満でもBT結果があれば暫定勝率として表示
+            any_bt = all_bt_map.get(ind_name)
+            win_rate   = float(any_bt.win_rate) if any_bt else None
             confidence = calculate_confidence_score_nobt(ind_data.get("category", "unknown"))
 
         # TP/SL価格計算
@@ -235,10 +254,11 @@ def run_signal_engine() -> dict:
                 existing = existing_map.get(key)
 
                 if existing:
-                    # 継続シグナル: 価格・信頼度のみ更新、signal_time は保持
+                    # 継続シグナル: 価格・勝率・信頼度を更新、signal_time は保持
                     existing.entry_price      = s["entry_price"]
                     existing.tp_price         = s["tp_price"]
                     existing.sl_price         = s["sl_price"]
+                    existing.win_rate         = s["win_rate"]
                     existing.confidence_score = s["confidence_score"]
                     existing.expired_at       = expired_at
                     kept_ids.add(existing.id)
