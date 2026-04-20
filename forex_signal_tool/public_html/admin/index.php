@@ -216,6 +216,7 @@ main{max-width:900px;margin:0 auto;padding:28px 20px}
 .tool-card a{background:#3b82f6;color:#fff;text-decoration:none;padding:9px 20px;border-radius:8px;font-size:13px;font-weight:600;white-space:nowrap}
 .tool-card a:hover{background:#2563eb}
 @keyframes spin{to{transform:rotate(360deg)}}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:.3}}
 .spin{display:inline-block;width:13px;height:13px;border:2px solid #ffffff44;border-top-color:#fff;border-radius:50%;animation:spin .7s linear infinite;vertical-align:middle;margin-right:5px}
 /* ---- 拡張テーブル ---- */
 .data-table{width:100%;border-collapse:collapse;font-size:13px}
@@ -290,6 +291,21 @@ main{max-width:900px;margin:0 auto;padding:28px 20px}
         <div class="value"><?= number_format($stats['sim_count']) ?></div>
       </div>
     </div>
+  </div>
+
+  <!-- ===== クロン健全性ダッシュボード ===== -->
+  <div class="section">
+    <div class="section-title" style="display:flex;align-items:center;justify-content:space-between">
+      <span>クロン健全性ダッシュボード</span>
+      <div style="display:flex;align-items:center;gap:8px">
+        <span id="cron-checked-at" style="font-size:11px;color:#64748b"></span>
+        <button onclick="loadCronHealth()" style="background:#1e293b;border:1px solid #334155;color:#94a3b8;font-size:12px;padding:4px 10px;border-radius:6px;cursor:pointer">再読込</button>
+      </div>
+    </div>
+    <div id="cron-health-loading" style="text-align:center;color:#64748b;font-size:13px;padding:20px 0">
+      <span class="spin" style="border-color:#33415599;border-top-color:#60a5fa"></span> 読み込み中...
+    </div>
+    <div id="cron-health-grid" style="display:none;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:12px;margin-top:10px"></div>
   </div>
 
   <div class="section">
@@ -1408,6 +1424,57 @@ async function deleteCustomInd(name) {
 }
 
 loadCustomIndicators();
+
+// ---- クロン健全性ダッシュボード ----
+var _CRON_LEVEL_COLORS = {
+  ok:      { bg:'#052e16', border:'#15803d', dot:'#4ade80', label:'正常' },
+  warn:    { bg:'#422006', border:'#92400e', dot:'#fb923c', label:'警告' },
+  error:   { bg:'#3f0a0a', border:'#991b1b', dot:'#f87171', label:'エラー' },
+  running: { bg:'#0c1a2e', border:'#1d4ed8', dot:'#60a5fa', label:'実行中' },
+  unknown: { bg:'#0f172a', border:'#334155', dot:'#64748b', label:'不明' },
+};
+
+async function loadCronHealth() {
+  var loading = document.getElementById('cron-health-loading');
+  var grid    = document.getElementById('cron-health-grid');
+  loading.style.display = 'block';
+  grid.style.display    = 'none';
+
+  try {
+    var res  = await fetch('/admin/api.php?action=cron_health');
+    var data = await res.json();
+    if (!data.ok) throw new Error(data.error || 'エラー');
+
+    var html = data.items.map(function(item) {
+      var c = _CRON_LEVEL_COLORS[item.level] || _CRON_LEVEL_COLORS.unknown;
+      var dotStyle = 'width:8px;height:8px;border-radius:50%;background:' + c.dot + ';display:inline-block'
+        + (item.level === 'running' ? ';animation:blink 1s infinite' : '');
+      return '<div style="background:' + c.bg + ';border:1px solid ' + c.border + ';border-radius:10px;padding:14px 16px">'
+        + '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">'
+        + '<div style="font-size:12px;font-weight:600;color:#e2e8f0">' + item.name + '</div>'
+        + '<div style="display:flex;align-items:center;gap:5px">'
+        + '<span style="' + dotStyle + '"></span>'
+        + '<span style="font-size:11px;color:' + c.dot + ';font-weight:600">' + c.label + '</span>'
+        + '</div></div>'
+        + '<div style="font-size:11px;color:#64748b">最終更新: <span style="color:#94a3b8">' + (item.last || '-') + '</span></div>'
+        + (item.ago ? '<div style="font-size:11px;color:#64748b;margin-top:2px">経過: <span style="color:#94a3b8">' + item.ago + '</span></div>' : '')
+        + (item.note ? '<div style="font-size:11px;color:#fb923c;margin-top:6px;padding:4px 8px;background:#1c0f00;border-radius:4px">' + item.note + '</div>' : '')
+        + '</div>';
+    }).join('');
+
+    grid.innerHTML = html;
+    loading.style.display = 'none';
+    grid.style.display    = 'grid';
+
+    var checkedEl = document.getElementById('cron-checked-at');
+    if (checkedEl) checkedEl.textContent = data.checked_at + ' 確認';
+  } catch(e) {
+    loading.textContent = 'エラー: ' + e.message;
+    loading.style.display = 'block';
+  }
+}
+loadCronHealth();
+setInterval(loadCronHealth, 60 * 1000);
 </script>
 <?php endif; // end logged-in ?>
 </body>

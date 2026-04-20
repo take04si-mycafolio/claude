@@ -236,6 +236,119 @@ switch ($action) {
         }
         break;
 
+    case 'cron_health':
+        require_login();
+        try {
+            $pdo = get_pdo();
+
+            // 为替ペア 5min 最終データ
+            $r = $pdo->query("
+                SELECT DATE_FORMAT(CONVERT_TZ(MAX(`timestamp`),'+00:00','+09:00'),'%Y/%m/%d %H:%i') AS last_jst,
+                       TIMESTAMPDIFF(MINUTE, MAX(`timestamp`), UTC_TIMESTAMP()) AS min_ago
+                FROM price_data WHERE currency_pair IN ('USDJPY','GBPJPY','EURJPY') AND timeframe='5min'
+            ")->fetch(PDO::FETCH_ASSOC);
+            $priceMin = $r['min_ago'] !== null ? (int)$r['min_ago'] : null;
+
+            // マクロ指標 (US10Y/USBF/DXY)
+            $r2 = $pdo->query("
+                SELECT DATE_FORMAT(CONVERT_TZ(MAX(`timestamp`),'+00:00','+09:00'),'%Y/%m/%d %H:%i') AS last_jst,
+                       TIMESTAMPDIFF(MINUTE, MAX(`timestamp`), UTC_TIMESTAMP()) AS min_ago
+                FROM price_data WHERE currency_pair IN ('US10Y','USBF','DXY')
+            ")->fetch(PDO::FETCH_ASSOC);
+            $macroMin = $r2['min_ago'] !== null ? (int)$r2['min_ago'] : null;
+
+            // QuantFlow 5分足
+            $r3 = $pdo->query("
+                SELECT DATE_FORMAT(CONVERT_TZ(MAX(`timestamp`),'+00:00','+09:00'),'%Y/%m/%d %H:%i') AS last_jst,
+                       TIMESTAMPDIFF(MINUTE, MAX(`timestamp`), UTC_TIMESTAMP()) AS min_ago
+                FROM quantflow_scores_5min WHERE currency_pair='USDJPY'
+            ")->fetch(PDO::FETCH_ASSOC);
+            $qf5mMin = $r3['min_ago'] !== null ? (int)$r3['min_ago'] : null;
+
+            // QuantFlow 1時間足
+            $r4 = $pdo->query("
+                SELECT DATE_FORMAT(CONVERT_TZ(MAX(`timestamp`),'+00:00','+09:00'),'%Y/%m/%d %H:%i') AS last_jst,
+                       TIMESTAMPDIFF(MINUTE, MAX(`timestamp`), UTC_TIMESTAMP()) AS min_ago
+                FROM quantflow_scores WHERE currency_pair='USDJPY'
+            ")->fetch(PDO::FETCH_ASSOC);
+            $qf1hMin = $r4['min_ago'] !== null ? (int)$r4['min_ago'] : null;
+
+            // バックテスト / シグナル (settings テーブル)
+            $lastBt     = setting_get('last_bt',     '未実行');
+            $btStatus   = setting_get('backtest_status', '');
+            $lastSignal = setting_get('last_signal', '未実行');
+            $sigStatus  = setting_get('signal_status', '');
+
+            function health_level($min_ago, $warn, $err) {
+                if ($min_ago === null) return 'unknown';
+                if ($min_ago >= $err)  return 'error';
+                if ($min_ago >= $warn) return 'warn';
+                return 'ok';
+            }
+            function format_ago($m) {
+                if ($m === null) return '-';
+                if ($m < 60)  return $m . '分前';
+                if ($m < 1440) return round($m / 60, 1) . '時間前';
+                return round($m / 1440, 1) . '日前';
+            }
+
+            $items = [
+                [
+                    'key'   => 'price',
+                    'name'  => '価格データ取得（為替ペア 5min）',
+                    'last'  => $r['last_jst']  ?? '-',
+                    'ago'   => format_ago($priceMin),
+                    'level' => health_level($priceMin, 30, 120),
+                    'note'  => $priceMin >= 120 ? 'fetch_data.py クロンが止まっている可能性' : '',
+                ],
+                [
+                    'key'   => 'macro',
+                    'name'  => 'マクロ指標取得（DXY / 米金利）',
+                    'last'  => $r2['last_jst'] ?? '-',
+                    'ago'   => format_ago($macroMin),
+                    'level' => health_level($macroMin, 120, 480),
+                    'note'  => $macroMin >= 480 ? 'fetch_data.py クロンが止まっている可能性' : '',
+                ],
+                [
+                    'key'   => 'bt',
+                    'name'  => 'バックテスト更新',
+                    'last'  => $lastBt,
+                    'ago'   => '',
+                    'level' => ($btStatus === 'running') ? 'running' : 'ok',
+                    'note'  => '',
+                ],
+                [
+                    'key'   => 'signal',
+                    'name'  => 'シグナル更新',
+                    'last'  => $lastSignal,
+                    'ago'   => '',
+                    'level' => ($sigStatus === 'running') ? 'running' : 'ok',
+                    'note'  => '',
+                ],
+                [
+                    'key'   => 'qf5m',
+                    'name'  => 'QuantFlow スコア（5分足）',
+                    'last'  => $r3['last_jst'] ?? '-',
+                    'ago'   => format_ago($qf5mMin),
+                    'level' => health_level($qf5mMin, 30, 120),
+                    'note'  => $qf5mMin >= 120 ? 'update_quantflow_scores_5min.py クロン未設定、または price_data.5min が古い' : '',
+                ],
+                [
+                    'key'   => 'qf1h',
+                    'name'  => 'QuantFlow スコア（1時間足）',
+                    'last'  => $r4['last_jst'] ?? '-',
+                    'ago'   => format_ago($qf1hMin),
+                    'level' => health_level($qf1hMin, 90, 240),
+                    'note'  => $qf1hMin >= 240 ? 'update_quantflow_scores.py クロンを確認してください' : '',
+                ],
+            ];
+
+            json_out(['ok' => true, 'items' => $items, 'checked_at' => gmdate('H:i:s') . ' UTC']);
+        } catch (Exception $e) {
+            json_out(['ok' => false, 'error' => $e->getMessage()]);
+        }
+        break;
+
     case 'data_coverage':
         require_login();
         try {
