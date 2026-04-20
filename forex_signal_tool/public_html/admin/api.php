@@ -107,11 +107,19 @@ switch ($action) {
         require_login();
         try {
             $pdo   = get_pdo();
-            $limit = (int)($_GET['limit'] ?? 168);
+            $tf    = $_GET['tf'] ?? '1h';
+            if ($tf === '5m') {
+                $table   = 'quantflow_scores_5min';
+                $default = 288; // 直近1日
+            } else {
+                $table   = 'quantflow_scores';
+                $default = 168; // 直近7日
+            }
+            $limit = (int)($_GET['limit'] ?? $default);
             $stmt  = $pdo->prepare("
                 SELECT DATE_FORMAT(CONVERT_TZ(`timestamp`, '+00:00', '+09:00'), '%m/%d %H:%i') AS ts,
                        score, trend_score, external_score, close_price
-                FROM quantflow_scores
+                FROM `$table`
                 WHERE currency_pair = 'USDJPY'
                 ORDER BY `timestamp` DESC
                 LIMIT ?
@@ -128,7 +136,7 @@ switch ($action) {
                     'close' => $r['close_price']    !== null ? (float)$r['close_price']  : null,
                 ];
             }, $rows);
-            json_out(['ok' => true, 'data' => $data, 'count' => count($data)]);
+            json_out(['ok' => true, 'data' => $data, 'count' => count($data), 'tf' => $tf]);
         } catch (Exception $e) {
             json_out(['ok' => false, 'error' => $e->getMessage()]);
         }

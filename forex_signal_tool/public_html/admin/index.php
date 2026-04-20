@@ -368,8 +368,12 @@ main{max-width:900px;margin:0 auto;padding:28px 20px}
   <!-- ===== QuantFlow スコアチャート ===== -->
   <div class="section">
     <div class="section-title" style="display:flex;align-items:center;justify-content:space-between">
-      <span>QuantFlow スコア（1時間足）</span>
+      <span>QuantFlow スコア（<span id="qf-tf-label">1時間足</span>）</span>
       <div style="display:flex;gap:8px;align-items:center">
+        <div style="display:flex;border:1px solid #334155;border-radius:6px;overflow:hidden">
+          <button id="qf-tf-1h" onclick="setQfTf('1h')" style="background:#1d4ed8;border:none;color:#fff;font-size:12px;padding:4px 10px;cursor:pointer">1H</button>
+          <button id="qf-tf-5m" onclick="setQfTf('5m')" style="background:#1e293b;border:none;color:#94a3b8;font-size:12px;padding:4px 10px;cursor:pointer">5M</button>
+        </div>
         <select id="qf-range" style="background:#1e293b;border:1px solid #334155;color:#94a3b8;font-size:12px;padding:4px 8px;border-radius:6px;cursor:pointer">
           <option value="168">直近7日</option>
           <option value="336">直近14日</option>
@@ -773,6 +777,24 @@ function pollOpStatus(op, cfg, btn, msg, origText) {
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <script>
 var _qfChartInst = null;
+var _qfTf = '1h';
+
+function setQfTf(tf) {
+  _qfTf = tf;
+  document.getElementById('qf-tf-label').textContent = tf === '5m' ? '5分足' : '1時間足';
+  var btn1h = document.getElementById('qf-tf-1h');
+  var btn5m = document.getElementById('qf-tf-5m');
+  btn1h.style.background = tf === '1h' ? '#1d4ed8' : '#1e293b';
+  btn1h.style.color = tf === '1h' ? '#fff' : '#94a3b8';
+  btn5m.style.background = tf === '5m' ? '#1d4ed8' : '#1e293b';
+  btn5m.style.color = tf === '5m' ? '#fff' : '#94a3b8';
+
+  var sel = document.getElementById('qf-range');
+  sel.innerHTML = tf === '5m'
+    ? '<option value="288">直近1日</option><option value="864">直近3日</option><option value="2016">直近7日</option>'
+    : '<option value="168">直近7日</option><option value="336">直近14日</option><option value="720">直近30日</option>';
+  loadQfChart();
+}
 
 function loadQfChart() {
   var loading = document.getElementById('qf-chart-loading');
@@ -786,7 +808,7 @@ function loadQfChart() {
   empty.style.display   = 'none';
   wrap.style.display    = 'none';
 
-  fetch('/admin/api.php?action=quantflow_chart_data&limit=' + limit, {
+  fetch('/admin/api.php?action=quantflow_chart_data&limit=' + limit + '&tf=' + _qfTf, {
     headers: {'X-Requested-With': 'XMLHttpRequest'}
   })
   .then(function(r){ return r.json(); })
