@@ -248,39 +248,50 @@ switch ($action) {
         }
         break;
 
-    case 'quantflow_live_history':
+    case 'quantflow_bt_history':
         require_login();
         try {
-            $pdo = get_pdo();
+            $pdo  = get_pdo();
+            $pair = strtoupper(preg_replace('/[^A-Za-z]/', '', $_GET['pair'] ?? 'USDJPY'));
+            if (!in_array($pair, ['USDJPY','GBPJPY','EURJPY'], true)) $pair = 'USDJPY';
 
-            $stats = $pdo->query("
+            $stats = $pdo->prepare("
                 SELECT
-                    COUNT(*)                                                      AS total,
-                    COALESCE(SUM(outcome='WIN'),  0)                            AS wins,
-                    COALESCE(SUM(outcome='LOSS'), 0)                            AS losses,
-                    ROUND(COALESCE(SUM(profit_pips), 0), 2)                    AS total_pips,
+                    COUNT(*)                                                        AS total,
+                    COALESCE(SUM(outcome='WIN'),  0)                               AS wins,
+                    COALESCE(SUM(outcome='LOSS'), 0)                               AS losses,
+                    ROUND(COALESCE(SUM(profit_pips), 0), 2)                       AS total_pips,
                     ROUND(COALESCE(SUM(CASE WHEN outcome='WIN'  THEN profit_pips ELSE 0 END), 0), 2) AS win_pips,
                     ROUND(COALESCE(SUM(CASE WHEN outcome='LOSS' THEN profit_pips ELSE 0 END), 0), 2) AS loss_pips,
-                    ROUND(AVG(CASE WHEN outcome='WIN'  THEN profit_pips END), 2) AS avg_win,
-                    ROUND(AVG(CASE WHEN outcome='LOSS' THEN profit_pips END), 2) AS avg_loss
-                FROM quantflow_live_signals
-                WHERE currency_pair='USDJPY' AND status='CLOSED'
-            ")->fetch(PDO::FETCH_ASSOC);
-
-            $trades = $pdo->query("
-                SELECT id, direction, score_at_entry,
-                       entry_price, exit_price, outcome, profit_pips, exit_reason, status,
-                       DATE_FORMAT(CONVERT_TZ(entry_ts,'+00:00','+09:00'),'%Y/%m/%d %H:%i') AS entry_jst,
-                       DATE_FORMAT(CONVERT_TZ(exit_ts, '+00:00','+09:00'),'%Y/%m/%d %H:%i') AS exit_jst
-                FROM quantflow_live_signals
-                WHERE currency_pair='USDJPY'
-                ORDER BY entry_ts DESC
-            ")->fetchAll(PDO::FETCH_ASSOC);
-
-            foreach ($stats as $k => $v) {
-                $stats[$k] = $v !== null ? (strpos($k,'pips')!==false||strpos($k,'avg')!==false ? (float)$v : (int)$v) : null;
+                    ROUND(AVG(CASE WHEN outcome='WIN'  THEN profit_pips END), 2)   AS avg_win,
+                    ROUND(AVG(CASE WHEN outcome='LOSS' THEN profit_pips END), 2)   AS avg_loss
+                FROM quantflow_trades WHERE currency_pair = ?
+            ");
+            $stats->execute([$pair]);
+            $s = $stats->fetch(PDO::FETCH_ASSOC);
+            foreach ($s as $k => $v) {
+                $s[$k] = $v !== null
+                    ? (strpos($k,'pips')!==false||strpos($k,'avg')!==false ? (float)$v : (int)$v)
+                    : null;
             }
-            json_out(['ok' => true, 'stats' => $stats, 'trades' => $trades]);
+
+            $trades = $pdo->prepare("
+                SELECT year_month,
+                       DATE_FORMAT(CONVERT_TZ(entry_ts,'+00:00','+09:00'),'%Y/%m/%d %H:%i') AS entry_jst,
+                       DATE_FORMAT(CONVERT_TZ(exit_ts, '+00:00','+09:00'),'%Y/%m/%d %H:%i') AS exit_jst,
+                       direction, score_at_entry,
+                       CAST(entry_price AS DECIMAL(12,5)) AS entry_price,
+                       CAST(exit_price  AS DECIMAL(12,5)) AS exit_price,
+                       outcome,
+                       CAST(profit_pips AS DECIMAL(8,2))  AS profit_pips,
+                       CAST(sl_pips    AS DECIMAL(8,2))   AS sl_pips,
+                       CAST(tp_pips    AS DECIMAL(8,2))   AS tp_pips
+                FROM quantflow_trades
+                WHERE currency_pair = ?
+                ORDER BY entry_ts DESC
+            ");
+            $trades->execute([$pair]);
+            json_out(['ok' => true, 'stats' => $s, 'trades' => $trades->fetchAll(PDO::FETCH_ASSOC)]);
         } catch (Exception $e) {
             json_out(['ok' => false, 'error' => $e->getMessage()]);
         }
