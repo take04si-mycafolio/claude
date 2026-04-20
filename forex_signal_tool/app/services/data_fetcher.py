@@ -79,15 +79,19 @@ def fetch_yfinance(pair: str, timeframe: str) -> Optional[pd.DataFrame]:
     try:
         ticker = yf.Ticker(ticker_symbol)
 
-        # 短期足: 直近N時間のみ取得（Cronが5分ごとのため長期取得は不要）
-        hours_back = YF_HOURS_BACK.get(timeframe, 6)
-        end_dt     = datetime.now(timezone.utc)
-        start_dt   = end_dt - timedelta(hours=hours_back)
-        df = ticker.history(
-            start=start_dt,
-            end=end_dt,
-            interval=interval, auto_adjust=True,
-        )
+        # 5min は start/end 指定だと forex で "possibly delisted" エラーになるため
+        # period 指定に切り替え（直近5日分を取得してDBへの保存は UPSERT で重複排除）
+        if timeframe == "5min":
+            df = ticker.history(period="5d", interval=interval, auto_adjust=True)
+        else:
+            hours_back = YF_HOURS_BACK.get(timeframe, 6)
+            end_dt     = datetime.now(timezone.utc)
+            start_dt   = end_dt - timedelta(hours=hours_back)
+            df = ticker.history(
+                start=start_dt,
+                end=end_dt,
+                interval=interval, auto_adjust=True,
+            )
 
         if df.empty:
             logger.warning("No data returned for %s %s", pair, timeframe)
