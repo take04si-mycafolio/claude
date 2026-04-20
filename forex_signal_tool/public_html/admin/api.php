@@ -299,7 +299,7 @@ switch ($action) {
                     'last'  => $r['last_jst']  ?? '-',
                     'ago'   => format_ago($priceMin),
                     'level' => health_level($priceMin, 420, 780),   // 1日2回クロン: warn=7h, error=13h
-                    'note'  => $priceMin >= 780 ? 'fetch_data.py クロンが止まっている可能性（1日2回 0時・12時）' : '',
+                    'note'  => $priceMin >= 780 ? 'fetch_data.py クロン未設定の可能性（*/5 * * * * で設定してください）' : '',
                 ],
                 [
                     'key'   => 'macro',
