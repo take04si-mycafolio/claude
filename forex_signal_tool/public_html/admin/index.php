@@ -336,10 +336,16 @@ main{max-width:900px;margin:0 auto;padding:28px 20px}
         <div class="result-msg" id="msg-signals"></div>
       </div>
       <div class="op-card" style="border-color:#4f46e5">
-        <h3 style="color:#a5b4fc">QuantFlow スコア更新</h3>
+        <h3 style="color:#a5b4fc">QuantFlow スコア更新（1時間足）</h3>
         <p>直近30日分の1hrスコアを計算してDBに保存します（チャートデータの更新）。</p>
         <button class="run-btn qf" onclick="runOp('qfscores')">スコア更新を実行</button>
         <div class="result-msg" id="msg-qfscores"></div>
+      </div>
+      <div class="op-card" style="border-color:#0369a1">
+        <h3 style="color:#7dd3fc">QuantFlow スコア更新（5分足）</h3>
+        <p>直近2週間分の5分足スコアを計算してDBに保存します。クロン未設定の場合はここから手動実行できます。</p>
+        <button class="run-btn qf5m" style="background:#0369a1;color:#fff" onclick="runOp('qfscores5m')">5分足スコア更新を実行</button>
+        <div class="result-msg" id="msg-qfscores5m"></div>
       </div>
       <div class="op-card" style="border-color:#3730a3">
         <h3 style="color:#a5b4fc">QuantFlow 月次BT</h3>
@@ -706,8 +712,9 @@ function runOp(op) {
     fetch:       { action: 'run_fetch',         btnSel: '.run-btn.fetch', msgId: 'msg-fetch',        rtId: 'rt-fetch',  opKey: 'fetch_status',         rtKey: 'last_fetch' },
     backtest:    { action: 'run_backtest',      btnSel: '.run-btn.bt',    msgId: 'msg-backtest',     rtId: 'rt-bt',     opKey: 'backtest_status',      rtKey: 'last_bt' },
     signals:     { action: 'run_signals',       btnSel: '.run-btn.sig',   msgId: 'msg-signals',      rtId: 'rt-signal', opKey: 'signal_status',        rtKey: 'last_signal' },
-    qfscores:    { action: 'run_quantflow_scores', btnSel: '.run-btn.qf', msgId: 'msg-qfscores',     rtId: null,        opKey: 'quantflow_scores_status', rtKey: null },
-    quantflow:   { action: 'run_quantflow_bt',    btnSel: '.run-btn.qf-bt', msgId: 'msg-quantflow', rtId: null,        opKey: 'quantflow_bt_status',  rtKey: null },
+    qfscores:    { action: 'run_quantflow_scores',      btnSel: '.run-btn.qf',    msgId: 'msg-qfscores',   rtId: null, opKey: 'quantflow_scores_status',      rtKey: null },
+    qfscores5m:  { action: 'run_quantflow_scores_5min', btnSel: '.run-btn.qf5m',  msgId: 'msg-qfscores5m', rtId: null, opKey: 'quantflow_scores_5min_status', rtKey: null },
+    quantflow:   { action: 'run_quantflow_bt',          btnSel: '.run-btn.qf-bt', msgId: 'msg-quantflow',  rtId: null, opKey: 'quantflow_bt_status',          rtKey: null },
   };
   var cfg = cfgs[op];
   var btn = document.querySelector(cfg.btnSel);

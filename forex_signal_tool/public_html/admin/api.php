@@ -150,6 +150,14 @@ switch ($action) {
         json_out(['status' => 'started', 'message' => 'QuantFlow スコア更新をバックグラウンドで開始しました']);
         break;
 
+    case 'run_quantflow_scores_5min':
+        require_login();
+        setting_set('quantflow_scores_5min_status', 'running');
+        $cmd = escapeshellarg(PYTHON_BIN) . ' ' . escapeshellarg(TASKS_DIR . '/update_quantflow_scores_5min.py');
+        exec("nohup {$cmd} >> /tmp/forex_quantflow_5min.log 2>&1 &");
+        json_out(['status' => 'started', 'message' => 'QuantFlow 5分足スコア更新を開始しました']);
+        break;
+
     case 'run_quantflow_bt':
         require_login();
         setting_set('quantflow_bt_status', 'running');
