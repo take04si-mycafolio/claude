@@ -298,16 +298,16 @@ switch ($action) {
                     'name'  => '価格データ取得（為替ペア 5min）',
                     'last'  => $r['last_jst']  ?? '-',
                     'ago'   => format_ago($priceMin),
-                    'level' => health_level($priceMin, 30, 120),
-                    'note'  => $priceMin >= 120 ? 'fetch_data.py クロンが止まっている可能性' : '',
+                    'level' => health_level($priceMin, 420, 780),   // 1日2回クロン: warn=7h, error=13h
+                    'note'  => $priceMin >= 780 ? 'fetch_data.py クロンが止まっている可能性（1日2回 0時・12時）' : '',
                 ],
                 [
                     'key'   => 'macro',
                     'name'  => 'マクロ指標取得（DXY / 米金利）',
                     'last'  => $r2['last_jst'] ?? '-',
                     'ago'   => format_ago($macroMin),
-                    'level' => health_level($macroMin, 120, 480),
-                    'note'  => $macroMin >= 480 ? 'fetch_data.py クロンが止まっている可能性' : '',
+                    'level' => health_level($macroMin, 480, 1440),  // warn=8h, error=24h
+                    'note'  => $macroMin >= 1440 ? 'fetch_data.py クロンが止まっている可能性' : '',
                 ],
                 [
                     'key'   => 'bt',
