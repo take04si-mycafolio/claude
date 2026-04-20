@@ -2,20 +2,21 @@
 """
 QuantFlow スコアを1時間足ごとに計算して quantflow_scores テーブルに保存する。
 
-- 直近 SAVE_HOURS 本分を計算し、UPSERT（重複は上書き）する。
-- cronで定期実行することで最新スコアをDBに蓄積する。
+差分モード: DBの最終タイムスタンプ以降の新規バーのみ計算・挿入する。
+初回のみフル計算（30日分）を実行する。
 
 cron 例（1時間ごと）:
   0 * * * * /path/to/python3 /path/to/update_quantflow_scores.py
 """
 import sys, os, math, logging
+from datetime import datetime
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 os.chdir(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
 logger = logging.getLogger(__name__)
 
-SAVE_HOURS = 720   # 保存する本数（約30日）
+FULL_HOURS = 720   # 初回フル計算（約30日）
 WARMUP     = 200
 
 
@@ -28,8 +29,30 @@ def main():
 
     app = create_app()
     with app.app_context():
-        pair  = "USDJPY"
-        limit = WARMUP + SAVE_HOURS + 20
+        pair = "USDJPY"
+
+        # --- 最終タイムスタンプ確認 ---
+        last_ts_raw = db.session.execute(text(
+            "SELECT MAX(`timestamp`) FROM quantflow_scores WHERE currency_pair='USDJPY'"
+        )).scalar()
+
+        def _to_naive(ts):
+            if hasattr(ts, "to_pydatetime"):
+                ts = ts.to_pydatetime()
+            if hasattr(ts, "tzinfo") and ts.tzinfo is not None:
+                ts = ts.replace(tzinfo=None)
+            return ts
+
+        last_ts = _to_naive(last_ts_raw) if last_ts_raw else None
+
+        if last_ts is None:
+            limit = WARMUP + FULL_HOURS + 20
+            logger.info("初回フル計算: %d本取得", limit)
+        else:
+            hours_since = max(1, (datetime.utcnow() - last_ts).total_seconds() / 3600)
+            new_bars = int(hours_since) + 5
+            limit = min(WARMUP + new_bars, WARMUP + FULL_HOURS + 20)
+            logger.info("差分計算: last_ts=%s (%d時間前), %d本取得", last_ts, int(hours_since), limit)
 
         df = get_candles(pair, "1hr", limit=limit)
         if df.empty or len(df) < WARMUP + 10:
@@ -60,12 +83,21 @@ def main():
         us10y_s     = _hybrid_us10y_rising_series(us10y_close, usbf_close, ts)
         dxy_s       = _macro_rising_series(dxy_close, ts)
 
-        start_idx = max(WARMUP, len(df) - SAVE_HOURS)
+        start_idx = max(WARMUP, 0)
         rows = []
 
         for i in range(start_idx, len(df)):
             score = scores[i]
             if score is None:
+                continue
+
+            candle_ts = df["timestamp"].iloc[i]
+            if hasattr(candle_ts, "to_pydatetime"):
+                candle_ts = candle_ts.to_pydatetime()
+            if hasattr(candle_ts, "tzinfo") and candle_ts.tzinfo is not None:
+                candle_ts = candle_ts.replace(tzinfo=None)
+
+            if last_ts is not None and candle_ts <= last_ts:
                 continue
 
             trend_s    = None
@@ -88,12 +120,6 @@ def main():
             except Exception:
                 pass
 
-            candle_ts = df["timestamp"].iloc[i]
-            if hasattr(candle_ts, "to_pydatetime"):
-                candle_ts = candle_ts.to_pydatetime()
-            if hasattr(candle_ts, "tzinfo") and candle_ts.tzinfo is not None:
-                candle_ts = candle_ts.replace(tzinfo=None)
-
             rows.append({
                 "currency_pair":  pair,
                 "timestamp":      candle_ts,
@@ -104,7 +130,7 @@ def main():
             })
 
         if not rows:
-            logger.warning("保存対象なし")
+            logger.info("新規データなし（last_ts=%s）", last_ts)
             return
 
         # UPSERT（INSERT ... ON DUPLICATE KEY UPDATE）
@@ -121,7 +147,7 @@ def main():
         """)
         db.session.execute(upsert_sql, rows)
         db.session.commit()
-        logger.info("quantflow_scores UPSERT 完了: %d 行", len(rows))
+        logger.info("quantflow_scores 完了: %d 行追加", len(rows))
 
 
 if __name__ == "__main__":

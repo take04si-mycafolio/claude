@@ -2,18 +2,17 @@
 """
 QuantFlow スコアを5分足ごとに計算して quantflow_scores_5min テーブルに保存する。
 
-5分足の close を price_5m / ma20_5m に使い、1時間足の MA75/MA200/RSI で
-方向性・マクロ指標を判定する（既存スコアロジックと同一）。
+差分モード: DBの最終タイムスタンプ以降の新規バーのみ計算・挿入する。
+初回のみフル計算（2週間分）を実行する。
 
 cron（5分ごと）:
-  */5 * * * * /home/xs539690/forex_env/bin/python3 \
-    /home/xs539690/forex_project/forex_signal_tool/tasks/update_quantflow_scores_5min.py \
-    >> /home/xs539690/forex_project/logs/qf_scores_5min.log 2>&1
+  */5 * * * * /path/to/python3 /path/to/tasks/update_quantflow_scores_5min.py \
+    >> /tmp/qf_scores_5min.log 2>&1
 """
 import sys
 import os
-import math
 import logging
+from datetime import datetime
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 os.chdir(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -21,7 +20,8 @@ os.chdir(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
 logger = logging.getLogger(__name__)
 
-SAVE_BARS = 4032   # 2週間（14 × 24 × 12）
+FULL_BARS = 4032   # 初回フル計算（2週間: 14×24×12）
+WARMUP_5M = 25     # MA20(5min) ウォームアップ
 WARMUP_1H = 210    # 1hr MA200 ウォームアップ
 
 
@@ -46,7 +46,22 @@ def main():
     with app.app_context():
         pair = "USDJPY"
 
-        df_5m = get_candles(pair, "5min", limit=SAVE_BARS + 25)
+        # --- 最終タイムスタンプ確認 ---
+        last_ts_raw = db.session.execute(text(
+            "SELECT MAX(`timestamp`) FROM quantflow_scores_5min WHERE currency_pair='USDJPY'"
+        )).scalar()
+        last_ts = _to_naive(last_ts_raw) if last_ts_raw else None
+
+        if last_ts is None:
+            limit_5m = FULL_BARS + WARMUP_5M
+            logger.info("初回フル計算: %d本取得", limit_5m)
+        else:
+            minutes_since = max(5, (datetime.utcnow() - last_ts).total_seconds() / 60)
+            new_bars = int(minutes_since / 5) + 10
+            limit_5m = min(WARMUP_5M + new_bars, FULL_BARS + WARMUP_5M)
+            logger.info("差分計算: last_ts=%s (%d分前), %d本取得", last_ts, int(minutes_since), limit_5m)
+
+        df_5m = get_candles(pair, "5min", limit=limit_5m)
         df_1h = get_candles(pair, "1hr",  limit=WARMUP_1H + 350)
 
         if df_5m.empty or df_1h.empty:
@@ -65,7 +80,6 @@ def main():
         loss  = (-delta.clip(upper=0)).ewm(com=13, adjust=False).mean()
         rsi_1h = 100 - 100 / (1 + gain / loss.replace(0, float("nan")))
 
-        # マクロ指標（US10Y / DXY）を 1hr に対して align
         us10y_close = _load_macro_close("US10Y", WARMUP_1H + 350)
         usbf_close  = _load_macro_close("USBF",  WARMUP_1H + 350)
         dxy_close   = _load_macro_close("DXY",   WARMUP_1H + 350)
@@ -93,23 +107,20 @@ def main():
             "ma20_5m": ma20_5m.values,
         }).sort_values("ts")
 
-        # merge_asof: 5min 足それぞれに直前の 1hr 指標を割り当て
-        merged = pd.merge_asof(
-            df_5m_work,
-            df_1h_ind,
-            on="ts",
-            direction="backward",
-        )
+        merged = pd.merge_asof(df_5m_work, df_1h_ind, on="ts", direction="backward")
 
-        # 直近 SAVE_BARS 本（MA20(5min) ウォームアップ 20本後）
-        start_idx = max(20, len(merged) - SAVE_BARS)
+        # --- スコア計算（差分のみ） ---
         rows = []
-
-        for i in range(start_idx, len(merged)):
+        for i in range(20, len(merged)):
             r = merged.iloc[i]
 
             ma200 = r["ma200_1h"]
             if pd.isna(ma200):
+                continue
+
+            ts_val = _to_naive(r["ts"].to_pydatetime() if hasattr(r["ts"], "to_pydatetime") else r["ts"])
+
+            if last_ts is not None and ts_val <= last_ts:
                 continue
 
             close_val   = float(r["close"])
@@ -134,8 +145,6 @@ def main():
                 continue
 
             bd = result.get("breakdown", {})
-            ts_val = _to_naive(r["ts"].to_pydatetime() if hasattr(r["ts"], "to_pydatetime") else r["ts"])
-
             rows.append({
                 "currency_pair":  pair,
                 "timestamp":      ts_val,
@@ -146,7 +155,7 @@ def main():
             })
 
         if not rows:
-            logger.warning("保存対象なし")
+            logger.info("新規データなし（last_ts=%s）", last_ts)
             return
 
         upsert_sql = text("""
@@ -162,7 +171,7 @@ def main():
         """)
         db.session.execute(upsert_sql, rows)
         db.session.commit()
-        logger.info("quantflow_scores_5min UPSERT 完了: %d 行", len(rows))
+        logger.info("quantflow_scores_5min 完了: %d 行追加", len(rows))
 
 
 if __name__ == "__main__":
