@@ -50,7 +50,7 @@ def main():
             logger.info("初回フル計算: %d本取得", limit)
         else:
             hours_since = max(1, (datetime.utcnow() - last_ts).total_seconds() / 3600)
-            new_bars = int(hours_since) + 5
+            new_bars = max(10, int(hours_since) + 5)
             limit = min(WARMUP + new_bars, WARMUP + FULL_HOURS + 20)
             logger.info("差分計算: last_ts=%s (%d時間前), %d本取得", last_ts, int(hours_since), limit)
 
