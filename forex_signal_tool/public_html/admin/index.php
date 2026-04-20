@@ -473,7 +473,10 @@ main{max-width:900px;margin:0 auto;padding:28px 20px}
   <div class="section">
     <div class="section-title" style="display:flex;align-items:center;justify-content:space-between">
       <span>QuantFlow トレード実績</span>
-      <button onclick="loadAllTrades()" style="background:#1e293b;border:1px solid #334155;color:#94a3b8;font-size:12px;padding:4px 10px;border-radius:6px;cursor:pointer">再読込</button>
+      <div style="display:flex;gap:8px;align-items:center">
+        <a href="/admin/api.php?action=qf_trades_csv&pair=USDJPY" style="padding:4px 10px;background:#1e293b;border:1px solid #4f46e5;color:#a5b4fc;border-radius:6px;font-size:12px;font-weight:600;text-decoration:none">↓ CSV</a>
+        <button onclick="loadAllTrades()" style="background:#1e293b;border:1px solid #334155;color:#94a3b8;font-size:12px;padding:4px 10px;border-radius:6px;cursor:pointer">再読込</button>
+      </div>
     </div>
 
     <!-- サマリー -->
