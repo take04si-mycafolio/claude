@@ -2,11 +2,11 @@
 """
 マクロ指標（米10年債利回り US10Y / 米国債先物 USBF / ドルインデックス DXY）
 の最新 1hr データを yfinance から取得して DB に保存する。
+QuantFlow 5分足スコア計算がマクロ指標を使うため、5分ごとに実行する。
 
-Xserver cron 設定例（15分ごと）:
-  */15 * * * * /home/xs539690/forex_env/bin/python3 \
-    /home/xs539690/forex_project/forex_signal_tool/tasks/fetch_macro_15min.py \
-    >> /home/xs539690/forex_project/logs/macro.log 2>&1
+Xserver cron 設定例（5分ごと）:
+  */5 * * * * /path/to/python3 /path/to/tasks/fetch_macro_15min.py \
+    >> /tmp/fetch_macro.log 2>&1
 """
 
 import sys
