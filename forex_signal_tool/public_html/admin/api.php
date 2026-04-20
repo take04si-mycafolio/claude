@@ -276,7 +276,7 @@ switch ($action) {
             }
 
             $trades = $pdo->prepare("
-                SELECT year_month,
+                SELECT `year_month`,
                        DATE_FORMAT(CONVERT_TZ(entry_ts,'+00:00','+09:00'),'%Y/%m/%d %H:%i') AS entry_jst,
                        DATE_FORMAT(CONVERT_TZ(exit_ts, '+00:00','+09:00'),'%Y/%m/%d %H:%i') AS exit_jst,
                        direction, score_at_entry,
