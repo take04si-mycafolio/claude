@@ -248,6 +248,44 @@ switch ($action) {
         }
         break;
 
+    case 'quantflow_live_history':
+        require_login();
+        try {
+            $pdo = get_pdo();
+
+            $stats = $pdo->query("
+                SELECT
+                    COUNT(*)                                                AS total,
+                    SUM(outcome='WIN')                                      AS wins,
+                    SUM(outcome='LOSS')                                     AS losses,
+                    ROUND(SUM(profit_pips), 2)                             AS total_pips,
+                    ROUND(SUM(CASE WHEN outcome='WIN'  THEN profit_pips ELSE 0 END), 2) AS win_pips,
+                    ROUND(SUM(CASE WHEN outcome='LOSS' THEN profit_pips ELSE 0 END), 2) AS loss_pips,
+                    ROUND(AVG(CASE WHEN outcome='WIN'  THEN profit_pips END), 2) AS avg_win,
+                    ROUND(AVG(CASE WHEN outcome='LOSS' THEN profit_pips END), 2) AS avg_loss
+                FROM quantflow_live_signals
+                WHERE currency_pair='USDJPY' AND status='CLOSED'
+            ")->fetch(PDO::FETCH_ASSOC);
+
+            $trades = $pdo->query("
+                SELECT id, direction, score_at_entry,
+                       entry_price, exit_price, outcome, profit_pips, exit_reason, status,
+                       DATE_FORMAT(CONVERT_TZ(entry_ts,'+00:00','+09:00'),'%Y/%m/%d %H:%i') AS entry_jst,
+                       DATE_FORMAT(CONVERT_TZ(exit_ts, '+00:00','+09:00'),'%Y/%m/%d %H:%i') AS exit_jst
+                FROM quantflow_live_signals
+                WHERE currency_pair='USDJPY'
+                ORDER BY entry_ts DESC
+            ")->fetchAll(PDO::FETCH_ASSOC);
+
+            foreach ($stats as $k => $v) {
+                $stats[$k] = $v !== null ? (strpos($k,'pips')!==false||strpos($k,'avg')!==false ? (float)$v : (int)$v) : null;
+            }
+            json_out(['ok' => true, 'stats' => $stats, 'trades' => $trades]);
+        } catch (Exception $e) {
+            json_out(['ok' => false, 'error' => $e->getMessage()]);
+        }
+        break;
+
     case 'quantflow_live_position':
         require_login();
         try {

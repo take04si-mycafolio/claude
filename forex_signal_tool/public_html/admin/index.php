@@ -472,12 +472,29 @@ main{max-width:900px;margin:0 auto;padding:28px 20px}
     </div>
   </div>
 
-  <!-- ===== QuantFlow トレード実績（ライブ） ===== -->
+  <!-- ===== QuantFlow トレード実績（ライブ）===== -->
   <div class="section">
-    <div class="section-title">QuantFlow トレード実績（ライブシグナル）</div>
-    <div id="live-trades-loading" style="text-align:center;color:#64748b;font-size:13px;padding:20px 0">
+    <div class="section-title" style="display:flex;align-items:center;justify-content:space-between">
+      <span>QuantFlow トレード実績（ライブシグナル）</span>
+      <button onclick="loadAllTrades()" style="background:#1e293b;border:1px solid #334155;color:#94a3b8;font-size:12px;padding:4px 10px;border-radius:6px;cursor:pointer">再読込</button>
+    </div>
+
+    <!-- サマリー -->
+    <div id="live-hist-loading" style="text-align:center;color:#64748b;font-size:13px;padding:20px 0">
       <span class="spin" style="border-color:#33415599;border-top-color:#60a5fa"></span>
     </div>
+    <div id="live-hist-error" style="display:none;text-align:center;color:#f87171;font-size:13px;padding:10px 0"></div>
+    <div id="live-hist-content" style="display:none">
+
+      <!-- 統計カード -->
+      <div id="live-hist-stats" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:10px;margin-bottom:16px"></div>
+
+      <!-- 全トレード一覧 -->
+      <div id="live-hist-table"></div>
+    </div>
+
+    <!-- 後方互換：loadLivePosition が live-trades-* を参照するため残す -->
+    <div id="live-trades-loading" style="display:none"></div>
     <div id="live-trades-content" style="display:none"></div>
   </div>
 
@@ -1118,6 +1135,85 @@ async function loadLivePosition() {
   }
 }
 loadLivePosition();
+
+// ---- QuantFlow 全トレード履歴 ----
+async function loadAllTrades() {
+  var loading = document.getElementById('live-hist-loading');
+  var errDiv  = document.getElementById('live-hist-error');
+  var content = document.getElementById('live-hist-content');
+  loading.style.display = 'block';
+  errDiv.style.display  = 'none';
+  content.style.display = 'none';
+
+  try {
+    var res  = await fetch('/admin/api.php?action=quantflow_live_history');
+    var data = await res.json();
+    if (!data.ok) throw new Error(data.error || 'エラー');
+
+    var s = data.stats;
+    var winRate = s.total > 0 ? (s.wins / s.total * 100).toFixed(1) : '-';
+    var pfStr   = (s.win_pips && s.loss_pips && s.loss_pips < 0)
+                  ? Math.abs(s.win_pips / s.loss_pips).toFixed(2) : '-';
+
+    var statsCards = [
+      { label:'総トレード数',  val: s.total,                        color:'#94a3b8' },
+      { label:'勝ち',          val: s.wins,                         color:'#4ade80' },
+      { label:'負け',          val: s.losses,                       color:'#f87171' },
+      { label:'勝率',          val: winRate !== '-' ? winRate+'%' : '-', color: parseFloat(winRate)>=50?'#4ade80':'#f87171' },
+      { label:'合計損益(pips)',val: (s.total_pips !== null ? (s.total_pips >= 0 ? '+' : '') + s.total_pips : '-'), color: (s.total_pips||0)>=0?'#4ade80':'#f87171' },
+      { label:'平均利益(pips)',val: s.avg_win  !== null ? '+'+s.avg_win  : '-', color:'#4ade80' },
+      { label:'平均損失(pips)',val: s.avg_loss !== null ? s.avg_loss+'' : '-', color:'#f87171' },
+      { label:'プロフィットファクター', val: pfStr, color:'#60a5fa' },
+    ];
+    document.getElementById('live-hist-stats').innerHTML = statsCards.map(function(c) {
+      return '<div style="background:#0f172a;border:1px solid #1e293b;border-radius:8px;padding:12px;text-align:center">'
+        + '<div style="font-size:10px;color:#64748b;margin-bottom:4px">' + c.label + '</div>'
+        + '<div style="font-size:16px;font-weight:700;color:' + c.color + '">' + c.val + '</div>'
+        + '</div>';
+    }).join('');
+
+    if (data.trades.length === 0) {
+      document.getElementById('live-hist-table').innerHTML = '<div style="text-align:center;color:#64748b;font-size:13px;padding:20px 0">トレード履歴なし</div>';
+    } else {
+      var rows = data.trades.map(function(t) {
+        var isClosed = t.status === 'CLOSED';
+        var oc  = t.outcome === 'WIN' ? '#4ade80' : t.outcome === 'LOSS' ? '#f87171' : '#64748b';
+        var pp  = t.profit_pips !== null ? (parseFloat(t.profit_pips)>=0?'+':'')+parseFloat(t.profit_pips).toFixed(2) : '-';
+        var reasonMap = {TP:'TP達成', SL:'SL到達', SIGNAL_END:'シグナル変更'};
+        var reason = isClosed ? (reasonMap[t.exit_reason]||t.exit_reason||'-') : '<span style="color:#60a5fa">保有中</span>';
+        var outcomeCell = isClosed ? '<span style="color:'+oc+'">'+(t.outcome||'-')+'</span>' : '<span style="color:#60a5fa">OPEN</span>';
+        return '<tr>'
+          + '<td>' + t.entry_jst + '</td>'
+          + '<td style="color:'+(t.direction==='BUY'?'#4ade80':'#f87171')+'">' + t.direction + '</td>'
+          + '<td style="text-align:right">' + t.score_at_entry + '</td>'
+          + '<td style="text-align:right">' + parseFloat(t.entry_price).toFixed(3) + '</td>'
+          + '<td style="text-align:right">' + (t.exit_price ? parseFloat(t.exit_price).toFixed(3) : '-') + '</td>'
+          + '<td>' + (t.exit_jst||'-') + '</td>'
+          + '<td style="text-align:center">' + outcomeCell + '</td>'
+          + '<td style="text-align:right;color:'+oc+'">' + pp + '</td>'
+          + '<td style="text-align:center;font-size:11px;color:#94a3b8">' + reason + '</td>'
+          + '</tr>';
+      }).join('');
+      document.getElementById('live-hist-table').innerHTML =
+        '<div class="table-wrap"><table class="data-table">'
+        + '<thead><tr>'
+        + '<th>エントリー(JST)</th><th>方向</th><th class="num">スコア</th>'
+        + '<th class="num">エントリー価格</th><th class="num">決済価格</th>'
+        + '<th>決済日時(JST)</th><th>結果</th><th class="num">損益(pips)</th><th>決済理由</th>'
+        + '</tr></thead>'
+        + '<tbody>' + rows + '</tbody>'
+        + '</table></div>';
+    }
+
+    loading.style.display = 'none';
+    content.style.display = 'block';
+  } catch(e) {
+    loading.style.display = 'none';
+    errDiv.textContent = 'エラー: ' + e.message;
+    errDiv.style.display = 'block';
+  }
+}
+loadAllTrades();
 
 // ---- カスタム複合指標 ----
 function escHtmlCi(s) {
