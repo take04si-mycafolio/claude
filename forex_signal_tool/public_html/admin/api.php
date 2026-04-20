@@ -255,12 +255,12 @@ switch ($action) {
 
             $stats = $pdo->query("
                 SELECT
-                    COUNT(*)                                                AS total,
-                    SUM(outcome='WIN')                                      AS wins,
-                    SUM(outcome='LOSS')                                     AS losses,
-                    ROUND(SUM(profit_pips), 2)                             AS total_pips,
-                    ROUND(SUM(CASE WHEN outcome='WIN'  THEN profit_pips ELSE 0 END), 2) AS win_pips,
-                    ROUND(SUM(CASE WHEN outcome='LOSS' THEN profit_pips ELSE 0 END), 2) AS loss_pips,
+                    COUNT(*)                                                      AS total,
+                    COALESCE(SUM(outcome='WIN'),  0)                            AS wins,
+                    COALESCE(SUM(outcome='LOSS'), 0)                            AS losses,
+                    ROUND(COALESCE(SUM(profit_pips), 0), 2)                    AS total_pips,
+                    ROUND(COALESCE(SUM(CASE WHEN outcome='WIN'  THEN profit_pips ELSE 0 END), 0), 2) AS win_pips,
+                    ROUND(COALESCE(SUM(CASE WHEN outcome='LOSS' THEN profit_pips ELSE 0 END), 0), 2) AS loss_pips,
                     ROUND(AVG(CASE WHEN outcome='WIN'  THEN profit_pips END), 2) AS avg_win,
                     ROUND(AVG(CASE WHEN outcome='LOSS' THEN profit_pips END), 2) AS avg_loss
                 FROM quantflow_live_signals
