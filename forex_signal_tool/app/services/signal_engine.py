@@ -76,6 +76,21 @@ def calculate_confidence_score(win_rate: float, total_trades: int,
     return round(score, 1)
 
 
+_CATEGORY_BASE_SCORE: dict = {
+    "composite": 50, "custom": 50,
+    "pattern":   45,
+    "trend":     40,
+    "line":      35, "oscillator": 35,
+    "volatility": 15,
+}
+
+
+def calculate_confidence_score_nobt(indicator_category: str) -> float:
+    """BT未実施指標の暫定信頼度スコア（カテゴリ基準, 0-100）。
+    BTが蓄積されると run_signal_engine() が BT結果で上書きする。"""
+    return float(_CATEGORY_BASE_SCORE.get(indicator_category or "unknown", 25))
+
+
 def generate_signals_for_pair_tf(pair: str, timeframe: str, df: pd.DataFrame,
                                    settings: dict) -> list:
     """
@@ -134,8 +149,8 @@ def generate_signals_for_pair_tf(pair: str, timeframe: str, df: pd.DataFrame,
             win_rate   = float(bt_result.win_rate)
             confidence = calculate_confidence_score(win_rate, bt_result.total_trades)
         else:
-            win_rate   = None   # BT未実施
-            confidence = 0.0
+            win_rate   = None   # BT未実施（表示は「-」）
+            confidence = calculate_confidence_score_nobt(ind_data.get("category", "unknown"))
 
         # TP/SL価格計算
         if signal_type == "BUY":
