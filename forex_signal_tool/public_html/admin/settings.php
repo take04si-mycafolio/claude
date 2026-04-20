@@ -536,78 +536,21 @@ h2{font-size:20px;font-weight:700;color:#f1f5f9;margin-bottom:6px}
     </div>
   </div>
 
-  <!-- ===== データカバレッジ ===== -->
-  <?php if (!empty($diag['coverage'])):
-    $forexPairs = ['USDJPY','GBPJPY','EURJPY'];
-    $macroPairs = ['US10Y','USBF','DXY'];
-    $macroLabels = ['US10Y'=>'米10年債利回り（現物）','USBF'=>'米10年国債先物 ZN=F','DXY'=>'ドルインデックス'];
-    $pairLabel   = ['USDJPY'=>'ドル円','GBPJPY'=>'ポンド円','EURJPY'=>'ユーロ円'];
-    // グループ化
-    $grouped = [];
-    foreach ($diag['coverage'] as $row) {
-      $grouped[$row['currency_pair']][] = $row;
-    }
-  ?>
+  <!-- ===== データカバレッジ（リアルタイム）===== -->
   <div class="section">
-    <div class="section-title">データカバレッジ（ペア×タイムフレーム）</div>
-
-    <!-- 為替ペアタブ -->
-    <div class="pair-tabs">
-      <?php foreach ($forexPairs as $i => $p): ?>
-      <div class="pair-tab<?= $i===0?' active':'' ?>" onclick="switchTab('<?= $p ?>')">
-        <?= $p ?>
+    <div class="section-title" style="display:flex;align-items:center;justify-content:space-between">
+      <span>データカバレッジ（ペア×タイムフレーム）</span>
+      <div style="display:flex;align-items:center;gap:10px">
+        <span id="cov-updated" style="font-size:11px;color:#475569"></span>
+        <button onclick="loadCoverage()" style="background:#1e293b;border:1px solid #334155;color:#94a3b8;font-size:12px;padding:4px 10px;border-radius:6px;cursor:pointer">再読込</button>
       </div>
-      <?php endforeach; ?>
     </div>
-    <?php foreach ($forexPairs as $i => $p):
-      $rows = $grouped[$p] ?? [];
-    ?>
-    <div class="pair-tab-panel<?= $i===0?' active':'' ?>" id="tab-<?= $p ?>">
-      <div style="padding:10px 12px 6px;font-size:11px;color:#94a3b8"><?= $pairLabel[$p] ?? $p ?>（<?= count($rows) ?>足種）</div>
-      <table class="cov-table">
-        <thead><tr><th>足種</th><th>件数</th><th>最古データ (JST)</th><th>最新データ (JST)</th></tr></thead>
-        <tbody>
-          <?php if (empty($rows)): ?>
-          <tr><td colspan="4" style="text-align:center;color:#475569;padding:12px">データなし</td></tr>
-          <?php else: foreach ($rows as $r): ?>
-          <tr>
-            <td style="color:#94a3b8;font-family:'Courier New',monospace"><?= htmlspecialchars($r['timeframe']) ?></td>
-            <td class="cov-num"><?= number_format($r['cnt']) ?></td>
-            <td class="cov-date cov-oldest"><?= htmlspecialchars(utc_to_jst_str($r['oldest']??'')) ?></td>
-            <td class="cov-date"><?= htmlspecialchars(utc_to_jst_str($r['newest']??'')) ?></td>
-          </tr>
-          <?php endforeach; endif; ?>
-        </tbody>
-      </table>
+    <div id="cov-loading" style="text-align:center;color:#64748b;font-size:13px;padding:30px 0">
+      <span class="spin" style="border-color:#33415599;border-top-color:#60a5fa"></span> 読み込み中...
     </div>
-    <?php endforeach; ?>
-
-    <!-- マクロ指標 -->
-    <div style="margin-top:20px">
-      <div style="font-size:12px;color:#64748b;margin-bottom:8px">マクロ指標データ（US10Y / USBF / DXY）</div>
-      <table class="cov-table">
-        <thead><tr><th>指標</th><th>説明</th><th>足種</th><th>件数</th><th>最古データ (JST)</th><th>最新データ (JST)</th><th>状態</th></tr></thead>
-        <tbody>
-          <?php foreach ($macroPairs as $mp):
-            $mrows = $grouped[$mp] ?? [];
-            $mr = !empty($mrows) ? $mrows[0] : null;
-          ?>
-          <tr>
-            <td><span class="macro-badge"><?= htmlspecialchars($mp) ?></span></td>
-            <td style="color:#94a3b8;font-size:11px"><?= htmlspecialchars($macroLabels[$mp]??$mp) ?></td>
-            <td style="color:#94a3b8;font-family:'Courier New',monospace"><?= $mr ? htmlspecialchars($mr['timeframe']) : '-' ?></td>
-            <td class="cov-num"><?= $mr ? number_format($mr['cnt']) : '0' ?></td>
-            <td class="cov-date cov-oldest"><?= ($mr && $mr['oldest']) ? htmlspecialchars(utc_to_jst_str($mr['oldest'])) : '-' ?></td>
-            <td class="cov-date"><?= ($mr && $mr['newest']) ? htmlspecialchars(utc_to_jst_str($mr['newest'])) : '-' ?></td>
-            <td><?php if ($mr && $mr['cnt']>0): ?><span class="macro-ok">✓ あり</span><?php else: ?><span class="macro-none">✗ なし</span><?php endif; ?></td>
-          </tr>
-          <?php endforeach; ?>
-        </tbody>
-      </table>
-      <div style="font-size:11px;color:#475569;margin-top:6px">※ QuantFlow の外部要因スコア（±30点）に使用。データなしの場合はスコアが常にマイナスバイアスになります。</div>
-    </div>
+    <div id="cov-error" style="display:none;text-align:center;color:#f87171;font-size:13px;padding:20px 0"></div>
+    <div id="cov-content" style="display:none"></div>
   </div>
-  <?php endif; ?>
 
   <!-- ===== 全設定値一覧 ===== -->
   <?php if (!empty($diag['all_settings'])): ?>
@@ -646,12 +589,106 @@ h2{font-size:20px;font-weight:700;color:#f1f5f9;margin-bottom:6px}
   </div>
 </main>
 <script>
-function switchTab(pair) {
+var _covActivePair = 'USDJPY';
+var _covAutoTimer  = null;
+
+function covSwitchTab(pair) {
+  _covActivePair = pair;
   document.querySelectorAll('.pair-tab').forEach(function(t){ t.classList.remove('active'); });
   document.querySelectorAll('.pair-tab-panel').forEach(function(p){ p.classList.remove('active'); });
-  document.querySelector('.pair-tab[onclick="switchTab(\''+pair+'\')"]').classList.add('active');
-  document.getElementById('tab-'+pair).classList.add('active');
+  var btn = document.querySelector('.pair-tab[data-pair="' + pair + '"]');
+  var pnl = document.getElementById('cov-tab-' + pair);
+  if (btn) btn.classList.add('active');
+  if (pnl) pnl.classList.add('active');
 }
+
+function loadCoverage() {
+  var loading = document.getElementById('cov-loading');
+  var errDiv  = document.getElementById('cov-error');
+  var content = document.getElementById('cov-content');
+  loading.style.display = 'block';
+  errDiv.style.display  = 'none';
+  content.style.display = 'none';
+
+  fetch('/admin/api.php?action=data_coverage', {headers:{'X-Requested-With':'XMLHttpRequest'}})
+  .then(function(r){ return r.json(); })
+  .then(function(d) {
+    loading.style.display = 'none';
+    if (!d.ok) { errDiv.textContent = 'エラー: '+(d.error||'不明'); errDiv.style.display='block'; return; }
+
+    var forexPairs  = ['USDJPY','GBPJPY','EURJPY'];
+    var macroPairs  = ['US10Y','USBF','DXY'];
+    var macroLabels = {US10Y:'米10年債利回り（現物）',USBF:'米10年国債先物 ZN=F',DXY:'ドルインデックス'};
+    var pairLabel   = {USDJPY:'ドル円',GBPJPY:'ポンド円',EURJPY:'ユーロ円'};
+
+    var grouped = {};
+    d.rows.forEach(function(r) {
+      if (!grouped[r.currency_pair]) grouped[r.currency_pair] = [];
+      grouped[r.currency_pair].push(r);
+    });
+
+    var html = '<div class="pair-tabs">';
+    forexPairs.forEach(function(p, i) {
+      html += '<div class="pair-tab' + (p===_covActivePair?' active':'') + '" data-pair="' + p + '" onclick="covSwitchTab(\'' + p + '\')">' + p + '</div>';
+    });
+    html += '</div>';
+
+    forexPairs.forEach(function(p) {
+      var rows = grouped[p] || [];
+      html += '<div class="pair-tab-panel' + (p===_covActivePair?' active':'') + '" id="cov-tab-' + p + '">';
+      html += '<div style="padding:10px 12px 6px;font-size:11px;color:#94a3b8">' + (pairLabel[p]||p) + '（' + rows.length + '足種）</div>';
+      html += '<table class="cov-table"><thead><tr><th>足種</th><th>件数</th><th>最古データ (JST)</th><th>最新データ (JST)</th></tr></thead><tbody>';
+      if (rows.length === 0) {
+        html += '<tr><td colspan="4" style="text-align:center;color:#475569;padding:12px">データなし</td></tr>';
+      } else {
+        rows.forEach(function(r) {
+          html += '<tr>'
+            + '<td style="color:#94a3b8;font-family:\'Courier New\',monospace">' + r.timeframe + '</td>'
+            + '<td class="cov-num">' + r.cnt.toLocaleString() + '</td>'
+            + '<td class="cov-date cov-oldest">' + (r.oldest_jst||'-') + '</td>'
+            + '<td class="cov-date">' + (r.newest_jst||'-') + '</td>'
+            + '</tr>';
+        });
+      }
+      html += '</tbody></table></div>';
+    });
+
+    html += '<div style="margin-top:20px">';
+    html += '<div style="font-size:12px;color:#64748b;margin-bottom:8px">マクロ指標データ（US10Y / USBF / DXY）</div>';
+    html += '<table class="cov-table"><thead><tr><th>指標</th><th>説明</th><th>足種</th><th>件数</th><th>最古データ (JST)</th><th>最新データ (JST)</th><th>状態</th></tr></thead><tbody>';
+    macroPairs.forEach(function(mp) {
+      var mrows = grouped[mp] || [];
+      var mr    = mrows[0] || null;
+      html += '<tr>'
+        + '<td><span class="macro-badge">' + mp + '</span></td>'
+        + '<td style="color:#94a3b8;font-size:11px">' + (macroLabels[mp]||mp) + '</td>'
+        + '<td style="color:#94a3b8;font-family:\'Courier New\',monospace">' + (mr ? mr.timeframe : '-') + '</td>'
+        + '<td class="cov-num">' + (mr ? mr.cnt.toLocaleString() : '0') + '</td>'
+        + '<td class="cov-date cov-oldest">' + (mr && mr.oldest_jst ? mr.oldest_jst : '-') + '</td>'
+        + '<td class="cov-date">' + (mr && mr.newest_jst ? mr.newest_jst : '-') + '</td>'
+        + '<td>' + (mr && mr.cnt > 0 ? '<span class="macro-ok">✓ あり</span>' : '<span class="macro-none">✗ なし</span>') + '</td>'
+        + '</tr>';
+    });
+    html += '</tbody></table>';
+    html += '<div style="font-size:11px;color:#475569;margin-top:6px">※ QuantFlow の外部要因スコア（±30点）に使用。データなしの場合はスコアが常にマイナスバイアスになります。</div>';
+    html += '</div>';
+
+    content.innerHTML = html;
+    content.style.display = 'block';
+
+    var now = new Date();
+    document.getElementById('cov-updated').textContent = '更新: ' + now.getHours().toString().padStart(2,'0') + ':' + now.getMinutes().toString().padStart(2,'0') + ':' + now.getSeconds().toString().padStart(2,'0');
+  })
+  .catch(function(e) {
+    document.getElementById('cov-loading').style.display = 'none';
+    document.getElementById('cov-error').textContent = '通信エラー: ' + e.message;
+    document.getElementById('cov-error').style.display = 'block';
+  });
+}
+
+loadCoverage();
+// 60秒ごとに自動更新
+_covAutoTimer = setInterval(loadCoverage, 60000);
 </script>
 </body>
 </html>

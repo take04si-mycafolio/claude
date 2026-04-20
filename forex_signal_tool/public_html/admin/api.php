@@ -228,6 +228,26 @@ switch ($action) {
         }
         break;
 
+    case 'data_coverage':
+        require_login();
+        try {
+            $pdo = get_pdo();
+            $stmt = $pdo->query(
+                "SELECT currency_pair, timeframe, COUNT(*) AS cnt,
+                        DATE_FORMAT(CONVERT_TZ(MIN(`timestamp`),'+00:00','+09:00'),'%Y/%m/%d %H:%i') AS oldest_jst,
+                        DATE_FORMAT(CONVERT_TZ(MAX(`timestamp`),'+00:00','+09:00'),'%Y/%m/%d %H:%i') AS newest_jst
+                 FROM price_data
+                 GROUP BY currency_pair, timeframe
+                 ORDER BY currency_pair, timeframe"
+            );
+            $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
+            foreach ($rows as &$r) { $r['cnt'] = (int)$r['cnt']; }
+            json_out(['ok' => true, 'rows' => $rows]);
+        } catch (Exception $e) {
+            json_out(['ok' => false, 'error' => $e->getMessage()]);
+        }
+        break;
+
     case 'quantflow_live_position':
         require_login();
         try {
