@@ -357,6 +357,8 @@ h2{font-size:19px;font-weight:700;color:#f1f5f9;margin-bottom:4px}
       <div style="font-size:13px;font-weight:600;color:#e2e8f0;margin-bottom:10px">セッション別トレード内訳 <span style="font-size:11px;color:#64748b;font-weight:400">（simulation_trades 全件）</span></div>
       <div id="sess-breakdown-loading" style="font-size:12px;color:#64748b">読み込み中...</div>
       <div id="sess-breakdown" style="display:none">
+        <!-- 日付タブ -->
+        <div id="sess-date-tabs" style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:14px"></div>
         <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px">
           <div id="sess-card-japan"  class="sess-card"></div>
           <div id="sess-card-london" class="sess-card"></div>
@@ -400,6 +402,9 @@ h2{font-size:19px;font-weight:700;color:#f1f5f9;margin-bottom:4px}
 <style>
 @keyframes indeterminate{0%{transform:translateX(-100%)}100%{transform:translateX(400%)}}
 .sess-card{background:#0f172a;border:1px solid #1e293b;border-radius:10px;padding:14px}
+.sess-date-tab{background:#1e293b;border:1px solid #334155;color:#94a3b8;border-radius:20px;padding:4px 12px;font-size:12px;cursor:pointer;transition:all .15s;white-space:nowrap}
+.sess-date-tab:hover{border-color:#475569;color:#e2e8f0}
+.sess-date-tab.active{background:#1e3a5f;border-color:#3b82f6;color:#60a5fa;font-weight:600}
 .sess-days-btn{background:#1e293b;border:1px solid #334155;color:#94a3b8;border-radius:20px;padding:5px 16px;font-size:12px;cursor:pointer;transition:all .15s}
 .sess-days-btn:hover{border-color:#475569;color:#e2e8f0}
 .sess-days-btn.active{background:#083344;border-color:#0891b2;color:#22d3ee}
@@ -1039,32 +1044,51 @@ const SESS_META = {
   ny:     { label: "NY時間",      hours: "JST 21:00〜08:00", color: "#8b5cf6" },
 };
 
-async function loadSessBreakdown() {
+let sessBreakdownDates = [];
+
+function fmtDateTab(iso) {
+  const d = new Date(iso + 'T00:00:00');
+  return `${d.getMonth()+1}月${d.getDate()}日`;
+}
+
+async function loadSessBreakdown(date) {
   document.getElementById('sess-breakdown-loading').style.display = '';
   document.getElementById('sess-breakdown').style.display         = 'none';
   try {
-    const res = await fetch('/admin/api.php?action=session_trade_breakdown');
+    const url = '/admin/api.php?action=session_trade_breakdown' + (date ? '&date=' + date : '');
+    const res = await fetch(url);
     const d   = await res.json();
     if (d.status !== 'ok') return;
+
+    // 日付タブを初回のみ構築
+    if (sessBreakdownDates.length === 0 && d.dates && d.dates.length > 0) {
+      sessBreakdownDates = d.dates;
+      const tabWrap = document.getElementById('sess-date-tabs');
+      tabWrap.innerHTML = d.dates.map(dt =>
+        `<button class="sess-date-tab" data-date="${dt}" onclick="loadSessBreakdown('${dt}')">${fmtDateTab(dt)}</button>`
+      ).join('');
+    }
+    // アクティブタブを更新
+    document.querySelectorAll('.sess-date-tab').forEach(b => {
+      b.classList.toggle('active', b.dataset.date === d.current_date);
+    });
 
     const summaryMap = {};
     (d.summary || []).forEach(r => summaryMap[r.session_key] = r);
 
     ['japan', 'london', 'ny'].forEach(sk => {
-      const s   = summaryMap[sk] || {};
-      const top = (d.top || {})[sk] || [];
-      const m   = SESS_META[sk];
-      const total = parseInt(s.total || 0);
-      const wins  = parseInt(s.wins  || 0);
-      const losses= parseInt(s.losses|| 0);
-      const wr    = total > 0 ? (wins / total * 100).toFixed(1) : '0.0';
-      const wrNum = parseFloat(wr);
-
-      // 勝率バーの色
+      const s      = summaryMap[sk] || {};
+      const top    = (d.top || {})[sk] || [];
+      const m      = SESS_META[sk];
+      const total  = parseInt(s.total  || 0);
+      const wins   = parseInt(s.wins   || 0);
+      const losses = parseInt(s.losses || 0);
+      const wr     = total > 0 ? (wins / total * 100).toFixed(1) : '0.0';
+      const wrNum  = parseFloat(wr);
       const barColor = wrNum >= 55 ? '#22c55e' : wrNum >= 50 ? '#f59e0b' : '#ef4444';
 
       const topHTML = top.length === 0
-        ? '<div style="font-size:11px;color:#475569;padding:6px 0">データなし</div>'
+        ? '<div style="font-size:11px;color:#475569;padding:6px 0">データなし（2回未満）</div>'
         : top.map(t => `
             <div style="display:flex;justify-content:space-between;align-items:center;padding:4px 0;border-bottom:1px solid #1e293b">
               <span style="font-size:11px;color:#94a3b8;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:65%">${t.indicator_name}</span>
@@ -1079,7 +1103,6 @@ async function loadSessBreakdown() {
           ${m.label}
         </div>
         <div style="font-size:10px;color:#475569;margin-bottom:10px">${m.hours}</div>
-
         <div style="display:flex;gap:8px;margin-bottom:10px">
           <div style="flex:1;background:#0f172a;border-radius:6px;padding:8px;text-align:center">
             <div style="font-size:20px;font-weight:800;color:#60a5fa">${total.toLocaleString()}</div>
@@ -1090,7 +1113,6 @@ async function loadSessBreakdown() {
             <div style="font-size:10px;color:#64748b">勝率</div>
           </div>
         </div>
-
         <div style="display:flex;gap:6px;margin-bottom:10px;font-size:11px">
           <div style="flex:1;background:#052e16;border-radius:4px;padding:5px;text-align:center">
             <div style="color:#4ade80;font-weight:700">${wins.toLocaleString()}</div>
@@ -1105,15 +1127,9 @@ async function loadSessBreakdown() {
             <div style="color:#64748b">指標数</div>
           </div>
         </div>
-
         <div style="background:#1e293b;height:6px;border-radius:3px;overflow:hidden;margin-bottom:10px">
           <div style="width:${wr}%;height:100%;background:${barColor};border-radius:3px;transition:width .6s"></div>
         </div>
-
-        <div style="font-size:11px;color:#64748b;margin-bottom:6px">
-          期間: ${s.from_date||'-'} 〜 ${s.to_date||'-'}
-        </div>
-
         <div style="font-size:11px;font-weight:600;color:#64748b;margin-bottom:4px;margin-top:8px">上位指標（勝率）</div>
         ${topHTML}
       `;

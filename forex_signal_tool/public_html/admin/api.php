@@ -1450,7 +1450,24 @@ switch ($action) {
         require_login();
         try {
             $pdo = get_pdo();
-            // セッション別サマリー（simulation_trades から集計）
+
+            // 利用可能な日付一覧（直近30日・データがある日のみ）
+            $datesSQL = "
+                SELECT DISTINCT DATE(DATE_ADD(entry_at, INTERVAL 9 HOUR)) AS trade_date
+                FROM simulation_trades
+                WHERE outcome IN ('WIN', 'LOSS')
+                ORDER BY trade_date DESC
+                LIMIT 30
+            ";
+            $dates = $pdo->query($datesSQL)->fetchAll(PDO::FETCH_COLUMN);
+
+            // 対象日（指定なければ最新）
+            $reqDate = trim($_GET['date'] ?? '');
+            if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $reqDate)) {
+                $reqDate = $dates[0] ?? date('Y-m-d');
+            }
+
+            // セッション別サマリー（指定日）
             $summarySQL = "
                 SELECT
                     CASE
@@ -1460,19 +1477,20 @@ switch ($action) {
                          AND HOUR(DATE_ADD(entry_at, INTERVAL 9 HOUR)) < 21 THEN 'london'
                         ELSE 'ny'
                     END AS session_key,
-                    COUNT(*)                  AS total,
-                    SUM(outcome = 'WIN')      AS wins,
-                    SUM(outcome = 'LOSS')     AS losses,
-                    COUNT(DISTINCT indicator_name) AS indicator_count,
-                    MIN(DATE(DATE_ADD(entry_at, INTERVAL 9 HOUR))) AS from_date,
-                    MAX(DATE(DATE_ADD(entry_at, INTERVAL 9 HOUR))) AS to_date
+                    COUNT(*)                       AS total,
+                    SUM(outcome = 'WIN')           AS wins,
+                    SUM(outcome = 'LOSS')          AS losses,
+                    COUNT(DISTINCT indicator_name) AS indicator_count
                 FROM simulation_trades
                 WHERE outcome IN ('WIN', 'LOSS')
+                  AND DATE(DATE_ADD(entry_at, INTERVAL 9 HOUR)) = :d
                 GROUP BY session_key
             ";
-            $summaryRows = $pdo->query($summarySQL)->fetchAll(PDO::FETCH_ASSOC);
+            $stmt = $pdo->prepare($summarySQL);
+            $stmt->execute([':d' => $reqDate]);
+            $summaryRows = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
-            // セッション別 上位指標（勝率降順・5件以上）
+            // セッション別上位指標（指定日・2回以上）
             $topSQL = "
                 SELECT
                     CASE
@@ -1488,13 +1506,15 @@ switch ($action) {
                     ROUND(SUM(outcome = 'WIN') / COUNT(*) * 100, 1) AS win_rate
                 FROM simulation_trades
                 WHERE outcome IN ('WIN', 'LOSS')
+                  AND DATE(DATE_ADD(entry_at, INTERVAL 9 HOUR)) = :d
                 GROUP BY session_key, indicator_name
                 HAVING COUNT(*) >= 2
                 ORDER BY session_key, win_rate DESC
             ";
-            $topRows = $pdo->query($topSQL)->fetchAll(PDO::FETCH_ASSOC);
+            $stmt2 = $pdo->prepare($topSQL);
+            $stmt2->execute([':d' => $reqDate]);
+            $topRows = $stmt2->fetchAll(PDO::FETCH_ASSOC);
 
-            // セッション別にまとめる
             $top = [];
             foreach ($topRows as $r) {
                 $sk = $r['session_key'];
@@ -1503,9 +1523,11 @@ switch ($action) {
             }
 
             json_out([
-                'status'  => 'ok',
-                'summary' => $summaryRows,
-                'top'     => $top,
+                'status'       => 'ok',
+                'dates'        => $dates,
+                'current_date' => $reqDate,
+                'summary'      => $summaryRows,
+                'top'          => $top,
             ]);
         } catch (Exception $e) {
             json_out(['status' => 'error', 'message' => $e->getMessage()]);
