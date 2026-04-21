@@ -890,7 +890,7 @@ def get_timezone_ranking(url_map: dict) -> list:
             rows = conn.execute(sqlalchemy.text("""
                 SELECT session_key, rank_position, indicator_name,
                        win_rate, profit_factor, max_drawdown,
-                       total_trades, avg_pnl, score
+                       total_trades, avg_pnl, score, snapshot_date
                 FROM session_ranking_results
                 WHERE (session_key, snapshot_date) IN (
                     SELECT session_key, MAX(snapshot_date)
@@ -903,7 +903,8 @@ def get_timezone_ranking(url_map: dict) -> list:
         logger.warning("timezone_ranking (DB) failed: %s", e)
         return []
 
-    sess_data: dict = {s["key"]: [] for s in SESSIONS}
+    sess_data:  dict = {s["key"]: [] for s in SESSIONS}
+    sess_dates: dict = {}
     for row in rows:
         sk  = row[0]
         ind = row[2]
@@ -928,10 +929,23 @@ def get_timezone_ranking(url_map: dict) -> list:
             "score":     int(row[8] or 0),
             "url":       url_map.get(ind, ""),
         })
+        if sk not in sess_dates and row[9]:
+            d = row[9]
+            if hasattr(d, "month"):
+                sess_dates[sk] = f"{d.month}月{d.day}日"
+            else:
+                try:
+                    from datetime import datetime as _dt
+                    dobj = _dt.strptime(str(d), "%Y-%m-%d")
+                    sess_dates[sk] = f"{dobj.month}月{dobj.day}日"
+                except Exception:
+                    sess_dates[sk] = str(d)
 
     result = []
     for s in SESSIONS:
-        result.append({**s, "ranking": sess_data.get(s["key"], [])})
+        result.append({**s,
+                       "ranking":       sess_data.get(s["key"], []),
+                       "snapshot_date": sess_dates.get(s["key"], "")})
     return result
 
 
