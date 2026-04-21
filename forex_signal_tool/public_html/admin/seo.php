@@ -354,7 +354,7 @@ h2{font-size:19px;font-weight:700;color:#f1f5f9;margin-bottom:4px}
 
     <!-- セッション別トレード内訳 -->
     <div style="margin-top:16px;padding-top:16px;border-top:1px solid #334155">
-      <div style="font-size:13px;font-weight:600;color:#e2e8f0;margin-bottom:10px">セッション別トレード内訳 <span style="font-size:11px;color:#64748b;font-weight:400">（simulation_trades 全件）</span></div>
+      <div style="font-size:13px;font-weight:600;color:#e2e8f0;margin-bottom:10px">セッション別トレード内訳 <span style="font-size:11px;color:#64748b;font-weight:400">（session_trade_history）</span></div>
       <div id="sess-breakdown-loading" style="font-size:12px;color:#64748b">読み込み中...</div>
       <div id="sess-breakdown" style="display:none">
         <!-- 日付タブ -->
