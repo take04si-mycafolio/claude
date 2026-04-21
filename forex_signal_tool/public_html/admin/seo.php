@@ -396,6 +396,37 @@ h2{font-size:19px;font-weight:700;color:#f1f5f9;margin-bottom:4px}
     </div>
   </div>
 
+  <!-- セッション専用バックテスト -->
+  <div class="cont-section" style="border-left:3px solid #7c3aed">
+    <h3 class="cont-title">セッション専用バックテスト</h3>
+    <p class="cont-sub">
+      東京・ロンドン・NY 各時間帯のローソク足のみを使った専用バックテストを実行します。<br>
+      全テクニカル × 全通貨ペア × 全時間軸（日足除く）を処理するため、数十分かかります。
+    </p>
+
+    <div style="display:flex;gap:12px;flex-wrap:wrap;margin-top:12px">
+      <div>
+        <label class="cont-label">開始日</label>
+        <input type="date" id="sbt-start" class="cont-input" style="width:160px">
+      </div>
+      <div>
+        <label class="cont-label">終了日</label>
+        <input type="date" id="sbt-end" class="cont-input" style="width:160px">
+      </div>
+    </div>
+
+    <div style="display:flex;align-items:center;gap:12px;margin-top:14px;flex-wrap:wrap">
+      <button class="save-btn" id="sbt-run-btn" style="padding:10px 28px;font-size:14px;background:#7c3aed" onclick="runSessionBt()">セッション専用バックテスト実行</button>
+      <span id="sbt-run-status" class="cont-status"></span>
+    </div>
+    <div id="sbt-progress" style="display:none;margin-top:12px;padding:12px 14px;background:#0f172a;border:1px solid #334155;border-radius:8px">
+      <div style="font-size:12px;color:#94a3b8;line-height:1.6" id="sbt-progress-msg">実行中...</div>
+      <div style="margin-top:8px;height:3px;background:#1e293b;border-radius:2px;overflow:hidden">
+        <div id="sbt-progress-bar" style="width:30%;height:100%;background:linear-gradient(90deg,#7c3aed,#a78bfa);animation:indeterminate 1.5s infinite;border-radius:2px"></div>
+      </div>
+    </div>
+  </div>
+
   </div><!-- /tab-ranking -->
 
 </main>
@@ -870,11 +901,14 @@ function initRankingTab() {
   document.getElementById('rk-start').value       = fmt(minus(12));
   document.getElementById('rk-swing-end').value   = fmt(today);
   document.getElementById('rk-swing-start').value = fmt(minus(6));
+  document.getElementById('sbt-end').value   = fmt(today);
+  document.getElementById('sbt-start').value = fmt(minus(12));
   loadRkInfo();
   loadSessInfo();
   loadSessBreakdown();
   pollRkStatus();   // フルBT実行中なら表示を復元
   pollSessStatus(); // セッション更新実行中なら表示を復元
+  pollSbtStatus();  // セッション専用BT実行中なら表示を復元
 }
 
 async function loadRkInfo() {
@@ -1229,6 +1263,86 @@ async function pollSessStatus() {
     }
   } catch(e) {
     sessPollTimer = setTimeout(pollSessStatus, 5000);
+  }
+}
+
+// ===== セッション専用バックテスト =====
+let sbtPollTimer = null;
+
+async function runSessionBt() {
+  const btn = document.getElementById('sbt-run-btn');
+  const st  = document.getElementById('sbt-run-status');
+
+  if (!confirm('セッション専用バックテストを実行します。\n全テクニカル × 全ペア × 全時間軸を処理するため、数十分かかります。\nよろしいですか？')) return;
+
+  btn.disabled = true;
+  st.className = 'cont-status saving';
+  st.textContent = '送信中...';
+
+  const payload = {
+    start_date: document.getElementById('sbt-start').value,
+    end_date:   document.getElementById('sbt-end').value,
+  };
+
+  try {
+    const res = await fetch('/admin/api.php?action=session_bt_run', {
+      method:  'POST',
+      headers: {'Content-Type': 'application/json'},
+      body:    JSON.stringify(payload),
+    });
+    const d = await res.json();
+    if (d.status === 'started') {
+      st.className = 'cont-status ok';
+      st.textContent = '実行開始しました';
+      document.getElementById('sbt-progress').style.display = '';
+      pollSbtStatus();
+    } else if (d.status === 'busy') {
+      st.className   = 'cont-status err';
+      st.textContent = d.message;
+      btn.disabled   = false;
+    } else {
+      st.className   = 'cont-status err';
+      st.textContent = 'エラー: ' + d.message;
+      btn.disabled   = false;
+    }
+  } catch(e) {
+    st.className   = 'cont-status err';
+    st.textContent = 'ネットワークエラー';
+    btn.disabled   = false;
+  }
+}
+
+async function pollSbtStatus() {
+  if (sbtPollTimer) clearTimeout(sbtPollTimer);
+  try {
+    const res  = await fetch('/admin/api.php?action=session_bt_status');
+    const d    = await res.json();
+    const btn  = document.getElementById('sbt-run-btn');
+    const st   = document.getElementById('sbt-run-status');
+    const prog = document.getElementById('sbt-progress');
+    const msg  = document.getElementById('sbt-progress-msg');
+
+    if (d.status === 'running') {
+      prog.style.display = '';
+      msg.textContent    = d.message || '実行中...';
+      btn.disabled       = true;
+      st.className       = 'cont-status saving';
+      st.textContent     = '実行中...';
+      sbtPollTimer = setTimeout(pollSbtStatus, 4000);
+    } else if (d.status === 'done') {
+      prog.style.display = 'none';
+      btn.disabled       = false;
+      st.className       = 'cont-status ok';
+      st.textContent     = '✓ ' + d.message;
+      loadSessInfo();
+    } else if (d.status === 'error') {
+      prog.style.display = 'none';
+      btn.disabled       = false;
+      st.className       = 'cont-status err';
+      st.textContent     = 'エラー: ' + d.message;
+    }
+  } catch(e) {
+    sbtPollTimer = setTimeout(pollSbtStatus, 5000);
   }
 }
 </script>

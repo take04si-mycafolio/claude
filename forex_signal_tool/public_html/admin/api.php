@@ -1428,6 +1428,46 @@ switch ($action) {
         json_out($result ?: ['status' => 'idle']);
         break;
 
+    // ---- セッション専用バックテスト ----
+    case 'session_bt_run':
+        require_login();
+        $btResultFile = '/tmp/session_bt_result.json';
+        $btParamsFile = '/tmp/session_bt_params.json';
+        if (file_exists($btResultFile)) {
+            $prev = json_decode(file_get_contents($btResultFile), true);
+            if (($prev['status'] ?? '') === 'running') {
+                json_out(['status' => 'busy', 'message' => 'セッション専用バックテストが実行中です']);
+                break;
+            }
+        }
+        $startDate = trim($body['start_date'] ?? '');
+        $endDate   = trim($body['end_date']   ?? '');
+        if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $startDate)) $startDate = '';
+        if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $endDate))   $endDate   = '';
+        $params = ['start_date' => $startDate, 'end_date' => $endDate];
+        file_put_contents($btParamsFile, json_encode($params, JSON_UNESCAPED_UNICODE));
+        file_put_contents($btResultFile, json_encode([
+            'status'     => 'running',
+            'message'    => '初期化中...',
+            'started_at' => time(),
+        ], JSON_UNESCAPED_UNICODE));
+        $script = escapeshellarg(TASKS_DIR . '/run_session_bt.py');
+        $cmd    = escapeshellarg(PYTHON_BIN) . ' ' . $script;
+        exec("nohup {$cmd} >> /tmp/session_bt_bg.log 2>&1 &");
+        json_out(['status' => 'started', 'message' => 'セッション専用バックテストを開始しました']);
+        break;
+
+    case 'session_bt_status':
+        require_login();
+        $btResultFile = '/tmp/session_bt_result.json';
+        if (!file_exists($btResultFile)) {
+            json_out(['status' => 'idle']);
+            break;
+        }
+        $result = json_decode(file_get_contents($btResultFile), true);
+        json_out($result ?: ['status' => 'idle']);
+        break;
+
     case 'session_ranking_info':
         require_login();
         try {
