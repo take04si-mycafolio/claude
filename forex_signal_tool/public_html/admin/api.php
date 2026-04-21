@@ -1452,8 +1452,14 @@ switch ($action) {
             $pdo = get_pdo();
 
             // 利用可能な日付一覧（直近30日・データがある日のみ）
+            // NY時間はJST深夜0〜7時台が前日のセッションに属するため -1日補正
             $datesSQL = "
-                SELECT DISTINCT DATE(DATE_ADD(entry_at, INTERVAL 9 HOUR)) AS trade_date
+                SELECT DISTINCT
+                    CASE
+                        WHEN HOUR(DATE_ADD(entry_at, INTERVAL 9 HOUR)) < 8
+                        THEN DATE(DATE_ADD(entry_at, INTERVAL 9 HOUR) - INTERVAL 1 DAY)
+                        ELSE DATE(DATE_ADD(entry_at, INTERVAL 9 HOUR))
+                    END AS trade_date
                 FROM simulation_trades
                 WHERE outcome IN ('WIN', 'LOSS')
                 ORDER BY trade_date DESC
@@ -1483,7 +1489,13 @@ switch ($action) {
                     COUNT(DISTINCT indicator_name) AS indicator_count
                 FROM simulation_trades
                 WHERE outcome IN ('WIN', 'LOSS')
-                  AND DATE(DATE_ADD(entry_at, INTERVAL 9 HOUR)) = :d
+                  AND (
+                    (HOUR(DATE_ADD(entry_at, INTERVAL 9 HOUR)) >= 8
+                     AND DATE(DATE_ADD(entry_at, INTERVAL 9 HOUR)) = :d)
+                    OR
+                    (HOUR(DATE_ADD(entry_at, INTERVAL 9 HOUR)) < 8
+                     AND DATE(DATE_ADD(entry_at, INTERVAL 9 HOUR)) = DATE_ADD(:d, INTERVAL 1 DAY))
+                  )
                 GROUP BY session_key
             ";
             $stmt = $pdo->prepare($summarySQL);
@@ -1506,7 +1518,13 @@ switch ($action) {
                     ROUND(SUM(outcome = 'WIN') / COUNT(*) * 100, 1) AS win_rate
                 FROM simulation_trades
                 WHERE outcome IN ('WIN', 'LOSS')
-                  AND DATE(DATE_ADD(entry_at, INTERVAL 9 HOUR)) = :d
+                  AND (
+                    (HOUR(DATE_ADD(entry_at, INTERVAL 9 HOUR)) >= 8
+                     AND DATE(DATE_ADD(entry_at, INTERVAL 9 HOUR)) = :d)
+                    OR
+                    (HOUR(DATE_ADD(entry_at, INTERVAL 9 HOUR)) < 8
+                     AND DATE(DATE_ADD(entry_at, INTERVAL 9 HOUR)) = DATE_ADD(:d, INTERVAL 1 DAY))
+                  )
                 GROUP BY session_key, indicator_name
                 HAVING COUNT(*) >= 2
                 ORDER BY session_key, win_rate DESC

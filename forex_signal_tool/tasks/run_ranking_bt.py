@@ -301,10 +301,20 @@ def save_session_data_to_db(days: int = 30, target_date=None):
                  AND HOUR(DATE_ADD(entry_at, INTERVAL 9 HOUR)) < 21 THEN 'london'
                 ELSE 'ny'
             END AS session_key,
-            DATE(DATE_ADD(entry_at, INTERVAL 9 HOUR)) AS trade_date
+            CASE
+                WHEN HOUR(DATE_ADD(entry_at, INTERVAL 9 HOUR)) < 8
+                THEN DATE(DATE_ADD(entry_at, INTERVAL 9 HOUR) - INTERVAL 1 DAY)
+                ELSE DATE(DATE_ADD(entry_at, INTERVAL 9 HOUR))
+            END AS trade_date
         FROM simulation_trades
         WHERE outcome IN ('WIN', 'LOSS')
-          AND DATE(DATE_ADD(entry_at, INTERVAL 9 HOUR)) = :target_date
+          AND (
+            (HOUR(DATE_ADD(entry_at, INTERVAL 9 HOUR)) >= 8
+             AND DATE(DATE_ADD(entry_at, INTERVAL 9 HOUR)) = :target_date)
+            OR
+            (HOUR(DATE_ADD(entry_at, INTERVAL 9 HOUR)) < 8
+             AND DATE(DATE_ADD(entry_at, INTERVAL 9 HOUR)) = DATE_ADD(:target_date, INTERVAL 1 DAY))
+          )
     """
 
     with engine.connect() as conn:
