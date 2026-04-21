@@ -320,39 +320,46 @@
   <div class="section-title"><i class="bi bi-activity text-danger me-2"></i>相場タイプ別ランキング</div>
   <p class="ov-note" style="margin-bottom:12px">ボリンジャーバンド幅でトレンド・レンジを分類し、各相場で強い指標をランキング</p>
 
-  <div class="mt-grid">
+  <div class="mt-tabs">
     {% for mt in market_ranking %}
-    <div class="mt-col mt-{{ mt.key }}">
-      <div class="mt-header">
-        <i class="bi {{ mt.icon }} mt-header-icon"></i>
-        <div>
-          <div class="mt-label">{{ mt.label }}</div>
-          <div class="mt-desc">{{ mt.desc }}</div>
-        </div>
-        <span class="mt-badge">{{ mt.badge }}</span>
-      </div>
-      {% if mt.ranking %}
-      <div class="mt-cards">
-        {% for c in mt.ranking %}
-        <div class="tz-card">
-          <div class="tz-r">{{ loop.index }}</div>
-          <div class="tz-body">
-            <div class="tz-name">{% if c.url %}<a href="{{ c.url }}" class="rk-ind-link">{{ c.short }}</a>{% else %}{{ c.short }}{% endif %}</div>
-            {% if c.one_liner %}<div class="tz-liner">{{ c.one_liner }}</div>{% endif %}
-            <div class="tz-meta">
-              <span class="pur-badge pur-badge-wr">勝率 {{ c.win_rate }}%</span>
-              <span class="pur-badge">{{ c.trades }}回</span>
-            </div>
-          </div>
-        </div>
-        {% endfor %}
-      </div>
-      {% else %}
-      <div class="rk-placeholder" style="padding:14px"><i class="bi bi-search"></i><p>データがありません</p></div>
-      {% endif %}
-    </div>
+    <button class="mt-tab mt-tab-{{ mt.key }}{% if loop.first %} active{% endif %}"
+      onclick="switchMt(this,'mt-panel-{{ mt.key }}')">
+      <i class="bi {{ mt.icon }}"></i>{{ mt.label }}
+    </button>
     {% endfor %}
   </div>
+
+  {% for mt in market_ranking %}
+  <div class="mt-panel mt-{{ mt.key }}" id="mt-panel-{{ mt.key }}"{% if not loop.first %} style="display:none"{% endif %}>
+    <div class="mt-header">
+      <i class="bi {{ mt.icon }} mt-header-icon"></i>
+      <div>
+        <div class="mt-label">{{ mt.label }}</div>
+        <div class="mt-desc">{{ mt.desc }}</div>
+      </div>
+      <span class="mt-badge">{{ mt.badge }}</span>
+    </div>
+    {% if mt.ranking %}
+    <div class="mt-cards">
+      {% for c in mt.ranking %}
+      <div class="tz-card">
+        <div class="tz-r">{{ loop.index }}</div>
+        <div class="tz-body">
+          <div class="tz-name">{% if c.url %}<a href="{{ c.url }}" class="rk-ind-link">{{ c.short }}</a>{% else %}{{ c.short }}{% endif %}</div>
+          {% if c.one_liner %}<div class="tz-liner">{{ c.one_liner }}</div>{% endif %}
+          <div class="tz-meta">
+            <span class="pur-badge pur-badge-wr">勝率 {{ c.win_rate }}%</span>
+            <span class="pur-badge">{{ c.trades }}回</span>
+          </div>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+    {% else %}
+    <div class="rk-placeholder" style="padding:14px"><i class="bi bi-search"></i><p>データがありません</p></div>
+    {% endif %}
+  </div>
+  {% endfor %}
   <p class="ov-note" style="margin-top:8px">※ BB幅が過去50期間平均の105%超 → トレンド、95%未満 → レンジと分類</p>
 </div>
 {% endif %}
@@ -615,6 +622,15 @@ function switchTz(btn, panelId) {
   btn.classList.add('active');
   document.getElementById(panelId).style.display = '';
 }
+
+// 相場タイプ別タブ切替
+function switchMt(btn, panelId) {
+  const wrap = btn.closest('#section-market');
+  wrap.querySelectorAll('.mt-tab').forEach(b => b.classList.remove('active'));
+  wrap.querySelectorAll('.mt-panel').forEach(p => p.style.display = 'none');
+  btn.classList.add('active');
+  document.getElementById(panelId).style.display = '';
+}
 </script>
 
 <style>
@@ -782,9 +798,12 @@ function switchTz(btn, panelId) {
 .tz-meta{display:flex;gap:4px;flex-wrap:wrap}
 
 /* ===== 相場タイプ別ランキング ===== */
-.mt-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
-@media(max-width:600px){.mt-grid{grid-template-columns:1fr}}
-.mt-col{border:1px solid #e2e8f0;border-radius:10px;overflow:hidden}
+.mt-tabs{display:flex;gap:8px;margin-bottom:12px}
+.mt-tab{background:#f3f4f6;border:1px solid #d1d5db;border-radius:20px;padding:6px 14px;font-size:11px;cursor:pointer;transition:all .15s;display:inline-flex;align-items:center;gap:5px;color:#374151}
+.mt-tab:hover{background:#e5e7eb}
+.mt-tab-trend.active{background:#eff6ff;border-color:#3b82f6;color:#1e40af}
+.mt-tab-range.active{background:#f0fdf4;border-color:#22c55e;color:#166534}
+.mt-panel{border:1px solid #e2e8f0;border-radius:10px;overflow:hidden}
 .mt-header{display:flex;align-items:flex-start;gap:10px;padding:12px 14px}
 .mt-header-icon{font-size:22px;flex-shrink:0;margin-top:1px}
 .mt-label{font-size:13px;font-weight:700;margin-bottom:2px}
