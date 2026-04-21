@@ -109,10 +109,11 @@ def main():
         total_steps = len(SESSIONS) * len(Config.CURRENCY_PAIRS) * len(all_tfs)
         step        = 0
 
-        # sess_agg[session_key][indicator_name] = {total, wins, pf_wsum, dd, tp_sum}
+        # sess_agg[session_key][indicator_name] = {total, wins, losses, dd, tp_sum}
+        # PF は個別値の平均ではなく、合計勝利×TP / 合計敗北×SL で正しく計算する
         sess_agg = {
             s["key"]: defaultdict(lambda: {
-                "total": 0, "wins": 0, "pf_wsum": 0.0, "dd": 0.0, "tp_sum": 0.0
+                "total": 0, "wins": 0, "losses": 0, "dd": 0.0, "tp_sum": 0.0
             })
             for s in SESSIONS
         }
@@ -163,14 +164,13 @@ def main():
                         if n == 0:
                             continue
                         wins = int(r.get("winning_trades") or 0)
-                        pf   = float(r.get("profit_factor") or 0)
                         dd   = abs(float(r.get("max_drawdown") or 0))
                         tp   = float(r.get("total_profit") or 0)
 
                         d = sess_agg[sk][ind]
                         d["total"]  += n
                         d["wins"]   += wins
-                        d["pf_wsum"] += pf * n
+                        d["losses"] += (n - wins)
                         d["dd"]      = max(d["dd"], dd)
                         d["tp_sum"] += tp
 
@@ -191,7 +191,7 @@ def main():
                     if n < 5:
                         continue
                     wr      = round(d["wins"] / n * 100, 1)
-                    pf      = round(d["pf_wsum"] / n, 4)
+                    pf      = round((d["wins"] * tp_pips) / (d["losses"] * sl_pips), 4) if d["losses"] > 0 else 0.0
                     dd      = d["dd"]
                     avg_pnl = round(d["tp_sum"] / n, 0)
                     score   = _session_score(wr, pf if pf > 0 else 1.0, n)
