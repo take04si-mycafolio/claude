@@ -1388,6 +1388,59 @@ switch ($action) {
         }
         break;
 
+    // ---- 市場セッション別ランキング更新 ----
+    case 'session_update_run':
+        require_login();
+        $sessResultFile = '/tmp/session_update_result.json';
+        $sessParamsFile = '/tmp/session_update_params.json';
+        if (file_exists($sessResultFile)) {
+            $prev = json_decode(file_get_contents($sessResultFile), true);
+            if (($prev['status'] ?? '') === 'running') {
+                json_out(['status' => 'busy', 'message' => 'セッション更新が実行中です（最大5分で自動解除）']);
+            }
+        }
+        $days   = max(1, min(90, (int)($body['days'] ?? 30)));
+        $params = ['days' => $days];
+        file_put_contents($sessParamsFile, json_encode($params, JSON_UNESCAPED_UNICODE));
+        file_put_contents($sessResultFile, json_encode([
+            'status'     => 'running',
+            'message'    => '初期化中...',
+            'started_at' => time(),
+        ], JSON_UNESCAPED_UNICODE));
+        $script = escapeshellarg(TASKS_DIR . '/run_session_update.py');
+        $cmd    = escapeshellarg(PYTHON_BIN) . ' ' . $script;
+        exec("nohup {$cmd} >> /tmp/session_update_bg.log 2>&1 &");
+        json_out(['status' => 'started', 'message' => 'セッションランキング更新を開始しました']);
+        break;
+
+    case 'session_update_status':
+        require_login();
+        $sessResultFile = '/tmp/session_update_result.json';
+        if (!file_exists($sessResultFile)) {
+            json_out(['status' => 'idle']);
+        }
+        $result = json_decode(file_get_contents($sessResultFile), true);
+        json_out($result ?: ['status' => 'idle']);
+        break;
+
+    case 'session_ranking_info':
+        require_login();
+        try {
+            $pdo        = get_pdo();
+            $rankCount  = (int)$pdo->query('SELECT COUNT(*) FROM session_ranking_results')->fetchColumn();
+            $tradeCount = (int)$pdo->query('SELECT COUNT(*) FROM session_trade_history')->fetchColumn();
+            $latestDate = $pdo->query('SELECT MAX(snapshot_date) FROM session_ranking_results')->fetchColumn();
+            json_out([
+                'status'        => 'ok',
+                'ranking_count' => $rankCount,
+                'trade_count'   => $tradeCount,
+                'latest_date'   => $latestDate ?: '未取得',
+            ]);
+        } catch (Exception $e) {
+            json_out(['status' => 'error', 'message' => $e->getMessage()]);
+        }
+        break;
+
     // ---- BT2 保存済み戦略のトレード履歴を CSV/ZIP でダウンロード ----
     case 'bt2_csv':
         require_login();

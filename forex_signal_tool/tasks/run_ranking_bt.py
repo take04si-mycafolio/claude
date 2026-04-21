@@ -247,17 +247,17 @@ def _session_score(wr: float, pf: float, total: int) -> int:
     return wr_s + pf_s + n_s
 
 
-def save_session_data_to_db():
+def save_session_data_to_db(days: int = 30):
     """
     simulation_trades からセッション別データを計算し2テーブルに保存。
-    - session_trade_history   : 過去30日分トレード全件（古いデータは削除）
+    - session_trade_history   : 過去 days 日分トレード全件（古いデータは削除）
     - session_ranking_results : 当日スナップショット（上位5件）
     """
     import sqlalchemy as sa
     from collections import defaultdict
     from datetime import date, timedelta, timezone
 
-    RETENTION_DAYS = 30
+    RETENTION_DAYS = max(1, int(days))
     engine = sa.create_engine(Config.SQLALCHEMY_DATABASE_URI)
     today  = date.today()
     cutoff = today - timedelta(days=RETENTION_DAYS)

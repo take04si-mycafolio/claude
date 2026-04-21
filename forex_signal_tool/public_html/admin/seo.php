@@ -322,9 +322,72 @@ h2{font-size:19px;font-weight:700;color:#f1f5f9;margin-bottom:4px}
       </div>
     </div>
   </div>
+  <!-- 市場セッション別ランキング更新 -->
+  <div class="cont-section" style="border-left:3px solid #0891b2">
+    <h3 class="cont-title">市場セッション別ランキング更新</h3>
+    <p class="cont-sub">
+      フルバックテストは行わず、既存のシミュレーショントレードから東京・ロンドン・NY セッション別ランキングとトレード履歴のみ再集計します。<br>
+      バックテスト後に個別更新したい場合や、分析期間を変えて確認したい場合に使用してください。
+    </p>
+
+    <!-- データ件数 -->
+    <div id="sess-counts-loading" style="font-size:12px;color:#64748b">読み込み中...</div>
+    <div id="sess-counts" style="display:none">
+      <div style="display:flex;flex-wrap:wrap;gap:16px;margin-bottom:6px">
+        <div class="rk-stat-box">
+          <div class="rk-stat-lbl">ランキングスナップショット</div>
+          <div class="rk-stat-val" id="sess-cnt-rk">-</div>
+        </div>
+        <div class="rk-stat-box">
+          <div class="rk-stat-lbl">セッショントレード履歴</div>
+          <div class="rk-stat-val" id="sess-cnt-tr">-</div>
+        </div>
+        <div class="rk-stat-box">
+          <div class="rk-stat-lbl">最新スナップショット日</div>
+          <div class="rk-stat-val" id="sess-latest" style="font-size:14px;padding-top:4px">-</div>
+        </div>
+      </div>
+    </div>
+    <div style="margin-top:10px">
+      <button class="save-btn" onclick="loadSessInfo()" style="background:#334155">件数を更新</button>
+    </div>
+
+    <!-- 分析期間設定 -->
+    <div style="margin-top:16px;padding-top:16px;border-top:1px solid #334155">
+      <div style="font-size:13px;font-weight:600;color:#e2e8f0;margin-bottom:8px">分析期間（日数）</div>
+      <p class="cont-sub" style="margin-bottom:10px">シミュレーショントレードのうち、何日前までを集計対象にするかを指定します。</p>
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        <button class="sess-days-btn active" data-days="7" onclick="setSessDays(this)">7日</button>
+        <button class="sess-days-btn" data-days="14" onclick="setSessDays(this)">14日</button>
+        <button class="sess-days-btn" data-days="30" onclick="setSessDays(this)">30日</button>
+        <button class="sess-days-btn" data-days="60" onclick="setSessDays(this)">60日</button>
+        <button class="sess-days-btn" data-days="90" onclick="setSessDays(this)">90日</button>
+      </div>
+      <div style="margin-top:8px;font-size:12px;color:#94a3b8">選択中: <span id="sess-days-label">7日</span></div>
+    </div>
+
+    <!-- 実行 -->
+    <div style="display:flex;align-items:center;gap:12px;margin-top:16px;flex-wrap:wrap">
+      <button class="save-btn" id="sess-run-btn" style="padding:10px 24px;font-size:14px;background:#0891b2" onclick="runSessionUpdate()">セッションランキング更新</button>
+      <span id="sess-run-status" class="cont-status"></span>
+    </div>
+    <div id="sess-progress" style="display:none;margin-top:12px;padding:12px 14px;background:#0f172a;border:1px solid #334155;border-radius:8px">
+      <div style="font-size:12px;color:#94a3b8" id="sess-progress-msg">実行中...</div>
+      <div style="margin-top:8px;height:3px;background:#1e293b;border-radius:2px;overflow:hidden">
+        <div id="sess-progress-bar" style="width:30%;height:100%;background:linear-gradient(90deg,#0891b2,#22d3ee);animation:indeterminate 1.5s infinite;border-radius:2px"></div>
+      </div>
+    </div>
+  </div>
+
   </div><!-- /tab-ranking -->
 
 </main>
+<style>
+@keyframes indeterminate{0%{transform:translateX(-100%)}100%{transform:translateX(400%)}}
+.sess-days-btn{background:#1e293b;border:1px solid #334155;color:#94a3b8;border-radius:20px;padding:5px 16px;font-size:12px;cursor:pointer;transition:all .15s}
+.sess-days-btn:hover{border-color:#475569;color:#e2e8f0}
+.sess-days-btn.active{background:#083344;border-color:#0891b2;color:#22d3ee}
+</style>
 
 <script>
 // ページ定義データ（デフォルト値）- key はDBキーと一致するスラッグ
@@ -787,7 +850,9 @@ function initRankingTab() {
   document.getElementById('rk-swing-end').value   = fmt(today);
   document.getElementById('rk-swing-start').value = fmt(minus(6));
   loadRkInfo();
-  pollRkStatus(); // 実行中なら表示を復元
+  loadSessInfo();
+  pollRkStatus();   // フルBT実行中なら表示を復元
+  pollSessStatus(); // セッション更新実行中なら表示を復元
 }
 
 async function loadRkInfo() {
@@ -918,6 +983,108 @@ function downloadCsv() {
     btn.disabled    = false;
     btn.textContent = 'CSVダウンロード（ZIP）';
   }, 3000);
+}
+
+// ===== 市場セッション別ランキング更新 =====
+let sessDays      = 7;
+let sessPollTimer = null;
+
+function setSessDays(btn) {
+  document.querySelectorAll('.sess-days-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  sessDays = parseInt(btn.dataset.days, 10);
+  document.getElementById('sess-days-label').textContent = btn.textContent;
+}
+
+async function loadSessInfo() {
+  document.getElementById('sess-counts-loading').style.display = '';
+  document.getElementById('sess-counts').style.display         = 'none';
+  try {
+    const res = await fetch('/admin/api.php?action=session_ranking_info');
+    const d   = await res.json();
+    if (d.status === 'ok') {
+      document.getElementById('sess-cnt-rk').textContent  = d.ranking_count.toLocaleString() + ' 件';
+      document.getElementById('sess-cnt-tr').textContent  = d.trade_count.toLocaleString()   + ' 件';
+      document.getElementById('sess-latest').textContent  = d.latest_date;
+    } else {
+      document.getElementById('sess-cnt-rk').textContent  = 'エラー';
+      document.getElementById('sess-cnt-tr').textContent  = 'エラー';
+      document.getElementById('sess-latest').textContent  = '-';
+    }
+  } catch(e) {}
+  document.getElementById('sess-counts-loading').style.display = 'none';
+  document.getElementById('sess-counts').style.display         = '';
+}
+
+async function runSessionUpdate() {
+  const btn = document.getElementById('sess-run-btn');
+  const st  = document.getElementById('sess-run-status');
+  if (!confirm(`過去${sessDays}日分のセッション別ランキングを再集計します。\nよろしいですか？`)) return;
+
+  btn.disabled   = true;
+  st.className   = 'cont-status saving';
+  st.textContent = '送信中...';
+
+  try {
+    const res = await fetch('/admin/api.php?action=session_update_run', {
+      method:  'POST',
+      headers: {'Content-Type': 'application/json'},
+      body:    JSON.stringify({days: sessDays}),
+    });
+    const d = await res.json();
+    if (d.status === 'started') {
+      st.className = 'cont-status ok';
+      st.textContent = '実行開始しました';
+      document.getElementById('sess-progress').style.display = '';
+      pollSessStatus();
+    } else if (d.status === 'busy') {
+      st.className   = 'cont-status err';
+      st.textContent = d.message;
+      btn.disabled   = false;
+    } else {
+      st.className   = 'cont-status err';
+      st.textContent = 'エラー: ' + d.message;
+      btn.disabled   = false;
+    }
+  } catch(e) {
+    st.className   = 'cont-status err';
+    st.textContent = 'ネットワークエラー';
+    btn.disabled   = false;
+  }
+}
+
+async function pollSessStatus() {
+  if (sessPollTimer) clearTimeout(sessPollTimer);
+  try {
+    const res  = await fetch('/admin/api.php?action=session_update_status');
+    const d    = await res.json();
+    const btn  = document.getElementById('sess-run-btn');
+    const st   = document.getElementById('sess-run-status');
+    const prog = document.getElementById('sess-progress');
+    const msg  = document.getElementById('sess-progress-msg');
+
+    if (d.status === 'running') {
+      prog.style.display = '';
+      msg.textContent    = d.message || '実行中...';
+      btn.disabled       = true;
+      st.className       = 'cont-status saving';
+      st.textContent     = '実行中...';
+      sessPollTimer = setTimeout(pollSessStatus, 3000);
+    } else if (d.status === 'done') {
+      prog.style.display = 'none';
+      btn.disabled       = false;
+      st.className       = 'cont-status ok';
+      st.textContent     = '✓ ' + d.message;
+      loadSessInfo();
+    } else if (d.status === 'error') {
+      prog.style.display = 'none';
+      btn.disabled       = false;
+      st.className       = 'cont-status err';
+      st.textContent     = 'エラー: ' + d.message;
+    }
+  } catch(e) {
+    sessPollTimer = setTimeout(pollSessStatus, 5000);
+  }
 }
 </script>
 <style>
