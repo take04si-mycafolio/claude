@@ -1399,8 +1399,13 @@ switch ($action) {
                 json_out(['status' => 'busy', 'message' => 'セッション更新が実行中です（最大5分で自動解除）']);
             }
         }
-        $days   = max(1, min(90, (int)($body['days'] ?? 30)));
-        $params = ['days' => $days];
+        $days       = max(1, min(90, (int)($body['days'] ?? 30)));
+        $targetDate = trim($body['target_date'] ?? '');
+        // YYYY-MM-DD 形式のみ受け付ける（未指定 or 不正 → 当日）
+        if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $targetDate)) {
+            $targetDate = '';
+        }
+        $params = ['days' => $days, 'target_date' => $targetDate];
         file_put_contents($sessParamsFile, json_encode($params, JSON_UNESCAPED_UNICODE));
         file_put_contents($sessResultFile, json_encode([
             'status'     => 'running',

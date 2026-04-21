@@ -42,9 +42,12 @@ def main():
     with open(PARAMS_FILE, encoding="utf-8") as f:
         params = json.load(f)
 
-    days = max(1, min(90, int(params.get("days", 30))))
-    logger.info("セッション別データ更新開始（過去%d日）", days)
-    write_status("running", f"セッション別データ集計中（過去{days}日）...")
+    days        = max(1, min(90, int(params.get("days", 30))))
+    target_date = params.get("target_date") or None   # None = 当日
+    date_label  = target_date if target_date else "当日"
+
+    logger.info("セッション別データ更新開始（%s・過去%d日）", date_label, days)
+    write_status("running", f"セッション別データ集計中（{date_label}・過去{days}日）...")
 
     from app import create_app
     from tasks.run_ranking_bt import save_session_data_to_db
@@ -52,7 +55,7 @@ def main():
     app = create_app()
     with app.app_context():
         try:
-            save_session_data_to_db(days=days)
+            save_session_data_to_db(days=days, target_date=target_date)
             logger.info("セッション別データ保存完了")
         except Exception as exc:
             logger.error("セッションデータ保存失敗: %s", exc)
@@ -65,7 +68,7 @@ def main():
     ret    = subprocess.call([sys.executable, script])
 
     if ret == 0:
-        write_status("done", f"完了（過去{days}日分のセッションデータ更新・静的ページ生成済み）")
+        write_status("done", f"完了（{date_label}・過去{days}日のセッションデータ更新・静的ページ生成済み）")
     else:
         write_status("done", f"セッションデータ更新完了 ※静的ページ生成失敗")
     logger.info("セッション別データ更新完了")

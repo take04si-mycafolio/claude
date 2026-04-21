@@ -369,7 +369,8 @@ h2{font-size:19px;font-weight:700;color:#f1f5f9;margin-bottom:4px}
 
     <!-- 実行 -->
     <div style="display:flex;align-items:center;gap:12px;margin-top:16px;flex-wrap:wrap">
-      <button class="save-btn" id="sess-run-btn" style="padding:10px 24px;font-size:14px;background:#0891b2" onclick="runSessionUpdate()">セッションランキング更新</button>
+      <button class="save-btn" id="sess-run-btn" style="padding:10px 24px;font-size:14px;background:#0891b2" onclick="runSessionUpdate(false)">当日分を更新</button>
+      <button class="save-btn" id="sess-prev-btn" style="padding:10px 24px;font-size:14px;background:#0e7490" onclick="runSessionUpdate(true)">前日分を更新</button>
       <span id="sess-run-status" class="cont-status"></span>
     </div>
     <div id="sess-progress" style="display:none;margin-top:12px;padding:12px 14px;background:#0f172a;border:1px solid #334155;border-radius:8px">
@@ -1017,20 +1018,35 @@ async function loadSessInfo() {
   document.getElementById('sess-counts').style.display         = '';
 }
 
-async function runSessionUpdate() {
-  const btn = document.getElementById('sess-run-btn');
-  const st  = document.getElementById('sess-run-status');
-  if (!confirm(`過去${sessDays}日分のセッション別ランキングを再集計します。\nよろしいですか？`)) return;
+async function runSessionUpdate(prevDay = false) {
+  const btn     = document.getElementById(prevDay ? 'sess-prev-btn' : 'sess-run-btn');
+  const otherBtn = document.getElementById(prevDay ? 'sess-run-btn' : 'sess-prev-btn');
+  const st      = document.getElementById('sess-run-status');
 
-  btn.disabled   = true;
-  st.className   = 'cont-status saving';
-  st.textContent = '送信中...';
+  // 前日日付を計算（JST: サーバーはJST運用なのでローカル日付でよい）
+  let targetDate = '';
+  let dateLabel  = '当日';
+  if (prevDay) {
+    const d = new Date();
+    d.setDate(d.getDate() - 1);
+    targetDate = d.toISOString().slice(0, 10);
+    dateLabel  = targetDate + '（前日）';
+  }
+
+  if (!confirm(`${dateLabel}・過去${sessDays}日分のセッション別ランキングを再集計します。\nよろしいですか？`)) return;
+
+  btn.disabled      = true;
+  otherBtn.disabled = true;
+  st.className      = 'cont-status saving';
+  st.textContent    = '送信中...';
 
   try {
+    const payload = {days: sessDays};
+    if (targetDate) payload.target_date = targetDate;
     const res = await fetch('/admin/api.php?action=session_update_run', {
       method:  'POST',
       headers: {'Content-Type': 'application/json'},
-      body:    JSON.stringify({days: sessDays}),
+      body:    JSON.stringify(payload),
     });
     const d = await res.json();
     if (d.status === 'started') {
@@ -1064,22 +1080,26 @@ async function pollSessStatus() {
     const prog = document.getElementById('sess-progress');
     const msg  = document.getElementById('sess-progress-msg');
 
+    const btnPrev = document.getElementById('sess-prev-btn');
     if (d.status === 'running') {
       prog.style.display = '';
       msg.textContent    = d.message || '実行中...';
       btn.disabled       = true;
+      btnPrev.disabled   = true;
       st.className       = 'cont-status saving';
       st.textContent     = '実行中...';
       sessPollTimer = setTimeout(pollSessStatus, 3000);
     } else if (d.status === 'done') {
       prog.style.display = 'none';
       btn.disabled       = false;
+      btnPrev.disabled   = false;
       st.className       = 'cont-status ok';
       st.textContent     = '✓ ' + d.message;
       loadSessInfo();
     } else if (d.status === 'error') {
       prog.style.display = 'none';
       btn.disabled       = false;
+      btnPrev.disabled   = false;
       st.className       = 'cont-status err';
       st.textContent     = 'エラー: ' + d.message;
     }

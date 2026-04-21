@@ -247,21 +247,28 @@ def _session_score(wr: float, pf: float, total: int) -> int:
     return wr_s + pf_s + n_s
 
 
-def save_session_data_to_db(days: int = 30):
+def save_session_data_to_db(days: int = 30, target_date=None):
     """
     simulation_trades からセッション別データを計算し2テーブルに保存。
     - session_trade_history   : 過去 days 日分トレード全件（古いデータは削除）
-    - session_ranking_results : 当日スナップショット（上位5件）
+    - session_ranking_results : target_date のスナップショット（上位5件）
+
+    target_date: 保存対象日（None=当日、"YYYY-MM-DD" or date オブジェクトで前日等を指定可）
     """
     import sqlalchemy as sa
     from app.config import Config
     from collections import defaultdict
-    from datetime import date, timedelta, timezone
+    from datetime import date, datetime as _dt, timedelta, timezone
 
     RETENTION_DAYS = max(1, int(days))
     engine = sa.create_engine(Config.SQLALCHEMY_DATABASE_URI)
-    today  = date.today()
-    cutoff = today - timedelta(days=RETENTION_DAYS)
+
+    if target_date is None:
+        target_date = date.today()
+    elif isinstance(target_date, str):
+        target_date = _dt.strptime(target_date, "%Y-%m-%d").date()
+
+    cutoff = target_date - timedelta(days=RETENTION_DAYS)
     now    = datetime.now(timezone.utc).replace(tzinfo=None)
 
     SESSION_SQL = """
@@ -290,11 +297,15 @@ def save_session_data_to_db(days: int = 30):
             DATE(DATE_ADD(entry_at, INTERVAL 9 HOUR)) AS trade_date
         FROM simulation_trades
         WHERE outcome IN ('WIN', 'LOSS')
-          AND entry_at >= DATE_SUB(UTC_TIMESTAMP(), INTERVAL :days DAY)
+          AND DATE(DATE_ADD(entry_at, INTERVAL 9 HOUR)) >= :cutoff
+          AND DATE(DATE_ADD(entry_at, INTERVAL 9 HOUR)) <= :target_date
     """
 
     with engine.connect() as conn:
-        rows = conn.execute(sa.text(SESSION_SQL), {"days": RETENTION_DAYS}).fetchall()
+        rows = conn.execute(sa.text(SESSION_SQL), {
+            "cutoff":      cutoff,
+            "target_date": target_date,
+        }).fetchall()
 
         # PF/DD ルックアップ（指標名 → 最初に見つかった backtest_results の値）
         bt_rows = conn.execute(sa.text(
@@ -311,11 +322,11 @@ def save_session_data_to_db(days: int = 30):
             "DELETE FROM session_trade_history WHERE trade_date < :cutoff"
         ), {"cutoff": cutoff})
         conn.execute(sa.text(
-            "DELETE FROM session_trade_history WHERE trade_date = :today"
-        ), {"today": today})
+            "DELETE FROM session_trade_history WHERE trade_date = :target_date"
+        ), {"target_date": target_date})
 
         for r in rows:
-            if str(r.trade_date) != str(today):
+            if str(r.trade_date) != str(target_date):
                 continue
             conn.execute(sa.text("""
                 INSERT INTO session_trade_history
@@ -343,8 +354,8 @@ def save_session_data_to_db(days: int = 30):
                 d["wins"] += 1
 
         conn.execute(sa.text(
-            "DELETE FROM session_ranking_results WHERE snapshot_date = :today"
-        ), {"today": today})
+            "DELETE FROM session_ranking_results WHERE snapshot_date = :target_date"
+        ), {"target_date": target_date})
 
         for sk, inds in sess_agg.items():
             cards = []
@@ -377,14 +388,14 @@ def save_session_data_to_db(days: int = 30):
                      avg_pnl, score, computed_at)
                     VALUES (:sk, :d, :rk, :ind, :wr, :pf, :dd, :tr, :ap, :sc, :ca)
                 """), {
-                    "sk": sk,  "d":  today, "rk": rank, "ind": c["indicator_name"],
+                    "sk": sk,  "d":  target_date, "rk": rank, "ind": c["indicator_name"],
                     "wr": c["win_rate"],    "pf": c["profit_factor"],
                     "dd": c["max_drawdown"], "tr": c["total_trades"],
                     "ap": c["avg_pnl"],     "sc": c["score"],         "ca": now,
                 })
 
         conn.commit()
-    logger.info("セッション別データ保存完了 (日付=%s)", today)
+    logger.info("セッション別データ保存完了 (日付=%s)", target_date)
 
 
 # ---------- メイン ----------
