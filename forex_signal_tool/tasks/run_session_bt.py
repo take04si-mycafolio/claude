@@ -182,7 +182,12 @@ def main():
                             ets = t["entry_ts"]
                             if hasattr(ets, "to_pydatetime"):
                                 ets = ets.to_pydatetime()
-                            trade_date_jst = (ets + timedelta(hours=9)).date()
+                            ets_jst = ets + timedelta(hours=9)
+                            trade_date_jst = ets_jst.date()
+                            # NYセッションは深夜0時またぎ。JST 00:00-07:59 のトレードは
+                            # 前日21:00から続くNYセッション分なので1日戻す
+                            if sk == "ny" and ets_jst.hour < 8:
+                                trade_date_jst = trade_date_jst - timedelta(days=1)
                             if trade_date_jst < trade_cutoff:
                                 continue
                             xts = t.get("exit_ts")
