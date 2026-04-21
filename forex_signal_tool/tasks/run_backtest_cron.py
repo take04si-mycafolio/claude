@@ -5,10 +5,29 @@
 run_ranking_bt.py はパラメータファイルが必要なため、
 このスクリプトがデフォルトパラメータを用意して呼び出す。
 
-Xサーバー Cronジョブ設定例（2時間ごと）:
-  0 */2 * * * /home/xs539690/forex_env/bin/python3 \
+---
+Xサーバー Cronジョブ設定（市場セッション終了後に実行）:
+
+  # 東京セッション終了後 (JST 15:30 = UTC 06:30)
+  30 6 * * 1-5 /home/xs539690/forex_env/bin/python3 \
     /home/xs539690/forex_project/forex_signal_tool/tasks/run_backtest_cron.py \
     >> /tmp/ranking_bt.log 2>&1
+
+  # ロンドンセッション終了後 (JST 21:30 = UTC 12:30)
+  30 12 * * 1-5 /home/xs539690/forex_env/bin/python3 \
+    /home/xs539690/forex_project/forex_signal_tool/tasks/run_backtest_cron.py \
+    >> /tmp/ranking_bt.log 2>&1
+
+  # NYセッション終了後 (JST 翌9:30 = UTC 00:30 / 曜日は火〜土)
+  30 0 * * 2-6 /home/xs539690/forex_env/bin/python3 \
+    /home/xs539690/forex_project/forex_signal_tool/tasks/run_backtest_cron.py \
+    >> /tmp/ranking_bt.log 2>&1
+
+セッション時間（JST基準）:
+  東京   09:00〜15:00  → 終了後 15:30 に実行
+  ロンドン 15:00〜21:00  → 終了後 21:30 に実行
+  NY    21:00〜翌09:00 → 終了後 翌09:30 に実行
+---
 """
 import sys
 import os
