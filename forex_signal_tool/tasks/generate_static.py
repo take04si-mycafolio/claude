@@ -907,8 +907,8 @@ def get_timezone_ranking(url_map: dict) -> list:
     try:
         engine = sqlalchemy.create_engine(Config.SQLALCHEMY_DATABASE_URI)
         with engine.connect() as conn:
-            # cutoff 以内のデータがなければ「今日より前の最新データ」にフォールバック
-            # （今日の未終了セッションデータは絶対に使わない）
+            # カットオフ以内のデータを優先。なければ最新スナップショットにフォールバック
+            # （ランキング自体は常に表示。日付ラベルはセッション完了時のみ表示）
             rows = conn.execute(sqlalchemy.text("""
                 SELECT r.session_key, r.rank_position, r.indicator_name,
                        r.win_rate, r.profit_factor, r.max_drawdown,
@@ -922,7 +922,7 @@ def get_timezone_ranking(url_map: dict) -> list:
                                    WHEN session_key = 'london' AND snapshot_date <= :london_cutoff THEN snapshot_date
                                    WHEN session_key = 'ny'     AND snapshot_date <= :ny_cutoff     THEN snapshot_date
                                END),
-                               MAX(CASE WHEN snapshot_date < :today THEN snapshot_date END)
+                               MAX(snapshot_date)
                            ) AS max_date
                     FROM session_ranking_results
                     GROUP BY session_key
@@ -933,7 +933,6 @@ def get_timezone_ranking(url_map: dict) -> list:
                 "japan_cutoff":  cutoffs["japan"],
                 "london_cutoff": cutoffs["london"],
                 "ny_cutoff":     cutoffs["ny"],
-                "today":         today,
             }).fetchall()
     except Exception as e:
         logger.warning("timezone_ranking (DB) failed: %s", e)
@@ -965,17 +964,19 @@ def get_timezone_ranking(url_map: dict) -> list:
             "score":     int(row[8] or 0),
             "url":       url_map.get(ind, ""),
         })
+        # 日付ラベルはセッションが完了している（cutoff以内）場合のみ表示
         if sk not in sess_dates and row[9]:
-            d = row[9]
-            if hasattr(d, "month"):
-                sess_dates[sk] = f"{d.month}月{d.day}日"
+            raw = row[9]
+            if hasattr(raw, "month"):
+                snap_date = raw
             else:
                 try:
                     from datetime import datetime as _dt
-                    dobj = _dt.strptime(str(d), "%Y-%m-%d")
-                    sess_dates[sk] = f"{dobj.month}月{dobj.day}日"
+                    snap_date = _dt.strptime(str(raw), "%Y-%m-%d").date()
                 except Exception:
-                    sess_dates[sk] = str(d)
+                    snap_date = None
+            if snap_date and snap_date <= cutoffs[sk]:
+                sess_dates[sk] = f"{snap_date.month}月{snap_date.day}日"
 
     result = []
     for s in SESSIONS:
