@@ -901,6 +901,15 @@ def get_timezone_ranking(url_map: dict) -> list:
         engine = sqlalchemy.create_engine(Config.SQLALCHEMY_DATABASE_URI)
         with engine.connect() as conn:
             rows = conn.execute(sqlalchemy.text(sql)).fetchall()
+            bt_rows = conn.execute(sqlalchemy.text(
+                "SELECT indicator_name, profit_factor, max_drawdown "
+                "FROM backtest_results ORDER BY win_rate DESC"
+            )).fetchall()
+        bt_lookup: dict = {}
+        for br in bt_rows:
+            ind_n = br[0]
+            if ind_n not in bt_lookup:
+                bt_lookup[ind_n] = {"pf": float(br[1] or 0), "dd": float(br[2] or 0)}
     except Exception as e:
         logger.warning("timezone_ranking query failed: %s", e)
         return []
@@ -921,16 +930,21 @@ def get_timezone_ranking(url_map: dict) -> list:
         info = INDICATOR_INFO.get(ind, {})
         if not info:
             continue
-        wr = round(wins / total * 100, 1) if total > 0 else 0
+        wr  = round(wins / total * 100, 1) if total > 0 else 0
+        bt  = bt_lookup.get(ind, {})
+        pf  = bt.get("pf", 0.0)
+        dd  = round(abs(bt.get("dd", 0.0)) / 1_000_000 * 100, 1)
         sess_data[sess].append({
             "indicator": ind,
             "display":   info.get("display", ind),
             "short":     info.get("display", ind).split("（")[0],
             "one_liner": IND_ONE_LINERS.get(ind, ""),
             "win_rate":  wr,
+            "pf":        round(pf, 2),
+            "dd":        dd,
             "trades":    total,
             "avg_pnl":   round(avg_pnl, 0),
-            "score":     _pur_score(wr, 1.0, total),
+            "score":     _pur_score(wr, pf if pf > 0 else 1.0, total),
             "url":       url_map.get(ind, ""),
         })
 
@@ -1027,6 +1041,21 @@ def get_market_type_ranking(url_map: dict) -> list:
         {"key": "range", "label": "レンジ相場",    "icon": "bi-arrows-expand",
          "color": "mt-green", "desc": "BB幅が収縮し、EMAが横ばいの局面",  "badge": "逆張り向き"},
     ]
+    # backtest_results からPF・DDを取得
+    bt_lookup: dict = {}
+    try:
+        with engine.connect() as conn2:
+            bt_rows = conn2.execute(sqlalchemy.text(
+                "SELECT indicator_name, profit_factor, max_drawdown "
+                "FROM backtest_results ORDER BY win_rate DESC"
+            )).fetchall()
+        for br in bt_rows:
+            ind_n = br[0]
+            if ind_n not in bt_lookup:
+                bt_lookup[ind_n] = {"pf": float(br[1] or 0), "dd": float(br[2] or 0)}
+    except Exception as e:
+        logger.warning("market_type: bt_lookup failed: %s", e)
+
     result = []
     for mt in MARKET_TYPES:
         sub   = agg[agg["market_type"] == mt["key"]]
@@ -1036,15 +1065,20 @@ def get_market_type_ranking(url_map: dict) -> list:
             info = INDICATOR_INFO.get(ind, {})
             if not info:
                 continue
-            wr = float(row["win_rate"])
+            wr  = float(row["win_rate"])
+            bt  = bt_lookup.get(ind, {})
+            pf  = bt.get("pf", 0.0)
+            dd  = round(abs(bt.get("dd", 0.0)) / 1_000_000 * 100, 1)
             cards.append({
                 "indicator": ind,
                 "display":   info.get("display", ind),
                 "short":     info.get("display", ind).split("（")[0],
                 "one_liner": IND_ONE_LINERS.get(ind, ""),
                 "win_rate":  wr,
+                "pf":        round(pf, 2),
+                "dd":        dd,
                 "trades":    int(row["total"]),
-                "score":     _pur_score(wr, 1.0, int(row["total"])),
+                "score":     _pur_score(wr, pf if pf > 0 else 1.0, int(row["total"])),
                 "url":       url_map.get(ind, ""),
             })
         cards.sort(key=lambda x: x["score"], reverse=True)
