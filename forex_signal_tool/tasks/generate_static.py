@@ -874,9 +874,16 @@ def get_purpose_ranking(all_bt: list, url_map: dict) -> list:
 
 
 def get_timezone_ranking(url_map: dict) -> list:
-    """時間帯別ランキング。session_ranking_results テーブルの最新スナップショットを参照。"""
+    """時間帯別ランキング。session_ranking_results テーブルの最新スナップショットを参照。
+
+    各セッションの完了時刻（JST）を考慮し、未終了セッションは前日データを表示する:
+      東京  : JST 15:00 完了 → 15時前は前日スナップショット
+      ロンドン: JST 21:00 完了 → 21時前は前日スナップショット
+      NY    : JST 翌08:00 完了 → 08時前は2日前スナップショット（trade_date は21:00起算日）
+    """
     import sqlalchemy
     from app.config import Config
+    from datetime import datetime, timedelta, date as _date
 
     SESSIONS = [
         {"key": "japan",  "label": "東京時間",   "icon": "bi-brightness-high", "color": "tz-red",    "hours": "JST 09:00〜15:00"},
@@ -884,21 +891,42 @@ def get_timezone_ranking(url_map: dict) -> list:
         {"key": "ny",     "label": "NY時間",      "icon": "bi-moon-stars",      "color": "tz-purple", "hours": "JST 21:00〜09:00"},
     ]
 
+    # 現在の JST 時刻でセッション完了済みかを判定し、各セッションの有効な最大スナップショット日を決める
+    now_jst  = datetime.utcnow() + timedelta(hours=9)
+    today    = now_jst.date()
+    yesterday  = today - timedelta(days=1)
+    two_ago    = today - timedelta(days=2)
+    jst_hour   = now_jst.hour
+
+    cutoffs = {
+        "japan":  today     if jst_hour >= 15 else yesterday,
+        "london": today     if jst_hour >= 21 else yesterday,
+        "ny":     yesterday if jst_hour >= 8  else two_ago,
+    }
+
     try:
         engine = sqlalchemy.create_engine(Config.SQLALCHEMY_DATABASE_URI)
         with engine.connect() as conn:
             rows = conn.execute(sqlalchemy.text("""
-                SELECT session_key, rank_position, indicator_name,
-                       win_rate, profit_factor, max_drawdown,
-                       total_trades, avg_pnl, score, snapshot_date
-                FROM session_ranking_results
-                WHERE (session_key, snapshot_date) IN (
-                    SELECT session_key, MAX(snapshot_date)
+                SELECT r.session_key, r.rank_position, r.indicator_name,
+                       r.win_rate, r.profit_factor, r.max_drawdown,
+                       r.total_trades, r.avg_pnl, r.score, r.snapshot_date
+                FROM session_ranking_results r
+                INNER JOIN (
+                    SELECT session_key, MAX(snapshot_date) AS max_date
                     FROM session_ranking_results
+                    WHERE (session_key = 'japan'  AND snapshot_date <= :japan_cutoff)
+                       OR (session_key = 'london' AND snapshot_date <= :london_cutoff)
+                       OR (session_key = 'ny'     AND snapshot_date <= :ny_cutoff)
                     GROUP BY session_key
-                )
-                ORDER BY session_key, rank_position
-            """)).fetchall()
+                ) latest ON r.session_key = latest.session_key
+                        AND r.snapshot_date = latest.max_date
+                ORDER BY r.session_key, r.rank_position
+            """), {
+                "japan_cutoff":  cutoffs["japan"],
+                "london_cutoff": cutoffs["london"],
+                "ny_cutoff":     cutoffs["ny"],
+            }).fetchall()
     except Exception as e:
         logger.warning("timezone_ranking (DB) failed: %s", e)
         return []
