@@ -907,7 +907,7 @@ def get_timezone_ranking(url_map: dict) -> list:
     try:
         engine = sqlalchemy.create_engine(Config.SQLALCHEMY_DATABASE_URI)
         with engine.connect() as conn:
-            # cutoff 以前のスナップショットが存在しない場合は最新にフォールバック
+            # cutoff 以前のスナップショットが存在しないセッションは表示しない（フォールバックなし）
             rows = conn.execute(sqlalchemy.text("""
                 SELECT r.session_key, r.rank_position, r.indicator_name,
                        r.win_rate, r.profit_factor, r.max_drawdown,
@@ -915,14 +915,11 @@ def get_timezone_ranking(url_map: dict) -> list:
                 FROM session_ranking_results r
                 INNER JOIN (
                     SELECT session_key,
-                           COALESCE(
-                               MAX(CASE
-                                   WHEN session_key = 'japan'  AND snapshot_date <= :japan_cutoff  THEN snapshot_date
-                                   WHEN session_key = 'london' AND snapshot_date <= :london_cutoff THEN snapshot_date
-                                   WHEN session_key = 'ny'     AND snapshot_date <= :ny_cutoff     THEN snapshot_date
-                               END),
-                               MAX(snapshot_date)
-                           ) AS max_date
+                           MAX(CASE
+                               WHEN session_key = 'japan'  AND snapshot_date <= :japan_cutoff  THEN snapshot_date
+                               WHEN session_key = 'london' AND snapshot_date <= :london_cutoff THEN snapshot_date
+                               WHEN session_key = 'ny'     AND snapshot_date <= :ny_cutoff     THEN snapshot_date
+                           END) AS max_date
                     FROM session_ranking_results
                     GROUP BY session_key
                 ) latest ON r.session_key = latest.session_key
