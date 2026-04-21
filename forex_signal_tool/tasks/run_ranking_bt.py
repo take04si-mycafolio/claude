@@ -379,9 +379,21 @@ def save_session_data_to_db(days: int = 1, target_date=None):
             HAVING COUNT(*) >= 3
         """)).fetchall()
 
-        conn.execute(sa.text(
-            "DELETE FROM session_ranking_results WHERE snapshot_date = :target_date"
-        ), {"target_date": target_date})
+        # snapshot_date は session_trade_history.trade_date と同じ「開始日」規約。
+        # NY は日またぎセッションなので開始日 = target_date - 1 day。
+        ny_snapshot_date = target_date - timedelta(days=1)
+        session_snapshot_date = {
+            "japan":  target_date,
+            "london": target_date,
+            "ny":     ny_snapshot_date,
+        }
+
+        # 各セッションの当該 snapshot_date を削除（他日付は保持）
+        for sk, sd in session_snapshot_date.items():
+            conn.execute(sa.text(
+                "DELETE FROM session_ranking_results "
+                "WHERE session_key = :sk AND snapshot_date = :sd"
+            ), {"sk": sk, "sd": sd})
 
         sess_cards = defaultdict(list)
         for r in agg_rows:
@@ -406,6 +418,7 @@ def save_session_data_to_db(days: int = 1, target_date=None):
             })
 
         for sk, cards in sess_cards.items():
+            sd = session_snapshot_date.get(sk, target_date)
             for rank, c in enumerate(
                 sorted(cards, key=lambda x: x["score"], reverse=True)[:5], 1
             ):
@@ -416,7 +429,7 @@ def save_session_data_to_db(days: int = 1, target_date=None):
                      avg_pnl, score, computed_at)
                     VALUES (:sk, :d, :rk, :ind, :wr, :pf, :dd, :tr, :ap, :sc, :ca)
                 """), {
-                    "sk": sk, "d": target_date, "rk": rank, "ind": c["indicator_name"],
+                    "sk": sk, "d": sd, "rk": rank, "ind": c["indicator_name"],
                     "wr": c["win_rate"],    "pf": c["profit_factor"],
                     "dd": c["max_drawdown"], "tr": c["total_trades"],
                     "ap": c["avg_pnl"],     "sc": c["score"], "ca": now,
