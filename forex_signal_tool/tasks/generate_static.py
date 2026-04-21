@@ -906,9 +906,9 @@ def get_timezone_ranking(url_map: dict) -> list:
         return []
 
     SESSIONS = [
-        {"key": "japan",  "label": "東京時間（9〜15時）",    "icon": "bi-brightness-high", "color": "tz-red",    "hours": "JST 09:00〜15:00"},
-        {"key": "london", "label": "ロンドン時間（15〜21時）","icon": "bi-cloud-sun",       "color": "tz-blue",   "hours": "JST 15:00〜21:00"},
-        {"key": "ny",     "label": "NY時間（21〜翌9時）",     "icon": "bi-moon-stars",      "color": "tz-purple", "hours": "JST 21:00〜09:00"},
+        {"key": "japan",  "label": "東京時間",   "icon": "bi-brightness-high", "color": "tz-red",    "hours": "JST 09:00〜15:00"},
+        {"key": "london", "label": "ロンドン時間", "icon": "bi-cloud-sun",       "color": "tz-blue",   "hours": "JST 15:00〜21:00"},
+        {"key": "ny",     "label": "NY時間",      "icon": "bi-moon-stars",      "color": "tz-purple", "hours": "JST 21:00〜09:00"},
     ]
     sess_data: dict = {s["key"]: [] for s in SESSIONS}
 
