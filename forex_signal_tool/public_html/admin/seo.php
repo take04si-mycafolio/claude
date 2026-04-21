@@ -1095,18 +1095,14 @@ async function loadSessBreakdown(date) {
     const d   = await res.json();
     if (d.status !== 'ok') return;
 
-    // 日付タブを初回のみ構築
-    if (sessBreakdownDates.length === 0 && d.dates && d.dates.length > 0) {
+    // 日付タブを毎回再構築（データ追加後も最新の日付一覧を反映）
+    if (d.dates && d.dates.length > 0) {
       sessBreakdownDates = d.dates;
       const tabWrap = document.getElementById('sess-date-tabs');
       tabWrap.innerHTML = d.dates.map(dt =>
-        `<button class="sess-date-tab" data-date="${dt}" onclick="loadSessBreakdown('${dt}')">${fmtDateTab(dt)}</button>`
+        `<button class="sess-date-tab${dt === d.current_date ? ' active' : ''}" data-date="${dt}" onclick="loadSessBreakdown('${dt}')">${fmtDateTab(dt)}</button>`
       ).join('');
     }
-    // アクティブタブを更新
-    document.querySelectorAll('.sess-date-tab').forEach(b => {
-      b.classList.toggle('active', b.dataset.date === d.current_date);
-    });
 
     const summaryMap = {};
     (d.summary || []).forEach(r => summaryMap[r.session_key] = r);
@@ -1126,9 +1122,9 @@ async function loadSessBreakdown(date) {
         ? '<div style="font-size:11px;color:#475569;padding:6px 0">データなし（2回未満）</div>'
         : top.map(t => `
             <div style="display:flex;justify-content:space-between;align-items:center;padding:4px 0;border-bottom:1px solid #1e293b">
-              <span style="font-size:11px;color:#94a3b8;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:65%">${t.indicator_name}</span>
+              <span style="font-size:11px;color:#94a3b8;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:55%">${t.rank_position}位 ${t.indicator_name}</span>
               <span style="font-size:11px;font-weight:700;color:${parseFloat(t.win_rate)>=55?'#4ade80':parseFloat(t.win_rate)>=50?'#fbbf24':'#f87171'};flex-shrink:0">
-                ${t.win_rate}% <span style="color:#475569;font-weight:400">(${t.total}回)</span>
+                ${t.win_rate}% <span style="color:#475569;font-weight:400">PF${parseFloat(t.profit_factor).toFixed(2)}</span>
               </span>
             </div>`).join('');
 
@@ -1165,7 +1161,7 @@ async function loadSessBreakdown(date) {
         <div style="background:#1e293b;height:6px;border-radius:3px;overflow:hidden;margin-bottom:10px">
           <div style="width:${wr}%;height:100%;background:${barColor};border-radius:3px;transition:width .6s"></div>
         </div>
-        <div style="font-size:11px;font-weight:600;color:#64748b;margin-bottom:4px;margin-top:8px">上位指標（勝率）</div>
+        <div style="font-size:11px;font-weight:600;color:#64748b;margin-bottom:4px;margin-top:8px">ランキング（全期間BT集計）</div>
         ${topHTML}
       `;
     });

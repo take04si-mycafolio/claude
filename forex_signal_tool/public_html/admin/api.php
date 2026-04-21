@@ -1539,29 +1539,30 @@ switch ($action) {
             $stmt->execute([':d' => $reqDate]);
             $summaryRows = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
-            // セッション別上位指標（2回以上）
-            $topSQL = "
-                SELECT
-                    session_key,
-                    indicator_name,
-                    COUNT(*)             AS total,
-                    SUM(outcome = 'WIN') AS wins,
-                    ROUND(SUM(outcome = 'WIN') / COUNT(*) * 100, 1) AS win_rate
-                FROM session_trade_history
-                WHERE trade_date = :d
-                GROUP BY session_key, indicator_name
-                HAVING COUNT(*) >= 2
-                ORDER BY session_key, win_rate DESC
+            // セッション別ランキング（session_ranking_results の最新スナップショット）
+            // 選択日付以前の最新スナップショットを参照してランキングと一致させる
+            $rankSQL = "
+                SELECT r.session_key, r.rank_position, r.indicator_name,
+                       r.win_rate, r.profit_factor, r.total_trades, r.score
+                FROM session_ranking_results r
+                INNER JOIN (
+                    SELECT session_key, MAX(snapshot_date) AS max_date
+                    FROM session_ranking_results
+                    WHERE snapshot_date <= :d
+                    GROUP BY session_key
+                ) latest ON r.session_key = latest.session_key
+                        AND r.snapshot_date = latest.max_date
+                ORDER BY r.session_key, r.rank_position
             ";
-            $stmt2 = $pdo->prepare($topSQL);
+            $stmt2 = $pdo->prepare($rankSQL);
             $stmt2->execute([':d' => $reqDate]);
-            $topRows = $stmt2->fetchAll(PDO::FETCH_ASSOC);
+            $rankRows = $stmt2->fetchAll(PDO::FETCH_ASSOC);
 
             $top = [];
-            foreach ($topRows as $r) {
+            foreach ($rankRows as $r) {
                 $sk = $r['session_key'];
                 if (!isset($top[$sk])) $top[$sk] = [];
-                if (count($top[$sk]) < 5) $top[$sk][] = $r;
+                $top[$sk][] = $r;
             }
 
             json_out([
