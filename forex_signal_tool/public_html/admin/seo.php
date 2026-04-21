@@ -357,13 +357,14 @@ h2{font-size:19px;font-weight:700;color:#f1f5f9;margin-bottom:4px}
       <div style="font-size:13px;font-weight:600;color:#e2e8f0;margin-bottom:8px">分析期間（日数）</div>
       <p class="cont-sub" style="margin-bottom:10px">シミュレーショントレードのうち、何日前までを集計対象にするかを指定します。</p>
       <div style="display:flex;gap:8px;flex-wrap:wrap">
-        <button class="sess-days-btn active" data-days="7" onclick="setSessDays(this)">7日</button>
+        <button class="sess-days-btn active" data-days="1" onclick="setSessDays(this)">1日</button>
+        <button class="sess-days-btn" data-days="7" onclick="setSessDays(this)">7日</button>
         <button class="sess-days-btn" data-days="14" onclick="setSessDays(this)">14日</button>
         <button class="sess-days-btn" data-days="30" onclick="setSessDays(this)">30日</button>
         <button class="sess-days-btn" data-days="60" onclick="setSessDays(this)">60日</button>
         <button class="sess-days-btn" data-days="90" onclick="setSessDays(this)">90日</button>
       </div>
-      <div style="margin-top:8px;font-size:12px;color:#94a3b8">選択中: <span id="sess-days-label">7日</span></div>
+      <div style="margin-top:8px;font-size:12px;color:#94a3b8">選択中: <span id="sess-days-label">1日</span></div>
     </div>
 
     <!-- 実行 -->
@@ -986,7 +987,7 @@ function downloadCsv() {
 }
 
 // ===== 市場セッション別ランキング更新 =====
-let sessDays      = 7;
+let sessDays      = 1;
 let sessPollTimer = null;
 
 function setSessDays(btn) {
