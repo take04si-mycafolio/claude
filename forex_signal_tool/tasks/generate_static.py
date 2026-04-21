@@ -2432,6 +2432,20 @@ def main():
             and (r.get("total_trades") or 0) >= 10
         ]
 
+        # 手法別おすすめをランキングと同タイミングで再生成
+        try:
+            from tasks.run_ranking_bt import generate_recommendations, save_recommendations_to_db
+            _recs      = generate_recommendations(all_bt_ranked, INDICATOR_INFO)
+            save_recommendations_to_db(_recs)
+            recs_short = _recs.get("short", {})
+            recs_day   = _recs.get("day",   {})
+            recs_swing = _recs.get("swing", {})
+        except Exception as _e:
+            logger.warning("recommendations auto-generate failed: %s", _e)
+            recs_short = _parse_recs("ranking_short_term")
+            recs_day   = _parse_recs("ranking_day_trade")
+            recs_swing = _parse_recs("ranking_swing")
+
         # 3軸ランキングデータ生成
         purpose_ranking  = []
         timezone_ranking = []
@@ -2507,9 +2521,9 @@ def main():
             "content_analysis": content_db.get("ranking_analysis", ""),
             "ranking_title":    content_db.get("ranking_title", ""),
             "ranking_intro":    content_db.get("ranking_intro", ""),
-            "recs_short":       _parse_recs("ranking_short_term"),
-            "recs_day":         _parse_recs("ranking_day_trade"),
-            "recs_swing":       _parse_recs("ranking_swing"),
+            "recs_short":       recs_short,
+            "recs_day":         recs_day,
+            "recs_swing":       recs_swing,
             "bt_sl_pips":       bt_sl_pips,
             "bt_tp_pips":       bt_tp_pips,
             "bt_rr_ratio":      bt_rr_ratio,

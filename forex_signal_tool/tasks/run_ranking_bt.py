@@ -26,7 +26,7 @@ RESULT_FILE = "/tmp/ranking_bt_result.json"
 
 SHORT_TFS = ["5min", "15min", "30min"]
 DAY_TFS   = ["1hr", "4hr"]
-SWING_TFS = []   # daily は fetch 廃止につき除外
+SWING_TFS = ["daily"]
 
 TF_LABELS = {
     "5min": "5分足", "15min": "15分足", "30min": "30分足",
@@ -122,17 +122,20 @@ def calc_score(r: dict) -> int:
 
 # ---------- 手法別おすすめ自動生成 ----------
 
-def generate_recommendations(all_results: list) -> dict:
+def generate_recommendations(all_results: list, ind_info: dict = None) -> dict:
     """
     バックテスト結果から手法別・ペア別スコア上位5件を生成。
     返す形式:
-      {"USDJPY": [...5件], "GBPJPY": [...5件], "EURJPY": [...5件]}
+      {"short": {"USDJPY": [...], ...}, "day": {...}, "swing": {...}}
+
+    ind_info: INDICATOR_INFO を外部から渡せる（循環インポート回避用）
     """
-    # INDICATOR_INFO をインポートして表示名を取得
-    try:
-        from tasks.generate_static import INDICATOR_INFO
-    except ImportError:
-        INDICATOR_INFO = {}
+    if ind_info is None:
+        try:
+            from tasks.generate_static import INDICATOR_INFO as _II
+            ind_info = _II
+        except ImportError:
+            ind_info = {}
 
     method_tfs = {
         "short": SHORT_TFS,
@@ -162,7 +165,7 @@ def generate_recommendations(all_results: list) -> dict:
             recs = []
             for r in top5:
                 ind_name = r.get("indicator_name", "")
-                info     = INDICATOR_INFO.get(ind_name, {})
+                info     = ind_info.get(ind_name, {})
                 display  = info.get("display", ind_name)
                 tf_lbl   = TF_LABELS.get(r.get("timeframe", ""), r.get("timeframe", ""))
                 recs.append({
