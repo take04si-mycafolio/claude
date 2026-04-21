@@ -1540,7 +1540,7 @@ switch ($action) {
             $summaryRows = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
             // セッション別ランキング（session_ranking_results の最新スナップショット）
-            // 選択日付以前の最新スナップショットを参照してランキングと一致させる
+            // 「全期間BT集計」なので選択日付に関係なく、各セッションの最新スナップショットを表示
             $rankSQL = "
                 SELECT r.session_key, r.rank_position, r.indicator_name,
                        r.win_rate, r.profit_factor, r.total_trades, r.score
@@ -1548,14 +1548,13 @@ switch ($action) {
                 INNER JOIN (
                     SELECT session_key, MAX(snapshot_date) AS max_date
                     FROM session_ranking_results
-                    WHERE snapshot_date <= :d
                     GROUP BY session_key
                 ) latest ON r.session_key = latest.session_key
                         AND r.snapshot_date = latest.max_date
                 ORDER BY r.session_key, r.rank_position
             ";
             $stmt2 = $pdo->prepare($rankSQL);
-            $stmt2->execute([':d' => $reqDate]);
+            $stmt2->execute();
             $rankRows = $stmt2->fetchAll(PDO::FETCH_ASSOC);
 
             $top = [];
