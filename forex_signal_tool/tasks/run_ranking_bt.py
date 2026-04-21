@@ -247,26 +247,23 @@ def _session_score(wr: float, pf: float, total: int) -> int:
     return wr_s + pf_s + n_s
 
 
-def save_session_data_to_db(days: int = 30, target_date=None):
+def save_session_data_to_db(days: int = 1, target_date=None):
     """
     simulation_trades からセッション別データを計算し2テーブルに保存。
 
-    処理の流れ:
-      1. target_date のトレードを simulation_trades から取得
-      2. session_trade_history に保存（30日ローリング固定）
-      3. session_trade_history の全蓄積データからセッション別ランキングを再計算
-         → days の大小に関わらず常に蓄積済み全データを使うため
-            ロンドン・NYも十分なサンプルでランキングが生成される
+    days > 1 のとき target_date を終端として過去 days 日分を一括保存（バックフィル）。
+    例: days=7, target_date=4/21 → 4/15〜4/21 の7日分を session_trade_history に保存。
+    ランキング（session_ranking_results）は全蓄積データから1回だけ再計算し target_date で保存。
 
-    target_date: 保存対象日（None=当日、"YYYY-MM-DD" or date オブジェクト）
-    days       : simulation_trades の参照期間（backfill用、デフォルト30）
+    target_date: 保存対象の終端日（None=当日、"YYYY-MM-DD" or date オブジェクト）
+    days       : 保存する日数（1=当日のみ、7=過去7日分など）
     """
     import sqlalchemy as sa
     from app.config import Config
     from collections import defaultdict
     from datetime import date, datetime as _dt, timedelta, timezone
 
-    RETENTION_DAYS = 30  # 履歴保持期間は常に30日固定
+    RETENTION_DAYS = 30
     engine = sa.create_engine(Config.SQLALCHEMY_DATABASE_URI)
 
     if target_date is None:
@@ -274,10 +271,11 @@ def save_session_data_to_db(days: int = 30, target_date=None):
     elif isinstance(target_date, str):
         target_date = _dt.strptime(target_date, "%Y-%m-%d").date()
 
+    # 処理対象日リスト（古い順）
+    date_range = [target_date - timedelta(days=i) for i in range(days - 1, -1, -1)]
     cutoff = target_date - timedelta(days=RETENTION_DAYS)
     now    = datetime.now(timezone.utc).replace(tzinfo=None)
 
-    # target_date 当日のトレードのみ取得（セッション分類付き）
     SESSION_SQL = """
         SELECT
             indicator_name,
@@ -328,38 +326,42 @@ def save_session_data_to_db(days: int = 30, target_date=None):
             if br[0] not in bt_lk:
                 bt_lk[br[0]] = {"pf": float(br[1] or 0), "dd": float(br[2] or 0)}
 
-        # ── Step1: session_trade_history 更新 ──
-        rows = conn.execute(sa.text(SESSION_SQL), {"target_date": target_date}).fetchall()
-
-        # 30日より古いデータを削除
+        # ── Step1: session_trade_history 更新（days 日分ループ）──
+        # 30日より古いデータを先に削除
         conn.execute(sa.text(
             "DELETE FROM session_trade_history WHERE trade_date < :cutoff"
         ), {"cutoff": cutoff})
-        # target_date 分を削除して再挿入
-        conn.execute(sa.text(
-            "DELETE FROM session_trade_history WHERE trade_date = :target_date"
-        ), {"target_date": target_date})
-        for r in rows:
-            conn.execute(sa.text("""
-                INSERT INTO session_trade_history
-                (session_key, trade_date, indicator_name, currency_pair, timeframe,
-                 entry_at, direction, entry_price, tp_price, sl_price, sl_pips, tp_pips,
-                 exit_at, exit_price, outcome, profit_loss, created_at)
-                VALUES (:sk, :td, :ind, :cp, :tf, :ea, :dir, :ep, :tp, :sl,
-                        :slp, :tpp, :xa, :xp, :oc, :pl, :ca)
-            """), {
-                "sk":  r.session_key,  "td": r.trade_date,    "ind": r.indicator_name,
-                "cp":  r.currency_pair, "tf": r.timeframe,
-                "ea":  r.entry_at,     "dir": r.direction,    "ep":  r.entry_price,
-                "tp":  r.tp_price,     "sl":  r.sl_price,     "slp": r.sl_pips,
-                "tpp": r.tp_pips,      "xa":  r.exit_at,      "xp":  r.exit_price,
-                "oc":  r.outcome,      "pl":  r.profit_loss,  "ca":  now,
-            })
-        conn.commit()
-        logger.info("  session_trade_history 更新完了: %s (%d件)", target_date, len(rows))
 
-        # ── Step2: session_ranking_results を蓄積全データから再計算 ──
-        # 蓄積済み session_trade_history を session × indicator で集計
+        total_inserted = 0
+        for d in date_range:
+            rows = conn.execute(sa.text(SESSION_SQL), {"target_date": d}).fetchall()
+            # 対象日を削除して再挿入
+            conn.execute(sa.text(
+                "DELETE FROM session_trade_history WHERE trade_date = :d"
+            ), {"d": d})
+            for r in rows:
+                conn.execute(sa.text("""
+                    INSERT INTO session_trade_history
+                    (session_key, trade_date, indicator_name, currency_pair, timeframe,
+                     entry_at, direction, entry_price, tp_price, sl_price, sl_pips, tp_pips,
+                     exit_at, exit_price, outcome, profit_loss, created_at)
+                    VALUES (:sk, :td, :ind, :cp, :tf, :ea, :dir, :ep, :tp, :sl,
+                            :slp, :tpp, :xa, :xp, :oc, :pl, :ca)
+                """), {
+                    "sk":  r.session_key,   "td": r.trade_date,    "ind": r.indicator_name,
+                    "cp":  r.currency_pair,  "tf": r.timeframe,
+                    "ea":  r.entry_at,      "dir": r.direction,    "ep":  r.entry_price,
+                    "tp":  r.tp_price,      "sl":  r.sl_price,     "slp": r.sl_pips,
+                    "tpp": r.tp_pips,       "xa":  r.exit_at,      "xp":  r.exit_price,
+                    "oc":  r.outcome,       "pl":  r.profit_loss,  "ca":  now,
+                })
+            total_inserted += len(rows)
+            logger.info("  session_trade_history 更新: %s (%d件)", d, len(rows))
+
+        conn.commit()
+        logger.info("  session_trade_history 更新完了: %d日分 計%d件", len(date_range), total_inserted)
+
+        # ── Step2: session_ranking_results を蓄積全データから再計算（1回のみ）──
         agg_rows = conn.execute(sa.text("""
             SELECT
                 session_key,
@@ -415,7 +417,8 @@ def save_session_data_to_db(days: int = 30, target_date=None):
                     "ap": c["avg_pnl"],     "sc": c["score"], "ca": now,
                 })
         conn.commit()
-    logger.info("セッション別データ保存完了 (日付=%s, 集計対象=%d件)", target_date, len(agg_rows))
+    logger.info("セッション別データ保存完了 (終端日=%s, %d日分, 集計=%d件)",
+                target_date, len(date_range), len(agg_rows))
 
 
 # ---------- メイン ----------

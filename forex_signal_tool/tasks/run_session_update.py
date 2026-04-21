@@ -67,10 +67,11 @@ def main():
     script = os.path.join(os.path.dirname(__file__), "generate_static.py")
     ret    = subprocess.call([sys.executable, script])
 
+    range_label = f"{days}日分" if days > 1 else "1日分"
     if ret == 0:
-        write_status("done", f"完了（{date_label}・過去{days}日のセッションデータ更新・静的ページ生成済み）")
+        write_status("done", f"完了（{date_label} 基準・{range_label}のセッションデータ更新・静的ページ生成済み）")
     else:
-        write_status("done", f"セッションデータ更新完了 ※静的ページ生成失敗")
+        write_status("done", f"セッションデータ更新完了（{date_label} 基準・{range_label}）※静的ページ生成失敗")
     logger.info("セッション別データ更新完了")
 
 
