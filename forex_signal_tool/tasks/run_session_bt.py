@@ -254,13 +254,23 @@ def main():
 
         # ── session_ranking_results に保存 ──
         write_status("running", "ランキング保存中...")
+        # snapshot_date は session_trade_history.trade_date と同じ「開始日」規約。
+        # NY は日またぎセッションなので開始日 = today - 1 day。
+        session_snapshot_date = {
+            "japan":  today,
+            "london": today,
+            "ny":     today - timedelta(days=1),
+        }
         with engine.connect() as conn:
-            conn.execute(sa.text(
-                "DELETE FROM session_ranking_results WHERE snapshot_date = :d"
-            ), {"d": today})
+            for sk_del, sd_del in session_snapshot_date.items():
+                conn.execute(sa.text(
+                    "DELETE FROM session_ranking_results "
+                    "WHERE session_key = :sk AND snapshot_date = :d"
+                ), {"sk": sk_del, "d": sd_del})
 
             for sess in SESSIONS:
                 sk    = sess["key"]
+                sd    = session_snapshot_date[sk]
                 cards = []
                 for ind, d in sess_agg[sk].items():
                     n = d["total"]
@@ -291,7 +301,7 @@ def main():
                          avg_pnl, score, computed_at)
                         VALUES (:sk, :d, :rk, :ind, :wr, :pf, :dd, :tr, :ap, :sc, :ca)
                     """), {
-                        "sk": sk,  "d": today,           "rk":  rank,
+                        "sk": sk,  "d": sd,             "rk":  rank,
                         "ind": c["indicator_name"],
                         "wr": c["win_rate"],    "pf": c["profit_factor"],
                         "dd": c["max_drawdown"], "tr": c["total_trades"],
