@@ -250,17 +250,23 @@ def _session_score(wr: float, pf: float, total: int) -> int:
 def save_session_data_to_db(days: int = 30, target_date=None):
     """
     simulation_trades からセッション別データを計算し2テーブルに保存。
-    - session_trade_history   : 過去 days 日分トレード全件（古いデータは削除）
-    - session_ranking_results : target_date のスナップショット（上位5件）
 
-    target_date: 保存対象日（None=当日、"YYYY-MM-DD" or date オブジェクトで前日等を指定可）
+    処理の流れ:
+      1. target_date のトレードを simulation_trades から取得
+      2. session_trade_history に保存（30日ローリング固定）
+      3. session_trade_history の全蓄積データからセッション別ランキングを再計算
+         → days の大小に関わらず常に蓄積済み全データを使うため
+            ロンドン・NYも十分なサンプルでランキングが生成される
+
+    target_date: 保存対象日（None=当日、"YYYY-MM-DD" or date オブジェクト）
+    days       : simulation_trades の参照期間（backfill用、デフォルト30）
     """
     import sqlalchemy as sa
     from app.config import Config
     from collections import defaultdict
     from datetime import date, datetime as _dt, timedelta, timezone
 
-    RETENTION_DAYS = max(1, int(days))
+    RETENTION_DAYS = 30  # 履歴保持期間は常に30日固定
     engine = sa.create_engine(Config.SQLALCHEMY_DATABASE_URI)
 
     if target_date is None:
@@ -271,6 +277,7 @@ def save_session_data_to_db(days: int = 30, target_date=None):
     cutoff = target_date - timedelta(days=RETENTION_DAYS)
     now    = datetime.now(timezone.utc).replace(tzinfo=None)
 
+    # target_date 当日のトレードのみ取得（セッション分類付き）
     SESSION_SQL = """
         SELECT
             indicator_name,
@@ -297,17 +304,11 @@ def save_session_data_to_db(days: int = 30, target_date=None):
             DATE(DATE_ADD(entry_at, INTERVAL 9 HOUR)) AS trade_date
         FROM simulation_trades
         WHERE outcome IN ('WIN', 'LOSS')
-          AND DATE(DATE_ADD(entry_at, INTERVAL 9 HOUR)) >= :cutoff
-          AND DATE(DATE_ADD(entry_at, INTERVAL 9 HOUR)) <= :target_date
+          AND DATE(DATE_ADD(entry_at, INTERVAL 9 HOUR)) = :target_date
     """
 
     with engine.connect() as conn:
-        rows = conn.execute(sa.text(SESSION_SQL), {
-            "cutoff":      cutoff,
-            "target_date": target_date,
-        }).fetchall()
-
-        # PF/DD ルックアップ（指標名 → 最初に見つかった backtest_results の値）
+        # PF/DD ルックアップ（指標名 → backtest_results の最良値）
         bt_rows = conn.execute(sa.text(
             "SELECT indicator_name, profit_factor, max_drawdown "
             "FROM backtest_results ORDER BY win_rate DESC"
@@ -317,17 +318,18 @@ def save_session_data_to_db(days: int = 30, target_date=None):
             if br[0] not in bt_lk:
                 bt_lk[br[0]] = {"pf": float(br[1] or 0), "dd": float(br[2] or 0)}
 
-        # ── session_trade_history 更新 ──
+        # ── Step1: session_trade_history 更新 ──
+        rows = conn.execute(sa.text(SESSION_SQL), {"target_date": target_date}).fetchall()
+
+        # 30日より古いデータを削除
         conn.execute(sa.text(
             "DELETE FROM session_trade_history WHERE trade_date < :cutoff"
         ), {"cutoff": cutoff})
+        # target_date 分を削除して再挿入
         conn.execute(sa.text(
             "DELETE FROM session_trade_history WHERE trade_date = :target_date"
         ), {"target_date": target_date})
-
         for r in rows:
-            if str(r.trade_date) != str(target_date):
-                continue
             conn.execute(sa.text("""
                 INSERT INTO session_trade_history
                 (session_key, trade_date, indicator_name, currency_pair, timeframe,
@@ -343,41 +345,50 @@ def save_session_data_to_db(days: int = 30, target_date=None):
                 "tpp": r.tp_pips,      "xa":  r.exit_at,      "xp":  r.exit_price,
                 "oc":  r.outcome,      "pl":  r.profit_loss,  "ca":  now,
             })
+        conn.commit()
+        logger.info("  session_trade_history 更新完了: %s (%d件)", target_date, len(rows))
 
-        # ── session_ranking_results 更新 ──
-        sess_agg = defaultdict(lambda: defaultdict(lambda: {"wins": 0, "total": 0, "pnl_sum": 0.0}))
-        for r in rows:
-            d = sess_agg[r.session_key][r.indicator_name]
-            d["total"]   += 1
-            d["pnl_sum"] += float(r.profit_loss or 0)
-            if r.outcome == "WIN":
-                d["wins"] += 1
+        # ── Step2: session_ranking_results を蓄積全データから再計算 ──
+        # 蓄積済み session_trade_history を session × indicator で集計
+        agg_rows = conn.execute(sa.text("""
+            SELECT
+                session_key,
+                indicator_name,
+                COUNT(*)              AS total,
+                SUM(outcome = 'WIN')  AS wins,
+                AVG(profit_loss)      AS avg_pnl
+            FROM session_trade_history
+            GROUP BY session_key, indicator_name
+            HAVING COUNT(*) >= 3
+        """)).fetchall()
 
         conn.execute(sa.text(
             "DELETE FROM session_ranking_results WHERE snapshot_date = :target_date"
         ), {"target_date": target_date})
 
-        for sk, inds in sess_agg.items():
-            cards = []
-            for ind, d in inds.items():
-                if d["total"] < 5:
-                    continue
-                wr      = round(d["wins"] / d["total"] * 100, 1)
-                bt      = bt_lk.get(ind, {})
-                pf      = bt.get("pf", 0.0)
-                dd      = bt.get("dd", 0.0)
-                avg_pnl = round(d["pnl_sum"] / d["total"], 0)
-                score   = _session_score(wr, pf if pf > 0 else 1.0, d["total"])
-                cards.append({
-                    "indicator_name": ind,
-                    "win_rate":    wr,
-                    "profit_factor": pf,
-                    "max_drawdown":  dd,
-                    "total_trades":  d["total"],
-                    "avg_pnl":       avg_pnl,
-                    "score":         score,
-                })
+        sess_cards = defaultdict(list)
+        for r in agg_rows:
+            sk      = r[0]
+            ind     = r[1]
+            total   = int(r[2])
+            wins    = int(r[3])
+            avg_pnl = float(r[4] or 0)
+            wr      = round(wins / total * 100, 1)
+            bt      = bt_lk.get(ind, {})
+            pf      = bt.get("pf", 0.0)
+            dd      = bt.get("dd", 0.0)
+            score   = _session_score(wr, pf if pf > 0 else 1.0, total)
+            sess_cards[sk].append({
+                "indicator_name": ind,
+                "win_rate":       wr,
+                "profit_factor":  pf,
+                "max_drawdown":   dd,
+                "total_trades":   total,
+                "avg_pnl":        round(avg_pnl, 0),
+                "score":          score,
+            })
 
+        for sk, cards in sess_cards.items():
             for rank, c in enumerate(
                 sorted(cards, key=lambda x: x["score"], reverse=True)[:5], 1
             ):
@@ -388,14 +399,13 @@ def save_session_data_to_db(days: int = 30, target_date=None):
                      avg_pnl, score, computed_at)
                     VALUES (:sk, :d, :rk, :ind, :wr, :pf, :dd, :tr, :ap, :sc, :ca)
                 """), {
-                    "sk": sk,  "d":  target_date, "rk": rank, "ind": c["indicator_name"],
+                    "sk": sk, "d": target_date, "rk": rank, "ind": c["indicator_name"],
                     "wr": c["win_rate"],    "pf": c["profit_factor"],
                     "dd": c["max_drawdown"], "tr": c["total_trades"],
-                    "ap": c["avg_pnl"],     "sc": c["score"],         "ca": now,
+                    "ap": c["avg_pnl"],     "sc": c["score"], "ca": now,
                 })
-
         conn.commit()
-    logger.info("セッション別データ保存完了 (日付=%s)", target_date)
+    logger.info("セッション別データ保存完了 (日付=%s, 集計対象=%d件)", target_date, len(agg_rows))
 
 
 # ---------- メイン ----------
