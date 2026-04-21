@@ -217,6 +217,175 @@ def save_recommendations_to_db(recs: dict):
     logger.info("手法別おすすめを site_content に保存完了")
 
 
+# ---------- セッション別データ保存 ----------
+
+def _session_score(wr: float, pf: float, total: int) -> int:
+    """セッションランキング用スコア（calc_score の簡易版）"""
+    if   wr >= 60: wr_s = 30
+    elif wr >= 58: wr_s = 27
+    elif wr >= 56: wr_s = 24
+    elif wr >= 54: wr_s = 20
+    elif wr >= 52: wr_s = 16
+    elif wr >= 50: wr_s = 12
+    else:          wr_s = max(0, int(wr / 50 * 8))
+
+    if   pf >= 1.50: pf_s = 25
+    elif pf >= 1.40: pf_s = 22
+    elif pf >= 1.30: pf_s = 18
+    elif pf >= 1.20: pf_s = 14
+    elif pf >= 1.10: pf_s = 10
+    elif pf >= 1.00: pf_s = 6
+    else:            pf_s = 0
+
+    if   total >= 500: n_s = 15
+    elif total >= 300: n_s = 12
+    elif total >= 150: n_s = 9
+    elif total >= 80:  n_s = 6
+    elif total >= 30:  n_s = 3
+    else:              n_s = 0
+
+    return wr_s + pf_s + n_s
+
+
+def save_session_data_to_db():
+    """
+    simulation_trades からセッション別データを計算し2テーブルに保存。
+    - session_trade_history   : 過去30日分トレード全件（古いデータは削除）
+    - session_ranking_results : 当日スナップショット（上位5件）
+    """
+    import sqlalchemy as sa
+    from collections import defaultdict
+    from datetime import date, timedelta, timezone
+
+    RETENTION_DAYS = 30
+    engine = sa.create_engine(Config.SQLALCHEMY_DATABASE_URI)
+    today  = date.today()
+    cutoff = today - timedelta(days=RETENTION_DAYS)
+    now    = datetime.now(timezone.utc).replace(tzinfo=None)
+
+    SESSION_SQL = """
+        SELECT
+            indicator_name,
+            currency_pair,
+            timeframe,
+            entry_at,
+            direction,
+            entry_price,
+            tp_price,
+            sl_price,
+            sl_pips,
+            tp_pips,
+            exit_at,
+            exit_price,
+            outcome,
+            profit_loss,
+            CASE
+                WHEN HOUR(DATE_ADD(entry_at, INTERVAL 9 HOUR)) >= 8
+                 AND HOUR(DATE_ADD(entry_at, INTERVAL 9 HOUR)) < 15 THEN 'japan'
+                WHEN HOUR(DATE_ADD(entry_at, INTERVAL 9 HOUR)) >= 15
+                 AND HOUR(DATE_ADD(entry_at, INTERVAL 9 HOUR)) < 21 THEN 'london'
+                ELSE 'ny'
+            END AS session_key,
+            DATE(DATE_ADD(entry_at, INTERVAL 9 HOUR)) AS trade_date
+        FROM simulation_trades
+        WHERE outcome IN ('WIN', 'LOSS')
+          AND entry_at >= DATE_SUB(UTC_TIMESTAMP(), INTERVAL :days DAY)
+    """
+
+    with engine.connect() as conn:
+        rows = conn.execute(sa.text(SESSION_SQL), {"days": RETENTION_DAYS}).fetchall()
+
+        # PF/DD ルックアップ（指標名 → 最初に見つかった backtest_results の値）
+        bt_rows = conn.execute(sa.text(
+            "SELECT indicator_name, profit_factor, max_drawdown "
+            "FROM backtest_results ORDER BY win_rate DESC"
+        )).fetchall()
+        bt_lk = {}
+        for br in bt_rows:
+            if br[0] not in bt_lk:
+                bt_lk[br[0]] = {"pf": float(br[1] or 0), "dd": float(br[2] or 0)}
+
+        # ── session_trade_history 更新 ──
+        conn.execute(sa.text(
+            "DELETE FROM session_trade_history WHERE trade_date < :cutoff"
+        ), {"cutoff": cutoff})
+        conn.execute(sa.text(
+            "DELETE FROM session_trade_history WHERE trade_date = :today"
+        ), {"today": today})
+
+        for r in rows:
+            if str(r.trade_date) != str(today):
+                continue
+            conn.execute(sa.text("""
+                INSERT INTO session_trade_history
+                (session_key, trade_date, indicator_name, currency_pair, timeframe,
+                 entry_at, direction, entry_price, tp_price, sl_price, sl_pips, tp_pips,
+                 exit_at, exit_price, outcome, profit_loss, created_at)
+                VALUES (:sk, :td, :ind, :cp, :tf, :ea, :dir, :ep, :tp, :sl,
+                        :slp, :tpp, :xa, :xp, :oc, :pl, :ca)
+            """), {
+                "sk":  r.session_key,  "td": r.trade_date,    "ind": r.indicator_name,
+                "cp":  r.currency_pair, "tf": r.timeframe,
+                "ea":  r.entry_at,     "dir": r.direction,    "ep":  r.entry_price,
+                "tp":  r.tp_price,     "sl":  r.sl_price,     "slp": r.sl_pips,
+                "tpp": r.tp_pips,      "xa":  r.exit_at,      "xp":  r.exit_price,
+                "oc":  r.outcome,      "pl":  r.profit_loss,  "ca":  now,
+            })
+
+        # ── session_ranking_results 更新 ──
+        sess_agg = defaultdict(lambda: defaultdict(lambda: {"wins": 0, "total": 0, "pnl_sum": 0.0}))
+        for r in rows:
+            d = sess_agg[r.session_key][r.indicator_name]
+            d["total"]   += 1
+            d["pnl_sum"] += float(r.profit_loss or 0)
+            if r.outcome == "WIN":
+                d["wins"] += 1
+
+        conn.execute(sa.text(
+            "DELETE FROM session_ranking_results WHERE snapshot_date = :today"
+        ), {"today": today})
+
+        for sk, inds in sess_agg.items():
+            cards = []
+            for ind, d in inds.items():
+                if d["total"] < 5:
+                    continue
+                wr      = round(d["wins"] / d["total"] * 100, 1)
+                bt      = bt_lk.get(ind, {})
+                pf      = bt.get("pf", 0.0)
+                dd      = bt.get("dd", 0.0)
+                avg_pnl = round(d["pnl_sum"] / d["total"], 0)
+                score   = _session_score(wr, pf if pf > 0 else 1.0, d["total"])
+                cards.append({
+                    "indicator_name": ind,
+                    "win_rate":    wr,
+                    "profit_factor": pf,
+                    "max_drawdown":  dd,
+                    "total_trades":  d["total"],
+                    "avg_pnl":       avg_pnl,
+                    "score":         score,
+                })
+
+            for rank, c in enumerate(
+                sorted(cards, key=lambda x: x["score"], reverse=True)[:5], 1
+            ):
+                conn.execute(sa.text("""
+                    INSERT INTO session_ranking_results
+                    (session_key, snapshot_date, rank_position, indicator_name,
+                     win_rate, profit_factor, max_drawdown, total_trades,
+                     avg_pnl, score, computed_at)
+                    VALUES (:sk, :d, :rk, :ind, :wr, :pf, :dd, :tr, :ap, :sc, :ca)
+                """), {
+                    "sk": sk,  "d":  today, "rk": rank, "ind": c["indicator_name"],
+                    "wr": c["win_rate"],    "pf": c["profit_factor"],
+                    "dd": c["max_drawdown"], "tr": c["total_trades"],
+                    "ap": c["avg_pnl"],     "sc": c["score"],         "ca": now,
+                })
+
+        conn.commit()
+    logger.info("セッション別データ保存完了 (日付=%s)", today)
+
+
 # ---------- メイン ----------
 
 def main():
@@ -357,6 +526,13 @@ def main():
             save_recommendations_to_db(recs)
         except Exception as exc:
             logger.warning("おすすめ生成失敗: %s", exc)
+
+        # セッション別ランキング・トレード履歴保存
+        write_status("running", "セッション別データ保存中...")
+        try:
+            save_session_data_to_db()
+        except Exception as exc:
+            logger.warning("セッションデータ保存失敗: %s", exc)
 
         # 日次スナップショット保存（バックテスト確定後に記録）
         write_status("running", "スナップショット保存中...")

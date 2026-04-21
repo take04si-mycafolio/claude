@@ -874,67 +874,48 @@ def get_purpose_ranking(all_bt: list, url_map: dict) -> list:
 
 
 def get_timezone_ranking(url_map: dict) -> list:
-    """時間帯別ランキング。simulation_trades の entry_at（UTC）をJSTに変換して集計"""
+    """時間帯別ランキング。session_ranking_results テーブルの最新スナップショットを参照。"""
     import sqlalchemy
     from app.config import Config
-
-    sql = """
-        SELECT
-            indicator_name,
-            CASE
-                WHEN HOUR(DATE_ADD(entry_at, INTERVAL 9 HOUR)) >= 8
-                 AND HOUR(DATE_ADD(entry_at, INTERVAL 9 HOUR)) < 15  THEN 'japan'
-                WHEN HOUR(DATE_ADD(entry_at, INTERVAL 9 HOUR)) >= 15
-                 AND HOUR(DATE_ADD(entry_at, INTERVAL 9 HOUR)) < 21  THEN 'london'
-                ELSE 'ny'
-            END AS session,
-            COUNT(*)              AS total,
-            SUM(outcome = 'WIN')  AS wins,
-            AVG(profit_loss)      AS avg_pnl
-        FROM simulation_trades
-        WHERE outcome IN ('WIN', 'LOSS')
-        GROUP BY indicator_name, session
-        HAVING total >= 5
-        ORDER BY indicator_name, session
-    """
-    try:
-        engine = sqlalchemy.create_engine(Config.SQLALCHEMY_DATABASE_URI)
-        with engine.connect() as conn:
-            rows = conn.execute(sqlalchemy.text(sql)).fetchall()
-            bt_rows = conn.execute(sqlalchemy.text(
-                "SELECT indicator_name, profit_factor, max_drawdown "
-                "FROM backtest_results ORDER BY win_rate DESC"
-            )).fetchall()
-        bt_lookup: dict = {}
-        for br in bt_rows:
-            ind_n = br[0]
-            if ind_n not in bt_lookup:
-                bt_lookup[ind_n] = {"pf": float(br[1] or 0), "dd": float(br[2] or 0)}
-    except Exception as e:
-        logger.warning("timezone_ranking query failed: %s", e)
-        return []
 
     SESSIONS = [
         {"key": "japan",  "label": "東京時間",   "icon": "bi-brightness-high", "color": "tz-red",    "hours": "JST 09:00〜15:00"},
         {"key": "london", "label": "ロンドン時間", "icon": "bi-cloud-sun",       "color": "tz-blue",   "hours": "JST 15:00〜21:00"},
         {"key": "ny",     "label": "NY時間",      "icon": "bi-moon-stars",      "color": "tz-purple", "hours": "JST 21:00〜09:00"},
     ]
-    sess_data: dict = {s["key"]: [] for s in SESSIONS}
 
+    try:
+        engine = sqlalchemy.create_engine(Config.SQLALCHEMY_DATABASE_URI)
+        with engine.connect() as conn:
+            rows = conn.execute(sqlalchemy.text("""
+                SELECT session_key, rank_position, indicator_name,
+                       win_rate, profit_factor, max_drawdown,
+                       total_trades, avg_pnl, score
+                FROM session_ranking_results
+                WHERE (session_key, snapshot_date) IN (
+                    SELECT session_key, MAX(snapshot_date)
+                    FROM session_ranking_results
+                    GROUP BY session_key
+                )
+                ORDER BY session_key, rank_position
+            """)).fetchall()
+    except Exception as e:
+        logger.warning("timezone_ranking (DB) failed: %s", e)
+        return []
+
+    sess_data: dict = {s["key"]: [] for s in SESSIONS}
     for row in rows:
-        ind, sess = row[0], row[1]
-        total, wins = int(row[2]), int(row[3])
-        avg_pnl = float(row[4] or 0)
-        if sess not in sess_data:
+        sk  = row[0]
+        ind = row[2]
+        if sk not in sess_data:
             continue
         info = INDICATOR_INFO.get(ind, {})
         if not info:
             continue
-        wr  = round(wins / total * 100, 1) if total > 0 else 0
-        bt  = bt_lookup.get(ind, {})
-        pf  = bt.get("pf", 0.0)
-        dd  = round(abs(bt.get("dd", 0.0)) / 1_000_000 * 100, 1)
-        sess_data[sess].append({
+        wr  = float(row[3] or 0)
+        pf  = float(row[4] or 0)
+        dd  = round(abs(float(row[5] or 0)) / 1_000_000 * 100, 1)
+        sess_data[sk].append({
             "indicator": ind,
             "display":   info.get("display", ind),
             "short":     info.get("display", ind).split("（")[0],
@@ -942,16 +923,15 @@ def get_timezone_ranking(url_map: dict) -> list:
             "win_rate":  wr,
             "pf":        round(pf, 2),
             "dd":        dd,
-            "trades":    total,
-            "avg_pnl":   round(avg_pnl, 0),
-            "score":     _pur_score(wr, pf if pf > 0 else 1.0, total),
+            "trades":    int(row[6] or 0),
+            "avg_pnl":   float(row[7] or 0),
+            "score":     int(row[8] or 0),
             "url":       url_map.get(ind, ""),
         })
 
     result = []
     for s in SESSIONS:
-        cards = sorted(sess_data[s["key"]], key=lambda x: x["score"], reverse=True)
-        result.append({**s, "ranking": cards[:5]})
+        result.append({**s, "ranking": sess_data.get(s["key"], [])})
     return result
 
 
