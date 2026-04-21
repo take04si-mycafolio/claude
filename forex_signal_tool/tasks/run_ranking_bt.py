@@ -313,6 +313,11 @@ def save_session_data_to_db(days: int = 1, target_date=None):
             (HOUR(DATE_ADD(entry_at, INTERVAL 9 HOUR)) < 8
              AND DATE(DATE_ADD(entry_at, INTERVAL 9 HOUR)) = DATE_ADD(:target_date, INTERVAL 1 DAY))
           )
+          AND NOT (
+            DAYOFWEEK(DATE_ADD(entry_at, INTERVAL 9 HOUR)) = 7
+            OR (DAYOFWEEK(DATE_ADD(entry_at, INTERVAL 9 HOUR)) = 1
+                AND HOUR(DATE_ADD(entry_at, INTERVAL 9 HOUR)) < 21)
+          )
     """
 
     with engine.connect() as conn:
