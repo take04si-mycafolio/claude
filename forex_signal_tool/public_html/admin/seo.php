@@ -417,6 +417,7 @@ h2{font-size:19px;font-weight:700;color:#f1f5f9;margin-bottom:4px}
 
     <div style="display:flex;align-items:center;gap:12px;margin-top:14px;flex-wrap:wrap">
       <button class="save-btn" id="sbt-run-btn" style="padding:10px 28px;font-size:14px;background:#7c3aed" onclick="runSessionBt()">セッション専用バックテスト実行</button>
+      <button class="save-btn" onclick="resetSessionRanking()" style="background:#7f1d1d;border:1px solid #ef4444">ランキングデータをリセット</button>
       <span id="sbt-run-status" class="cont-status"></span>
     </div>
     <div id="sbt-progress" style="display:none;margin-top:12px;padding:12px 14px;background:#0f172a;border:1px solid #334155;border-radius:8px">
@@ -1268,6 +1269,21 @@ async function pollSessStatus() {
 
 // ===== セッション専用バックテスト =====
 let sbtPollTimer = null;
+
+async function resetSessionRanking() {
+  if (!confirm('session_ranking_results と session_trade_history のデータをすべて削除します。\nこの操作は元に戻せません。よろしいですか？')) return;
+  try {
+    const res = await fetch('/admin/api.php', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({action: 'session_ranking_reset'}),
+    });
+    const d = await res.json();
+    alert(d.status === 'ok' ? d.message : 'エラー: ' + (d.message || '不明'));
+  } catch(e) {
+    alert('通信エラーが発生しました');
+  }
+}
 
 async function runSessionBt() {
   const btn = document.getElementById('sbt-run-btn');

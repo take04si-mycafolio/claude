@@ -1149,6 +1149,23 @@ switch ($action) {
         json_out(['status' => 'ok', 'message' => '実行フラグをリセットしました']);
         break;
 
+    case 'session_ranking_reset':
+        require_login();
+        try {
+            $pdo = get_pdo();
+            $rk_count = (int)$pdo->query('SELECT COUNT(*) FROM session_ranking_results')->fetchColumn();
+            $th_count = (int)$pdo->query('SELECT COUNT(*) FROM session_trade_history')->fetchColumn();
+            $pdo->exec('DELETE FROM session_ranking_results');
+            $pdo->exec('DELETE FROM session_trade_history');
+            json_out([
+                'status'  => 'ok',
+                'message' => "ランキング {$rk_count}件・トレード履歴 {$th_count}件 を削除しました。",
+            ]);
+        } catch (Exception $e) {
+            json_out(['status' => 'error', 'message' => $e->getMessage()]);
+        }
+        break;
+
     case 'simulation_trades_reset':
         require_login();
         try {
