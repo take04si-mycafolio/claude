@@ -66,6 +66,19 @@ def filter_session(df: pd.DataFrame, sess: dict) -> pd.DataFrame:
     return df[mask].copy()
 
 
+def filter_weekend(df: pd.DataFrame) -> pd.DataFrame:
+    """土曜全日・日曜の市場クローズ時間帯（JST 21:00未満）を除外する。
+    日曜 JST 21:00以降は NY セッション再開のため残す。"""
+    jst_ts  = df["timestamp"] + pd.Timedelta(hours=9)
+    dow     = jst_ts.dt.dayofweek   # Monday=0 … Saturday=5, Sunday=6
+    jst_hour = jst_ts.dt.hour
+    mask = ~(
+        (dow == 5) |                          # 土曜は終日除外
+        ((dow == 6) & (jst_hour < 21))        # 日曜 JST 21:00 以前は除外
+    )
+    return df[mask].copy()
+
+
 def parse_date(s: str):
     try:
         return datetime.strptime(s, "%Y-%m-%d")
@@ -143,6 +156,9 @@ def main():
                         df = df[df["timestamp"] >= s_dt]
                     if e_dt:
                         df = df[df["timestamp"] <= e_dt.replace(hour=23, minute=59, second=59)]
+
+                    # 週末除外（土曜全日・日曜市場クローズ時間帯）
+                    df = filter_weekend(df)
 
                     # セッション時間帯フィルタ
                     session_df = filter_session(df, sess)
