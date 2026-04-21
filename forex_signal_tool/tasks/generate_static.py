@@ -907,7 +907,8 @@ def get_timezone_ranking(url_map: dict) -> list:
     try:
         engine = sqlalchemy.create_engine(Config.SQLALCHEMY_DATABASE_URI)
         with engine.connect() as conn:
-            # cutoff 以前のスナップショットが存在しないセッションは表示しない（フォールバックなし）
+            # cutoff 以内のデータがなければ「今日より前の最新データ」にフォールバック
+            # （今日の未終了セッションデータは絶対に使わない）
             rows = conn.execute(sqlalchemy.text("""
                 SELECT r.session_key, r.rank_position, r.indicator_name,
                        r.win_rate, r.profit_factor, r.max_drawdown,
@@ -915,11 +916,14 @@ def get_timezone_ranking(url_map: dict) -> list:
                 FROM session_ranking_results r
                 INNER JOIN (
                     SELECT session_key,
-                           MAX(CASE
-                               WHEN session_key = 'japan'  AND snapshot_date <= :japan_cutoff  THEN snapshot_date
-                               WHEN session_key = 'london' AND snapshot_date <= :london_cutoff THEN snapshot_date
-                               WHEN session_key = 'ny'     AND snapshot_date <= :ny_cutoff     THEN snapshot_date
-                           END) AS max_date
+                           COALESCE(
+                               MAX(CASE
+                                   WHEN session_key = 'japan'  AND snapshot_date <= :japan_cutoff  THEN snapshot_date
+                                   WHEN session_key = 'london' AND snapshot_date <= :london_cutoff THEN snapshot_date
+                                   WHEN session_key = 'ny'     AND snapshot_date <= :ny_cutoff     THEN snapshot_date
+                               END),
+                               MAX(CASE WHEN snapshot_date < :today THEN snapshot_date END)
+                           ) AS max_date
                     FROM session_ranking_results
                     GROUP BY session_key
                 ) latest ON r.session_key = latest.session_key
@@ -929,6 +933,7 @@ def get_timezone_ranking(url_map: dict) -> list:
                 "japan_cutoff":  cutoffs["japan"],
                 "london_cutoff": cutoffs["london"],
                 "ny_cutoff":     cutoffs["ny"],
+                "today":         today,
             }).fetchall()
     except Exception as e:
         logger.warning("timezone_ranking (DB) failed: %s", e)
