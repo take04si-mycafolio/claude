@@ -1446,6 +1446,72 @@ switch ($action) {
         }
         break;
 
+    case 'session_trade_breakdown':
+        require_login();
+        try {
+            $pdo = get_pdo();
+            // セッション別サマリー（simulation_trades から集計）
+            $summarySQL = "
+                SELECT
+                    CASE
+                        WHEN HOUR(DATE_ADD(entry_at, INTERVAL 9 HOUR)) >= 8
+                         AND HOUR(DATE_ADD(entry_at, INTERVAL 9 HOUR)) < 15 THEN 'japan'
+                        WHEN HOUR(DATE_ADD(entry_at, INTERVAL 9 HOUR)) >= 15
+                         AND HOUR(DATE_ADD(entry_at, INTERVAL 9 HOUR)) < 21 THEN 'london'
+                        ELSE 'ny'
+                    END AS session_key,
+                    COUNT(*)                  AS total,
+                    SUM(outcome = 'WIN')      AS wins,
+                    SUM(outcome = 'LOSS')     AS losses,
+                    COUNT(DISTINCT indicator_name) AS indicator_count,
+                    MIN(DATE(DATE_ADD(entry_at, INTERVAL 9 HOUR))) AS from_date,
+                    MAX(DATE(DATE_ADD(entry_at, INTERVAL 9 HOUR))) AS to_date
+                FROM simulation_trades
+                WHERE outcome IN ('WIN', 'LOSS')
+                GROUP BY session_key
+            ";
+            $summaryRows = $pdo->query($summarySQL)->fetchAll(PDO::FETCH_ASSOC);
+
+            // セッション別 上位指標（勝率降順・5件以上）
+            $topSQL = "
+                SELECT
+                    CASE
+                        WHEN HOUR(DATE_ADD(entry_at, INTERVAL 9 HOUR)) >= 8
+                         AND HOUR(DATE_ADD(entry_at, INTERVAL 9 HOUR)) < 15 THEN 'japan'
+                        WHEN HOUR(DATE_ADD(entry_at, INTERVAL 9 HOUR)) >= 15
+                         AND HOUR(DATE_ADD(entry_at, INTERVAL 9 HOUR)) < 21 THEN 'london'
+                        ELSE 'ny'
+                    END AS session_key,
+                    indicator_name,
+                    COUNT(*)             AS total,
+                    SUM(outcome = 'WIN') AS wins,
+                    ROUND(SUM(outcome = 'WIN') / COUNT(*) * 100, 1) AS win_rate
+                FROM simulation_trades
+                WHERE outcome IN ('WIN', 'LOSS')
+                GROUP BY session_key, indicator_name
+                HAVING COUNT(*) >= 2
+                ORDER BY session_key, win_rate DESC
+            ";
+            $topRows = $pdo->query($topSQL)->fetchAll(PDO::FETCH_ASSOC);
+
+            // セッション別にまとめる
+            $top = [];
+            foreach ($topRows as $r) {
+                $sk = $r['session_key'];
+                if (!isset($top[$sk])) $top[$sk] = [];
+                if (count($top[$sk]) < 5) $top[$sk][] = $r;
+            }
+
+            json_out([
+                'status'  => 'ok',
+                'summary' => $summaryRows,
+                'top'     => $top,
+            ]);
+        } catch (Exception $e) {
+            json_out(['status' => 'error', 'message' => $e->getMessage()]);
+        }
+        break;
+
     // ---- BT2 保存済み戦略のトレード履歴を CSV/ZIP でダウンロード ----
     case 'bt2_csv':
         require_login();
