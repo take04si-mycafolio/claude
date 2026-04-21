@@ -1451,17 +1451,10 @@ switch ($action) {
         try {
             $pdo = get_pdo();
 
-            // 利用可能な日付一覧（直近30日・データがある日のみ）
-            // NY時間はJST深夜0〜7時台が前日のセッションに属するため -1日補正
+            // 利用可能な日付一覧（session_trade_history から取得）
             $datesSQL = "
-                SELECT DISTINCT
-                    CASE
-                        WHEN HOUR(DATE_ADD(entry_at, INTERVAL 9 HOUR)) < 8
-                        THEN DATE(DATE_ADD(entry_at, INTERVAL 9 HOUR) - INTERVAL 1 DAY)
-                        ELSE DATE(DATE_ADD(entry_at, INTERVAL 9 HOUR))
-                    END AS trade_date
-                FROM simulation_trades
-                WHERE outcome IN ('WIN', 'LOSS')
+                SELECT DISTINCT trade_date
+                FROM session_trade_history
                 ORDER BY trade_date DESC
                 LIMIT 30
             ";
@@ -1473,58 +1466,32 @@ switch ($action) {
                 $reqDate = $dates[0] ?? date('Y-m-d');
             }
 
-            // セッション別サマリー（指定日）
+            // セッション別サマリー（session_trade_history から集計）
             $summarySQL = "
                 SELECT
-                    CASE
-                        WHEN HOUR(DATE_ADD(entry_at, INTERVAL 9 HOUR)) >= 8
-                         AND HOUR(DATE_ADD(entry_at, INTERVAL 9 HOUR)) < 15 THEN 'japan'
-                        WHEN HOUR(DATE_ADD(entry_at, INTERVAL 9 HOUR)) >= 15
-                         AND HOUR(DATE_ADD(entry_at, INTERVAL 9 HOUR)) < 21 THEN 'london'
-                        ELSE 'ny'
-                    END AS session_key,
+                    session_key,
                     COUNT(*)                       AS total,
                     SUM(outcome = 'WIN')           AS wins,
                     SUM(outcome = 'LOSS')          AS losses,
                     COUNT(DISTINCT indicator_name) AS indicator_count
-                FROM simulation_trades
-                WHERE outcome IN ('WIN', 'LOSS')
-                  AND (
-                    (HOUR(DATE_ADD(entry_at, INTERVAL 9 HOUR)) >= 8
-                     AND DATE(DATE_ADD(entry_at, INTERVAL 9 HOUR)) = :d)
-                    OR
-                    (HOUR(DATE_ADD(entry_at, INTERVAL 9 HOUR)) < 8
-                     AND DATE(DATE_ADD(entry_at, INTERVAL 9 HOUR)) = DATE_ADD(:d, INTERVAL 1 DAY))
-                  )
+                FROM session_trade_history
+                WHERE trade_date = :d
                 GROUP BY session_key
             ";
             $stmt = $pdo->prepare($summarySQL);
             $stmt->execute([':d' => $reqDate]);
             $summaryRows = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
-            // セッション別上位指標（指定日・2回以上）
+            // セッション別上位指標（2回以上）
             $topSQL = "
                 SELECT
-                    CASE
-                        WHEN HOUR(DATE_ADD(entry_at, INTERVAL 9 HOUR)) >= 8
-                         AND HOUR(DATE_ADD(entry_at, INTERVAL 9 HOUR)) < 15 THEN 'japan'
-                        WHEN HOUR(DATE_ADD(entry_at, INTERVAL 9 HOUR)) >= 15
-                         AND HOUR(DATE_ADD(entry_at, INTERVAL 9 HOUR)) < 21 THEN 'london'
-                        ELSE 'ny'
-                    END AS session_key,
+                    session_key,
                     indicator_name,
                     COUNT(*)             AS total,
                     SUM(outcome = 'WIN') AS wins,
                     ROUND(SUM(outcome = 'WIN') / COUNT(*) * 100, 1) AS win_rate
-                FROM simulation_trades
-                WHERE outcome IN ('WIN', 'LOSS')
-                  AND (
-                    (HOUR(DATE_ADD(entry_at, INTERVAL 9 HOUR)) >= 8
-                     AND DATE(DATE_ADD(entry_at, INTERVAL 9 HOUR)) = :d)
-                    OR
-                    (HOUR(DATE_ADD(entry_at, INTERVAL 9 HOUR)) < 8
-                     AND DATE(DATE_ADD(entry_at, INTERVAL 9 HOUR)) = DATE_ADD(:d, INTERVAL 1 DAY))
-                  )
+                FROM session_trade_history
+                WHERE trade_date = :d
                 GROUP BY session_key, indicator_name
                 HAVING COUNT(*) >= 2
                 ORDER BY session_key, win_rate DESC
