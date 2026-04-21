@@ -254,6 +254,7 @@ def save_session_data_to_db(days: int = 30):
     - session_ranking_results : 当日スナップショット（上位5件）
     """
     import sqlalchemy as sa
+    from app.config import Config
     from collections import defaultdict
     from datetime import date, timedelta, timezone
 
