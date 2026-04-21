@@ -118,6 +118,9 @@ def main():
             for s in SESSIONS
         }
 
+        trade_cutoff   = today - timedelta(days=30)
+        all_trade_rows = []   # session_trade_history に保存する個別トレード
+
         for sess in SESSIONS:
             sk = sess["key"]
             for pair in Config.CURRENCY_PAIRS:
@@ -174,7 +177,59 @@ def main():
                         d["dd"]      = max(d["dd"], dd)
                         d["tp_sum"] += tp
 
+                        # 過去30日分の個別トレードを収集
+                        for t in r.get("trades", []):
+                            ets = t["entry_ts"]
+                            if hasattr(ets, "to_pydatetime"):
+                                ets = ets.to_pydatetime()
+                            trade_date_jst = (ets + timedelta(hours=9)).date()
+                            if trade_date_jst < trade_cutoff:
+                                continue
+                            xts = t.get("exit_ts")
+                            if xts is not None and hasattr(xts, "to_pydatetime"):
+                                xts = xts.to_pydatetime()
+                            all_trade_rows.append({
+                                "sk":  sk,
+                                "td":  trade_date_jst,
+                                "ind": ind,
+                                "cp":  pair,
+                                "tf":  tf,
+                                "ea":  ets,
+                                "dir": t.get("signal", ""),
+                                "ep":  t.get("entry_price"),
+                                "tpp": t.get("tp_price"),
+                                "slp": t.get("sl_price"),
+                                "slpips": sl_pips,
+                                "tppips": tp_pips,
+                                "xa":  xts,
+                                "xp":  t.get("exit_price"),
+                                "oc":  t.get("outcome"),
+                                "pl":  t.get("profit_loss"),
+                                "ca":  now,
+                            })
+
                     logger.info("  %s %s %s: %d件", sk, pair, tf, len(results))
+
+        # ── session_trade_history に保存（30日ローリング）──
+        write_status("running", f"トレード履歴保存中 ({len(all_trade_rows)}件)...")
+        with engine.connect() as conn:
+            conn.execute(sa.text(
+                "DELETE FROM session_trade_history WHERE trade_date < :c"
+            ), {"c": trade_cutoff})
+            conn.execute(sa.text(
+                "DELETE FROM session_trade_history WHERE trade_date >= :c"
+            ), {"c": trade_cutoff})
+            for t in all_trade_rows:
+                conn.execute(sa.text("""
+                    INSERT INTO session_trade_history
+                    (session_key, trade_date, indicator_name, currency_pair, timeframe,
+                     entry_at, direction, entry_price, tp_price, sl_price,
+                     sl_pips, tp_pips, exit_at, exit_price, outcome, profit_loss, created_at)
+                    VALUES (:sk, :td, :ind, :cp, :tf, :ea, :dir, :ep, :tpp, :slp,
+                            :slpips, :tppips, :xa, :xp, :oc, :pl, :ca)
+                """), t)
+            conn.commit()
+        logger.info("session_trade_history 保存完了: %d件", len(all_trade_rows))
 
         # ── session_ranking_results に保存 ──
         write_status("running", "ランキング保存中...")
