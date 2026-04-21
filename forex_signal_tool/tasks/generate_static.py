@@ -2425,8 +2425,12 @@ def main():
         for r in all_bt:
             r["url"] = ind_url_map.get(r.get("indicator_name", ""), "")
 
-        # ランキングページ用: BBバンド損切りバリアントを除外（単体シグナルのみ表示）
-        all_bt_ranked = [r for r in all_bt if not r.get("indicator_name", "").endswith("_BBSL")]
+        # ランキングページ用: BBバンド損切りバリアントを除外 + 10取引未満は除外（信頼性確保）
+        all_bt_ranked = [
+            r for r in all_bt
+            if not r.get("indicator_name", "").endswith("_BBSL")
+            and (r.get("total_trades") or 0) >= 10
+        ]
 
         # 3軸ランキングデータ生成
         purpose_ranking  = []
