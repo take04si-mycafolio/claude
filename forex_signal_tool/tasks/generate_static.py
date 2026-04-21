@@ -964,18 +964,20 @@ def get_timezone_ranking(url_map: dict) -> list:
             "score":     int(row[8] or 0),
             "url":       url_map.get(ind, ""),
         })
-        # 実際に表示しているスナップショットの日付を常に表示
+        # セッションが完了している（snapshot_date <= cutoff）場合のみ日付を表示
+        # フォールバックデータ（セッション未完了）の場合は日付を出さない
         if sk not in sess_dates and row[9]:
             raw = row[9]
             if hasattr(raw, "month"):
-                sess_dates[sk] = f"{raw.month}月{raw.day}日"
+                snap_date = raw
             else:
                 try:
                     from datetime import datetime as _dt
-                    dobj = _dt.strptime(str(raw), "%Y-%m-%d")
-                    sess_dates[sk] = f"{dobj.month}月{dobj.day}日"
+                    snap_date = _dt.strptime(str(raw), "%Y-%m-%d").date()
                 except Exception:
-                    pass
+                    snap_date = None
+            if snap_date and snap_date <= cutoffs[sk]:
+                sess_dates[sk] = f"{snap_date.month}月{snap_date.day}日"
 
     result = []
     for s in SESSIONS:
