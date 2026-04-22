@@ -2,6 +2,26 @@
 require_once __DIR__ . '/_user_config.php';
 $user = require_user_login('/login.php');
 $joined = date('Y年n月j日', strtotime($user['created_at']));
+
+// 会員解除処理
+$delete_error = '';
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'delete') {
+    if (!verify_csrf($_POST['csrf_token'] ?? '')) {
+        $delete_error = '不正なリクエストです。';
+    } else {
+        try {
+            get_pdo()->prepare('DELETE FROM users WHERE id = ?')->execute([$user['id']]);
+            logout_user();
+            header('Location: /?withdrawn=1');
+            exit;
+        } catch (Exception $e) {
+            error_log('[mypage.php] delete error: ' . $e->getMessage());
+            $delete_error = '処理に失敗しました。しばらく後でお試しください。';
+        }
+    }
+}
+
+$csrf = csrf_token();
 ?>
 <!DOCTYPE html>
 <html lang="ja">
@@ -113,6 +133,58 @@ $joined = date('Y年n月j日', strtotime($user['created_at']));
       text-decoration: none;
     }
     .back-link:hover { color: #1a1a2e; }
+    .divider-line {
+      border: none; border-top: 1px solid #f3f4f6;
+      margin: 28px 0 20px;
+    }
+    .btn-delete {
+      display: block;
+      width: 100%;
+      padding: 11px;
+      background: transparent;
+      color: #dc2626;
+      border: 1.5px solid #fca5a5;
+      border-radius: 8px;
+      font-size: 0.85rem;
+      font-weight: 600;
+      cursor: pointer;
+      text-align: center;
+      transition: background .15s, border-color .15s;
+    }
+    .btn-delete:hover { background: #fef2f2; border-color: #dc2626; }
+    /* 確認モーダル */
+    .modal-overlay {
+      display: none;
+      position: fixed; inset: 0;
+      background: rgba(0,0,0,0.5);
+      z-index: 200;
+      align-items: center; justify-content: center;
+    }
+    .modal-overlay.open { display: flex; }
+    .modal-box {
+      background: #fff;
+      border-radius: 16px;
+      padding: 32px 28px;
+      width: 90%; max-width: 360px;
+      text-align: center;
+    }
+    .modal-box h2 { font-size: 1.1rem; color: #1a1a2e; margin-bottom: 10px; }
+    .modal-box p { font-size: 0.85rem; color: #6b7280; line-height: 1.7; margin-bottom: 24px; }
+    .modal-btns { display: flex; gap: 12px; }
+    .modal-btns button {
+      flex: 1; padding: 11px;
+      border-radius: 8px; font-size: 0.9rem; font-weight: 600;
+      cursor: pointer; border: none;
+    }
+    .modal-cancel { background: #f3f4f6; color: #374151; }
+    .modal-cancel:hover { background: #e5e7eb; }
+    .modal-confirm { background: #dc2626; color: #fff; }
+    .modal-confirm:hover { background: #b91c1c; }
+    .error-box {
+      background: #fef2f2; border: 1px solid #fca5a5;
+      border-radius: 8px; padding: 10px 14px;
+      font-size: 0.82rem; color: #dc2626; margin-top: 12px;
+    }
   </style>
 </head>
 <body>
@@ -147,7 +219,34 @@ $joined = date('Y年n月j日', strtotime($user['created_at']));
       <i class="bi bi-box-arrow-right"></i> ログアウト
     </a>
     <a href="/" class="back-link">← トップページへ戻る</a>
+
+    <hr class="divider-line">
+    <button type="button" class="btn-delete" onclick="document.getElementById('deleteModal').classList.add('open')">
+      <i class="bi bi-person-x"></i> 会員を解除する
+    </button>
+    <?php if ($delete_error): ?>
+      <div class="error-box"><?= htmlspecialchars($delete_error) ?></div>
+    <?php endif; ?>
   </div>
 </main>
+
+<!-- 退会確認モーダル -->
+<div class="modal-overlay" id="deleteModal">
+  <div class="modal-box">
+    <h2><i class="bi bi-exclamation-triangle" style="color:#dc2626"></i> 会員解除の確認</h2>
+    <p>退会するとアカウントのデータはすべて削除されます。<br>本当に解除しますか？</p>
+    <div class="modal-btns">
+      <button type="button" class="modal-cancel"
+              onclick="document.getElementById('deleteModal').classList.remove('open')">
+        キャンセル
+      </button>
+      <form method="post" style="flex:1">
+        <input type="hidden" name="action" value="delete">
+        <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrf) ?>">
+        <button type="submit" class="modal-confirm" style="width:100%">退会する</button>
+      </form>
+    </div>
+  </div>
+</div>
 </body>
 </html>
