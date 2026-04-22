@@ -162,8 +162,8 @@ $limit_reached = $remaining === 0;
           <div class="check-group">
             <label class="check-label"><input type="radio" name="timeframe" value="15min" onchange="onTfChange('15min')"> 15分足 <span style="font-size:10px;color:#475569">最大40h</span></label>
             <label class="check-label"><input type="radio" name="timeframe" value="1hr"   onchange="onTfChange('1hr')"   checked> 1時間足 <span style="font-size:10px;color:#475569">最大72h</span></label>
-            <label class="check-label"><input type="radio" name="timeframe" value="4hr"   onchange="onTfChange('4hr')"> 4時間足</label>
-            <label class="check-label"><input type="radio" name="timeframe" value="daily" onchange="onTfChange('daily')"> 日足 <span style="font-size:10px;color:#475569">最大2ヶ月</span></label>
+            <label class="check-label"><input type="radio" name="timeframe" value="4hr"   onchange="onTfChange('4hr')"> 4時間足 <span style="font-size:10px;color:#475569">最大1ヶ月</span></label>
+            <label class="check-label"><input type="radio" name="timeframe" value="daily" onchange="onTfChange('daily')"> 日足 <span style="font-size:10px;color:#475569">最大6ヶ月</span></label>
           </div>
         </div>
       </div>
