@@ -2136,6 +2136,7 @@ def main():
                 "updated_at":      datetime.now(JST).strftime("%Y/%m/%d %H:%M"),
                 "active_page":     "signals",
                 "signals_intro":   content_db.get("signals_intro", ""),
+                "signals_heading": content_db.get("signals_heading", ""),
                 "signals_seo_title": sig_seo.get("title", ""),
                 "signals_seo_meta":  sig_seo.get("meta_description", ""),
             })
@@ -2516,6 +2517,7 @@ def main():
             "updated_at": updated_at,
             "active_page": "signals",
             "signals_intro":     _signals_content_db.get("signals_intro", ""),
+            "signals_heading":   _signals_content_db.get("signals_heading", ""),
             "signals_seo_title": _signals_seo.get("title", ""),
             "signals_seo_meta":  _signals_seo.get("meta_description", ""),
         })

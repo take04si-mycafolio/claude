@@ -1275,7 +1275,7 @@ switch ($action) {
         require_login();
         $key   = trim($body['key']   ?? '');
         $value = $body['value'] ?? '';
-        $allowed = ['ranking_analysis', 'ranking_short_term', 'ranking_day_trade', 'ranking_swing', 'ranking_title', 'ranking_intro', 'top_article', 'top_article_pre', 'top_article_post', 'signals_intro'];
+        $allowed = ['ranking_analysis', 'ranking_short_term', 'ranking_day_trade', 'ranking_swing', 'ranking_title', 'ranking_intro', 'top_article', 'top_article_pre', 'top_article_post', 'signals_intro', 'signals_heading'];
         $is_valid = in_array($key, $allowed, true)
             || preg_match('/^indicator_article_[a-z0-9_]+(_(css|jsonld))?$/', $key)
             || preg_match('/^indicator_ai_notes_[a-z0-9_]+$/', $key)

@@ -511,7 +511,14 @@ if ($is_indicator && $ind_slug) {
            placeholder="テクニカル指標 バックテスト勝率ランキング">
   </div>
 <?php elseif ($is_signals_intro): ?>
-  <!-- シグナルページ：SEO + 導入文 -->
+  <!-- シグナルページ：SEO + 見出し + 導入文 -->
+  <div class="editor-card" style="margin-bottom:16px">
+    <label class="editor-label">① 見出し（H1 ヒーローに表示）</label>
+    <div style="font-size:11px;color:#475569;margin-bottom:6px">ページ上部のヒーローエリアに大きく表示される見出しです。空白の場合は「シグナル一覧」になります。</div>
+    <input type="text" id="editor-heading" class="editor-textarea"
+           style="min-height:auto;padding:9px 12px;font-size:14px"
+           placeholder="例: FXリアルタイムシグナル一覧">
+  </div>
   <div class="editor-card" style="margin-bottom:16px">
     <label class="editor-label">⓪ タイトルタグ（&lt;title&gt;）</label>
     <div style="font-size:11px;color:#475569;margin-bottom:6px">空白の場合はデフォルト「シグナル一覧 - AI×FX」を使用。目安: 30〜60文字</div>
@@ -2461,6 +2468,8 @@ async function loadContent() {
       } catch(e) { console.error('SEO load error', e); }
     }
     if (IS_SIGNALS_INTRO) {
+      const headingEl = document.getElementById('editor-heading');
+      if (headingEl) headingEl.value = data['signals_heading']?.value || '';
       try {
         const seoRes = await fetch('/admin/api.php?action=seo_init');
         const seoD   = await seoRes.json();
@@ -2631,6 +2640,8 @@ async function saveContent() {
       }
     }
     if (IS_SIGNALS_INTRO) {
+      const headingEl = document.getElementById('editor-heading');
+      if (headingEl) saves.push(_save('signals_heading', headingEl.value));
       const titleEl = document.getElementById('editor-seo-title');
       const metaEl  = document.getElementById('editor-seo-meta');
       saves.push(fetch('/admin/api.php', {
