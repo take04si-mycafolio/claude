@@ -136,6 +136,7 @@ main{max-width:960px;margin:0 auto;padding:28px 16px}
 $is_indicator        = (bool)preg_match('/^indicator_article_/', $article['key']);
 $is_ranking_recs     = in_array($article['key'], ['ranking_short_term', 'ranking_day_trade', 'ranking_swing']);
 $is_ranking_title    = ($article['key'] === 'ranking_title');
+$is_signals_intro    = ($article['key'] === 'signals_intro');
 $is_custom_indicator = false;
 $custom_indicator    = null;
 $ind_slug = '';
@@ -339,7 +340,7 @@ if ($is_indicator && $ind_slug) {
       📥 バックテストCSV（ZIP）
     </a>
 <?php endif; ?>
-<?php if (($is_indicator && $ind_slug) || $is_pair): ?>
+<?php if (($is_indicator && $ind_slug) || $is_pair || $is_signals_intro): ?>
     <button class="rebuild-btn" id="rebuild-btn-top" onclick="rebuildPage()">🔄 公開ページを更新</button>
     <span class="rebuild-status" id="rebuild-status-top"></span>
     <button onclick="previewArticle()" style="background:#1e3a5f;color:#7dd3fc;border:1px solid #1e4976;border-radius:7px;padding:7px 16px;font-size:12px;font-weight:600;cursor:pointer;transition:all .15s">🔍 プレビュー</button>
@@ -509,6 +510,29 @@ if ($is_indicator && $ind_slug) {
            style="min-height:auto;resize:none;padding:10px 14px"
            placeholder="テクニカル指標 バックテスト勝率ランキング">
   </div>
+<?php elseif ($is_signals_intro): ?>
+  <!-- シグナルページ：SEO + 導入文 -->
+  <div class="editor-card" style="margin-bottom:16px">
+    <label class="editor-label">⓪ タイトルタグ（&lt;title&gt;）</label>
+    <div style="font-size:11px;color:#475569;margin-bottom:6px">空白の場合はデフォルト「シグナル一覧 - AI×FX」を使用。目安: 30〜60文字</div>
+    <input type="text" id="editor-seo-title" class="editor-textarea"
+           style="min-height:auto;padding:9px 12px;font-size:14px"
+           placeholder="例: FXシグナル一覧｜リアルタイム売買シグナル | AI×FX">
+    <div id="seo-title-sig-count" style="font-size:11px;color:#64748b;margin-top:3px;text-align:right"></div>
+  </div>
+  <div class="editor-card" style="margin-bottom:16px">
+    <label class="editor-label">⓪ META ディスクリプション</label>
+    <div style="font-size:11px;color:#475569;margin-bottom:6px">検索結果に表示される説明文（120〜160文字推奨）</div>
+    <textarea id="editor-seo-meta" class="editor-textarea" style="min-height:100px"
+              placeholder="例: AIが分析するFXのリアルタイムシグナル一覧。USDJPY/GBPJPY/EURJPYの買い・売りシグナルを時間足別に表示。"></textarea>
+    <div id="seo-meta-sig-count" style="font-size:11px;color:#64748b;margin-top:3px;text-align:right"></div>
+  </div>
+  <div class="editor-card" style="margin-bottom:16px">
+    <label class="editor-label" for="editor">導入文（ページ上部に表示）</label>
+    <div style="font-size:11px;color:#475569;margin-bottom:6px">改行可。HTMLタグ不要のプレーンテキスト。空白の場合は非表示になります。</div>
+    <textarea id="editor" class="editor-textarea" style="min-height:260px"
+              placeholder="シグナル一覧の導入文を入力..."></textarea>
+  </div>
 <?php elseif ($is_ranking_recs): ?>
   <!-- 手法別おすすめ 構造化エディタ -->
 <style>
@@ -556,17 +580,17 @@ if ($is_indicator && $ind_slug) {
         📥 バックテストCSV（ZIP）
       </a>
 <?php endif; ?>
-<?php if (($is_indicator && $ind_slug) || $is_pair): ?>
+<?php if (($is_indicator && $ind_slug) || $is_pair || $is_signals_intro): ?>
       <button class="rebuild-btn" id="rebuild-btn" onclick="rebuildPage()">🔄 公開ページを更新</button>
       <span class="rebuild-status" id="rebuild-status"></span>
       <button onclick="previewArticle()" style="background:#1e3a5f;color:#7dd3fc;border:1px solid #1e4976;border-radius:7px;padding:7px 16px;font-size:12px;font-weight:600;cursor:pointer;transition:all .15s">🔍 プレビュー</button>
 <?php endif; ?>
     </div>
-<?php if (($is_indicator && $ind_slug) || $is_pair): ?>
+<?php if (($is_indicator && $ind_slug) || $is_pair || $is_signals_intro): ?>
     <div id="rebuild-log" class="rebuild-log"></div>
 <?php endif; ?>
     <div class="info-banner">
-<?php if (($is_indicator && $ind_slug) || $is_pair): ?>
+<?php if (($is_indicator && $ind_slug) || $is_pair || $is_signals_intro): ?>
       💡 <strong>公開ページを更新</strong> ボタンで保存内容をすぐに反映できます。SSHは不要です。
 <?php else: ?>
       ℹ️ 保存後、管理画面の <strong>バックテスト</strong> または <strong>SEO管理 → ランキング管理</strong> から
@@ -2295,12 +2319,13 @@ addBt2Cond();
 </main>
 
 <script>
-const ARTICLE_KEY     = <?= json_encode($article['key']) ?>;
-const IS_INDICATOR    = <?= $is_indicator ? 'true' : 'false' ?>;
-const IS_PAIR         = <?= $is_pair ? 'true' : 'false' ?>;
-const IS_RANKING_RECS = <?= $is_ranking_recs ? 'true' : 'false' ?>;
-const IND_SLUG        = <?= json_encode($ind_slug) ?>;
-const PAIR_SLUG       = <?= json_encode($pair_slug) ?>;
+const ARTICLE_KEY       = <?= json_encode($article['key']) ?>;
+const IS_INDICATOR      = <?= $is_indicator ? 'true' : 'false' ?>;
+const IS_PAIR           = <?= $is_pair ? 'true' : 'false' ?>;
+const IS_RANKING_RECS   = <?= $is_ranking_recs ? 'true' : 'false' ?>;
+const IS_SIGNALS_INTRO  = <?= $is_signals_intro ? 'true' : 'false' ?>;
+const IND_SLUG          = <?= json_encode($ind_slug) ?>;
+const PAIR_SLUG         = <?= json_encode($pair_slug) ?>;
 const AI_NOTES_KEY    = IND_SLUG ? ('indicator_ai_notes_' + IND_SLUG) : '';
 <?php
 // プレビューURL: カスタム指標は /composite/{slug}/、通常指標は /{cat}/{slug}/、ペアは /{slug}/
@@ -2434,6 +2459,19 @@ async function loadContent() {
           if (metaEl)  metaEl.value  = rec.meta_description || '';
         }
       } catch(e) { console.error('SEO load error', e); }
+    }
+    if (IS_SIGNALS_INTRO) {
+      try {
+        const seoRes = await fetch('/admin/api.php?action=seo_init');
+        const seoD   = await seoRes.json();
+        if (seoD.status === 'ok') {
+          const rec = seoD.data?.['signals:index'] || {};
+          const titleEl = document.getElementById('editor-seo-title');
+          const metaEl  = document.getElementById('editor-seo-meta');
+          if (titleEl) titleEl.value = rec.title            || '';
+          if (metaEl)  metaEl.value  = rec.meta_description || '';
+        }
+      } catch(e) { console.error('Signals SEO load error', e); }
     }
   } catch(e) {
     console.error('Failed to load content', e);
@@ -2592,6 +2630,21 @@ async function saveContent() {
         }).then(r => r.json()));
       }
     }
+    if (IS_SIGNALS_INTRO) {
+      const titleEl = document.getElementById('editor-seo-title');
+      const metaEl  = document.getElementById('editor-seo-meta');
+      saves.push(fetch('/admin/api.php', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({
+          action: 'seo_save',
+          page_type: 'signals',
+          page_key: 'index',
+          title:            titleEl ? titleEl.value : '',
+          meta_description: metaEl  ? metaEl.value  : '',
+        }),
+      }).then(r => r.json()));
+    }
     const results = await Promise.all(saves);
     const failed  = results.find(d => d.status !== 'ok');
     if (!failed) {
@@ -2623,7 +2676,7 @@ async function rebuildPage() {
   const log     = document.getElementById('rebuild-log');
   const btnTop  = document.getElementById('rebuild-btn-top');
   const statTop = document.getElementById('rebuild-status-top');
-  if (!btn || (!IND_SLUG && !PAIR_SLUG)) return;
+  if (!btn || (!IND_SLUG && !PAIR_SLUG && !IS_SIGNALS_INTRO)) return;
   btn.disabled   = true;
   stat.textContent = 'ビルド中...';
   stat.className   = 'rebuild-status running';
@@ -2631,8 +2684,8 @@ async function rebuildPage() {
   if (statTop) { statTop.textContent = 'ビルド中...'; statTop.className = 'rebuild-status running'; }
   if (log) { log.textContent = ''; log.style.display = 'none'; }
   try {
-    const action = IS_PAIR ? 'rebuild_pair_page' : 'rebuild_indicator_page';
-    const body   = IS_PAIR ? { pair: PAIR_SLUG } : { slug: IND_SLUG };
+    const action = IS_PAIR ? 'rebuild_pair_page' : IS_SIGNALS_INTRO ? 'rebuild_signals_page' : 'rebuild_indicator_page';
+    const body   = IS_PAIR ? { pair: PAIR_SLUG } : IS_SIGNALS_INTRO ? {} : { slug: IND_SLUG };
     const res = await fetch('/admin/api.php?action=' + action, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -2692,8 +2745,10 @@ function previewArticle() {
     el.addEventListener('input', update);
     update();
   }
-  updateCount('seo-title',       'seo-title-count', 60, 80);
-  updateCount('seo-description', 'seo-desc-count',  120, 160);
+  updateCount('seo-title',           'seo-title-count',     60,  80);
+  updateCount('seo-description',     'seo-desc-count',      120, 160);
+  updateCount('editor-seo-title',    'seo-title-sig-count', 60,  80);
+  updateCount('editor-seo-meta',     'seo-meta-sig-count',  120, 160);
 })();
 
 // ---- SEO 保存 & ページ再生成 ----

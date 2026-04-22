@@ -1956,9 +1956,11 @@ def main():
     _ap = _argp.ArgumentParser()
     _ap.add_argument('--slug', default='', help='この url_slug の指標ページのみ再生成')
     _ap.add_argument('--pair', default='', help='この通貨ペア(usdjpy/gbpjpy/eurjpy)のページのみ再生成')
+    _ap.add_argument('--page', default='', help='signals など特定ページのみ再生成')
     _args, _ = _ap.parse_known_args()
     target_slug = _args.slug.strip().lower()
     target_pair = _args.pair.strip().upper()  # USDJPY / GBPJPY / EURJPY
+    target_page = _args.page.strip().lower()
 
     if target_slug:
         # ---- 単一ページ高速ビルド ----
@@ -2093,6 +2095,52 @@ def main():
             })
             save(_pair_pages[target_pair], html)
             logger.info("Pair page built: /%s/", target_pair.lower())
+        return
+
+    if target_page == 'signals':
+        # ---- シグナルページ単体ビルド ----
+        app = create_app()
+        with app.app_context():
+            content_db = load_content_db()
+            seo_db     = load_seo_db()
+            sig_seo    = seo_db.get("signals:index", {})
+            all_signals = get_all_signals()
+            _pair_labels = {"USDJPY": "ドル円", "GBPJPY": "ポンド円", "EURJPY": "ユーロ円"}
+            _tf_labels   = {"5min": "5分", "15min": "15分", "1hr": "1時間", "4hr": "4時間", "daily": "日足"}
+            _tf_order    = ["5min", "15min", "1hr", "4hr", "daily"]
+            _sig_url_map = {}
+            for _iname, _iinfo in INDICATOR_INFO.items():
+                _cat_slug = CATEGORY_SLUGS.get(_iinfo.get("category", ""), "indicators")
+                _url_slug = INDICATOR_SEO.get(_iname, {}).get("url_slug") or _iinfo.get("slug", "")
+                _sig_url_map[_iname] = f"/{_cat_slug}/{_url_slug}/"
+            for _s in all_signals:
+                _iname = _s.get("indicator_name", "")
+                _s["display_name"]    = INDICATOR_INFO.get(_iname, {}).get("display", _iname)
+                _s["ind_url"]         = _sig_url_map.get(_iname, "")
+                _s["signal_time_jst"] = utc_str_to_jst(_s.get("signal_time", ""))
+            _pair_order = ["USDJPY", "GBPJPY", "EURJPY"]
+            signals_by_pair = {}
+            for _s in all_signals:
+                _p  = _s.get("currency_pair", "")
+                _tf = _s.get("timeframe", "")
+                if _p not in signals_by_pair:
+                    signals_by_pair[_p] = {tf: [] for tf in _tf_order}
+                signals_by_pair[_p].setdefault(_tf, []).append(_s)
+            signals_by_pair = {p: signals_by_pair[p] for p in _pair_order if p in signals_by_pair}
+            html = render_html(app, "signals_static.html", {
+                "pair_labels":     _pair_labels,
+                "tf_labels":       _tf_labels,
+                "tf_order":        _tf_order,
+                "signals":         all_signals,
+                "signals_by_pair": signals_by_pair,
+                "updated_at":      datetime.now(JST).strftime("%Y/%m/%d %H:%M"),
+                "active_page":     "signals",
+                "signals_intro":   content_db.get("signals_intro", ""),
+                "signals_seo_title": sig_seo.get("title", ""),
+                "signals_seo_meta":  sig_seo.get("meta_description", ""),
+            })
+            save("signals/index.html", html)
+            logger.info("Signals page built: /signals/")
         return
 
     # ---- 通常フルビルド ----
@@ -2456,6 +2504,7 @@ def main():
         # ペアを固定順に並べ替え
         signals_by_pair = {p: signals_by_pair[p] for p in _pair_order if p in signals_by_pair}
         _signals_content_db = load_content_db()
+        _signals_seo = seo_db.get("signals:index", {})
         html = render_html(app, "signals_static.html", {
             "pairs": pairs,
             "pair_pages": pair_pages,
@@ -2466,7 +2515,9 @@ def main():
             "tf_order": _tf_order,
             "updated_at": updated_at,
             "active_page": "signals",
-            "signals_intro": _signals_content_db.get("signals_intro", ""),
+            "signals_intro":     _signals_content_db.get("signals_intro", ""),
+            "signals_seo_title": _signals_seo.get("title", ""),
+            "signals_seo_meta":  _signals_seo.get("meta_description", ""),
         })
         save("signals/index.html", html)
 

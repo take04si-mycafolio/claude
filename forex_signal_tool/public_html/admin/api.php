@@ -1219,7 +1219,7 @@ switch ($action) {
         $pageKey  = $body['page_key']  ?? '';
         $title    = trim($body['title']            ?? '');
         $meta     = trim($body['meta_description'] ?? '');
-        if (!in_array($pageType, ['indicator', 'category', 'pair'], true) || $pageKey === '') {
+        if (!in_array($pageType, ['indicator', 'category', 'pair', 'signals'], true) || $pageKey === '') {
             json_out(['status' => 'error', 'message' => '無効なパラメータ']);
         }
         try {
@@ -1700,6 +1700,16 @@ switch ($action) {
         $script  = escapeshellarg(TASKS_DIR . '/generate_static.py');
         $pairArg = escapeshellarg('--pair=' . strtoupper($pair));
         exec("{$py} {$script} {$pairArg} 2>&1", $lines, $ret);
+        $output = implode("\n", array_slice($lines, -30));
+        json_out(['ok' => $ret === 0, 'output' => $output]);
+        break;
+
+    // ---- シグナルページ HTML 再生成（generate_static.py --page=signals） ----
+    case 'rebuild_signals_page':
+        require_login();
+        $py     = escapeshellarg(PYTHON_BIN);
+        $script = escapeshellarg(TASKS_DIR . '/generate_static.py');
+        exec("{$py} {$script} --page=signals 2>&1", $lines, $ret);
         $output = implode("\n", array_slice($lines, -30));
         json_out(['ok' => $ret === 0, 'output' => $output]);
         break;

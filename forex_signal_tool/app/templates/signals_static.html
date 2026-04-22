@@ -1,5 +1,8 @@
 {% extends "base_static.html" %}
-{% block title %}シグナル一覧 - AI×FX{% endblock %}
+{% block title %}{{ signals_seo_title or 'シグナル一覧 - AI×FX' }}{% endblock %}
+{% block head_extra %}
+{% if signals_seo_meta %}<meta name="description" content="{{ signals_seo_meta }}">{% endif %}
+{% endblock %}
 
 {% block content %}
 <div class="page-title">
