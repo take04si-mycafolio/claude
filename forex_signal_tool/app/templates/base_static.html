@@ -32,7 +32,7 @@
         <span>AI×FX</span>
       </a>
     </div>
-    <div class="header-time" id="current-time">--:--:-- UTC</div>
+    <a href="/register.php" id="header-auth-btn" class="header-auth-btn">会員登録する</a>
   </div>
 </header>
 
@@ -98,16 +98,16 @@
 })();
 </script>
 <script>
-  function updateClock() {
-    const now = new Date();
-    const jst = new Date(now.getTime() + 9 * 3600 * 1000);
-    const h = String(jst.getUTCHours()).padStart(2,'0');
-    const m = String(jst.getUTCMinutes()).padStart(2,'0');
-    const s = String(jst.getUTCSeconds()).padStart(2,'0');
-    document.getElementById('current-time').textContent = `${h}:${m}:${s}`;
-  }
-  setInterval(updateClock, 1000);
-  updateClock();
+  (function() {
+    var btn = document.getElementById('header-auth-btn');
+    if (!btn) return;
+    var cookie = document.cookie.split(';').map(function(c){ return c.trim(); })
+                   .find(function(c){ return c.startsWith('fx_auth_email='); });
+    if (cookie) {
+      btn.textContent = 'マイページ';
+      btn.href = '/mypage.php';
+    }
+  })();
 </script>
 {% block extra_js %}{% endblock %}
 </body>

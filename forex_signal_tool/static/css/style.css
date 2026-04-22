@@ -36,11 +36,18 @@ body {
   gap: 8px;
 }
 .header-logo i { color: #4ade80; font-size: 1.3rem; }
-.header-time {
-  color: #94a3b8;
-  font-size: 0.75rem;
-  font-variant-numeric: tabular-nums;
+.header-auth-btn {
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: #1a1a2e;
+  background: #c9ff3b;
+  border-radius: 99px;
+  padding: 6px 14px;
+  text-decoration: none;
+  white-space: nowrap;
+  transition: opacity .15s;
 }
+.header-auth-btn:hover { opacity: .85; color: #1a1a2e; }
 
 /* ===== メインコンテンツ ===== */
 .app-main {

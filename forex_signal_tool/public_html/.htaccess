@@ -20,6 +20,9 @@ AddHandler cgi-script .cgi
 <FilesMatch "^\.">
   Require all denied
 </FilesMatch>
+<FilesMatch "^_">
+  Require all denied
+</FilesMatch>
 
 # ---- URL正規化・ルーティング ----
 <IfModule mod_rewrite.c>
