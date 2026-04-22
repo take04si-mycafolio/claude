@@ -557,8 +557,10 @@ def get_all_backtest() -> list:
             tp = float(d.get("tp_pips") or 0)
             d["rr_ratio"] = round(tp / sl, 1) if sl else 0
             ind_info = INDICATOR_INFO.get(name, {})
-            d["display"]  = ind_info.get("display",  name)
-            d["category"] = ind_info.get("category", "")
+            _disp = ind_info.get("display", name)
+            d["display"]    = _disp
+            d["short_name"] = _disp.split("（")[0].strip()[:10]
+            d["category"]   = ind_info.get("category", "")
             result.append(d)
     return sorted(result, key=lambda x: x.get("win_rate") or 0, reverse=True)
 
