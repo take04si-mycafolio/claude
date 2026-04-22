@@ -230,6 +230,10 @@ $csrf = csrf_token();
   </div>
 </main>
 
+<footer style="text-align:center;font-size:12px;color:#9ca3af;padding:16px 16px 24px">
+  <a href="/terms.php" style="color:#9ca3af;text-decoration:none">利用規約</a><span style="margin:0 3px">｜</span><a href="/privacy.php" style="color:#9ca3af;text-decoration:none">プライバシーポリシー</a><span style="margin:0 3px">｜</span><a href="/contact.php" style="color:#9ca3af;text-decoration:none">お問い合わせ</a>
+</footer>
+
 <!-- 退会確認モーダル -->
 <div class="modal-overlay" id="deleteModal">
   <div class="modal-box">

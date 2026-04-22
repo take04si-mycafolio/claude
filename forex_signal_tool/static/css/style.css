@@ -56,6 +56,17 @@ body {
   padding: 56px 0 70px;
 }
 
+/* ===== フッターリンク ===== */
+.site-footer {
+  text-align: center;
+  font-size: 12px;
+  color: #9ca3af;
+  padding: 12px 16px 16px;
+}
+.site-footer a { color: #9ca3af; text-decoration: none; }
+.site-footer a:hover { color: #6b7280; }
+.site-footer span { margin: 0 3px; }
+
 /* ===== ボトムナビ ===== */
 .bottom-nav {
   position: fixed;
