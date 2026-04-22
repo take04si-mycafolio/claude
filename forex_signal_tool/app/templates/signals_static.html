@@ -11,9 +11,9 @@
 .rk-hero-title{font-size:22px;font-weight:800;color:#f1f5f9;line-height:1.2;margin:0}
 .rk-intro-block{padding:14px 16px 12px;background:#0f172a}
 .rk-intro-text{font-size:14px;color:#cbd5e1;line-height:1.9;margin:0;white-space:pre-line}
-.sig-breadcrumb{display:flex;align-items:center;gap:6px;font-size:11px;color:#475569;padding:12px 16px;border-top:1px solid #1e293b}
-.sig-breadcrumb a{color:#475569;text-decoration:none}.sig-breadcrumb a:hover{color:#94a3b8}
-.sig-breadcrumb i{font-size:9px}
+.rk-breadcrumb{display:flex;align-items:center;gap:6px;font-size:11px;color:#64748b;margin-bottom:12px}
+.rk-breadcrumb a{color:#64748b;text-decoration:none}.rk-breadcrumb a:hover{color:#94a3b8}
+.rk-breadcrumb .bi{font-size:9px}
 </style>
 
 <div class="rk-hero">
@@ -175,7 +175,7 @@ document.addEventListener('DOMContentLoaded', function() {
 {% endif %}
 
 <!-- パンくずリスト -->
-<nav class="sig-breadcrumb" aria-label="breadcrumb">
+<nav class="rk-breadcrumb" aria-label="breadcrumb" style="justify-content:center;margin-bottom:16px">
   <a href="/">ホーム</a>
   <i class="bi bi-chevron-right"></i>
   <span>シグナル一覧</span>
