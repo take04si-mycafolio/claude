@@ -2295,6 +2295,8 @@ def main():
         # 指標別集計データ（勝率一覧 s06 / ランキング s07 用）
         bt_top_table   = []
         bt_top_ranking = []
+        pf_ranking     = []
+        bt_period      = ""
         try:
             from app.models.backtest import BacktestResult as _BT
             from sqlalchemy import func as _sqf
@@ -2410,6 +2412,13 @@ def main():
             _scored_map  = {r["ind"]: r for r in _scored}
             bt_top_table = [_scored_map[k] for k in _TOP_TABLE_ORDER if k in _scored_map]
             bt_top_ranking = sorted(_scored, key=lambda x: x["score"], reverse=True)[:5]
+            pf_ranking = sorted(_scored, key=lambda x: x.get("avg_pf") or 0, reverse=True)[:5]
+            try:
+                _min_date = db.session.query(_sqf.min(_BT.created_at)).scalar()
+                _max_date = db.session.query(_sqf.max(_BT.created_at)).scalar()
+                bt_period = f"{str(_min_date)[:10]} 〜 {str(_max_date)[:10]}" if _min_date and _max_date else ""
+            except Exception:
+                bt_period = ""
             logger.info("TOP ページ集計: %d指標", len(bt_top_table))
         except Exception as _e:
             logger.warning("TOP page data aggregation failed: %s", _e)
@@ -2449,6 +2458,8 @@ def main():
             "content_post":    top_post,
             "bt_top_table":    bt_top_table,
             "bt_top_ranking":  bt_top_ranking,
+            "pf_ranking":      pf_ranking,
+            "bt_period":       bt_period,
             "pair_panels":     pair_panels,
             "pair_pages":      pair_pages,
             "updated_at":      updated_at,

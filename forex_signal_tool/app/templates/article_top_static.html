@@ -185,62 +185,6 @@
 
 {% if content_pre %}{{ content_pre | safe }}{% endif %}
 
-{% if bt_top_table %}
-<!-- ===== Section 06: 勝率一覧（BacktestResultから自動生成） ===== -->
-<section class="sec" id="s06">
-  <div class="sec-num">06</div>
-  <h2>FXテクニカルの勝率一覧</h2>
-  <div class="kw-row">
-    <span class="kw">FX テクニカル 勝率 一覧</span>
-    <span class="kw">RSI 勝率</span>
-    <span class="kw">MACD 勝率</span>
-    <span class="kw">ボリンジャーバンド 勝率</span>
-  </div>
-  <p>当サイトのバックテストデータ（USD/JPY・GBP/JPY・EUR/JPY、全時間軸）をもとに集計した実績値です。勝率・PF・最大DDを合わせて確認することで、各手法の特性が見えてきます。</p>
-  <div class="tbl-wrap">
-    <table style="min-width:720px">
-      <thead>
-        <tr>
-          <th style="min-width:120px">テクニカル</th>
-          <th style="min-width:90px">カテゴリ</th>
-          <th style="min-width:100px">勝率（範囲）</th>
-          <th style="min-width:80px">PF（平均）</th>
-          <th style="min-width:70px">最大DD</th>
-          <th style="min-width:80px">総取引数</th>
-          <th style="min-width:220px;white-space:normal">特徴</th>
-        </tr>
-      </thead>
-      <tbody>
-        {% for row in bt_top_table %}
-        <tr>
-          <td style="font-weight:500;white-space:nowrap">{% if row.url %}<a href="{{ row.url }}" style="color:inherit;text-decoration:underline;text-underline-offset:2px">{{ row.short_name }}</a>{% else %}{{ row.short_name }}{% endif %}</td>
-          <td style="font-size:12px;color:var(--color-text-secondary);white-space:nowrap">{{ row.category }}</td>
-          <td><span class="badge {{ row.wr_class }}">{{ row.wr_label }}</span></td>
-          <td>{{ row.pf_label }}</td>
-          <td>{{ row.dd_label }}</td>
-          <td style="font-size:12px;color:var(--color-text-secondary)">{{ "{:,}".format(row.total_trades) }}回</td>
-          <td style="font-size:12px;color:var(--color-text-secondary);white-space:normal;line-height:1.55">{{ row.feature }}</td>
-        </tr>
-        {% endfor %}
-        {% if bt_top_table | selectattr('ind', 'equalto', 'Ichimoku_Cloud') | list | length == 0 %}
-        <!-- 一目均衡表（DB未対応・静的行） -->
-        <tr>
-          <td style="font-weight:500;white-space:nowrap"><a href="/trend/ichimoku/" style="color:inherit;text-decoration:underline;text-underline-offset:2px">一目均衡表</a></td>
-          <td style="font-size:12px;color:var(--color-text-secondary);white-space:nowrap">トレンド</td>
-          <td><span class="badge b-gray" style="font-size:11px;color:#888">検証予定</span></td>
-          <td style="font-size:12px;color:var(--color-text-secondary)">ー</td>
-          <td style="font-size:12px;color:var(--color-text-secondary)">ー</td>
-          <td style="font-size:12px;color:var(--color-text-secondary)">ー</td>
-          <td style="font-size:12px;color:var(--color-text-secondary);white-space:normal;line-height:1.55">転換線・基準線・先行スパン（雲）・遅行線の5本線で、相場のトレンド方向・サポレジ・勢いを一目で把握できます。</td>
-        </tr>
-        {% endif %}
-      </tbody>
-    </table>
-  </div>
-  <div class="callout c-warn">PF（プロフィットファクター）が1.0を下回ると長期的に資金は減少する。勝率が高くてもPFが1.2未満なら再検討が必要だ。</div>
-</section>
-{% endif %}
-
 {% if bt_top_ranking %}
 <!-- ===== Section 07: 総合ランキング（スコア順） ===== -->
 <section class="sec" id="s07">
@@ -278,6 +222,38 @@
     <div style="font-size:13px;font-weight:500;margin-bottom:4px">全指標のランキングを詳しく確認</div>
     <div style="font-size:12px;color:var(--color-text-secondary);margin-bottom:14px">通貨ペア・時間軸ごとの詳細データ、手法別おすすめを掲載しています</div>
     <a href="/technical-ranking/" style="display:inline-flex;align-items:center;gap:6px;background:var(--color-text-primary);color:#fff;border-radius:var(--radius-md);padding:9px 24px;font-size:13px;font-weight:500;text-decoration:none">テクニカルランキングへ →</a>
+  </div>
+</section>
+{% endif %}
+
+{% if pf_ranking %}
+<!-- ===== Section 08: PFランキング ===== -->
+<section class="sec" id="s08">
+  <div class="sec-num">08</div>
+  <h2>バックテストから見えてきたPFランキング</h2>
+  {% if bt_period %}<p style="font-size:12px;color:var(--color-text-secondary);margin-bottom:1rem">バックテスト期間: {{ bt_period }}</p>{% endif %}
+  <p>プロフィットファクター（PF）は「総利益 ÷ 総損失」で算出する収益性の指標です。1.0を超えるほど利益が損失を上回り、長期的に資金が増加しやすい戦略といえます。</p>
+  <div class="rank-list">
+    {% for row in pf_ranking %}
+    <div class="rank-item {% if loop.index == 1 %}top{% endif %}">
+      <div class="rank-num {{ ['gold','silver','bronze','',''][loop.index0 if loop.index0 < 3 else 3] }}">{{ loop.index }}</div>
+      <div class="rank-body">
+        <div class="rank-name">
+          {% if row.url %}<a href="{{ row.url }}" style="color:inherit;text-decoration:none;border-bottom:1px solid var(--color-border)">{{ row.display }}</a>{% else %}{{ row.display }}{% endif %}
+        </div>
+        <div class="rank-meta">
+          <span class="badge b-blue">PF {{ row.pf_label }}</span>
+          <span class="badge {{ row.wr_class }}">勝率 {{ row.wr_label }}</span>
+          <span class="badge b-gray">スコア {{ row.score }}点</span>
+          {% if row.best_pair %}<span class="badge b-gray">{{ row.best_pair }} / {{ row.best_tf }}</span>{% endif %}
+        </div>
+        <div class="rank-desc">
+          {{ row.category }}系。{{ "{:,}".format(row.total_trades) }}回のバックテストに基づく集計値（USD/JPY・GBP/JPY・EUR/JPY、全時間軸）。
+          {% if row.url %}<a href="{{ row.url }}" style="font-size:12px;color:var(--color-primary,#0070f3);white-space:nowrap">詳細ページへ →</a>{% endif %}
+        </div>
+      </div>
+    </div>
+    {% endfor %}
   </div>
 </section>
 {% endif %}
