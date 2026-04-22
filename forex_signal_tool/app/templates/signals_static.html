@@ -11,6 +11,22 @@
 .rk-hero-title{font-size:22px;font-weight:800;color:#f1f5f9;line-height:1.2;margin:0}
 .rk-intro-block{padding:14px 16px 12px;background:#0f172a}
 .rk-intro-text{font-size:14px;color:#cbd5e1;line-height:1.9;margin:0;white-space:pre-line}
+.pbn-wrap{padding:16px 16px 0}
+.pbn-title{font-size:11px;font-weight:700;color:#64748b;letter-spacing:.06em;text-transform:uppercase;margin-bottom:10px}
+.pbn-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+@media(max-width:560px){.pbn-grid{grid-template-columns:1fr}}
+.pbn-card{display:block;border-radius:12px;padding:14px 16px;text-decoration:none;transition:transform .15s,box-shadow .15s;border:1px solid transparent}
+.pbn-card:hover{transform:translateY(-2px);box-shadow:0 6px 20px rgba(0,0,0,.12);text-decoration:none}
+.pbn-pair{font-size:18px;font-weight:800;margin-bottom:2px;line-height:1.2}
+.pbn-ja{font-size:11px;font-weight:600;margin-bottom:8px;opacity:.75}
+.pbn-desc{font-size:11px;line-height:1.6;margin-bottom:10px;opacity:.8}
+.pbn-cta{font-size:11px;font-weight:700;display:flex;align-items:center;gap:4px}
+.pbn-blue{background:linear-gradient(135deg,#1e3a5f,#1d4ed8);color:#e0eaff;border-color:#2563eb}
+.pbn-blue .pbn-pair{color:#93c5fd}.pbn-blue .pbn-cta{color:#60a5fa}
+.pbn-red{background:linear-gradient(135deg,#4c1020,#be123c);color:#ffe4e6;border-color:#e11d48}
+.pbn-red .pbn-pair{color:#fca5a5}.pbn-red .pbn-cta{color:#fda4af}
+.pbn-green{background:linear-gradient(135deg,#14532d,#15803d);color:#dcfce7;border-color:#16a34a}
+.pbn-green .pbn-pair{color:#86efac}.pbn-green .pbn-cta{color:#4ade80}
 .rk-breadcrumb{display:flex;align-items:center;gap:6px;font-size:11px;color:#64748b;margin-bottom:12px}
 .rk-breadcrumb a{color:#64748b;text-decoration:none}.rk-breadcrumb a:hover{color:#94a3b8}
 .rk-breadcrumb .bi{font-size:9px}
@@ -172,6 +188,30 @@ document.addEventListener('DOMContentLoaded', function() {
   <p class="mt-3">シグナルがありません</p>
   <p class="text-muted small">バックテストを実行するとシグナルが表示されます</p>
   <a href="/" class="btn btn-primary mt-2">ホームへ戻る</a>
+</div>
+{% endif %}
+
+{% if pair_pages %}
+{% set pair_ja = {'USDJPY': 'ドル円', 'GBPJPY': 'ポン円', 'EURJPY': 'ユロ円'} %}
+{% set pair_en = {'USDJPY': 'USD/JPY', 'GBPJPY': 'GBP/JPY', 'EURJPY': 'EUR/JPY'} %}
+{% set pair_desc = {
+  'USDJPY': '世界最大の取引量を誇る主要通貨ペア。日米金融政策の動向に注目。',
+  'GBPJPY': '値動きの大きさが特徴のクロス円。ロンドン時間に特に活発。',
+  'EURJPY': '欧州経済と日本円の相関が強いクロス円。流動性が高く取引しやすい。'
+} %}
+{% set pair_color = {'USDJPY': 'pbn-blue', 'GBPJPY': 'pbn-red', 'EURJPY': 'pbn-green'} %}
+<div class="pbn-wrap">
+  <div class="pbn-title">通貨ペア別リアルタイムシグナル</div>
+  <div class="pbn-grid">
+    {% for pair, filename in pair_pages.items() %}
+    <a href="/{{ filename | replace('index.html', '') }}" class="pbn-card {{ pair_color.get(pair, '') }}">
+      <div class="pbn-pair">{{ pair_en.get(pair, pair) }}</div>
+      <div class="pbn-ja">{{ pair_ja.get(pair, '') }}</div>
+      <div class="pbn-desc">{{ pair_desc.get(pair, '') }}</div>
+      <div class="pbn-cta">シグナルを見る <i class="bi bi-arrow-right"></i></div>
+    </a>
+    {% endfor %}
+  </div>
 </div>
 {% endif %}
 

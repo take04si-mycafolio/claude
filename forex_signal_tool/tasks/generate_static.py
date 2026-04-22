@@ -2129,12 +2129,14 @@ def main():
                     signals_by_pair[_p] = {tf: [] for tf in _tf_order}
                 signals_by_pair[_p].setdefault(_tf, []).append(_s)
             signals_by_pair = {p: signals_by_pair[p] for p in _pair_order if p in signals_by_pair}
+            _sig_pair_pages = {"USDJPY": "usdjpy/index.html", "GBPJPY": "gbpjpy/index.html", "EURJPY": "eurjpy/index.html"}
             html = render_html(app, "signals_static.html", {
                 "pair_labels":     _pair_labels,
                 "tf_labels":       _tf_labels,
                 "tf_order":        _tf_order,
                 "signals":         all_signals,
                 "signals_by_pair": signals_by_pair,
+                "pair_pages":      _sig_pair_pages,
                 "updated_at":      datetime.now(JST).strftime("%Y/%m/%d %H:%M"),
                 "active_page":     "signals",
                 "signals_intro":   content_db.get("signals_intro", ""),
