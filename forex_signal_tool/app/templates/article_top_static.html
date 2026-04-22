@@ -4,7 +4,19 @@
 {% block head_extra %}
 <meta name="google-adsense-account" content="ca-pub-3695194481616471">
 <link href="https://fonts.googleapis.com/css2?family=Shippori+Mincho+B1:wght@500;700;800&family=Zen+Kaku+Gothic+New:wght@400;500;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
-<style>.app-main { max-width: 910px; }</style>
+<style>
+.app-main { max-width: 910px; }
+.header-inner { max-width: 910px; }
+@keyframes headerIconPulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.4; transform: scale(0.85); }
+}
+.header-logo i {
+  color: #c9ff3b !important;
+  filter: drop-shadow(0 0 6px #c9ff3b);
+  animation: headerIconPulse 1.6s infinite;
+}
+</style>
 {% endblock %}
 
 {% block content %}
