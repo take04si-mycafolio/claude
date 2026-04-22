@@ -589,7 +589,7 @@ function qfhOpen(row){
 <div class="section-card">
   <div class="section-title section-title-row">
     <div class="section-title-left">
-      <i class="bi bi-lightning-charge-fill text-warning me-2"></i><span style="color:#1d4ed8">アクティブシグナル</span>
+      <i class="bi bi-lightning-charge-fill text-warning me-2"></i>アクティブシグナル
       <span class="info-tip" data-tip="「シグナル更新」実行時点のテクニカル指標の方向性スナップショットです。バックテスト勝率が設定値以上の指標のみ表示されます。15m→2時間、1H→6時間、4H→24時間、日足→72時間で自動消滅します。">
         <i class="bi bi-info-circle-fill"></i>
       </span>
@@ -628,7 +628,7 @@ function qfhOpen(row){
             <div class="signal-item-info">
               {% set sig_url = ind_url_map.get(s.indicator_name) %}
               {% if sig_url %}
-              <div class="signal-name"><a href="{{ sig_url }}" style="color:inherit;text-decoration:underline;text-decoration-color:rgba(255,255,255,0.3);text-underline-offset:2px">{{ display_map.get(s.indicator_name, s.indicator_name) }}</a></div>
+              <div class="signal-name"><a href="{{ sig_url }}" style="color:#1d4ed8;text-decoration:none">{{ display_map.get(s.indicator_name, s.indicator_name) }}</a></div>
               {% else %}
               <div class="signal-name">{{ display_map.get(s.indicator_name, s.indicator_name) }}</div>
               {% endif %}
@@ -663,7 +663,7 @@ function qfhOpen(row){
 {% if data.ranking_tf_order %}
 <div class="section-card">
   <div class="section-title">
-    <i class="bi bi-trophy-fill text-warning me-2"></i><span style="color:#1d4ed8">勝率ランキング</span>
+    <i class="bi bi-trophy-fill text-warning me-2"></i>勝率ランキング
     <span class="info-tip" data-tip="10トレード以上のテクニカル指標を勝率順に表示しています。PFはプロフィットファクター（総利益÷総損失）です。">
       <i class="bi bi-info-circle-fill"></i>
     </span>
@@ -698,7 +698,7 @@ function qfhOpen(row){
       <div class="bt-item">
       {% endif %}
         <div class="bt-item-left">
-          <div class="bt-name">{{ display_map.get(r.indicator_name, r.indicator_name) }}</div>
+          <div class="bt-name" style="color:#1d4ed8">{{ display_map.get(r.indicator_name, r.indicator_name) }}</div>
           <div class="bt-meta text-muted">{{ r.total_trades }}トレード</div>
         </div>
         <div class="bt-item-right">
