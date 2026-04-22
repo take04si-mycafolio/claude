@@ -2412,7 +2412,10 @@ def main():
             _scored_map  = {r["ind"]: r for r in _scored}
             bt_top_table = [_scored_map[k] for k in _TOP_TABLE_ORDER if k in _scored_map]
             bt_top_ranking = sorted(_scored, key=lambda x: x["score"], reverse=True)[:5]
-            pf_ranking = sorted(_scored, key=lambda x: x.get("avg_pf") or 0, reverse=True)[:5]
+            pf_ranking = sorted(
+                [x for x in _scored if x.get("total_trades", 0) >= 20],
+                key=lambda x: x.get("avg_pf") or 0, reverse=True
+            )[:5]
             try:
                 _min_date = db.session.query(_sqf.min(_BT.created_at)).scalar()
                 _max_date = db.session.query(_sqf.max(_BT.created_at)).scalar()
