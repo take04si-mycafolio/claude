@@ -332,18 +332,31 @@ function buildConditions() {
   return conds;
 }
 
-const TF_LIMITS   = { '15min': 160, '1hr': 72, '4hr': 180, 'daily': 60 };
-const TF_MAX_DAYS = { '15min': 1.67, '1hr': 3, '4hr': 30, 'daily': 60 };
+const TF_LIMITS   = { '15min': 160, '1hr': 72, '4hr': 180, 'daily': 180 };
+const TF_MAX_DAYS = { '15min': 1.67, '1hr': 3, '4hr': 30, 'daily': 180 };
 const TF_HINTS    = {
   '15min': '上限: 40時間（160本）',
   '1hr':   '上限: 72時間（72本）',
   '4hr':   '上限: 1ヶ月（180本）',
-  'daily': '上限: 2ヶ月（60本）',
+  'daily': '上限: 6ヶ月（180本）',
 };
 
 function onTfChange(tf) {
   document.getElementById('period-hint').textContent = TF_HINTS[tf] || '';
+  updateDateMin(tf);
   validateDateRange();
+}
+
+function updateDateMin(tf) {
+  const maxDays = TF_MAX_DAYS[tf] || 30;
+  const minDate = new Date(Date.now() - maxDays * 86400000);
+  const minStr  = minDate.toISOString().split('T')[0];
+  const el = document.getElementById('start_date');
+  el.min = minStr;
+  if (el.value && el.value < minStr) {
+    el.value = '';
+    document.getElementById('period-warning').style.display = 'none';
+  }
 }
 
 function validateDateRange() {
@@ -473,6 +486,8 @@ function renderResults(results) {
 
 // 初期条件を1つ追加
 addCond();
+// 初期TFのmin日付を設定
+updateDateMin(document.querySelector('input[name=timeframe]:checked')?.value || '1hr');
 </script>
 </body>
 </html>
