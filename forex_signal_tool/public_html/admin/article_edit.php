@@ -133,9 +133,11 @@ main{max-width:960px;margin:0 auto;padding:28px 16px}
   </div>
 
 <?php
-$is_indicator    = (bool)preg_match('/^indicator_article_/', $article['key']);
-$is_ranking_recs  = in_array($article['key'], ['ranking_short_term', 'ranking_day_trade', 'ranking_swing']);
-$is_ranking_title = ($article['key'] === 'ranking_title');
+$is_indicator        = (bool)preg_match('/^indicator_article_/', $article['key']);
+$is_ranking_recs     = in_array($article['key'], ['ranking_short_term', 'ranking_day_trade', 'ranking_swing']);
+$is_ranking_title    = ($article['key'] === 'ranking_title');
+$is_custom_indicator = false;
+$custom_indicator    = null;
 $ind_slug = '';
 $indicator_name = '';
 $page_bt_by_tf = [];   // TF別の現在設定 ['1hr' => [...], '4hr' => [...], ...]
