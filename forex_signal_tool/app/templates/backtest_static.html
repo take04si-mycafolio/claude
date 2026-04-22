@@ -14,11 +14,6 @@
 
 <!-- ヒーローヘッダー（タイトルのみ） -->
 <div class="rk-hero">
-  <nav class="rk-breadcrumb" aria-label="breadcrumb">
-    <a href="/">ホーム</a>
-    <i class="bi bi-chevron-right"></i>
-    <span>テクニカル指標ランキング</span>
-  </nav>
   <div class="rk-hero-badge"><i class="bi bi-trophy-fill me-1"></i>ランキング</div>
   <h1 class="rk-hero-title">{{ ranking_title or 'テクニカル指標ランキング' }}</h1>
 </div>
@@ -31,6 +26,10 @@
 {% endif %}
 
 {% if results %}
+
+<div class="section-card" style="font-size:0.72rem;color:#94a3b8;text-align:center;padding:8px 16px;">
+  最終更新: {{ updated_at }}
+</div>
 
 <!-- ① 概要（検証条件） -->
 <div class="section-card">
@@ -415,10 +414,13 @@
   </div>
 </div>
 
-<div class="section-card" style="font-size:0.72rem;color:#94a3b8;text-align:center;padding:8px 16px;">
-  最終更新: {{ updated_at }}
-</div>
 <div style="height:20px"></div>
+
+<nav class="rk-breadcrumb" aria-label="breadcrumb" style="justify-content:center;margin-bottom:16px">
+  <a href="/">ホーム</a>
+  <i class="bi bi-chevron-right"></i>
+  <span>テクニカル指標ランキング</span>
+</nav>
 
 <script>
 const RK = {{ results_json | safe }};
