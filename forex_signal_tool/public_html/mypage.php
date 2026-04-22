@@ -76,7 +76,7 @@ $csrf = csrf_token();
       box-shadow: 0 2px 20px rgba(0,0,0,0.08);
       padding: 40px 32px;
       width: 100%;
-      max-width: 480px;
+      max-width: 910px;
     }
     .avatar {
       width: 64px; height: 64px;
