@@ -41,7 +41,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
 logger = logging.getLogger(__name__)
 
-PUBLIC_HTML = "/home/xs539690/fx-trend.net/public_html"
+PUBLIC_HTML = "/home/xs539690/kawase-ai.com/public_html"
 
 INDICATOR_INFO = {
     "RSI_14": {
@@ -2691,7 +2691,7 @@ def main():
                 logger.warning("Indicator page error %s: %s", ind_name, e)
 
         # ---- sitemap.xml 生成 ----
-        SITE_URL = "https://fx-trend.net"
+        SITE_URL = "https://kawase-ai.com"
         _today   = datetime.now(JST).strftime("%Y-%m-%d")
         _sitemap_urls = [
             # 優先度高い静的ページ

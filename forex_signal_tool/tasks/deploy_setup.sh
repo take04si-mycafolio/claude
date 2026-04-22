@@ -9,7 +9,7 @@ set -e
 
 PROJECT_DIR="/home/xs539690/forex_project"
 TOOL_DIR="$PROJECT_DIR/forex_signal_tool"
-PUBLIC_HTML="/home/xs539690/fx-trend.net/public_html"
+PUBLIC_HTML="/home/xs539690/kawase-ai.com/public_html"
 PYTHON="/home/xs539690/forex_env/bin/python3"
 LOG_DIR="$PROJECT_DIR/logs"
 

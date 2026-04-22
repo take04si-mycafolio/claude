@@ -532,9 +532,9 @@ main{max-width:900px;margin:0 auto;padding:28px 20px}
       <button class="sig-tab" data-pair="GBPJPY" onclick="sigSwitchTab('GBPJPY')" style="padding:6px 14px;border-radius:6px;border:1px solid #334155;background:#1e293b;color:#64748b;font-size:13px;cursor:pointer">GBPJPY</button>
       <button class="sig-tab" data-pair="EURJPY" onclick="sigSwitchTab('EURJPY')" style="padding:6px 14px;border-radius:6px;border:1px solid #334155;background:#1e293b;color:#64748b;font-size:13px;cursor:pointer">EURJPY</button>
       <span style="margin-left:8px;display:flex;gap:6px;align-items:center">
-        <a id="sig-link-USDJPY" href="https://fx-trend.net/usdjpy/" target="_blank" style="padding:4px 10px;border-radius:6px;border:1px solid #0f4c75;background:#0c2a3e;color:#38bdf8;font-size:12px;text-decoration:none">ドル円ページ ↗</a>
-        <a id="sig-link-GBPJPY" href="https://fx-trend.net/gbpjpy/" target="_blank" style="padding:4px 10px;border-radius:6px;border:1px solid #0f4c75;background:#0c2a3e;color:#38bdf8;font-size:12px;text-decoration:none;display:none">ポン円ページ ↗</a>
-        <a id="sig-link-EURJPY" href="https://fx-trend.net/eurjpy/" target="_blank" style="padding:4px 10px;border-radius:6px;border:1px solid #0f4c75;background:#0c2a3e;color:#38bdf8;font-size:12px;text-decoration:none;display:none">ユロ円ページ ↗</a>
+        <a id="sig-link-USDJPY" href="https://kawase-ai.com/usdjpy/" target="_blank" style="padding:4px 10px;border-radius:6px;border:1px solid #0f4c75;background:#0c2a3e;color:#38bdf8;font-size:12px;text-decoration:none">ドル円ページ ↗</a>
+        <a id="sig-link-GBPJPY" href="https://kawase-ai.com/gbpjpy/" target="_blank" style="padding:4px 10px;border-radius:6px;border:1px solid #0f4c75;background:#0c2a3e;color:#38bdf8;font-size:12px;text-decoration:none;display:none">ポン円ページ ↗</a>
+        <a id="sig-link-EURJPY" href="https://kawase-ai.com/eurjpy/" target="_blank" style="padding:4px 10px;border-radius:6px;border:1px solid #0f4c75;background:#0c2a3e;color:#38bdf8;font-size:12px;text-decoration:none;display:none">ユロ円ページ ↗</a>
       </span>
     </div>
     <!-- ローディング -->
