@@ -4,10 +4,15 @@ session_start();
 require_login();
 
 $ARTICLES = [
-    ['key' => 'top_article_pre',  'title' => 'TOPページ（前半：KV・目次・概念説明）',  'page' => '/'],
-    ['key' => 'top_article_post', 'title' => 'TOPページ（後半：手法解説・まとめ）',    'page' => '/'],
-    ['key' => 'ranking_intro',    'title' => 'テクニカルランキング 導入文',             'page' => '/technical-ranking/'],
-    ['key' => 'ranking_analysis', 'title' => 'テクニカルランキング 分析・考察',          'page' => '/technical-ranking/'],
+    ['key' => 'top_article_pre',   'title' => 'TOPページ（前半：KV・目次・概念説明）',                'page' => '/'],
+    ['key' => 'top_article_post',  'title' => 'TOPページ（後半：手法解説・まとめ）',                  'page' => '/'],
+    ['key' => 'signals_intro',     'title' => 'シグナル一覧 導入文',                                  'page' => '/signals/'],
+    ['key' => 'ranking_title',     'title' => 'テクニカルランキング ページタイトル',                   'page' => '/technical-ranking/'],
+    ['key' => 'ranking_intro',     'title' => 'テクニカルランキング 導入文',                          'page' => '/technical-ranking/'],
+    ['key' => 'ranking_analysis',  'title' => 'テクニカルランキング 分析・考察',                      'page' => '/technical-ranking/'],
+    ['key' => 'ranking_short_term','title' => 'テクニカルランキング 手法別おすすめ（短期トレード）',   'page' => '/technical-ranking/'],
+    ['key' => 'ranking_day_trade', 'title' => 'テクニカルランキング 手法別おすすめ（デイトレード）',   'page' => '/technical-ranking/'],
+    ['key' => 'ranking_swing',     'title' => 'テクニカルランキング 手法別おすすめ（スイングトレード）','page' => '/technical-ranking/'],
 ];
 
 $PAIR_ARTICLES = [

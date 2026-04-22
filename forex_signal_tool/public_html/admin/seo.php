@@ -140,96 +140,23 @@ h2{font-size:19px;font-weight:700;color:#f1f5f9;margin-bottom:4px}
   </div>
   </div><!-- /tab-seo -->
 
-  <!-- コンテンツ管理タブ -->
+  <!-- コンテンツ管理タブ（記事管理ページへ移動済み） -->
   <div id="tab-content" style="display:none">
   <h2>ランキングページ コンテンツ管理</h2>
-  <p class="subtitle">
-    テクニカルランキングページの「分析・考察」と「手法別おすすめ」を編集します。<br>
-    AIが週次で分析した内容をここに入力してください。保存後、generate_static を実行すると反映されます。
-  </p>
+  <p class="subtitle">ランキングページのコンテンツは記事管理ページで管理します。</p>
 
-  <div id="content-loading"><div class="spinner"></div><p style="margin-top:12px">読み込み中...</p></div>
-  <div id="content-body" style="display:none">
-
-    <!-- TOPページ記事 → 記事管理ページへ -->
-    <div class="cont-section" style="border-left:3px solid #3b82f6">
-      <h3 class="cont-title">⓪ TOPページ記事コンテンツ</h3>
-      <p class="cont-sub" style="margin-bottom:14px">
-        TOPページの記事（前半・後半）は <strong style="color:#f1f5f9">記事管理ページ</strong> で編集できます。
-      </p>
-      <a href="/admin/articles.php" style="display:inline-flex;align-items:center;gap:8px;background:#1e3a5f;color:#60a5fa;border:1px solid #3b82f6;border-radius:8px;padding:10px 20px;font-size:13px;font-weight:600;text-decoration:none;transition:background .15s" onmouseover="this.style.background='#1e4a8f'" onmouseout="this.style.background='#1e3a5f'">
-        📄 記事管理ページへ移動
-      </a>
-    </div>
-
-    <!-- ページタイトル・導入文 -->
-    <div class="cont-section">
-      <h3 class="cont-title">① ページタイトル・導入文</h3>
-      <p class="cont-sub">ランキングページのヒーローヘッダーに表示するタイトルと導入文を設定します。</p>
-      <label class="cont-label">ページタイトル</label>
-      <input type="text" id="ranking-title-input" class="cont-input"
-        placeholder="テクニカル指標 バックテスト勝率ランキング">
-      <label class="cont-label" style="margin-top:10px">導入文</label>
-      <textarea id="ranking-intro-input" class="cont-textarea" rows="4"
-        placeholder="FX主要テクニカル指標のバックテスト結果を勝率順にランキング。USD/JPY・GBP/JPY・EUR/JPYの3ペアで検証した実データをもとに、本当に使えるテクニカル指標を徹底比較します。"></textarea>
-      <div class="cont-actions">
-        <span id="pageinfo-status" class="cont-status"></span>
-        <button class="save-btn" onclick="savePageInfo()">保存</button>
-      </div>
-    </div>
-
-    <!-- 分析・考察 -->
-    <div class="cont-section">
-      <h3 class="cont-title">② 分析・考察</h3>
-      <p class="cont-sub">バックテスト結果の分析・考察テキスト。改行もそのまま表示されます。</p>
-      <textarea id="analysis-input" class="cont-textarea" rows="10"
-        placeholder="今週のバックテスト結果を分析すると...&#10;&#10;（AIが自動生成したテキストをここに貼り付けてください）"></textarea>
-      <div class="cont-actions">
-        <span id="analysis-status" class="cont-status"></span>
-        <button class="save-btn" onclick="saveAnalysis()">保存</button>
-      </div>
-    </div>
-
-    <!-- 手法別おすすめ -->
-    <div class="cont-section">
-      <h3 class="cont-title">④ 手法別おすすめ</h3>
-      <p class="cont-sub">各手法に対して指標・ペア・TF・説明を3つ入力してください。AIの分析結果をもとに入力します。</p>
-
-      <div class="rec-tabs" style="display:flex;gap:8px;margin-bottom:16px">
-        <button class="rec-tab active" onclick="switchRecTab(this,'short')">短期トレード</button>
-        <button class="rec-tab" onclick="switchRecTab(this,'day')">デイトレ</button>
-        <button class="rec-tab" onclick="switchRecTab(this,'swing')">スイング</button>
-      </div>
-
-      <div id="rec-short" class="rec-panel">
-        <p class="cont-sub" style="margin-bottom:12px">5分足・15分足を使ったスキャルピング・短期トレード向け</p>
-        <div id="recs-short"></div>
-        <div class="cont-actions">
-          <span id="short-status" class="cont-status"></span>
-          <button class="save-btn" onclick="saveRecs('short','ranking_short_term')">保存</button>
-        </div>
-      </div>
-
-      <div id="rec-day" class="rec-panel" style="display:none">
-        <p class="cont-sub" style="margin-bottom:12px">1時間足・4時間足を使ったデイトレード向け</p>
-        <div id="recs-day"></div>
-        <div class="cont-actions">
-          <span id="day-status" class="cont-status"></span>
-          <button class="save-btn" onclick="saveRecs('day','ranking_day_trade')">保存</button>
-        </div>
-      </div>
-
-      <div id="rec-swing" class="rec-panel" style="display:none">
-        <p class="cont-sub" style="margin-bottom:12px">4時間足・日足を使ったスイングトレード向け</p>
-        <div id="recs-swing"></div>
-        <div class="cont-actions">
-          <span id="swing-status" class="cont-status"></span>
-          <button class="save-btn" onclick="saveRecs('swing','ranking_swing')">保存</button>
-        </div>
-      </div>
-    </div>
-
-  </div><!-- /content-body -->
+  <div class="cont-section" style="border-left:3px solid #3b82f6">
+    <h3 class="cont-title">📄 記事管理ページで編集</h3>
+    <p class="cont-sub" style="margin-bottom:16px">
+      ランキングページのタイトル・導入文・分析・考察・手法別おすすめはすべて
+      <strong style="color:#f1f5f9">記事管理ページ</strong> で編集できます。
+    </p>
+    <a href="/admin/articles.php"
+       style="display:inline-flex;align-items:center;gap:8px;background:#1e3a5f;color:#60a5fa;border:1px solid #3b82f6;border-radius:8px;padding:12px 24px;font-size:14px;font-weight:600;text-decoration:none;transition:background .15s"
+       onmouseover="this.style.background='#1e4a8f'" onmouseout="this.style.background='#1e3a5f'">
+      📄 記事管理ページへ移動 →
+    </a>
+  </div>
   </div><!-- /tab-content -->
 
   <!-- ランキング管理タブ -->

@@ -2455,6 +2455,7 @@ def main():
             signals_by_pair[_p].setdefault(_tf, []).append(_s)
         # ペアを固定順に並べ替え
         signals_by_pair = {p: signals_by_pair[p] for p in _pair_order if p in signals_by_pair}
+        _signals_content_db = load_content_db()
         html = render_html(app, "signals_static.html", {
             "pairs": pairs,
             "pair_pages": pair_pages,
@@ -2465,6 +2466,7 @@ def main():
             "tf_order": _tf_order,
             "updated_at": updated_at,
             "active_page": "signals",
+            "signals_intro": _signals_content_db.get("signals_intro", ""),
         })
         save("signals/index.html", html)
 

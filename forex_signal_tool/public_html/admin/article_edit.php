@@ -4,10 +4,15 @@ session_start();
 require_login();
 
 $ARTICLES = [
-    ['key' => 'top_article_pre',  'title' => 'TOPページ（前半：KV・目次・概念説明）',  'page' => '/'],
-    ['key' => 'top_article_post', 'title' => 'TOPページ（後半：手法解説・まとめ）',    'page' => '/'],
-    ['key' => 'ranking_intro',    'title' => 'テクニカルランキング 導入文',             'page' => '/technical-ranking/'],
-    ['key' => 'ranking_analysis', 'title' => 'テクニカルランキング 分析・考察',          'page' => '/technical-ranking/'],
+    ['key' => 'top_article_pre',   'title' => 'TOPページ（前半：KV・目次・概念説明）',                'page' => '/'],
+    ['key' => 'top_article_post',  'title' => 'TOPページ（後半：手法解説・まとめ）',                  'page' => '/'],
+    ['key' => 'signals_intro',     'title' => 'シグナル一覧 導入文',                                  'page' => '/signals/'],
+    ['key' => 'ranking_title',     'title' => 'テクニカルランキング ページタイトル',                   'page' => '/technical-ranking/'],
+    ['key' => 'ranking_intro',     'title' => 'テクニカルランキング 導入文',                          'page' => '/technical-ranking/'],
+    ['key' => 'ranking_analysis',  'title' => 'テクニカルランキング 分析・考察',                      'page' => '/technical-ranking/'],
+    ['key' => 'ranking_short_term','title' => 'テクニカルランキング 手法別おすすめ（短期トレード）',   'page' => '/technical-ranking/'],
+    ['key' => 'ranking_day_trade', 'title' => 'テクニカルランキング 手法別おすすめ（デイトレード）',   'page' => '/technical-ranking/'],
+    ['key' => 'ranking_swing',     'title' => 'テクニカルランキング 手法別おすすめ（スイングトレード）','page' => '/technical-ranking/'],
 ];
 
 $key = $_GET['key'] ?? '';
@@ -128,7 +133,9 @@ main{max-width:960px;margin:0 auto;padding:28px 16px}
   </div>
 
 <?php
-$is_indicator = (bool)preg_match('/^indicator_article_/', $article['key']);
+$is_indicator    = (bool)preg_match('/^indicator_article_/', $article['key']);
+$is_ranking_recs  = in_array($article['key'], ['ranking_short_term', 'ranking_day_trade', 'ranking_swing']);
+$is_ranking_title = ($article['key'] === 'ranking_title');
 $ind_slug = '';
 $indicator_name = '';
 $page_bt_by_tf = [];   // TF別の現在設定 ['1hr' => [...], '4hr' => [...], ...]
@@ -319,7 +326,7 @@ if ($is_indicator && $ind_slug) {
 ?>
 
 <!-- トップ アクションバー -->
-<div class="editor-card" style="margin-bottom:16px">
+<div class="editor-card" style="margin-bottom:16px<?= $is_ranking_recs ? ';display:none' : '' ?>">
   <div class="editor-actions">
     <button class="save-btn" id="save-btn-top" onclick="saveContent()">保存する</button>
     <span id="save-status-top" class="save-status"></span>
@@ -491,6 +498,43 @@ if ($is_indicator && $ind_slug) {
     <div style="font-size:11px;color:#475569;margin-bottom:6px">HTMLタグ使用可。チャートの直下・QuantFlowセクションの上に挿入されます。</div>
     <textarea id="editor" class="editor-textarea" placeholder="<section class=&quot;pair-intro&quot;>&#10;  <h2>ドル円の特徴</h2>&#10;  <p>...</p>&#10;</section>"></textarea>
   </div>
+<?php elseif ($is_ranking_title): ?>
+  <!-- ランキング ページタイトル -->
+  <div class="editor-card" style="margin-bottom:16px">
+    <label class="editor-label">ページタイトル</label>
+    <p style="font-size:12px;color:#64748b;margin-bottom:10px">ランキングページのヒーローヘッダーに表示されるタイトルです。</p>
+    <input type="text" id="editor" class="editor-textarea"
+           style="min-height:auto;resize:none;padding:10px 14px"
+           placeholder="テクニカル指標 バックテスト勝率ランキング">
+  </div>
+<?php elseif ($is_ranking_recs): ?>
+  <!-- 手法別おすすめ 構造化エディタ -->
+<style>
+.rec-row{background:#0f172a;border:1px solid #334155;border-radius:8px;padding:12px;margin-bottom:10px}
+.rec-row-header{display:flex;gap:8px;align-items:center;margin-bottom:8px;flex-wrap:wrap}
+.rec-num{font-size:18px;font-weight:900;color:#3b82f6;width:24px;text-align:center}
+.rec-ind{flex:1;min-width:180px;background:#1e293b;border:1px solid #334155;border-radius:6px;color:#e2e8f0;padding:6px 10px;font-size:12px;outline:none}
+.rec-ind:focus{border-color:#3b82f6}
+.rec-pair,.rec-tf{background:#1e293b;border:1px solid #334155;border-radius:6px;color:#e2e8f0;padding:6px 8px;font-size:12px;outline:none;cursor:pointer}
+.rec-pair:focus,.rec-tf:focus{border-color:#3b82f6}
+.rec-desc{width:100%;background:#1e293b;border:1px solid #334155;border-radius:6px;color:#e2e8f0;padding:8px 10px;font-size:12px;resize:vertical;outline:none;font-family:inherit}
+.rec-desc:focus{border-color:#3b82f6}
+</style>
+  <div class="editor-card" style="margin-bottom:16px">
+    <label class="editor-label">
+      <?php
+        if ($article['key'] === 'ranking_short_term') echo '短期トレード（5分足・15分足）おすすめ';
+        elseif ($article['key'] === 'ranking_day_trade') echo 'デイトレード（1時間足・4時間足）おすすめ';
+        else echo 'スイングトレード（4時間足・日足）おすすめ';
+      ?>
+    </label>
+    <p style="font-size:12px;color:#64748b;margin-bottom:14px">指標・通貨ペア・時間足・説明を3つ入力してください。AIの分析結果をもとに入力します。</p>
+    <div id="recs-panel"></div>
+    <div style="display:flex;align-items:center;gap:16px;margin-top:12px">
+      <button class="save-btn" onclick="saveRecsNow()">保存する</button>
+      <span id="recs-save-status" class="save-status"></span>
+    </div>
+  </div>
 <?php else: ?>
   <!-- 通常記事：HTMLのみ -->
   <div class="editor-card" style="margin-bottom:16px">
@@ -499,7 +543,7 @@ if ($is_indicator && $ind_slug) {
   </div>
 <?php endif; ?>
 
-  <div class="editor-card">
+  <div class="editor-card"<?= $is_ranking_recs ? ' style="display:none"' : '' ?>>
     <div class="editor-actions">
       <button class="save-btn" id="save-btn" onclick="saveContent()">保存する</button>
       <span id="save-status" class="save-status"></span>
@@ -2249,12 +2293,13 @@ addBt2Cond();
 </main>
 
 <script>
-const ARTICLE_KEY    = <?= json_encode($article['key']) ?>;
-const IS_INDICATOR   = <?= $is_indicator ? 'true' : 'false' ?>;
-const IS_PAIR        = <?= $is_pair ? 'true' : 'false' ?>;
-const IND_SLUG       = <?= json_encode($ind_slug) ?>;
-const PAIR_SLUG      = <?= json_encode($pair_slug) ?>;
-const AI_NOTES_KEY   = IND_SLUG ? ('indicator_ai_notes_' + IND_SLUG) : '';
+const ARTICLE_KEY     = <?= json_encode($article['key']) ?>;
+const IS_INDICATOR    = <?= $is_indicator ? 'true' : 'false' ?>;
+const IS_PAIR         = <?= $is_pair ? 'true' : 'false' ?>;
+const IS_RANKING_RECS = <?= $is_ranking_recs ? 'true' : 'false' ?>;
+const IND_SLUG        = <?= json_encode($ind_slug) ?>;
+const PAIR_SLUG       = <?= json_encode($pair_slug) ?>;
+const AI_NOTES_KEY    = IND_SLUG ? ('indicator_ai_notes_' + IND_SLUG) : '';
 <?php
 // プレビューURL: カスタム指標は /composite/{slug}/、通常指標は /{cat}/{slug}/、ペアは /{slug}/
 if ($is_pair && $pair_slug) {
@@ -2283,13 +2328,66 @@ if ($is_pair && $pair_slug) {
 ?>
 const PAGE_PREVIEW_URL = <?= json_encode($preview_url) ?>;
 
+// ===== 手法別おすすめ エディタ（ranking_short_term/day_trade/swing） =====
+const PAIRS_OPT = ['USD/JPY','GBP/JPY','EUR/JPY','任意'];
+const TF_OPT    = ['5分足','15分足','30分足','1時間足','4時間足','日足'];
+
+function buildRecRow(idx, val) {
+  const sel_pair = PAIRS_OPT.map(p => `<option value="${p}" ${val.pair===p?'selected':''}>${p}</option>`).join('');
+  const sel_tf   = TF_OPT.map(t => `<option value="${t}" ${val.tf===t?'selected':''}>${t}</option>`).join('');
+  return `<div class="rec-row" data-idx="${idx}">
+    <div class="rec-row-header">
+      <span class="rec-num">${idx+1}</span>
+      <input type="text" class="rec-ind" placeholder="指標名（例: RSI（相対力指数））" value="${(val.indicator||'').replace(/"/g,'&quot;')}">
+      <select class="rec-pair">${sel_pair}</select>
+      <select class="rec-tf">${sel_tf}</select>
+    </div>
+    <textarea class="rec-desc" rows="2" placeholder="この指標のこの足での活用方法・特徴を記入">${val.description||''}</textarea>
+  </div>`;
+}
+
+function renderRecsPanel(recs) {
+  while (recs.length < 3) recs.push({indicator:'',pair:'USD/JPY',tf:'1時間足',description:''});
+  const panel = document.getElementById('recs-panel');
+  if (panel) panel.innerHTML = [0,1,2].map(i => buildRecRow(i, recs[i]||{})).join('');
+}
+
+async function saveRecsNow() {
+  const panel = document.getElementById('recs-panel');
+  const st    = document.getElementById('recs-save-status');
+  if (!panel) return;
+  const recs = Array.from(panel.querySelectorAll('.rec-row')).map(row => ({
+    indicator:   row.querySelector('.rec-ind').value.trim(),
+    pair:        row.querySelector('.rec-pair').value,
+    tf:          row.querySelector('.rec-tf').value,
+    description: row.querySelector('.rec-desc').value.trim(),
+  }));
+  st.textContent = '保存中...'; st.className = 'save-status saving';
+  try {
+    const res = await fetch('/admin/api.php', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({action:'content_save', key:ARTICLE_KEY, value:JSON.stringify(recs)})
+    });
+    const d = await res.json();
+    st.textContent = d.status==='ok' ? '✅ 保存完了' : 'エラー: '+(d.message||'');
+    st.className   = 'save-status ' + (d.status==='ok' ? 'ok' : 'err');
+    if (d.status==='ok') setTimeout(()=>{st.textContent='';st.className='save-status';}, 3000);
+  } catch(e) { st.textContent='ネットワークエラー'; st.className='save-status err'; }
+}
+
 async function loadContent() {
   try {
     const res = await fetch('/admin/api.php?action=content_init');
     const d   = await res.json();
     if (d.status === 'ok') {
       const data = d.data || {};
-      document.getElementById('editor').value = data[ARTICLE_KEY]?.value || '';
+      if (IS_RANKING_RECS) {
+        let recs = [];
+        try { recs = JSON.parse(data[ARTICLE_KEY]?.value || '[]'); } catch(e) {}
+        renderRecsPanel(recs);
+      } else {
+        document.getElementById('editor').value = data[ARTICLE_KEY]?.value || '';
+      }
       if (IS_INDICATOR) {
         document.getElementById('editor-css').value    = data[ARTICLE_KEY + '_css']?.value    || '';
         document.getElementById('editor-jsonld').value = data[ARTICLE_KEY + '_jsonld']?.value || '';
@@ -2461,9 +2559,11 @@ async function saveContent() {
   btn.disabled   = true;
   if (stTop)  { stTop.textContent = '保存中...'; stTop.className = 'save-status saving'; }
   if (btnTop) { btnTop.disabled = true; }
+  if (IS_RANKING_RECS) { saveRecsNow(); return; }
   try {
+    const editorEl = document.getElementById('editor');
     const saves = [
-      _save(ARTICLE_KEY, document.getElementById('editor').value),
+      _save(ARTICLE_KEY, editorEl ? editorEl.value : ''),
     ];
     if (IS_INDICATOR) {
       saves.push(_save(ARTICLE_KEY + '_css',    document.getElementById('editor-css').value));
