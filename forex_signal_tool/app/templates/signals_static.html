@@ -26,6 +26,9 @@
   <div class="rk-intro-text">{{ signals_intro }}</div>
 </div>
 {% endif %}
+<div class="section-card" style="font-size:0.72rem; color:#94a3b8; text-align:center; padding:8px 16px;">
+  最終更新: {{ updated_at }}
+</div>
 
 {% if signals_by_pair %}
 <style>
@@ -170,10 +173,6 @@ document.addEventListener('DOMContentLoaded', function() {
   <a href="/" class="btn btn-primary mt-2">ホームへ戻る</a>
 </div>
 {% endif %}
-
-<div class="section-card" style="font-size:0.72rem; color:#94a3b8; text-align:center; padding:8px 16px;">
-  最終更新: {{ updated_at }}
-</div>
 
 <!-- パンくずリスト -->
 <nav class="sig-breadcrumb" aria-label="breadcrumb">
