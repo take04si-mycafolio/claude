@@ -2456,6 +2456,35 @@ def main():
                     "overall": "NEUTRAL", "overall_ja": "中立", "overall_cls": "pp-neutral",
                 })
 
+        # カテゴリ別シグナル集計
+        _TARGET_CATS = ["オシレーター", "トレンド", "ライン", "ボラティリティ"]
+        category_panels = []
+        try:
+            _cat_signals = get_all_signals()
+            _cat_counts = {c: {"buy": 0, "sell": 0} for c in _TARGET_CATS}
+            for _s in _cat_signals:
+                _icat = INDICATOR_INFO.get(_s.get("indicator_name", ""), {}).get("category", "")
+                if _icat in _cat_counts:
+                    if _s.get("signal_type") == "BUY":
+                        _cat_counts[_icat]["buy"] += 1
+                    elif _s.get("signal_type") == "SELL":
+                        _cat_counts[_icat]["sell"] += 1
+            for _cname in _TARGET_CATS:
+                _cinfo = CATEGORY_INFO.get(_cname, {})
+                _bc = _cat_counts[_cname]["buy"]
+                _sc = _cat_counts[_cname]["sell"]
+                _ov = "BUY" if _bc > _sc else "SELL" if _sc > _bc else "NEUTRAL"
+                category_panels.append({
+                    "name":        _cname,
+                    "display":     _cinfo.get("display", _cname),
+                    "url":         f"/{_cinfo.get('slug', '')}/",
+                    "buy_count":   _bc,
+                    "sell_count":  _sc,
+                    "overall_cls": "pp-buy" if _ov == "BUY" else "pp-sell" if _ov == "SELL" else "pp-neutral",
+                })
+        except Exception as _ce:
+            logger.warning("Category panels error: %s", _ce)
+
         html = render_html(app, "article_top_static.html", {
             "content_pre":     top_pre,
             "content_post":    top_post,
@@ -2464,6 +2493,7 @@ def main():
             "pf_ranking":      pf_ranking,
             "bt_period":       bt_period,
             "pair_panels":     pair_panels,
+            "category_panels": category_panels,
             "pair_pages":      pair_pages,
             "updated_at":      updated_at,
             "active_page":     "home",

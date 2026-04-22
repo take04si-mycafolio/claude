@@ -281,6 +281,42 @@
 </script>
 {% endif %}
 
+{% if category_panels %}
+<div class="pp-wrap">
+  <div class="sec-num" style="font-size:11px;font-weight:500;letter-spacing:.1em;color:#5f5e5a;margin-bottom:.3rem">CATEGORY</div>
+  <h2>カテゴリ別シグナル動向</h2>
+  <div class="cp-grid">
+    {% for c in category_panels %}
+    <a href="{{ c.url }}" class="pp-card">
+      <div class="pp-left">
+        <div class="pp-left-text">
+          <span class="pp-tech-lbl">テクニカル系統</span>
+          <span class="pp-name" style="font-size:15px">{{ c.display }}</span>
+        </div>
+        <span class="pp-link">詳細を見る →</span>
+      </div>
+      <div class="pp-right">
+        <div class="pp-counts">
+          <div class="pp-count-box pp-count-buy">
+            <div class="pp-count-num">{{ c.buy_count }}</div>
+            <div class="pp-count-lbl">買い</div>
+          </div>
+          <div class="pp-count-box pp-count-sell">
+            <div class="pp-count-num">{{ c.sell_count }}</div>
+            <div class="pp-count-lbl">売り</div>
+          </div>
+        </div>
+      </div>
+    </a>
+    {% endfor %}
+  </div>
+</div>
+<style>
+.cp-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+@media (max-width: 400px) { .cp-grid { grid-template-columns: 1fr; } }
+</style>
+{% endif %}
+
 <div class="section-card" style="font-size:0.72rem; color:#94a3b8; text-align:center; padding:8px 16px;">
   最終更新: {{ updated_at }}
 </div>
