@@ -177,8 +177,10 @@ $limit_reached = $remaining === 0;
           </select>
         </div>
         <div class="form-group" id="date-range-group">
-          <label>集計期間</label>
-          <span id="period-label" style="font-size:13px;color:#94a3b8;padding:8px 0">自動設定</span>
+          <label>開始日（任意）</label>
+          <input type="date" id="start_date" onchange="validateDateRange()" style="width:160px">
+          <span id="period-warning" style="font-size:11px;color:#f59e0b;margin-top:4px;display:none"></span>
+          <span id="period-hint" style="font-size:11px;color:#475569;margin-top:2px">上限: 1時間足 72時間</span>
         </div>
       </div>
     </div>
@@ -330,16 +332,34 @@ function buildConditions() {
   return conds;
 }
 
-const TF_LIMITS = { '15min': 160, '1hr': 72, '4hr': 500, 'daily': 60 };
+const TF_LIMITS   = { '15min': 160, '1hr': 72, '4hr': 180, 'daily': 60 };
+const TF_MAX_DAYS = { '15min': 1.67, '1hr': 3, '4hr': 30, 'daily': 60 };
+const TF_HINTS    = {
+  '15min': '上限: 40時間（160本）',
+  '1hr':   '上限: 72時間（72本）',
+  '4hr':   '上限: 1ヶ月（180本）',
+  'daily': '上限: 2ヶ月（60本）',
+};
 
 function onTfChange(tf) {
-  const labels = {
-    '15min': '最大 40時間分（160本）',
-    '1hr':   '最大 72時間分（72本）',
-    '4hr':   '自動設定',
-    'daily': '最大 2ヶ月分（60本）',
-  };
-  document.getElementById('period-label').textContent = labels[tf] || '自動設定';
+  document.getElementById('period-hint').textContent = TF_HINTS[tf] || '';
+  validateDateRange();
+}
+
+function validateDateRange() {
+  const startVal = document.getElementById('start_date').value;
+  const tf  = document.querySelector('input[name=timeframe]:checked')?.value || '1hr';
+  const warn = document.getElementById('period-warning');
+  if (!startVal) { warn.style.display = 'none'; return; }
+  const diffDays = (Date.now() - new Date(startVal).getTime()) / 86400000;
+  const maxDays  = TF_MAX_DAYS[tf] || 30;
+  if (diffDays > maxDays) {
+    const hint = (TF_HINTS[tf] || '').replace('上限: ', '');
+    warn.textContent = `⚠ 上限を超えています。データは自動的に最新${hint}に切り詰められます。`;
+    warn.style.display = 'block';
+  } else {
+    warn.style.display = 'none';
+  }
 }
 
 async function runBacktest() {
@@ -366,6 +386,7 @@ async function runBacktest() {
     pairs: [pair],
     timeframes: [tf],
     limit: TF_LIMITS[tf] || 500,
+    start_date: document.getElementById('start_date').value || null,
     direction: document.getElementById('direction').value,
     sim_params: {
       initial_capital: parseFloat(document.getElementById('initial_capital').value),
