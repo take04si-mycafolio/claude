@@ -2509,7 +2509,7 @@ def main():
         # ペアを固定順に並べ替え
         signals_by_pair = {p: signals_by_pair[p] for p in _pair_order if p in signals_by_pair}
         _signals_content_db = load_content_db()
-        _signals_seo = seo_db.get("signals:index", {})
+        _signals_seo = load_seo_db().get("signals:index", {})
         html = render_html(app, "signals_static.html", {
             "pairs": pairs,
             "pair_pages": pair_pages,
