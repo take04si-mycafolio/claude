@@ -424,7 +424,8 @@
 
 <script>
 const RK = {{ results_json | safe }};
-const TF_LABELS = {{ tf_labels_json | safe }};
+const TF_LABELS   = {{ tf_labels_json | safe }};
+const PAIR_LABELS = {"USDJPY":"ドル円","GBPJPY":"ポンド円","EURJPY":"ユーロ円"};
 let curPair = 'all';
 let curCat  = 'all';
 let rkExpanded = false;
@@ -531,7 +532,7 @@ function renderTable() {
     const name   = r.short_name || r.indicator_name;
     const url    = r.url || '';
     const nameH  = url ? `<a href="${url}" class="rk-ind-link">${name}</a>` : name;
-    const pair   = r.currency_pair.slice(0,3)+'/'+r.currency_pair.slice(3);
+    const pair   = PAIR_LABELS[r.currency_pair] || r.currency_pair.slice(0,3)+'/'+r.currency_pair.slice(3);
     const tf     = TF_LABELS[r.timeframe] || r.timeframe;
     const wr     = parseFloat(r.win_rate).toFixed(1);
     const wrCls  = r.win_rate >= 60 ? 'high' : r.win_rate >= 55 ? 'mid' : 'low';
