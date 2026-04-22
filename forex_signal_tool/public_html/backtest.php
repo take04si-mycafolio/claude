@@ -148,22 +148,22 @@ $limit_reached = $remaining === 0;
       <div class="card-title">通貨ペア・時間軸</div>
       <div class="form-row" style="margin-bottom:16px">
         <div class="form-group">
-          <label>通貨ペア（複数選択可）</label>
+          <label>通貨ペア</label>
           <div class="check-group">
-            <label class="check-label"><input type="checkbox" name="pairs" value="USDJPY" checked> USD/JPY</label>
-            <label class="check-label"><input type="checkbox" name="pairs" value="GBPJPY"> GBP/JPY</label>
-            <label class="check-label"><input type="checkbox" name="pairs" value="EURJPY"> EUR/JPY</label>
+            <label class="check-label"><input type="radio" name="pair" value="USDJPY" checked> USD/JPY</label>
+            <label class="check-label"><input type="radio" name="pair" value="GBPJPY"> GBP/JPY</label>
+            <label class="check-label"><input type="radio" name="pair" value="EURJPY"> EUR/JPY</label>
           </div>
         </div>
       </div>
       <div class="form-row" style="margin-bottom:16px">
         <div class="form-group">
-          <label>時間軸（複数選択可）</label>
+          <label>時間軸</label>
           <div class="check-group">
-            <label class="check-label"><input type="checkbox" name="timeframes" value="15min"> 15分足</label>
-            <label class="check-label"><input type="checkbox" name="timeframes" value="1hr" checked> 1時間足</label>
-            <label class="check-label"><input type="checkbox" name="timeframes" value="4hr"> 4時間足</label>
-            <label class="check-label"><input type="checkbox" name="timeframes" value="daily"> 日足</label>
+            <label class="check-label"><input type="radio" name="timeframe" value="15min" onchange="onTfChange('15min')"> 15分足 <span style="font-size:10px;color:#475569">最大40h</span></label>
+            <label class="check-label"><input type="radio" name="timeframe" value="1hr"   onchange="onTfChange('1hr')"   checked> 1時間足 <span style="font-size:10px;color:#475569">最大72h</span></label>
+            <label class="check-label"><input type="radio" name="timeframe" value="4hr"   onchange="onTfChange('4hr')"> 4時間足</label>
+            <label class="check-label"><input type="radio" name="timeframe" value="daily" onchange="onTfChange('daily')"> 日足 <span style="font-size:10px;color:#475569">最大2ヶ月</span></label>
           </div>
         </div>
       </div>
@@ -176,13 +176,9 @@ $limit_reached = $remaining === 0;
             <option value="SELL">SELL（売りのみ）</option>
           </select>
         </div>
-        <div class="form-group">
-          <label>開始日</label>
-          <input type="date" id="start_date" value="<?= date('Y-m-d', strtotime('-1 year')) ?>">
-        </div>
-        <div class="form-group">
-          <label>終了日</label>
-          <input type="date" id="end_date" value="<?= date('Y-m-d') ?>">
+        <div class="form-group" id="date-range-group">
+          <label>集計期間</label>
+          <span id="period-label" style="font-size:13px;color:#94a3b8;padding:8px 0">自動設定</span>
         </div>
       </div>
     </div>
@@ -334,16 +330,30 @@ function buildConditions() {
   return conds;
 }
 
+const TF_LIMITS = { '15min': 160, '1hr': 72, '4hr': 500, 'daily': 60 };
+
+function onTfChange(tf) {
+  const labels = {
+    '15min': '最大 40時間分（160本）',
+    '1hr':   '最大 72時間分（72本）',
+    '4hr':   '自動設定',
+    'daily': '最大 2ヶ月分（60本）',
+  };
+  document.getElementById('period-label').textContent = labels[tf] || '自動設定';
+}
+
 async function runBacktest() {
   const btn = document.getElementById('run-btn');
   const spinner = document.getElementById('spinner');
   const errBox  = document.getElementById('error-box');
   errBox.classList.remove('show');
 
-  const pairs = [...document.querySelectorAll('input[name=pairs]:checked')].map(e => e.value);
-  const tfs   = [...document.querySelectorAll('input[name=timeframes]:checked')].map(e => e.value);
-  if (!pairs.length) { showError('通貨ペアを1つ以上選択してください'); return; }
-  if (!tfs.length)   { showError('時間軸を1つ以上選択してください'); return; }
+  const pairEl = document.querySelector('input[name=pair]:checked');
+  const tfEl   = document.querySelector('input[name=timeframe]:checked');
+  if (!pairEl) { showError('通貨ペアを選択してください'); return; }
+  if (!tfEl)   { showError('時間軸を選択してください'); return; }
+  const pair = pairEl.value;
+  const tf   = tfEl.value;
 
   const conds = buildConditions();
   if (!conds.length) { showError('条件を1つ以上追加してください'); return; }
@@ -353,11 +363,10 @@ async function runBacktest() {
 
   const body = {
     action: 'run',
-    pairs,
-    timeframes: tfs,
+    pairs: [pair],
+    timeframes: [tf],
+    limit: TF_LIMITS[tf] || 500,
     direction: document.getElementById('direction').value,
-    start_date: document.getElementById('start_date').value,
-    end_date:   document.getElementById('end_date').value,
     sim_params: {
       initial_capital: parseFloat(document.getElementById('initial_capital').value),
       sl: { type: 'fixed', pips: parseFloat(document.getElementById('sl_pips').value) },

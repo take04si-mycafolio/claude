@@ -84,12 +84,15 @@ if ($action === 'run') {
     $py     = escapeshellarg(PYTHON_BIN);
     $script = escapeshellarg(TASKS_DIR . '/run_backtest_v2.py');
 
+    $tf_max_limits = ['15min' => 160, '1hr' => 72, '4hr' => 500, 'daily' => 60];
+
     foreach ($pairs as $pair) {
         foreach ($tfs as $tf) {
+            $max_limit = $tf_max_limits[$tf] ?? 500;
             $params = [
                 'pair'            => $pair,
                 'timeframe'       => $tf,
-                'limit'           => (int)min((int)($body['limit'] ?? 500), 1000),
+                'limit'           => (int)min((int)($body['limit'] ?? $max_limit), $max_limit),
                 'start_date'      => $body['start_date'] ?? null,
                 'end_date'        => $body['end_date']   ?? null,
                 'strategy_config' => $strategy,
