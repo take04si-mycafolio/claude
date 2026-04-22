@@ -8,13 +8,12 @@
 .app-main { max-width: 910px; }
 .header-inner { max-width: 910px; }
 @keyframes headerIconPulse {
-  0%, 100% { opacity: 1; transform: scale(1); }
-  50% { opacity: 0.4; transform: scale(0.85); }
+  0%, 100% { opacity: 1; filter: drop-shadow(0 0 5px #c9ff3b); }
+  50% { opacity: 0.7; filter: drop-shadow(0 0 2px #c9ff3b); }
 }
 .header-logo i {
   color: #c9ff3b !important;
-  filter: drop-shadow(0 0 6px #c9ff3b);
-  animation: headerIconPulse 1.6s infinite;
+  animation: headerIconPulse 3s ease-in-out infinite;
 }
 </style>
 {% endblock %}
