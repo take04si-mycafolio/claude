@@ -840,7 +840,7 @@ def _ind_card(ind_name: str, bt_best: dict, url_map: dict) -> dict:
     return {
         "indicator":  ind_name,
         "display":    disp,
-        "short":      disp.split("（")[0],
+        "short":      disp.split("（")[0][:15],
         "one_liner":  IND_ONE_LINERS.get(ind_name, ""),
         "win_rate":   round(wr, 1),
         "pf":         round(pf, 2),
@@ -954,7 +954,7 @@ def get_timezone_ranking(url_map: dict) -> list:
         sess_data[sk].append({
             "indicator": ind,
             "display":   info.get("display", ind),
-            "short":     info.get("display", ind).split("（")[0],
+            "short":     info.get("display", ind).split("（")[0][:15],
             "one_liner": IND_ONE_LINERS.get(ind, ""),
             "win_rate":  wr,
             "pf":        round(pf, 2),
@@ -1104,7 +1104,7 @@ def get_market_type_ranking(url_map: dict) -> list:
             cards.append({
                 "indicator": ind,
                 "display":   info.get("display", ind),
-                "short":     info.get("display", ind).split("（")[0],
+                "short":     info.get("display", ind).split("（")[0][:15],
                 "one_liner": IND_ONE_LINERS.get(ind, ""),
                 "win_rate":  wr,
                 "pf":        round(pf, 2),
