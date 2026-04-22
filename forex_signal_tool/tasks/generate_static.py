@@ -2118,6 +2118,8 @@ def main():
                 _s["display_name"]    = INDICATOR_INFO.get(_iname, {}).get("display", _iname)
                 _s["ind_url"]         = _sig_url_map.get(_iname, "")
                 _s["signal_time_jst"] = utc_str_to_jst(_s.get("signal_time", ""))
+                _s["indicator_category"] = INDICATOR_INFO.get(_iname, {}).get("category", _s.get("indicator_category", ""))
+                _s["category_slug"]   = CATEGORY_SLUGS.get(_s.get("indicator_category", ""), "")
             _pair_order = ["USDJPY", "GBPJPY", "EURJPY"]
             signals_by_pair = {}
             for _s in all_signals:
@@ -2487,12 +2489,14 @@ def main():
             _cat_slug  = CATEGORY_SLUGS.get(_iinfo.get("category", ""), "indicators")
             _url_slug  = INDICATOR_SEO.get(_iname, {}).get("url_slug") or _iinfo.get("slug", "")
             _sig_url_map[_iname] = f"/{_cat_slug}/{_url_slug}/"
-        # シグナルを富化（日本語名・URL・JST日時）
+        # シグナルを富化（日本語名・URL・JST日時・カテゴリ）
         for _s in all_signals:
             _iname = _s.get("indicator_name", "")
             _s["display_name"]    = INDICATOR_INFO.get(_iname, {}).get("display", _iname)
             _s["ind_url"]         = _sig_url_map.get(_iname, "")
             _s["signal_time_jst"] = utc_str_to_jst(_s.get("signal_time", ""))
+            _s["indicator_category"] = INDICATOR_INFO.get(_iname, {}).get("category", _s.get("indicator_category", ""))
+            _s["category_slug"]   = CATEGORY_SLUGS.get(_s.get("indicator_category", ""), "")
         # pair → tf → [signals]
         _pair_order = ["USDJPY", "GBPJPY", "EURJPY"]
         signals_by_pair = {}
