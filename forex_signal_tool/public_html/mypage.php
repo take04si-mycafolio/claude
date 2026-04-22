@@ -215,6 +215,9 @@ $csrf = csrf_token();
       <span class="val"><?= $joined ?></span>
     </div>
 
+    <a href="/backtest.php" class="btn-logout" style="background:#172554;color:#93c5fd;margin-top:12px">
+      <i class="bi bi-bar-chart-steps"></i> バックテストを使う
+    </a>
     <a href="/logout.php" class="btn-logout">
       <i class="bi bi-box-arrow-right"></i> ログアウト
     </a>
