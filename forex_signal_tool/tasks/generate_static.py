@@ -2376,7 +2376,7 @@ def main():
                 _scored.append({
                     "ind":          _r.indicator_name,
                     "display":      _info.get("display", _r.indicator_name),
-                    "short_name":   _short,
+                    "short_name":   _short[:15],
                     "category":     _info.get("category", ""),
                     "feature":      _info.get("feature", ""),
                     "url":          ind_url_map.get(_r.indicator_name, ""),

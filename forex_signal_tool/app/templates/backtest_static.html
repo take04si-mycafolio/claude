@@ -528,7 +528,7 @@ function renderTable() {
   const MEDALS = ['🥇','🥈','🥉'];
   tbody.innerHTML = limited.map((r, i) => {
     const sc     = r._score;
-    const name   = r.display || r.indicator_name;
+    const name   = r.short_name || r.indicator_name;
     const url    = r.url || '';
     const nameH  = url ? `<a href="${url}" class="rk-ind-link">${name}</a>` : name;
     const pair   = r.currency_pair.slice(0,3)+'/'+r.currency_pair.slice(3);
