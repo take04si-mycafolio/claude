@@ -2716,6 +2716,7 @@ def main():
                     **page_data,
                     "updated_at": updated_at,
                     "active_page": "backtest",
+                    "pair_pages":  pair_pages,
                 })
                 save(f"{cat_info['slug']}/index.html", html)
             except Exception as e:
