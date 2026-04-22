@@ -2457,7 +2457,7 @@ def main():
                 })
 
         # カテゴリ別シグナル集計
-        _TARGET_CATS = ["オシレーター", "トレンド", "ライン", "ボラティリティ"]
+        _TARGET_CATS = ["オシレーター", "トレンド", "ライン", "ボラティリティ", "ローソク足パターン", "コンポジット"]
         category_panels = []
         try:
             _cat_signals = get_all_signals()
