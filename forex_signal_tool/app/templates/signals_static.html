@@ -9,9 +9,8 @@
 .rk-hero{background:linear-gradient(135deg,#0f172a 0%,#1a2540 100%);border-bottom:1px solid #1e293b;padding:20px 16px 22px;margin-bottom:0}
 .rk-hero-badge{display:inline-flex;align-items:center;background:#1e3a5f;color:#60a5fa;border:1px solid #2563eb;border-radius:20px;padding:3px 12px;font-size:11px;font-weight:600;margin-bottom:10px}
 .rk-hero-title{font-size:22px;font-weight:800;color:#f1f5f9;line-height:1.2;margin:0}
-.rk-intro-block{padding:14px 16px 6px;background:#0f172a}
-.rk-intro-text{font-size:14px;color:#cbd5e1;line-height:1.9;margin:0 0 8px;white-space:pre-line}
-.rk-updated{font-size:11px;color:#475569;text-align:right;padding:0 0 10px;background:#0f172a}
+.rk-intro-block{padding:14px 16px 12px;background:#0f172a}
+.rk-intro-text{font-size:14px;color:#cbd5e1;line-height:1.9;margin:0;white-space:pre-line}
 .sig-breadcrumb{display:flex;align-items:center;gap:6px;font-size:11px;color:#475569;padding:12px 16px;border-top:1px solid #1e293b}
 .sig-breadcrumb a{color:#475569;text-decoration:none}.sig-breadcrumb a:hover{color:#94a3b8}
 .sig-breadcrumb i{font-size:9px}
@@ -25,10 +24,7 @@
 {% if signals_intro %}
 <div class="rk-intro-block">
   <div class="rk-intro-text">{{ signals_intro }}</div>
-  <div class="rk-updated">最終更新: {{ updated_at }}</div>
 </div>
-{% else %}
-<div style="font-size:11px;color:#475569;text-align:right;padding:6px 16px;background:#0f172a">最終更新: {{ updated_at }}</div>
 {% endif %}
 
 {% if signals_by_pair %}
@@ -174,6 +170,10 @@ document.addEventListener('DOMContentLoaded', function() {
   <a href="/" class="btn btn-primary mt-2">ホームへ戻る</a>
 </div>
 {% endif %}
+
+<div class="section-card" style="font-size:0.72rem; color:#94a3b8; text-align:center; padding:8px 16px;">
+  最終更新: {{ updated_at }}
+</div>
 
 <!-- パンくずリスト -->
 <nav class="sig-breadcrumb" aria-label="breadcrumb">
