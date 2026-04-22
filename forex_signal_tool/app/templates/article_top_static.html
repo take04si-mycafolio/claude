@@ -45,10 +45,10 @@
 .qe-hero {
   position: relative;
   z-index: 2;
-  padding: 60px 48px 80px;
+  padding: 40px 20px 50px;
   display: grid;
-  grid-template-columns: 1.1fr 0.9fr;
-  gap: 60px;
+  grid-template-columns: 1fr;
+  gap: 36px;
   align-items: center;
 }
 .qe-eyebrow {
@@ -75,7 +75,7 @@
 .qe-h1 {
   font-family: 'Shippori Mincho B1', serif;
   font-weight: 800;
-  font-size: clamp(36px, 5.5vw, 80px);
+  font-size: clamp(30px, 8vw, 80px);
   line-height: 1.05;
   letter-spacing: -0.01em;
   margin-bottom: 28px;
@@ -295,11 +295,8 @@
 }
 .qe-price-line { stroke-dasharray: 1000; animation: qeDrawLine 2.5s ease-out forwards; }
 .qe-candle { opacity: 0; animation: qeFadeIn .4s ease forwards; }
-@media (max-width: 700px) {
-  .qe-hero { grid-template-columns: 1fr; padding: 40px 20px 50px; gap: 36px; }
-  .qe-trust { padding: 16px 20px; }
-  .qe-trust-divider { display: none; }
-}
+.qe-trust { padding: 16px 20px; }
+.qe-trust-divider { display: none; }
 </style>
 
 <div class="qe-wrap">
