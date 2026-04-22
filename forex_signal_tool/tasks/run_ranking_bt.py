@@ -379,14 +379,24 @@ def save_session_data_to_db(days: int = 1, target_date=None):
             HAVING COUNT(*) >= 3
         """)).fetchall()
 
-        # snapshot_date は session_trade_history.trade_date と同じ「開始日」規約。
-        # NY は日またぎセッションなので開始日 = target_date - 1 day。
-        ny_snapshot_date = target_date - timedelta(days=1)
-        session_snapshot_date = {
-            "japan":  target_date,
-            "london": target_date,
-            "ny":     ny_snapshot_date,
-        }
+        # snapshot_date はセッション完了時刻ベースの「開始日」規約。
+        # generate_static.py のカットオフロジックと対称になるように計算する。
+        # バックフィル（target_date が今日でない）場合は全セッション完了済みとして扱う。
+        now_jst  = datetime.utcnow() + timedelta(hours=9)
+        today_jst = now_jst.date()
+        if target_date == today_jst:
+            _h = now_jst.hour
+            session_snapshot_date = {
+                "japan":  today_jst                           if _h >= 15 else today_jst - timedelta(days=1),
+                "london": today_jst                           if _h >= 21 else today_jst - timedelta(days=1),
+                "ny":     today_jst - timedelta(days=1)       if _h >= 8  else today_jst - timedelta(days=2),
+            }
+        else:
+            session_snapshot_date = {
+                "japan":  target_date,
+                "london": target_date,
+                "ny":     target_date - timedelta(days=1),
+            }
 
         # 各セッションの当該 snapshot_date を削除（他日付は保持）
         for sk, sd in session_snapshot_date.items():

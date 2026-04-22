@@ -254,12 +254,14 @@ def main():
 
         # ── session_ranking_results に保存 ──
         write_status("running", "ランキング保存中...")
-        # snapshot_date は session_trade_history.trade_date と同じ「開始日」規約。
-        # NY は日またぎセッションなので開始日 = today - 1 day。
+        # snapshot_date はセッション完了時刻ベースの「開始日」規約。
+        # generate_static.py のカットオフロジックと対称になるように計算する。
+        now_jst = datetime.utcnow() + timedelta(hours=9)
+        _h = now_jst.hour
         session_snapshot_date = {
-            "japan":  today,
-            "london": today,
-            "ny":     today - timedelta(days=1),
+            "japan":  today                           if _h >= 15 else today - timedelta(days=1),
+            "london": today                           if _h >= 21 else today - timedelta(days=1),
+            "ny":     today - timedelta(days=1)       if _h >= 8  else today - timedelta(days=2),
         }
         with engine.connect() as conn:
             for sk_del, sd_del in session_snapshot_date.items():
