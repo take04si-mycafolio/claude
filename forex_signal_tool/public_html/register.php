@@ -44,6 +44,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     $success = true;
                 }
             } catch (Exception $e) {
+                error_log('[register.php] ' . $e->getMessage());
                 $error = '登録処理に失敗しました。しばらく後でもう一度お試しください。';
             }
         }
