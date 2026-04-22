@@ -536,7 +536,7 @@ def get_all_signals() -> list:
             .all()
         )
         result.extend([s.to_dict() for s in sigs])
-    return sorted(result, key=lambda x: x.get("confidence_score") or 0, reverse=True)
+    return sorted(result, key=lambda x: x.get("signal_time") or "", reverse=True)
 
 
 def get_all_backtest() -> list:
@@ -2115,7 +2115,7 @@ def main():
                 _sig_url_map[_iname] = f"/{_cat_slug}/{_url_slug}/"
             for _s in all_signals:
                 _iname = _s.get("indicator_name", "")
-                _s["display_name"]    = INDICATOR_INFO.get(_iname, {}).get("display", _iname)
+                _s["display_name"]    = INDICATOR_INFO.get(_iname, {}).get("display", _iname)[:15]
                 _s["ind_url"]         = _sig_url_map.get(_iname, "")
                 _s["signal_time_jst"] = utc_str_to_jst(_s.get("signal_time", ""))
                 _s["indicator_category"] = INDICATOR_INFO.get(_iname, {}).get("category", _s.get("indicator_category", ""))
