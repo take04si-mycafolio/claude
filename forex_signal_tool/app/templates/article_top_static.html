@@ -180,7 +180,17 @@
 {% if pair_panels %}
 <!-- ===== 通貨ペア別 テクニカル検証パネル ===== -->
 <style>
-.pp-wrap { margin: 30px 1.5rem 3rem; padding-bottom: 30px; }
+.pp-wrap {
+  --font-serif: 'Noto Serif JP', serif;
+  --color-text-primary: #1a1a1a;
+  --color-text-secondary: #5f5e5a;
+  --color-border: rgba(0,0,0,0.12);
+  --color-border-strong: rgba(0,0,0,0.25);
+  --radius-lg: 12px;
+  --green-bg: #eaf3de; --green-text: #3b6d11;
+  --red-bg: #fcebeb;   --red-text: #a32d2d;
+  margin: 30px 1.5rem 3rem; padding-bottom: 30px;
+}
 .pp-wrap h2 { font-family: var(--font-serif); font-size: clamp(1.05rem,3vw,1.2rem); font-weight: 700; padding-bottom: .5rem; border-bottom: 0.5px solid var(--color-border); margin-bottom: 1rem; }
 .pp-grid { display: flex; flex-direction: column; gap: 10px; }
 /* カード全体 */
