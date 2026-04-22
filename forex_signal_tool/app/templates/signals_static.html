@@ -39,9 +39,10 @@
                  border-bottom: 2px solid transparent; margin-bottom: -1px; }
 .sig-pair-tab.active { color: #3b82f6; border-bottom-color: #3b82f6; }
 /* 足サブタブ */
-.sig-tf-tabs { display: flex; gap: 2px; padding: 8px 10px 0; flex-wrap: wrap; }
+.sig-tf-tabs { display: flex; gap: 2px; padding: 8px 10px 0; flex-wrap: nowrap; overflow-x: auto; -webkit-overflow-scrolling: touch; scrollbar-width: none; }
+.sig-tf-tabs::-webkit-scrollbar { display: none; }
 .sig-tf-tab  { padding: 5px 12px; font-size: 0.72rem; font-weight: 600; color: #64748b;
-               cursor: pointer; border: none; background: #1e293b; border-radius: 4px; }
+               cursor: pointer; border: none; background: #1e293b; border-radius: 4px; white-space: nowrap; flex-shrink: 0; }
 .sig-tf-tab.active { background: #2563eb; color: #fff; }
 /* パネル表示切り替え */
 .sig-pair-panel { display: none; }

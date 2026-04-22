@@ -840,7 +840,7 @@ def _ind_card(ind_name: str, bt_best: dict, url_map: dict) -> dict:
     return {
         "indicator":  ind_name,
         "display":    disp,
-        "short":      disp.split("（")[0][:15],
+        "short":      disp.split("（")[0][:10],
         "one_liner":  IND_ONE_LINERS.get(ind_name, ""),
         "win_rate":   round(wr, 1),
         "pf":         round(pf, 2),
@@ -954,7 +954,7 @@ def get_timezone_ranking(url_map: dict) -> list:
         sess_data[sk].append({
             "indicator": ind,
             "display":   info.get("display", ind),
-            "short":     info.get("display", ind).split("（")[0][:15],
+            "short":     info.get("display", ind).split("（")[0][:10],
             "one_liner": IND_ONE_LINERS.get(ind, ""),
             "win_rate":  wr,
             "pf":        round(pf, 2),
@@ -1104,7 +1104,7 @@ def get_market_type_ranking(url_map: dict) -> list:
             cards.append({
                 "indicator": ind,
                 "display":   info.get("display", ind),
-                "short":     info.get("display", ind).split("（")[0][:15],
+                "short":     info.get("display", ind).split("（")[0][:10],
                 "one_liner": IND_ONE_LINERS.get(ind, ""),
                 "win_rate":  wr,
                 "pf":        round(pf, 2),
@@ -2115,7 +2115,7 @@ def main():
                 _sig_url_map[_iname] = f"/{_cat_slug}/{_url_slug}/"
             for _s in all_signals:
                 _iname = _s.get("indicator_name", "")
-                _s["display_name"]    = INDICATOR_INFO.get(_iname, {}).get("display", _iname)[:15]
+                _s["display_name"]    = INDICATOR_INFO.get(_iname, {}).get("display", _iname)[:10]
                 _s["ind_url"]         = _sig_url_map.get(_iname, "")
                 _s["signal_time_jst"] = utc_str_to_jst(_s.get("signal_time", ""))
                 _s["indicator_category"] = INDICATOR_INFO.get(_iname, {}).get("category", _s.get("indicator_category", ""))
@@ -2376,7 +2376,7 @@ def main():
                 _scored.append({
                     "ind":          _r.indicator_name,
                     "display":      _info.get("display", _r.indicator_name),
-                    "short_name":   _short[:15],
+                    "short_name":   _short[:10],
                     "category":     _info.get("category", ""),
                     "feature":      _info.get("feature", ""),
                     "url":          ind_url_map.get(_r.indicator_name, ""),
