@@ -40,7 +40,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     );
                     $s->execute([$email, $hash, $token, $exp]);
 
-                    send_verification_email($email, $token);
+                    $mail_sent = send_verification_email($email, $token);
+                    if (!$mail_sent) {
+                        error_log('[register.php] メール送信失敗: ' . $email);
+                    }
                     $success = true;
                 }
             } catch (Exception $e) {

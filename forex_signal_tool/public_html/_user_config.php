@@ -102,11 +102,18 @@ function send_verification_email(string $to, string $token): bool {
         '※このメールに心当たりがない場合は無視してください。',
     ]);
 
+    $from    = 'noreply@kawase-ai.com';
     $headers = implode("\r\n", [
-        'From: AI×FX <noreply@kawase-ai.com>',
+        'From: AI×FX <' . $from . '>',
+        'Return-Path: ' . $from,
+        'X-Mailer: PHP/' . phpversion(),
         'Content-Type: text/plain; charset=UTF-8',
     ]);
 
     $encoded_subject = '=?UTF-8?B?' . base64_encode($subject) . '?=';
-    return mail($to, $encoded_subject, $body, $headers);
+    $result = mail($to, $encoded_subject, $body, $headers, '-f ' . $from);
+    if (!$result) {
+        error_log('[send_verification_email] mail() failed to: ' . $to);
+    }
+    return $result;
 }
