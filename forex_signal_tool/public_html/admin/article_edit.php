@@ -13,6 +13,8 @@ $ARTICLES = [
     ['key' => 'ranking_short_term','title' => 'テクニカルランキング 手法別おすすめ（短期トレード）',   'page' => '/technical-ranking/'],
     ['key' => 'ranking_day_trade', 'title' => 'テクニカルランキング 手法別おすすめ（デイトレード）',   'page' => '/technical-ranking/'],
     ['key' => 'ranking_swing',     'title' => 'テクニカルランキング 手法別おすすめ（スイングトレード）','page' => '/technical-ranking/'],
+    ['key' => 'terms_content',     'title' => '利用規約',                                             'page' => '/terms.php'],
+    ['key' => 'privacy_content',   'title' => 'プライバシーポリシー',                                 'page' => '/privacy.php'],
 ];
 
 $key = $_GET['key'] ?? '';
