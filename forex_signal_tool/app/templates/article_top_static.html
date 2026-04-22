@@ -177,6 +177,8 @@
 }
 </style>
 
+<div class="article-top">
+
 {% if pair_panels %}
 <!-- ===== 通貨ペア別 テクニカル検証パネル ===== -->
 <style>
@@ -284,11 +286,10 @@
   最終更新: {{ updated_at }}
 </div>
 
-<div class="article-top">
-
 {% if content_pre %}{{ content_pre | safe }}{% endif %}
 
 {% if bt_top_ranking %}
+
 <!-- ===== Section 06: 総合ランキング（スコア順） ===== -->
 <section class="sec" id="s06">
   <div class="sec-num">06</div>
