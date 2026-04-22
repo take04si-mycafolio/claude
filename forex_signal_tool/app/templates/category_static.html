@@ -74,7 +74,7 @@
   <div class="section-title">
     <i class="bi bi-grid me-2"></i>他のカテゴリを見る
   </div>
-  <div class="cat-grid">
+  <div class="cat-grid-2col">
     {% for cat in all_categories %}
     {% if cat.slug != category.slug %}
     <a href="/{{ cat.slug }}/" class="cat-other-card">
@@ -109,6 +109,8 @@
 
 /* ---- 指標カードグリッド ---- */
 .cat-grid{display:grid;grid-template-columns:1fr;gap:10px}
+.cat-grid-2col{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+@media(max-width:480px){.cat-grid-2col{grid-template-columns:1fr}}
 
 /* ---- 指標カード ---- */
 .cat-ind-card{background:#0f172a;border:1px solid #334155;border-radius:10px;padding:14px;text-decoration:none;display:flex;flex-direction:column;gap:6px;transition:border-color .15s}
