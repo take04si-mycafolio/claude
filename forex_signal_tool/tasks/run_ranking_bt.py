@@ -122,7 +122,7 @@ def calc_score(r: dict) -> int:
 
 # ---------- 手法別おすすめ自動生成 ----------
 
-def generate_recommendations(all_results: list, ind_info: dict = None) -> dict:
+def generate_recommendations(all_results: list, ind_info: dict = None, url_map: dict = None) -> dict:
     """
     バックテスト結果から手法別・ペア別スコア上位5件を生成。
     返す形式:
@@ -171,6 +171,7 @@ def generate_recommendations(all_results: list, ind_info: dict = None) -> dict:
                 recs.append({
                     "indicator_name": ind_name,
                     "indicator":      display,
+                    "url":            url_map.get(ind_name, "") if url_map else "",
                     "pair":           pair[:3] + "/" + pair[3:],
                     "tf":             tf_lbl,
                     "win_rate":       round(float(r.get("win_rate")      or 0), 1),

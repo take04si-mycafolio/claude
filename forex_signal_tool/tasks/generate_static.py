@@ -2564,7 +2564,7 @@ def main():
         # 手法別おすすめをランキングと同タイミングで再生成
         try:
             from tasks.run_ranking_bt import generate_recommendations, save_recommendations_to_db
-            _recs      = generate_recommendations(all_bt_ranked, INDICATOR_INFO)
+            _recs      = generate_recommendations(all_bt_ranked, INDICATOR_INFO, ind_url_map)
             save_recommendations_to_db(_recs)
             recs_short = _recs.get("short", {})
             recs_day   = _recs.get("day",   {})

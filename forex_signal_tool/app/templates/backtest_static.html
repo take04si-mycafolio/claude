@@ -157,7 +157,10 @@
       <div class="method-card">
         <div class="method-rank">{{ loop.index }}</div>
         <div class="method-body">
-          <div class="method-ind">{{ rec.get('indicator', '') }}</div>
+          <div class="method-ind">
+            {%- if rec.get('url') %}<a href="{{ rec.get('url') }}" class="rk-ind-link">{{ rec.get('indicator', '') }}</a>
+            {%- else %}{{ rec.get('indicator', '') }}{%- endif %}
+          </div>
           <div class="method-meta">
             <span class="method-badge">{{ rec.get('pair', pl) }}</span>
             <span class="method-badge">{{ rec.get('tf', '') }}</span>
@@ -181,7 +184,10 @@
     <div class="method-card">
       <div class="method-rank">{{ loop.index }}</div>
       <div class="method-body">
-        <div class="method-ind">{{ rec.get('indicator', '') }}</div>
+        <div class="method-ind">
+          {%- if rec.get('url') %}<a href="{{ rec.get('url') }}" class="rk-ind-link">{{ rec.get('indicator', '') }}</a>
+          {%- else %}{{ rec.get('indicator', '') }}{%- endif %}
+        </div>
         <div class="method-meta">
           <span class="method-badge">{{ rec.get('pair', '') }}</span>
           <span class="method-badge">{{ rec.get('tf', '') }}</span>
