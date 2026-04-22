@@ -163,7 +163,7 @@ if ($isLoggedIn) {
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title><?= $isLoggedIn ? '管理ダッシュボード' : '管理パネル ログイン' ?> | FX Trend</title>
+<title><?= $isLoggedIn ? '管理ダッシュボード' : '管理パネル ログイン' ?> | AI×FX</title>
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
 body{background:#0f172a;color:#e2e8f0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;min-height:100vh}
@@ -236,7 +236,7 @@ main{max-width:900px;margin:0 auto;padding:28px 20px}
 </head>
 <body>
 <header>
-  <h1>FX Trend 管理パネル</h1>
+  <h1>AI×FX 管理パネル</h1>
   <?php if ($isLoggedIn): ?>
   <nav class="nav">
     <a href="/admin/" class="active">ダッシュボード</a>

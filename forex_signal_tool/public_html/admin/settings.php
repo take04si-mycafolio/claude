@@ -168,7 +168,7 @@ $diag['signal_status'] = setting_get('signal_status',   'idle');
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>設定 & 診断 | FX Trend 管理</title>
+<title>設定 & 診断 | AI×FX 管理</title>
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
 body{background:#0f172a;color:#e2e8f0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;min-height:100vh}
@@ -234,7 +234,7 @@ h2{font-size:20px;font-weight:700;color:#f1f5f9;margin-bottom:6px}
 </head>
 <body>
 <header>
-  <h1>FX Trend 管理パネル</h1>
+  <h1>AI×FX 管理パネル</h1>
   <nav class="nav">
     <a href="/admin/">ダッシュボード</a>
     <a href="/admin/articles.php">記事管理</a>

@@ -52,7 +52,7 @@ if (!$article) {
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title><?= htmlspecialchars($article['title']) ?> | FX Trend 管理</title>
+<title><?= htmlspecialchars($article['title']) ?> | AI×FX 管理</title>
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
 body{background:#0f172a;color:#e2e8f0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;min-height:100vh}
@@ -473,7 +473,7 @@ if ($is_indicator && $ind_slug) {
     <div style="font-size:11px;color:#475569;margin-bottom:6px">空白の場合はデフォルトのタイトルが使用されます。</div>
     <input type="text" id="editor-seo-title" class="editor-textarea"
            style="min-height:auto;padding:9px 12px;font-size:14px"
-           placeholder="例: ドル円リアルタイム予想【テクニカル分析】| FXシグナル">
+           placeholder="例: ドル円リアルタイム予想【テクニカル分析】| AI×FX">
   </div>
   <div class="editor-card" style="margin-bottom:16px">
     <label class="editor-label">⓪ META ディスクリプション</label>

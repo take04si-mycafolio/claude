@@ -33,7 +33,7 @@ $dateRangesJson = json_encode($dateRanges, JSON_UNESCAPED_UNICODE);
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>カスタムバックテスト | FX Trend 管理</title>
+<title>カスタムバックテスト | AI×FX 管理</title>
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
 body{background:#0f172a;color:#e2e8f0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;min-height:100vh}
@@ -125,7 +125,7 @@ h2{font-size:20px;font-weight:700;color:#f1f5f9;margin-bottom:6px}
 </div>
 
 <header>
-  <h1>FX Trend 管理パネル</h1>
+  <h1>AI×FX 管理パネル</h1>
   <nav class="nav">
     <a href="/admin/">ダッシュボード</a>
     <a href="/admin/articles.php">記事管理</a>

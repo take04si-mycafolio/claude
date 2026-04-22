@@ -36,7 +36,7 @@ def send_report_email(report_id: int) -> bool:
         return False
 
     now_str = datetime.now(JST).strftime("%Y年%m月%d日 %H:%M JST")
-    subject = f"【FXシグナルツール】相場分析レポート {now_str}"
+    subject = f"【AI×FXツール】相場分析レポート {now_str}"
 
     # Markdown をプレーンテキストに変換（簡易）
     plain_text = report.content

@@ -13,7 +13,7 @@ require_login();
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>マルチ条件バックテスト v2 | FX Trend 管理</title>
+<title>マルチ条件バックテスト v2 | AI×FX 管理</title>
 <script src="https://unpkg.com/lightweight-charts@4.1.3/dist/lightweight-charts.standalone.production.js"></script>
 <style>
 /* ===== reset / base ===== */
@@ -259,7 +259,7 @@ h2{font-size:20px;font-weight:700;color:#f1f5f9;margin-bottom:6px}
 </div>
 
 <header>
-  <h1>FX Trend 管理パネル</h1>
+  <h1>AI×FX 管理パネル</h1>
   <nav class="nav">
     <a href="/admin/">ダッシュボード</a>
     <a href="/admin/articles.php">記事管理</a>
