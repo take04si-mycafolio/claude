@@ -1,0 +1,272 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>内部リンクマップ プレビュー</title>
+<script src="https://d3js.org/d3.v7.min.js"></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:#0f172a;color:#e2e8f0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;overflow:hidden}
+#header{background:#1e293b;border-bottom:1px solid #334155;padding:12px 20px;display:flex;align-items:center;gap:16px;z-index:10;position:relative}
+#header h1{font-size:16px;font-weight:700;color:#f1f5f9}
+.legend{display:flex;gap:14px;margin-left:auto;flex-wrap:wrap}
+.leg-item{display:flex;align-items:center;gap:5px;font-size:11px;color:#94a3b8}
+.leg-dot{width:10px;height:10px;border-radius:50%}
+#controls{position:absolute;top:60px;left:16px;z-index:10;display:flex;flex-direction:column;gap:8px}
+.ctrl-btn{background:#1e293b;border:1px solid #334155;color:#94a3b8;border-radius:6px;padding:6px 12px;font-size:11px;cursor:pointer;transition:all .15s;white-space:nowrap}
+.ctrl-btn:hover{border-color:#475569;color:#e2e8f0}
+.ctrl-btn.active{background:#1e3a5f;border-color:#3b82f6;color:#60a5fa}
+#tooltip{position:fixed;background:#1e293b;border:1px solid #334155;border-radius:8px;padding:10px 14px;font-size:12px;pointer-events:none;opacity:0;transition:opacity .15s;z-index:100;max-width:240px}
+#tooltip .tt-title{font-weight:700;color:#f1f5f9;margin-bottom:4px}
+#tooltip .tt-url{font-size:10px;color:#60a5fa;font-family:monospace;margin-bottom:4px}
+#tooltip .tt-links{font-size:11px;color:#64748b}
+#info{position:absolute;bottom:16px;left:16px;font-size:11px;color:#475569}
+svg{width:100%;height:calc(100vh - 52px)}
+.node circle{cursor:pointer;transition:opacity .15s}
+.node circle:hover{opacity:.8}
+.node text{pointer-events:none;font-size:9px;fill:#94a3b8;font-family:-apple-system,sans-serif}
+.link{stroke-opacity:.4;fill:none}
+.link.structural{stroke:#334155;stroke-width:1}
+.link.article{stroke:#3b82f6;stroke-width:1.5}
+marker path{fill:#3b82f6}
+marker.structural path{fill:#334155}
+</style>
+</head>
+<body>
+<div id="header">
+  <h1>🗺 内部リンクマップ（プレビュー）</h1>
+  <div class="legend">
+    <div class="leg-item"><div class="leg-dot" style="background:#22c55e"></div>主要ページ</div>
+    <div class="leg-item"><div class="leg-dot" style="background:#a855f7"></div>通貨ペア</div>
+    <div class="leg-item"><div class="leg-dot" style="background:#3b82f6"></div>カテゴリ</div>
+    <div class="leg-item"><div class="leg-dot" style="background:#64748b"></div>指標</div>
+    <div class="leg-item" style="margin-left:8px"><div style="width:20px;height:2px;background:#3b82f6;border-radius:1px"></div>記事リンク</div>
+    <div class="leg-item"><div style="width:20px;height:1px;background:#334155;border-radius:1px"></div>構造リンク</div>
+  </div>
+</div>
+
+<div id="controls">
+  <button class="ctrl-btn active" onclick="toggleEdge('structural', this)">構造リンクを表示</button>
+  <button class="ctrl-btn active" onclick="toggleEdge('article', this)">記事リンクを表示</button>
+  <button class="ctrl-btn" onclick="resetZoom()">表示をリセット</button>
+</div>
+
+<div id="tooltip">
+  <div class="tt-title" id="tt-title"></div>
+  <div class="tt-url" id="tt-url"></div>
+  <div class="tt-links" id="tt-links"></div>
+</div>
+
+<div id="info">ノードをホバー: 詳細表示 ／ ドラッグ: ノード移動 ／ スクロール: ズーム</div>
+
+<svg id="graph"></svg>
+
+<script>
+// ========== データ定義 ==========
+const nodes = [
+  // 主要ページ
+  {id:'top',       label:'TOP',       url:'/',                    type:'main',      group:'main'},
+  {id:'ranking',   label:'ランキング', url:'/technical-ranking/',  type:'main',      group:'main'},
+  {id:'signals',   label:'シグナル',   url:'/signals/',             type:'main',      group:'main'},
+  // 通貨ペア
+  {id:'usdjpy',    label:'ドル円',     url:'/usdjpy/',              type:'pair',      group:'pair'},
+  {id:'gbpjpy',    label:'ポンド円',   url:'/gbpjpy/',              type:'pair',      group:'pair'},
+  {id:'eurjpy',    label:'ユーロ円',   url:'/eurjpy/',              type:'pair',      group:'pair'},
+  // カテゴリ
+  {id:'oscillator',label:'オシレーター',url:'/oscillator/',         type:'category',  group:'category'},
+  {id:'trend',     label:'トレンド',   url:'/trend/',               type:'category',  group:'category'},
+  {id:'line',      label:'ライン',     url:'/line/',                type:'category',  group:'category'},
+  {id:'volatility',label:'ボラティリティ',url:'/volatility/',      type:'category',  group:'category'},
+  {id:'candlestick',label:'ローソク足', url:'/candlestick/',        type:'category',  group:'category'},
+  {id:'composite', label:'コンポジット',url:'/composite/',          type:'category',  group:'category'},
+  {id:'bbsl',      label:'BBバンドSL', url:'/bbsl/',               type:'category',  group:'category'},
+  // 指標（オシレーター）
+  {id:'rsi',       label:'RSI',        url:'/oscillator/rsi/',     type:'indicator', group:'oscillator'},
+  {id:'macd',      label:'MACD',       url:'/oscillator/macd/',    type:'indicator', group:'oscillator'},
+  {id:'stochastic',label:'ストキャス', url:'/oscillator/stochastic/', type:'indicator', group:'oscillator'},
+  {id:'cci',       label:'CCI',        url:'/oscillator/cci/',     type:'indicator', group:'oscillator'},
+  {id:'williams_r',label:'W%R',        url:'/oscillator/williams_r/', type:'indicator', group:'oscillator'},
+  // 指標（トレンド）
+  {id:'sma20',     label:'SMA 20',     url:'/trend/sma20/',        type:'indicator', group:'trend'},
+  {id:'sma50',     label:'SMA 50',     url:'/trend/sma50/',        type:'indicator', group:'trend'},
+  {id:'sma_cross', label:'SMAクロス',  url:'/trend/sma_cross/',    type:'indicator', group:'trend'},
+  {id:'ema_cross', label:'EMAクロス',  url:'/trend/ema_cross/',    type:'indicator', group:'trend'},
+  {id:'ema21',     label:'EMA 21',     url:'/trend/ema21/',        type:'indicator', group:'trend'},
+  {id:'bollinger_bands',label:'ボリンジャーBB',url:'/trend/bollinger_bands/', type:'indicator', group:'trend'},
+  {id:'bb_squeeze',label:'BBスクイーズ',url:'/trend/bb_squeeze/', type:'indicator', group:'trend'},
+  // 指標（ライン）
+  {id:'pivot',     label:'ピボット',   url:'/line/pivot/',         type:'indicator', group:'line'},
+  {id:'fibonacci', label:'フィボナッチ',url:'/line/fibonacci/',   type:'indicator', group:'line'},
+  {id:'support_resistance',label:'動的SR',url:'/line/support_resistance/', type:'indicator', group:'line'},
+  // 指標（ボラティリティ）
+  {id:'atr',       label:'ATR',        url:'/volatility/atr/',     type:'indicator', group:'volatility'},
+  {id:'volatility_index',label:'ボラインデックス',url:'/volatility/volatility_index/', type:'indicator', group:'volatility'},
+  // 指標（ローソク足）
+  {id:'hammer',    label:'ハンマー',   url:'/candlestick/hammer/', type:'indicator', group:'candlestick'},
+  {id:'inverted_hammer',label:'逆ハンマー',url:'/candlestick/inverted_hammer/', type:'indicator', group:'candlestick'},
+  {id:'doji',      label:'十字線',     url:'/candlestick/doji/',   type:'indicator', group:'candlestick'},
+  {id:'bullish_engulfing',label:'強気包み足',url:'/candlestick/bullish_engulfing/', type:'indicator', group:'candlestick'},
+  {id:'bearish_engulfing',label:'弱気包み足',url:'/candlestick/bearish_engulfing/', type:'indicator', group:'candlestick'},
+  {id:'three_white_soldiers',label:'三白兵',url:'/candlestick/three_white_soldiers/', type:'indicator', group:'candlestick'},
+  {id:'three_black_crows',label:'三羽烏',url:'/candlestick/three_black_crows/', type:'indicator', group:'candlestick'},
+  {id:'pin_bar',   label:'ピンバー',   url:'/candlestick/pin_bar/', type:'indicator', group:'candlestick'},
+];
+
+// リンク定義
+const links = [
+  // 構造リンク: カテゴリ → 配下指標
+  ...[['oscillator','rsi'],['oscillator','macd'],['oscillator','stochastic'],['oscillator','cci'],['oscillator','williams_r']].map(([s,t])=>({source:s,target:t,type:'structural'})),
+  ...[['trend','sma20'],['trend','sma50'],['trend','sma_cross'],['trend','ema_cross'],['trend','ema21'],['trend','bollinger_bands'],['trend','bb_squeeze']].map(([s,t])=>({source:s,target:t,type:'structural'})),
+  ...[['line','pivot'],['line','fibonacci'],['line','support_resistance']].map(([s,t])=>({source:s,target:t,type:'structural'})),
+  ...[['volatility','atr'],['volatility','volatility_index']].map(([s,t])=>({source:s,target:t,type:'structural'})),
+  ...[['candlestick','hammer'],['candlestick','inverted_hammer'],['candlestick','doji'],['candlestick','bullish_engulfing'],['candlestick','bearish_engulfing'],['candlestick','three_white_soldiers'],['candlestick','three_black_crows'],['candlestick','pin_bar']].map(([s,t])=>({source:s,target:t,type:'structural'})),
+  // 構造リンク: TOPページ → 主要ページ
+  {source:'top', target:'ranking',    type:'structural'},
+  {source:'top', target:'signals',    type:'structural'},
+  {source:'top', target:'usdjpy',     type:'structural'},
+  {source:'top', target:'gbpjpy',     type:'structural'},
+  {source:'top', target:'eurjpy',     type:'structural'},
+  {source:'top', target:'oscillator', type:'structural'},
+  {source:'top', target:'trend',      type:'structural'},
+  // 記事内リンク（例: 実際の記事から取得されるリンク）
+  {source:'rsi',  target:'macd',              type:'article', label:'「RSIとMACDの比較」'},
+  {source:'rsi',  target:'oscillator',        type:'article', label:'カテゴリへ戻る'},
+  {source:'rsi',  target:'composite',         type:'article', label:'複合指標を見る'},
+  {source:'macd', target:'rsi',               type:'article', label:'RSIとの組み合わせ'},
+  {source:'macd', target:'sma_cross',         type:'article', label:'クロス系と比較'},
+  {source:'bollinger_bands', target:'bbsl',   type:'article', label:'BBバンドSL戦略'},
+  {source:'bollinger_bands', target:'bb_squeeze',type:'article',label:'BBスクイーズ詳細'},
+  {source:'bollinger_bands', target:'atr',    type:'article', label:'ATRとの比較'},
+  {source:'atr',  target:'bbsl',              type:'article', label:'動的SL比較'},
+  {source:'hammer',target:'candlestick',      type:'article', label:'カテゴリへ戻る'},
+  {source:'hammer',target:'pin_bar',          type:'article', label:'ピンバーと比較'},
+  {source:'ranking',target:'oscillator',      type:'article', label:'カテゴリ別ランキング'},
+  {source:'ranking',target:'trend',           type:'article', label:'カテゴリ別ランキング'},
+  {source:'signals',target:'usdjpy',          type:'article', label:'通貨ペア別'},
+  {source:'usdjpy',target:'ranking',          type:'article', label:'ランキングを見る'},
+  {source:'usdjpy',target:'gbpjpy',           type:'article', label:'他通貨と比較'},
+  {source:'composite',target:'rsi',           type:'article', label:'RSI複合戦略'},
+  {source:'composite',target:'macd',          type:'article', label:'MACD複合戦略'},
+  {source:'pivot', target:'fibonacci',        type:'article', label:'フィボナッチとの比較'},
+  {source:'sma_cross',target:'ema_cross',     type:'article', label:'EMAクロスと比較'},
+];
+
+// ========== カラー定義 ==========
+const COLOR = {
+  main:       '#22c55e',
+  pair:       '#a855f7',
+  category:   '#3b82f6',
+  indicator:  '#64748b',
+};
+const GROUP_COLOR = {
+  oscillator: '#06b6d4',
+  trend:      '#8b5cf6',
+  line:       '#f59e0b',
+  volatility: '#ef4444',
+  candlestick:'#ec4899',
+};
+
+// ========== D3 セットアップ ==========
+const svg    = d3.select('#graph');
+const width  = window.innerWidth;
+const height = window.innerHeight - 52;
+
+const zoom = d3.zoom().scaleExtent([.1, 4]).on('zoom', e => {
+  container.attr('transform', e.transform);
+});
+svg.call(zoom);
+
+const container = svg.append('g');
+
+// マーカー
+const defs = svg.append('defs');
+['article','structural'].forEach(t => {
+  defs.append('marker')
+    .attr('id','arrow-'+t).attr('class',t)
+    .attr('viewBox','0 -4 8 8').attr('refX',14).attr('refY',0)
+    .attr('markerWidth',6).attr('markerHeight',6).attr('orient','auto')
+    .append('path').attr('d','M0,-4L8,0L0,4Z');
+});
+
+// リンク描画
+const linkEl = container.append('g').selectAll('line')
+  .data(links).join('line')
+  .attr('class', d=>'link '+d.type)
+  .attr('marker-end', d=>'url(#arrow-'+d.type+')');
+
+// ノード描画
+const nodeEl = container.append('g').selectAll('g')
+  .data(nodes).join('g').attr('class','node')
+  .call(d3.drag()
+    .on('start', (e,d)=>{ if(!e.active) sim.alphaTarget(.3).restart(); d.fx=d.x;d.fy=d.y; })
+    .on('drag',  (e,d)=>{ d.fx=e.x; d.fy=e.y; })
+    .on('end',   (e,d)=>{ if(!e.active) sim.alphaTarget(0); d.fx=null;d.fy=null; })
+  );
+
+// サイズ・色
+function nodeRadius(d){
+  return d.type==='main'?16 : d.type==='pair'?12 : d.type==='category'?14 : 9;
+}
+function nodeColor(d){
+  if(d.type!=='indicator') return COLOR[d.type];
+  return GROUP_COLOR[d.group] || COLOR.indicator;
+}
+
+nodeEl.append('circle')
+  .attr('r', nodeRadius)
+  .attr('fill', d=>nodeColor(d)+'33')
+  .attr('stroke', nodeColor)
+  .attr('stroke-width', d=>d.type==='main'?2.5:1.5);
+
+nodeEl.append('text')
+  .attr('dy', d=>nodeRadius(d)+11)
+  .attr('text-anchor','middle')
+  .text(d=>d.label);
+
+// ツールチップ
+const tt = document.getElementById('tooltip');
+nodeEl.on('mouseover', (e,d)=>{
+  const outLinks = links.filter(l=>l.source.id===d.id||l.source===d.id);
+  const inLinks  = links.filter(l=>l.target.id===d.id||l.target===d.id);
+  document.getElementById('tt-title').textContent = d.label;
+  document.getElementById('tt-url').textContent   = d.url;
+  document.getElementById('tt-links').textContent = `発リンク: ${outLinks.length}件 ／ 被リンク: ${inLinks.length}件`;
+  tt.style.opacity=1;
+  tt.style.left=(e.clientX+14)+'px';
+  tt.style.top =(e.clientY-10)+'px';
+}).on('mousemove',(e)=>{
+  tt.style.left=(e.clientX+14)+'px';
+  tt.style.top =(e.clientY-10)+'px';
+}).on('mouseout',()=>{ tt.style.opacity=0; });
+
+// シミュレーション
+const sim = d3.forceSimulation(nodes)
+  .force('link', d3.forceLink(links).id(d=>d.id).distance(d=>d.type==='structural'?80:120))
+  .force('charge', d3.forceManyBody().strength(-200))
+  .force('center', d3.forceCenter(width/2, height/2))
+  .force('collision', d3.forceCollide().radius(d=>nodeRadius(d)+8))
+  .on('tick', ()=>{
+    linkEl.attr('x1',d=>d.source.x).attr('y1',d=>d.source.y)
+          .attr('x2',d=>d.target.x).attr('y2',d=>d.target.y);
+    nodeEl.attr('transform',d=>`translate(${d.x},${d.y})`);
+  });
+
+// フィルタ制御
+let visibility = {structural:true, article:true};
+function toggleEdge(type, btn){
+  visibility[type] = !visibility[type];
+  btn.classList.toggle('active');
+  linkEl.filter(d=>d.type===type).style('display', visibility[type]?'':'none');
+}
+function resetZoom(){
+  svg.transition().duration(500).call(zoom.transform, d3.zoomIdentity);
+}
+
+window.addEventListener('resize',()=>{
+  const w=window.innerWidth, h=window.innerHeight-52;
+  sim.force('center', d3.forceCenter(w/2,h/2)).alpha(.3).restart();
+});
+</script>
+</body>
+</html>
