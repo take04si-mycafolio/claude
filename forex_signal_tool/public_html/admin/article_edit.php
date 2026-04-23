@@ -835,8 +835,23 @@ function resetIndicatorPageBt() {
 .ai-fb-status{font-size:11px}
 .ai-fb-status.ok{color:#22c55e}
 .ai-fb-status.err{color:#ef4444}
+.ls-item{background:#0f172a;border:1px solid #1e293b;border-radius:5px;padding:6px 10px;font-size:12px;margin-bottom:5px;display:flex;align-items:flex-start;gap:8px}
+.ls-body{flex:1;min-width:0}
+.ls-name{color:#e2e8f0;font-weight:600;margin-bottom:2px}
+.ls-meta{color:#475569;font-size:11px;display:flex;gap:8px;flex-wrap:wrap}
+.ls-wr{color:#4ade80;font-weight:600}
+.ls-del{background:none;border:none;color:#475569;cursor:pointer;font-size:14px;padding:0 2px;line-height:1;flex-shrink:0;margin-top:1px}
+.ls-del:hover{color:#f87171}
+.ls-dl{background:none;border:none;color:#38bdf8;cursor:pointer;font-size:12px;padding:0 2px;line-height:1;flex-shrink:0;margin-top:1px;text-decoration:none}
+.ls-dl:hover{color:#7dd3fc;text-decoration:none}
 </style>
 <div style="background:#0b1a2b;border:1px solid #1e3a5f;border-radius:10px;padding:18px 20px;margin-bottom:16px">
+  <!-- リンク済み保存戦略 -->
+  <div style="margin-bottom:14px;padding-bottom:14px;border-bottom:1px solid #1e293b">
+    <div style="font-size:12px;font-weight:600;color:#64748b;margin-bottom:6px">📊 AIバックテスト結果（保存済み戦略）</div>
+    <div id="linked-strategies-wrap"><span style="font-size:12px;color:#475569">読み込み中...</span></div>
+  </div>
+  <!-- AI フィードバック -->
   <div style="font-size:12px;font-weight:600;color:#64748b;margin-bottom:8px">🤖 AIフィードバック
     <span style="font-size:10px;font-weight:400;color:#67e8f9;margin-left:6px">HTMLタグ使用可 / 公開ページに表示されます</span>
   </div>
