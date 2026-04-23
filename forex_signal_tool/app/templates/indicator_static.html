@@ -653,15 +653,15 @@ tr.trade-row.sim-active td{background:rgba(59,130,246,.10)!important}
   </div>
 
   <!-- AI考察・分析（折りたたみ） -->
-  {% if ai_notes %}
   <div class="ai-collapse-wrap" style="margin-top:8px;margin-bottom:12px">
     <button class="ai-collapse-btn" onclick="toggleAiSection(this)" aria-expanded="false">
       <span>🤖 バックテストをAI分析で考察・分析</span>
       <i class="bi bi-chevron-down ai-collapse-chev"></i>
     </button>
-    <div class="ai-collapse-body ai-notes-body">{{ ai_notes | safe }}</div>
+    <div class="ai-collapse-body ai-notes-body">
+      {% if ai_notes %}{{ ai_notes | safe }}{% else %}<p style="color:#94a3b8;font-size:13px;padding:4px 0">AI分析コンテンツは準備中です。</p>{% endif %}
+    </div>
   </div>
-  {% endif %}
 
   <!-- SEO記事 -->
   {% if indicator_article %}
