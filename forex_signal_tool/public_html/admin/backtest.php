@@ -132,6 +132,7 @@ h2{font-size:20px;font-weight:700;color:#f1f5f9;margin-bottom:6px}
     <a href="/admin/backtest.php" class="active">バックテスト v1</a>
     <a href="/admin/backtest_v2.php">バックテスト v2</a>
     <a href="/admin/seo.php">SEO管理</a>
+    <a href="/admin/article_map.php">リンクマップ</a>
     <a href="/admin/export.php">エクスポート</a>
     <a href="/admin/settings.php">設定</a>
     <a href="/" target="_blank">サイトを見る</a>
