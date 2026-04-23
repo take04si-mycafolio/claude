@@ -1,0 +1,127 @@
+{% extends "base.html" %}
+{% block title %}{{ product.name }}の口コミ・レビュー | 美顔器レビュー{% endblock %}
+{% block meta_description %}{{ product.name }}の実際に使った方の口コミ・評価を掲載。{{ product.brand }}の美顔器のリアルなレビューが読めます。{% endblock %}
+
+{% block content %}
+<nav aria-label="breadcrumb" style="font-size:0.85rem;margin:16px 0;color:var(--color-muted)">
+  <a href="{% url 'products:list' %}">商品一覧</a> ›
+  <span>{{ product.name }}</span>
+</nav>
+
+<div class="product-detail">
+  <div class="img-wrap">
+    {% if product.display_image %}
+      <img src="{{ product.display_image }}" alt="{{ product.name }}">
+    {% else %}
+      <div style="display:flex;height:100%;align-items:center;justify-content:center;color:#aaa">No Image</div>
+    {% endif %}
+  </div>
+  <div>
+    {% if product.brand %}<div class="brand">{{ product.brand }}</div>{% endif %}
+    <h1>{{ product.name }}</h1>
+
+    <div>
+      <span class="stars stars-lg">
+        {% for _ in "12345"|make_list %}{% if forloop.counter <= stats.average %}★{% else %}☆{% endif %}{% endfor %}
+      </span>
+      {% if stats.count %}
+        <strong>{{ stats.average }}</strong> / 5.0（{{ stats.count }}件の口コミ）
+      {% else %}
+        <span style="color:var(--color-muted)">まだ口コミがありません</span>
+      {% endif %}
+    </div>
+
+    {% if product.price %}<p class="price-big">参考価格: ¥{{ product.price }}</p>{% endif %}
+
+    {% if product.description %}
+      <p>{{ product.description|linebreaksbr }}</p>
+    {% endif %}
+
+    {% if product.features %}
+      <h2 style="font-size:1.1rem;margin:18px 0 6px">特徴</h2>
+      <div class="features-list">{{ product.features|linebreaksbr }}</div>
+    {% endif %}
+
+    {% if product.official_url or product.affiliate_url %}
+      <div style="margin-top:16px">
+        {% if product.official_url %}<a href="{{ product.official_url }}" class="btn" target="_blank" rel="nofollow noopener">公式サイト</a>{% endif %}
+        {% if product.affiliate_url %}<a href="{{ product.affiliate_url }}" class="btn btn-primary" target="_blank" rel="nofollow noopener sponsored">購入する</a>{% endif %}
+      </div>
+    {% endif %}
+
+    <div style="margin-top:20px">
+      {% if user.is_authenticated %}
+        {% if user_review %}
+          <a href="{% url 'reviews:create' product.slug %}" class="btn">自分の口コミを編集</a>
+        {% else %}
+          <a href="{% url 'reviews:create' product.slug %}" class="btn btn-primary">この商品の口コミを書く</a>
+        {% endif %}
+      {% else %}
+        <a href="{% url 'accounts:signup' %}" class="btn btn-primary">無料登録して口コミを書く</a>
+      {% endif %}
+    </div>
+  </div>
+</div>
+
+<section class="section">
+  <h2>口コミ・レビュー</h2>
+
+  {% if can_view %}
+    {% if reviews %}
+      {% for r in reviews %}
+        {% include "reviews/_review_card.html" with r=r %}
+      {% endfor %}
+    {% else %}
+      <p>まだこの商品には口コミがありません。最初の口コミを投稿してみませんか？</p>
+    {% endif %}
+  {% else %}
+    {% if preview_reviews %}
+      {% for r in preview_reviews %}
+        {% include "reviews/_review_card.html" with r=r %}
+      {% endfor %}
+    {% endif %}
+
+    <div class="gate">
+      <h3>口コミの全文を読むには、あなたの口コミが必要です</h3>
+      <p>このサイトはユーザー投稿型の口コミサイトです。<br>
+        1件でも口コミを投稿すれば、全商品の口コミを閲覧できるようになります。</p>
+      {% if user.is_authenticated %}
+        <a href="{% url 'reviews:create' product.slug %}" class="btn btn-primary">この商品の口コミを書く</a>
+      {% else %}
+        <a href="{% url 'accounts:signup' %}" class="btn btn-primary">無料登録する</a>
+        <a href="{% url 'accounts:login' %}" class="btn">ログイン</a>
+      {% endif %}
+    </div>
+  {% endif %}
+</section>
+
+{% if product.articles.all %}
+<section class="section">
+  <h2>関連記事</h2>
+  <div class="article-list">
+    {% for a in product.articles.all %}
+      {% if a.is_published %}
+        <a class="article-card" href="{{ a.get_absolute_url }}"><h3>{{ a.title }}</h3><p>{{ a.excerpt|default:a.content|striptags|truncatechars:120 }}</p></a>
+      {% endif %}
+    {% endfor %}
+  </div>
+</section>
+{% endif %}
+
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "Product",
+  "name": "{{ product.name|escapejs }}",
+  "brand": "{{ product.brand|escapejs }}",
+  {% if product.display_image %}"image": "{{ product.display_image }}",{% endif %}
+  "description": "{{ product.description|striptags|truncatechars:200|escapejs }}"
+  {% if stats.count %},
+  "aggregateRating": {
+    "@type": "AggregateRating",
+    "ratingValue": "{{ stats.average }}",
+    "reviewCount": "{{ stats.count }}"
+  }{% endif %}
+}
+</script>
+{% endblock %}

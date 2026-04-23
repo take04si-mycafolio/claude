@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+{% block title %}{{ article.title }} | 美顔器レビュー{% endblock %}
+{% block meta_description %}{{ article.excerpt|default:article.content|striptags|truncatechars:150 }}{% endblock %}
+
+{% block content %}
+<article class="article-content" style="margin:24px 0">
+  <h1>{{ article.title }}</h1>
+  {% if article.published_at %}<p style="color:var(--color-muted)">{{ article.published_at|date:"Y年m月d日" }}{% if article.wp_author %} / {{ article.wp_author }}{% endif %}</p>{% endif %}
+  <div>{{ article.content|safe }}</div>
+</article>
+
+{% if article.related_products.all %}
+<section class="section">
+  <h2>この記事で紹介された美顔器</h2>
+  <div class="product-grid">
+    {% for p in article.related_products.all %}
+      <a class="product-card" href="{{ p.get_absolute_url }}">
+        <div class="img">{% if p.display_image %}<img src="{{ p.display_image }}" alt="{{ p.name }}">{% else %}No Image{% endif %}</div>
+        <div class="body">
+          {% if p.brand %}<div class="brand">{{ p.brand }}</div>{% endif %}
+          <h3>{{ p.name }}</h3>
+        </div>
+      </a>
+    {% endfor %}
+  </div>
+</section>
+{% endif %}
+{% endblock %}

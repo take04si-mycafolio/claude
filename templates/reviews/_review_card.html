@@ -1,0 +1,16 @@
+<article class="review-card">
+  <header>
+    <div>
+      <span class="stars">{% for _ in "12345"|make_list %}{% if forloop.counter <= r.rating %}★{% else %}☆{% endif %}{% endfor %}</span>
+      <h3 style="display:inline;margin-left:8px">{{ r.title }}</h3>
+    </div>
+    <span class="meta">{{ r.user.nickname|default:r.user.email }} ・ {{ r.created_at|date:"Y/m/d" }}</span>
+  </header>
+  <p>{{ r.body|linebreaksbr }}</p>
+  <div class="tags">
+    {% if r.usage_period %}<span class="tag">使用期間: {{ r.get_usage_period_display }}</span>{% endif %}
+    {% if r.effectiveness %}<span class="tag">{{ r.get_effectiveness_display }}</span>{% endif %}
+    {% if r.skin_type %}<span class="tag">肌質: {{ r.get_skin_type_display }}</span>{% endif %}
+    {% if show_product %}<span class="tag"><a href="{{ r.product.get_absolute_url }}">{{ r.product.name }}</a></span>{% endif %}
+  </div>
+</article>

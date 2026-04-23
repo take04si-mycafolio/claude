@@ -1,0 +1,53 @@
+{% extends "base.html" %}
+{% block title %}美顔器の口コミ・レビュー一覧 | 美顔器レビュー{% endblock %}
+{% block meta_description %}本音の美顔器口コミが集まるサイト。ユーザー投稿のレビューで、あなたにぴったりの美顔器が見つかります。{% endblock %}
+
+{% block content %}
+<section class="hero">
+  <h1>美顔器のリアルな口コミを集めたサイト</h1>
+  <p>実際に使った方のレビューが読めます。あなたの口コミもぜひシェアしてください。</p>
+</section>
+
+<form method="get" class="toolbar">
+  <input type="search" name="q" value="{{ q }}" placeholder="商品名・メーカーで検索">
+  <button type="submit" class="btn">検索</button>
+</form>
+
+{% if categories %}
+<nav class="category-bar">
+  <a href="{% url 'products:list' %}" {% if not active_category %}class="active"{% endif %}>すべて</a>
+  {% for c in categories %}
+    <a href="?category={{ c.slug }}" {% if active_category == c.slug %}class="active"{% endif %}>{{ c.name }}</a>
+  {% endfor %}
+</nav>
+{% endif %}
+
+{% if products %}
+<div class="product-grid">
+  {% for p in products %}
+    <a class="product-card" href="{{ p.get_absolute_url }}">
+      <div class="img">
+        {% if p.display_image %}<img src="{{ p.display_image }}" alt="{{ p.name }}" loading="lazy">{% else %}No Image{% endif %}
+      </div>
+      <div class="body">
+        {% if p.brand %}<div class="brand">{{ p.brand }}</div>{% endif %}
+        <h3>{{ p.name }}</h3>
+        <div class="meta">
+          <span>
+            {% if p.avg_rating %}
+              <span class="stars">{% for _ in "12345"|make_list %}{% if forloop.counter <= p.avg_rating %}★{% else %}☆{% endif %}{% endfor %}</span>
+              {{ p.avg_rating|floatformat:1 }}（{{ p.review_count }}件）
+            {% else %}
+              <span class="muted">口コミ募集中</span>
+            {% endif %}
+          </span>
+          {% if p.price %}<span class="price">¥{{ p.price|stringformat:"s" }}</span>{% endif %}
+        </div>
+      </div>
+    </a>
+  {% endfor %}
+</div>
+{% else %}
+<p>商品が登録されていません。管理画面から商品を追加してください。</p>
+{% endif %}
+{% endblock %}

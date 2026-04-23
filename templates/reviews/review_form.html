@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+{% block title %}{{ product.name }}の口コミを投稿 | 美顔器レビュー{% endblock %}
+
+{% block content %}
+<div class="form-card" style="max-width:640px">
+  <h1>{{ product.name }}の口コミを{% if existing %}編集{% else %}投稿{% endif %}</h1>
+  <p style="color:var(--color-muted)">実際に使った感想をぜひシェアしてください。投稿後、他の口コミも閲覧できるようになります。</p>
+
+  <form method="post" novalidate>
+    {% csrf_token %}
+    {% for field in form %}
+      <div class="form-row {% if field.name == 'rating' %}radio-inline{% endif %}">
+        <label for="{{ field.id_for_label }}">{{ field.label }}{% if field.field.required %} <span style="color:#c44">*</span>{% endif %}</label>
+        {{ field }}
+        {% if field.help_text %}<small class="helptext">{{ field.help_text }}</small>{% endif %}
+        {{ field.errors }}
+      </div>
+    {% endfor %}
+    <button type="submit" class="btn btn-primary btn-block">{% if existing %}更新する{% else %}投稿する{% endif %}</button>
+  </form>
+</div>
+{% endblock %}

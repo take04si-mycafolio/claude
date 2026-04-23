@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+{% block title %}ログイン | 美顔器レビュー{% endblock %}
+
+{% block content %}
+<div class="form-card">
+  <h1>ログイン</h1>
+  <form method="post" novalidate>
+    {% csrf_token %}
+    {% if form.non_field_errors %}<div class="msg msg-error">{{ form.non_field_errors }}</div>{% endif %}
+    {% for field in form %}
+      <div class="form-row">
+        <label for="{{ field.id_for_label }}">{{ field.label }}</label>
+        {{ field }}
+        {{ field.errors }}
+      </div>
+    {% endfor %}
+    <button type="submit" class="btn btn-primary btn-block">ログイン</button>
+  </form>
+  <p style="margin-top:16px;text-align:center;font-size:0.9rem">
+    アカウント未作成の方は <a href="{% url 'accounts:signup' %}">無料会員登録</a>
+  </p>
+</div>
+{% endblock %}

@@ -1,0 +1,17 @@
+{% extends "base.html" %}
+{% block title %}記事一覧 | 美顔器レビュー{% endblock %}
+
+{% block content %}
+<h1 style="margin:24px 0 8px">記事一覧</h1>
+<div class="article-list">
+  {% for a in articles %}
+    <a class="article-card" href="{{ a.get_absolute_url }}">
+      <h3>{{ a.title }}</h3>
+      {% if a.published_at %}<span class="meta" style="font-size:0.85rem;color:var(--color-muted)">{{ a.published_at|date:"Y/m/d" }}</span>{% endif %}
+      <p>{{ a.excerpt|default:a.content|striptags|truncatechars:160 }}</p>
+    </a>
+  {% empty %}
+    <p>記事がまだありません。管理画面から追加、もしくはWordPress XMLをインポートしてください。</p>
+  {% endfor %}
+</div>
+{% endblock %}

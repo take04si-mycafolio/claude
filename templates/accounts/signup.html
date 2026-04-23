@@ -1,0 +1,24 @@
+{% extends "base.html" %}
+{% block title %}会員登録 | 美顔器レビュー{% endblock %}
+
+{% block content %}
+<div class="form-card">
+  <h1>無料会員登録</h1>
+  <p style="color:var(--color-muted)">ご登録後、口コミを1件投稿すると全商品の口コミが閲覧できます。</p>
+  <form method="post" novalidate>
+    {% csrf_token %}
+    {% for field in form %}
+      <div class="form-row">
+        <label for="{{ field.id_for_label }}">{{ field.label }}{% if field.field.required %} <span style="color:#c44">*</span>{% endif %}</label>
+        {{ field }}
+        {% if field.help_text %}<small class="helptext">{{ field.help_text }}</small>{% endif %}
+        {{ field.errors }}
+      </div>
+    {% endfor %}
+    <button type="submit" class="btn btn-primary btn-block">登録する</button>
+  </form>
+  <p style="margin-top:16px;text-align:center;font-size:0.9rem">
+    すでにアカウントをお持ちの方は <a href="{% url 'accounts:login' %}">ログイン</a>
+  </p>
+</div>
+{% endblock %}

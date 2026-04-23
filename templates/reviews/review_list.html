@@ -1,0 +1,13 @@
+{% extends "base.html" %}
+{% block title %}みんなの口コミ | 美顔器レビュー{% endblock %}
+
+{% block content %}
+<h1 style="margin:24px 0 8px">みんなの口コミ</h1>
+<p style="color:var(--color-muted)">最新の投稿から100件を表示しています。</p>
+
+{% for r in reviews %}
+  {% include "reviews/_review_card.html" with r=r show_product=True %}
+{% empty %}
+  <p>まだ口コミがありません。</p>
+{% endfor %}
+{% endblock %}

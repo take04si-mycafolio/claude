@@ -1,0 +1,49 @@
+{% load static %}<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{% block title %}{{ SITE_NAME|default:"美顔器レビュー" }}{% endblock %}</title>
+<meta name="description" content="{% block meta_description %}美顔器のリアルな口コミ・レビューをユーザー投稿で集めたサイトです。{% endblock %}">
+<link rel="stylesheet" href="{% static 'site.css' %}">
+{% block head_extra %}{% endblock %}
+</head>
+<body>
+<header class="site-header">
+  <div class="container header-inner">
+    <a class="site-logo" href="{% url 'products:list' %}">美顔器レビュー</a>
+    <nav class="site-nav">
+      <a href="{% url 'products:list' %}">商品一覧</a>
+      <a href="{% url 'products:article_list' %}">記事</a>
+      <a href="{% url 'reviews:list' %}">みんなの口コミ</a>
+      {% if user.is_authenticated %}
+        <a href="{% url 'accounts:profile' %}">マイページ</a>
+        <form method="post" action="{% url 'accounts:logout' %}" class="inline-form">
+          {% csrf_token %}
+          <button type="submit" class="link-btn">ログアウト</button>
+        </form>
+      {% else %}
+        <a href="{% url 'accounts:login' %}">ログイン</a>
+        <a href="{% url 'accounts:signup' %}" class="btn btn-primary btn-sm">無料登録</a>
+      {% endif %}
+    </nav>
+  </div>
+</header>
+
+{% if messages %}
+  <div class="container messages">
+    {% for m in messages %}<div class="msg msg-{{ m.tags }}">{{ m }}</div>{% endfor %}
+  </div>
+{% endif %}
+
+<main class="container">
+  {% block content %}{% endblock %}
+</main>
+
+<footer class="site-footer">
+  <div class="container">
+    <p>&copy; {% now "Y" %} 美顔器レビュー. All rights reserved.</p>
+  </div>
+</footer>
+</body>
+</html>
