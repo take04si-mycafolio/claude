@@ -126,7 +126,16 @@ ok "ユーザー ${APP_USER} 準備完了"
 
 # ==================== 4. PostgreSQL ====================
 log "[4/10] PostgreSQL database setup"
+
+# ロケール確認(UTF-8が必要)
+if ! locale -a 2>/dev/null | grep -qi 'C\.UTF-8\|en_US\.utf8'; then
+  warn "Generating locale en_US.UTF-8"
+  locale-gen en_US.UTF-8 || true
+fi
+
 DB_PASSWORD=$(openssl rand -base64 32 | tr -d '/+=' | cut -c1-24)
+
+# ロール作成/更新
 sudo -u postgres psql <<SQL
 DO \$\$ BEGIN
   IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname='${DB_USER}') THEN
@@ -136,9 +145,27 @@ DO \$\$ BEGIN
   END IF;
 END \$\$;
 SQL
-sudo -u postgres psql -tc "SELECT 1 FROM pg_database WHERE datname = '${DB_NAME}'" | grep -q 1 || \
-  sudo -u postgres createdb -O "${DB_USER}" "${DB_NAME}"
-ok "DB (${DB_NAME}) 作成完了"
+
+# 既存DBのエンコーディングを確認、間違っていたら削除
+CURRENT_ENC=$(sudo -u postgres psql -tAc "SELECT pg_encoding_to_char(encoding) FROM pg_database WHERE datname='${DB_NAME}'" 2>/dev/null || echo "")
+if [ -n "$CURRENT_ENC" ] && [ "$CURRENT_ENC" != "UTF8" ]; then
+  warn "Dropping DB with wrong encoding: ${CURRENT_ENC}"
+  sudo -u postgres dropdb "${DB_NAME}"
+  CURRENT_ENC=""
+fi
+
+# DB作成 (UTF8 + C.UTF-8) - 日本語が3バイト扱いで切れないよう厳格にUTF8指定
+if [ -z "$CURRENT_ENC" ]; then
+  sudo -u postgres psql <<SQL
+CREATE DATABASE ${DB_NAME}
+  WITH OWNER = ${DB_USER}
+       ENCODING = 'UTF8'
+       LC_COLLATE = 'C.UTF-8'
+       LC_CTYPE = 'C.UTF-8'
+       TEMPLATE = template0;
+SQL
+fi
+ok "DB (${DB_NAME}) ready with UTF-8 encoding"
 
 # ==================== 5. アプリクローン ====================
 log "[5/10] Cloning app source"
