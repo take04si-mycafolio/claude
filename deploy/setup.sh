@@ -40,45 +40,58 @@ if [ "$(id -u)" -ne 0 ]; then
 fi
 
 # ==================== 対話プロンプト ====================
+# 環境変数で事前指定されていない場合はttyから読む
+read_tty() {
+  local prompt="$1" var="$2" silent="${3:-}"
+  if [ -t 0 ]; then
+    if [ -n "$silent" ]; then read -rsp "$prompt" "$var"; echo ""; else read -rp "$prompt" "$var"; fi
+  elif [ -e /dev/tty ]; then
+    if [ -n "$silent" ]; then read -rsp "$prompt" "$var" < /dev/tty; echo ""; else read -rp "$prompt" "$var" < /dev/tty; fi
+  else
+    err "interactive input not available. Please run: bash setup.sh"
+    exit 1
+  fi
+}
+
 echo ""
 echo "====================================================="
-echo " 美容家電TUSHOU セットアップ"
+echo " TUSHOU (biyou-kaden) Setup / セットアップ"
 echo "====================================================="
 echo ""
-echo "ドメイン : ${DOMAIN}"
+echo "Domain / ドメイン: ${DOMAIN}"
 echo ""
-read -rp "SSL証明書(Let's Encrypt)用のメールアドレス: " LETSENCRYPT_EMAIL
+echo "If Japanese text looks garbled, please ignore - it's"
+echo "just font rendering on the console. / 文字化けは表示のみ"
+echo ""
+
+read_tty "Email for SSL cert (Let's Encrypt) / SSL用メール: " LETSENCRYPT_EMAIL
 if [[ -z "$LETSENCRYPT_EMAIL" || ! "$LETSENCRYPT_EMAIL" =~ ^.+@.+\..+$ ]]; then
-  err "有効なメールアドレスを入力してください"
+  err "Invalid email / メールアドレスが不正"
   exit 1
 fi
 
-echo ""
-read -rp "管理者(admin)のメールアドレス: " ADMIN_EMAIL
+read_tty "Admin email (blank=same as above) / 管理者メール: " ADMIN_EMAIL
 if [[ -z "$ADMIN_EMAIL" ]]; then
   ADMIN_EMAIL="$LETSENCRYPT_EMAIL"
 fi
 
-echo ""
-read -rsp "管理者ログインパスワード(8文字以上): " ADMIN_PASSWORD
-echo ""
+read_tty "Admin password (8+ chars) / 管理者パスワード: " ADMIN_PASSWORD "silent"
 if [[ ${#ADMIN_PASSWORD} -lt 8 ]]; then
-  err "8文字以上のパスワードを入力してください"
+  err "Password must be 8+ chars / 8文字以上必要"
   exit 1
 fi
-read -rsp "管理者パスワード(確認): " ADMIN_PASSWORD2
-echo ""
+read_tty "Confirm password / 確認: " ADMIN_PASSWORD2 "silent"
 if [[ "$ADMIN_PASSWORD" != "$ADMIN_PASSWORD2" ]]; then
-  err "パスワードが一致しません"
+  err "Passwords do not match / パスワード不一致"
   exit 1
 fi
 
 echo ""
-log "セットアップを開始します（約10〜20分）"
+log "Starting setup (10-20 min) / セットアップ開始"
 echo ""
 
 # ==================== 1. システム更新 & 必要パッケージ ====================
-log "[1/10] システム更新とパッケージインストール"
+log "[1/10] Updating system & installing packages"
 export DEBIAN_FRONTEND=noninteractive
 apt-get update -qq
 apt-get upgrade -y -qq
@@ -93,7 +106,7 @@ apt-get install -y -qq \
 ok "必要ソフトのインストール完了"
 
 # ==================== 2. ファイアウォール ====================
-log "[2/10] ファイアウォール設定"
+log "[2/10] Firewall setup"
 ufw --force reset
 ufw default deny incoming
 ufw default allow outgoing
@@ -103,7 +116,7 @@ ufw --force enable
 ok "ファイアウォール設定完了"
 
 # ==================== 3. 作業ユーザー作成 ====================
-log "[3/10] 作業ユーザー作成"
+log "[3/10] Creating app user"
 if ! id "$APP_USER" &>/dev/null; then
   adduser --disabled-password --gecos "" "$APP_USER"
 fi
@@ -112,7 +125,7 @@ usermod -aG www-data "$APP_USER" || true
 ok "ユーザー ${APP_USER} 準備完了"
 
 # ==================== 4. PostgreSQL ====================
-log "[4/10] PostgreSQLデータベース作成"
+log "[4/10] PostgreSQL database setup"
 DB_PASSWORD=$(openssl rand -base64 32 | tr -d '/+=' | cut -c1-24)
 sudo -u postgres psql <<SQL
 DO \$\$ BEGIN
@@ -128,7 +141,7 @@ sudo -u postgres psql -tc "SELECT 1 FROM pg_database WHERE datname = '${DB_NAME}
 ok "DB (${DB_NAME}) 作成完了"
 
 # ==================== 5. アプリクローン ====================
-log "[5/10] アプリのソース取得"
+log "[5/10] Cloning app source"
 if [ ! -d "${APP_DIR}" ]; then
   sudo -u "$APP_USER" git clone --branch "${BRANCH}" --depth 1 "${REPO_URL}" "${APP_DIR}"
 else
@@ -139,7 +152,7 @@ fi
 ok "アプリ取得完了"
 
 # ==================== 6. Python環境と依存関係 ====================
-log "[6/10] Python環境構築と依存関係インストール"
+log "[6/10] Python venv & dependencies"
 sudo -u "$APP_USER" bash <<EOF
 set -e
 cd "${APP_DIR}"
@@ -152,7 +165,7 @@ EOF
 ok "Python環境構築完了"
 
 # ==================== 7. .env生成 + マイグレーション + データ投入 ====================
-log "[7/10] 設定ファイル生成とデータベース初期化"
+log "[7/10] Config + DB init + WordPress import"
 DJANGO_SECRET=$(openssl rand -base64 50 | tr -d '/+=' | cut -c1-50)
 sudo -u "$APP_USER" bash <<EOF
 set -e
@@ -206,7 +219,7 @@ EOF
 ok "DB初期化と管理者作成完了"
 
 # ==================== 8. Gunicorn (systemd) ====================
-log "[8/10] Gunicorn (アプリサーバー) のサービス登録"
+log "[8/10] Gunicorn systemd service"
 cat > /etc/systemd/system/gunicorn-${APP_NAME}.service <<UNIT
 [Unit]
 Description=Gunicorn for ${APP_NAME}
@@ -242,7 +255,7 @@ else
 fi
 
 # ==================== 9. Nginx ====================
-log "[9/10] Nginx設定"
+log "[9/10] Nginx configuration"
 cat > /etc/nginx/sites-available/${APP_NAME} <<NGINX
 server {
     listen 80;
@@ -278,7 +291,7 @@ systemctl reload nginx
 ok "Nginx設定完了（http://${DOMAIN}/ でアクセス可能）"
 
 # ==================== 10. Let's Encrypt SSL ====================
-log "[10/10] SSL証明書取得 (Let's Encrypt)"
+log "[10/10] SSL certificate (Let's Encrypt)"
 certbot --nginx \
     --non-interactive \
     --agree-tos \
@@ -293,26 +306,25 @@ certbot --nginx \
 # ==================== 完了 ====================
 echo ""
 echo "====================================================="
-echo -e " ${GREEN}✓ セットアップ完了${NC}"
+echo -e " ${GREEN}Setup complete / セットアップ完了${NC}"
 echo "====================================================="
 echo ""
-echo " サイトURL      : https://${DOMAIN}/"
-echo " 管理画面       : https://${DOMAIN}/admin/"
-echo " 管理者メール   : ${ADMIN_EMAIL}"
-echo " 管理者パスワード: (ご入力いただいたもの)"
+echo " Site URL    : https://${DOMAIN}/"
+echo " Admin page  : https://${DOMAIN}/admin/"
+echo " Admin email : ${ADMIN_EMAIL}"
 echo ""
-echo " ↓重要↓ 以下の情報を保管してください:"
-echo " DB名    : ${DB_NAME}"
-echo " DBユーザ: ${DB_USER}"
-echo " DBパス  : ${DB_PASSWORD}"
+echo " IMPORTANT - Save these / 以下は必ず控えておいてください:"
+echo " DB name     : ${DB_NAME}"
+echo " DB user     : ${DB_USER}"
+echo " DB password : ${DB_PASSWORD}"
 echo ""
-echo " アプリ保管場所: ${APP_DIR}"
-echo " サービス名    : gunicorn-${APP_NAME}"
+echo " App dir     : ${APP_DIR}"
+echo " Service     : gunicorn-${APP_NAME}"
 echo ""
-echo " --- よく使うコマンド ---"
-echo " 再起動      : systemctl restart gunicorn-${APP_NAME}"
-echo " ログ確認    : journalctl -u gunicorn-${APP_NAME} -f"
-echo " アプリ更新  : cd ${APP_DIR} && sudo -u ${APP_USER} git pull && sudo systemctl restart gunicorn-${APP_NAME}"
+echo " --- Useful commands ---"
+echo " Restart : systemctl restart gunicorn-${APP_NAME}"
+echo " Logs    : journalctl -u gunicorn-${APP_NAME} -f"
+echo " Update  : cd ${APP_DIR} && sudo -u ${APP_USER} git pull && systemctl restart gunicorn-${APP_NAME}"
 echo ""
-echo " ブラウザで https://${DOMAIN}/ を開いて確認してください！"
+echo " Open https://${DOMAIN}/ in your browser!"
 echo "====================================================="
