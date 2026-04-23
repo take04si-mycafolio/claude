@@ -7,8 +7,8 @@ from django.utils.text import slugify
 class Category(models.Model):
     """階層型カテゴリ。parent=NULL は製品タイプ（美顔器、ドライヤー等）"""
 
-    name = models.CharField("カテゴリ名", max_length=200, unique=True)
-    slug = models.SlugField("スラッグ", max_length=200, unique=True, allow_unicode=True)
+    name = models.CharField("カテゴリ名", max_length=500, unique=True)
+    slug = models.SlugField("スラッグ", max_length=500, unique=True, allow_unicode=True)
     parent = models.ForeignKey(
         "self",
         on_delete=models.CASCADE,
@@ -44,7 +44,7 @@ class Category(models.Model):
 class Product(models.Model):
     name = models.CharField("商品名", max_length=500)
     slug = models.SlugField("スラッグ", max_length=500, unique=True, allow_unicode=True)
-    brand = models.CharField("メーカー", max_length=200, blank=True)
+    brand = models.CharField("メーカー", max_length=500, blank=True)
     product_type = models.ForeignKey(
         Category,
         on_delete=models.PROTECT,
@@ -118,7 +118,7 @@ class Article(models.Model):
         Product, related_name="articles", blank=True, verbose_name="関連商品"
     )
     wp_post_id = models.IntegerField("WordPress投稿ID", null=True, blank=True, unique=True)
-    wp_author = models.CharField("WP投稿者", max_length=100, blank=True)
+    wp_author = models.CharField("WP投稿者", max_length=500, blank=True)
     published_at = models.DateTimeField("公開日", null=True, blank=True)
     is_published = models.BooleanField("公開", default=True)
     created_at = models.DateTimeField(auto_now_add=True)
