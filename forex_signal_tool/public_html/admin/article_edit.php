@@ -1230,6 +1230,8 @@ function resetIndicatorPageBt() {
     <div id="ai-fb-preview" style="display:none;background:#f8faff;border:1px solid #bfdbfe;border-radius:6px;padding:12px;font-size:12px;color:#1e293b;line-height:1.8;min-height:80px;max-height:400px;overflow-y:auto"></div>
     <div style="display:flex;align-items:center;gap:10px;margin-top:6px">
       <button class="ai-fb-save-btn" onclick="saveAiFeedback()">保存</button>
+      <button style="background:transparent;color:#ef4444;border:1px solid #7f1d1d;border-radius:6px;padding:6px 14px;font-size:12px;font-weight:600;cursor:pointer"
+              onclick="clearAiFeedback()">コンテンツを削除</button>
       <span id="ai-fb-status" class="ai-fb-status"></span>
     </div>
     <div id="ai-fb-updated" style="font-size:11px;color:#475569;margin-top:4px"></div>
@@ -2493,6 +2495,14 @@ async function loadContent() {
   if (IS_INDICATOR && <?= json_encode($indicator_name) ?>) {
     loadLinkedStrategies();
   }
+}
+
+async function clearAiFeedback() {
+  if (!AI_NOTES_KEY) return;
+  if (!confirm('AIコンテンツを削除しますか？\nテキストエリアを空にして保存します。')) return;
+  document.getElementById('ai-feedback-ta').value = '';
+  aiFbSyncPreview();
+  await saveAiFeedback();
 }
 
 async function saveAiFeedback() {
