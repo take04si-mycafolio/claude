@@ -2485,6 +2485,7 @@ def main():
         except Exception as _ce:
             logger.warning("Category panels error: %s", _ce)
 
+        _top_seo = load_seo_db().get("page:top", {})
         html = render_html(app, "article_top_static.html", {
             "content_pre":     top_pre,
             "content_post":    top_post,
@@ -2497,6 +2498,8 @@ def main():
             "pair_pages":      pair_pages,
             "updated_at":      updated_at,
             "active_page":     "home",
+            "seo_title":       _top_seo.get("title", ""),
+            "seo_meta":        _top_seo.get("meta_description", ""),
         })
         save("index.html", html)
         logger.info("TOP ページ（記事）生成完了")
@@ -2684,6 +2687,7 @@ def main():
         from app.models.settings import Setting as _Setting
         bt_period = _Setting.get("backtest_period", "")
 
+        _ranking_seo = load_seo_db().get("page:ranking", {})
         html = render_html(app, "backtest_static.html", {
             "pairs":            pairs,
             "pair_pages":       pair_pages,
@@ -2709,6 +2713,8 @@ def main():
             "purpose_ranking":  purpose_ranking,
             "timezone_ranking": timezone_ranking,
             "market_ranking":   market_ranking,
+            "seo_title":        _ranking_seo.get("title", ""),
+            "seo_meta":         _ranking_seo.get("meta_description", ""),
         })
         save("technical-ranking/index.html", html)
 

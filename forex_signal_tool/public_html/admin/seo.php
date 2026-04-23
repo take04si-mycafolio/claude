@@ -108,7 +108,8 @@ h2{font-size:19px;font-weight:700;color:#f1f5f9;margin-bottom:4px}
   </p>
 
   <div class="filter-bar">
-    <button class="filter-btn active" onclick="filterPages('all', this)">全て（30）</button>
+    <button class="filter-btn active" onclick="filterPages('all', this)">全て（36）</button>
+    <button class="filter-btn" onclick="filterPages('main', this)">主要ページ</button>
     <button class="filter-btn" onclick="filterPages('category', this)">カテゴリ</button>
     <button class="filter-btn" onclick="filterPages('oscillator', this)">オシレーター</button>
     <button class="filter-btn" onclick="filterPages('trend', this)">トレンド</button>
@@ -372,6 +373,25 @@ h2{font-size:19px;font-weight:700;color:#f1f5f9;margin-bottom:4px}
 <script>
 // ページ定義データ（デフォルト値）- key はDBキーと一致するスラッグ
 const PAGES = [
+  // 主要ページ
+  {type:'page', key:'top', cat:'main', name:'TOPページ',
+   url:'/', defaultTitle:'FXテクニカルの勝率とは｜一覧・ランキング・実践解説',
+   defaultMeta:'FXテクニカル指標のバックテスト勝率を一覧で比較。RSI・MACD・ボリンジャーバンドなど主要指標のシグナル精度をデータで解説。'},
+  {type:'page', key:'ranking', cat:'main', name:'ランキングページ',
+   url:'/technical-ranking/', defaultTitle:'テクニカル指標ランキング | AI×FX',
+   defaultMeta:'FXテクニカル指標のバックテスト勝率ランキング。RSI・MACD・ボリンジャーバンドなど主要指標の勝率・損益・PFを通貨ペア別に比較。'},
+  {type:'signals', key:'index', cat:'main', name:'シグナルページ',
+   url:'/signals/', defaultTitle:'FXリアルタイムシグナル一覧 | AI×FX',
+   defaultMeta:'FXテクニカル指標のリアルタイムシグナルを一覧表示。RSI・MACD・ボリンジャーバンドなど主要指標のBUY/SELLシグナルを確認できます。'},
+  {type:'pair', key:'usdjpy', cat:'main', name:'ドル円（USD/JPY）',
+   url:'/usdjpy/', defaultTitle:'ドル円リアルタイム予想【テクニカル分析】| AI×FX',
+   defaultMeta:'ドル円のリアルタイムテクニカル分析。複数指標のシグナルを集計してBUY/SELLを判定。バックテスト勝率データもご確認いただけます。'},
+  {type:'pair', key:'gbpjpy', cat:'main', name:'ポンド円（GBP/JPY）',
+   url:'/gbpjpy/', defaultTitle:'ポンド円リアルタイム予想【テクニカル分析】| AI×FX',
+   defaultMeta:'ポンド円のリアルタイムテクニカル分析。複数指標のシグナルを集計してBUY/SELLを判定。バックテスト勝率データもご確認いただけます。'},
+  {type:'pair', key:'eurjpy', cat:'main', name:'ユーロ円（EUR/JPY）',
+   url:'/eurjpy/', defaultTitle:'ユーロ円リアルタイム予想【テクニカル分析】| AI×FX',
+   defaultMeta:'ユーロ円のリアルタイムテクニカル分析。複数指標のシグナルを集計してBUY/SELLを判定。バックテスト勝率データもご確認いただけます。'},
   // カテゴリ（key = category slug）
   {type:'category', key:'oscillator', cat:'category', name:'オシレーター系指標',
    url:'/oscillator/', defaultTitle:'FXオシレーターの勝率一覧｜RSI・MACDなどを検証',
@@ -510,7 +530,13 @@ function buildRow(p) {
   tr.dataset.name = p.name.toLowerCase();
   tr.dataset.key = key;
 
-  const badge = p.type === 'category'
+  const badge = p.type === 'page'
+    ? `<span class="page-type-badge" style="background:#14532d;color:#4ade80">主要</span>`
+    : p.type === 'pair'
+    ? `<span class="page-type-badge" style="background:#2e1065;color:#c4b5fd">ペア</span>`
+    : p.type === 'signals'
+    ? `<span class="page-type-badge" style="background:#0c4a6e;color:#67e8f9">シグナル</span>`
+    : p.type === 'category'
     ? `<span class="page-type-badge badge-category">カテゴリ</span>`
     : `<span class="page-type-badge badge-indicator">指標</span>`;
 
