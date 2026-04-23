@@ -168,9 +168,20 @@ class Command(BaseCommand):
                 "is_published": True,
                 "product_type": bigankiki_type,
             }
-            prod, created = Product.objects.update_or_create(
-                wp_post_id=post_id, defaults=defaults
-            )
+            try:
+                prod, created = Product.objects.update_or_create(
+                    wp_post_id=post_id, defaults=defaults
+                )
+            except Exception as e:
+                self.stderr.write(
+                    f"ERROR saving product '{product_name[:50]}...' "
+                    f"(wp_post_id={post_id}): {type(e).__name__}: {e}"
+                )
+                self.stderr.write(
+                    f"  name_len={len(defaults['name'])} slug={defaults['slug']!r} "
+                    f"brand_len={len(defaults['brand'])}"
+                )
+                raise
             # カテゴリ紐付け（機能カテゴリは美顔器の子として作成）
             cat_objs = []
             for slug, name in cat_pairs:

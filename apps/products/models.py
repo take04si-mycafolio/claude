@@ -7,8 +7,8 @@ from django.utils.text import slugify
 class Category(models.Model):
     """階層型カテゴリ。parent=NULL は製品タイプ（美顔器、ドライヤー等）"""
 
-    name = models.CharField("カテゴリ名", max_length=100, unique=True)
-    slug = models.SlugField("スラッグ", max_length=120, unique=True)
+    name = models.CharField("カテゴリ名", max_length=200, unique=True)
+    slug = models.SlugField("スラッグ", max_length=200, unique=True, allow_unicode=True)
     parent = models.ForeignKey(
         "self",
         on_delete=models.CASCADE,
@@ -42,9 +42,9 @@ class Category(models.Model):
 
 
 class Product(models.Model):
-    name = models.CharField("商品名", max_length=200)
-    slug = models.SlugField("スラッグ", max_length=220, unique=True, allow_unicode=True)
-    brand = models.CharField("メーカー", max_length=100, blank=True)
+    name = models.CharField("商品名", max_length=500)
+    slug = models.SlugField("スラッグ", max_length=500, unique=True, allow_unicode=True)
+    brand = models.CharField("メーカー", max_length=200, blank=True)
     product_type = models.ForeignKey(
         Category,
         on_delete=models.PROTECT,
@@ -110,8 +110,8 @@ class Product(models.Model):
 class Article(models.Model):
     """WordPressからインポートする記事コンテンツ (SEO用の読み物ページ)"""
 
-    title = models.CharField("タイトル", max_length=255)
-    slug = models.SlugField("スラッグ", max_length=280, unique=True, allow_unicode=True)
+    title = models.CharField("タイトル", max_length=500)
+    slug = models.SlugField("スラッグ", max_length=500, unique=True, allow_unicode=True)
     content = models.TextField("本文(HTML)")
     excerpt = models.TextField("抜粋", blank=True)
     related_products = models.ManyToManyField(
