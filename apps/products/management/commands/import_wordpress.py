@@ -1,15 +1,19 @@
-"""WordPressのエクスポートXML (WXR) から記事をインポートする
+"""WordPressエクスポートXML (WXR) からインポート
+
+自動判定:
+- `biganki1` カスタム投稿タイプ → Product (美顔器)
+- `post` (通常投稿) → Article (記事)
+- `category` タクソノミー → Category
 
 使い方:
     python manage.py import_wordpress path/to/export.xml
-    python manage.py import_wordpress path/to/export.xml --as-products  # 記事を商品として取り込む場合
-
-WordPress XMLは "ツール > エクスポート" で出力されるWXR形式に対応します。
+    python manage.py import_wordpress path/to/export.xml --dry-run
 """
 
 from __future__ import annotations
 
 import re
+import urllib.parse
 import xml.etree.ElementTree as ET
 from datetime import datetime
 
@@ -29,139 +33,240 @@ NS = {
 
 
 class Command(BaseCommand):
-    help = "WordPress XML (WXR) をインポートします"
+    help = "WordPressエクスポートXML (WXR) をインポートします"
 
     def add_arguments(self, parser):
         parser.add_argument("xml_path", help="WordPressエクスポートXMLへのパス")
         parser.add_argument(
-            "--as-products",
-            action="store_true",
-            help="記事を商品データとしても取り込む",
+            "--dry-run", action="store_true", help="DBへ書き込まず件数のみ表示"
         )
         parser.add_argument(
-            "--post-type",
-            default="post",
-            help="取り込む投稿タイプ (デフォルト: post)",
+            "--skip-articles", action="store_true", help="記事(post)のインポートをスキップ"
         )
         parser.add_argument(
-            "--dry-run",
-            action="store_true",
-            help="実際にDBへ書き込まず、取り込む件数を表示するのみ",
+            "--skip-products", action="store_true", help="商品(biganki1)のインポートをスキップ"
         )
 
-    def handle(self, *args, **options):
-        path = options["xml_path"]
-        post_type = options["post_type"]
-        dry = options["dry_run"]
-        as_products = options["as_products"]
+    def handle(self, *args, **opts):
+        path = opts["xml_path"]
+        dry = opts["dry_run"]
 
         try:
             tree = ET.parse(path)
         except (ET.ParseError, FileNotFoundError) as e:
-            raise CommandError(f"XMLを読み込めませんでした: {e}")
+            raise CommandError(f"XMLの読み込みに失敗しました: {e}")
 
         root = tree.getroot()
         channel = root.find("channel")
         if channel is None:
-            raise CommandError("channel要素が見つかりません。正しいWXRファイルですか？")
+            raise CommandError("channel要素が見つかりません")
+
+        categories = self._import_categories(channel, dry)
+        self.stdout.write(f"カテゴリ: {len(categories)} 件")
 
         items = channel.findall("item")
-        total = 0
-        imported_articles = 0
-        imported_products = 0
-        skipped = 0
+        biganki_items = [
+            it for it in items if _text(it, "wp:post_type") == "biganki1"
+            and _text(it, "wp:status") == "publish"
+        ]
+        post_items = [
+            it for it in items if _text(it, "wp:post_type") == "post"
+            and _text(it, "wp:status") == "publish"
+        ]
 
-        categories_by_nicename: dict[str, Category] = {}
+        self.stdout.write(f"美顔器(biganki1): {len(biganki_items)} 件 / 記事(post): {len(post_items)} 件")
 
-        for item in items:
-            ptype = _text(item, "wp:post_type")
-            status = _text(item, "wp:status")
-            if ptype != post_type:
-                continue
-            if status not in ("publish", "draft", "private"):
-                continue
-            total += 1
+        products_created = 0
+        if not opts["skip_products"]:
+            products_created = self._import_products(biganki_items, categories, dry)
 
-            title = _text(item, "title") or "(無題)"
-            post_id_str = _text(item, "wp:post_id")
-            post_id = int(post_id_str) if post_id_str and post_id_str.isdigit() else None
-            content = _text(item, "content:encoded") or ""
-            excerpt = _text(item, "excerpt:encoded") or ""
-            author = _text(item, "dc:creator") or ""
-            post_name = _text(item, "wp:post_name") or slugify(title, allow_unicode=True)
-            post_name = post_name[:200] or f"post-{post_id}"
+        articles_created = 0
+        if not opts["skip_articles"]:
+            articles_created = self._import_articles(post_items, dry)
 
-            pub_raw = _text(item, "wp:post_date_gmt") or _text(item, "pubDate")
-            published_at = _parse_date(pub_raw)
-
-            cats = []
-            for c in item.findall("category"):
-                domain = c.get("domain")
-                nicename = c.get("nicename")
-                name = (c.text or "").strip()
-                if domain == "category" and name:
-                    cat = categories_by_nicename.get(nicename)
-                    if cat is None and not dry:
-                        cat, _ = Category.objects.get_or_create(
-                            slug=slugify(nicename or name, allow_unicode=True)[:120] or f"cat-{len(categories_by_nicename)}",
-                            defaults={"name": name},
-                        )
-                        categories_by_nicename[nicename or name] = cat
-                    cats.append((nicename, name))
-
-            is_published = status == "publish"
-
-            if dry:
-                self.stdout.write(f"[DRY] {title} (id={post_id}, status={status})")
-                imported_articles += 1
-                continue
-
-            article, created = Article.objects.update_or_create(
-                wp_post_id=post_id,
-                defaults={
-                    "title": title,
-                    "slug": _unique_slug(Article, post_name),
-                    "content": content,
-                    "excerpt": excerpt,
-                    "wp_author": author,
-                    "published_at": published_at,
-                    "is_published": is_published,
-                },
-            )
-            imported_articles += 1
-
-            if as_products and is_published:
-                prod, p_created = Product.objects.update_or_create(
-                    slug=_unique_slug(Product, post_name, exclude_pk=None),
-                    defaults={
-                        "name": title,
-                        "description": _strip_html_summary(content, 500),
-                        "is_published": True,
-                    },
-                )
-                if cats:
-                    cat_objs = [
-                        categories_by_nicename[c[0]]
-                        for c in cats
-                        if c[0] in categories_by_nicename
-                    ]
-                    if cat_objs:
-                        prod.categories.add(*cat_objs)
-                imported_products += 1
-
-            if post_id is None:
-                skipped += 1
-
+        label = "[DRY-RUN] " if dry else ""
         self.stdout.write(self.style.SUCCESS(
-            f"取り込み完了: 対象 {total} 件 / 記事 {imported_articles} 件"
-            + (f" / 商品 {imported_products} 件" if as_products else "")
-            + (f" / post_id無しでスキップ相当 {skipped}" if skipped else "")
+            f"{label}完了: 美顔器 {products_created} 件 / 記事 {articles_created} 件 / カテゴリ {len(categories)} 件"
         ))
 
+    def _import_categories(self, channel, dry):
+        cats = {}
+        for c in channel.findall("wp:category", NS):
+            name_el = c.find("wp:cat_name", NS)
+            slug_el = c.find("wp:category_nicename", NS)
+            if name_el is None or not name_el.text:
+                continue
+            name = name_el.text.strip()
+            raw_slug = (slug_el.text or "").strip() if slug_el is not None else slugify(name, allow_unicode=True)
+            slug = urllib.parse.unquote(raw_slug)
+            if dry:
+                cats[slug] = None
+                self.stdout.write(f"  [DRY] cat: {name} ({slug})")
+                continue
+            obj, _ = Category.objects.get_or_create(
+                slug=slug[:120] or slugify(name, allow_unicode=True)[:120],
+                defaults={"name": name},
+            )
+            if obj.name != name:
+                obj.name = name
+                obj.save(update_fields=["name"])
+            cats[slug] = obj
+        return cats
 
-def _text(item, path):
-    el = item.find(path, NS)
-    return (el.text or "").strip() if el is not None and el.text else ""
+    def _import_products(self, items, categories, dry):
+        count = 0
+        for it in items:
+            title = _text(it, "title") or "(無題)"
+            post_id = _int(_text(it, "wp:post_id"))
+            slug_base = _text(it, "wp:post_name") or slugify(title, allow_unicode=True)
+            slug_base = slug_base[:200] or f"biganki-{post_id}"
+            published_at = _parse_date(
+                _text(it, "wp:post_date_gmt") or _text(it, "pubDate")
+            )
+
+            pm = _postmeta(it)
+            brand = _strip_html(pm.get("program_name_eiji", ""))[:100]
+            product_name = _strip_html(pm.get("program_name", "")) or title
+            image_url = pm.get("img", "").strip()
+            affiliate_url = pm.get("afitag", "").strip()
+            rakuten_url = pm.get("rakutentag", "").strip()
+            amazon_url = pm.get("amazontag", "").strip()
+            price_raw = pm.get("sort2", "").strip()
+            price = _int(price_raw)
+            sort_order = _int(pm.get("sort1", "")) or 0
+
+            description = pm.get("syoukai_pr", "") or ""
+            features = pm.get("tokutyo", "") or ""
+
+            cat_pairs = _category_items(it)
+
+            if dry:
+                self.stdout.write(f"  [DRY] product: {product_name} (brand={brand}, price={price}, cats={len(cat_pairs)})")
+                count += 1
+                continue
+
+            defaults = {
+                "name": product_name[:200],
+                "slug": _unique_slug(Product, slug_base, post_id),
+                "brand": brand,
+                "price": price,
+                "image_url": image_url,
+                "affiliate_url": affiliate_url,
+                "rakuten_url": rakuten_url,
+                "amazon_url": amazon_url,
+                "description": description,
+                "features": features,
+                "sort_order": sort_order,
+                "is_published": True,
+            }
+            prod, created = Product.objects.update_or_create(
+                wp_post_id=post_id, defaults=defaults
+            )
+            # カテゴリ紐付け（カスタムタクソノミーも登録）
+            cat_objs = []
+            for slug, name in cat_pairs:
+                if slug in categories and categories[slug] is not None:
+                    cat_objs.append(categories[slug])
+                else:
+                    obj, _ = Category.objects.get_or_create(
+                        slug=slug[:120], defaults={"name": name}
+                    )
+                    categories[slug] = obj
+                    cat_objs.append(obj)
+            if cat_objs:
+                prod.categories.set(cat_objs)
+            count += 1
+        return count
+
+    def _import_articles(self, items, dry):
+        count = 0
+        for it in items:
+            title = _text(it, "title") or "(無題)"
+            post_id = _int(_text(it, "wp:post_id"))
+            slug_base = _text(it, "wp:post_name") or slugify(title, allow_unicode=True)
+            slug_base = slug_base[:200] or f"post-{post_id}"
+            published_at = _parse_date(
+                _text(it, "wp:post_date_gmt") or _text(it, "pubDate")
+            )
+            content = _text(it, "content:encoded")
+            excerpt = _text(it, "excerpt:encoded")
+            author = _text(it, "dc:creator")
+
+            if dry:
+                self.stdout.write(f"  [DRY] article: {title}")
+                count += 1
+                continue
+
+            Article.objects.update_or_create(
+                wp_post_id=post_id,
+                defaults={
+                    "title": title[:255],
+                    "slug": _unique_slug(Article, slug_base, post_id, field="wp_post_id"),
+                    "content": content,
+                    "excerpt": excerpt,
+                    "wp_author": author[:100],
+                    "published_at": published_at,
+                    "is_published": True,
+                },
+            )
+            count += 1
+        return count
+
+
+# --- helpers ---
+
+def _text(el, path):
+    if el is None:
+        return ""
+    child = el.find(path, NS)
+    return (child.text or "").strip() if child is not None and child.text else ""
+
+
+def _int(s):
+    if not s:
+        return None
+    s = str(s).strip().replace(",", "")
+    try:
+        return int(s)
+    except ValueError:
+        m = re.search(r"\d+", s)
+        return int(m.group()) if m else None
+
+
+def _postmeta(item):
+    result = {}
+    for m in item.findall("wp:postmeta", NS):
+        k = m.find("wp:meta_key", NS)
+        v = m.find("wp:meta_value", NS)
+        if k is None or not k.text:
+            continue
+        result[k.text] = (v.text or "") if v is not None else ""
+    return result
+
+
+CATEGORY_DOMAINS = {"category", "biganki1_taxonomy4"}  # 標準カテゴリ + 機能分類
+
+
+def _category_slugs(item):
+    slugs = []
+    for c in item.findall("category"):
+        if c.get("domain") in CATEGORY_DOMAINS:
+            nicename = c.get("nicename")
+            if nicename:
+                slugs.append(nicename)
+    return slugs
+
+
+def _category_items(item):
+    """(slug, name) ペアを返す。未登録カテゴリをオンザフライで作るため"""
+    pairs = []
+    for c in item.findall("category"):
+        if c.get("domain") in CATEGORY_DOMAINS:
+            nicename = urllib.parse.unquote(c.get("nicename") or "")
+            name = (c.text or "").strip()
+            if nicename and name and name != "指定なし":
+                pairs.append((nicename, name))
+    return pairs
 
 
 def _parse_date(raw: str):
@@ -169,35 +274,35 @@ def _parse_date(raw: str):
         return None
     dt = parse_datetime(raw)
     if dt is None:
-        try:
-            dt = datetime.strptime(raw, "%a, %d %b %Y %H:%M:%S %z")
-        except ValueError:
+        for fmt in ("%a, %d %b %Y %H:%M:%S %z", "%Y-%m-%d %H:%M:%S"):
             try:
-                dt = datetime.strptime(raw, "%Y-%m-%d %H:%M:%S")
+                dt = datetime.strptime(raw, fmt)
+                break
             except ValueError:
-                return None
+                continue
     if dt and dt.tzinfo is None:
         dt = make_aware(dt)
     return dt
 
 
-def _unique_slug(model, base, exclude_pk=None):
+def _unique_slug(model, base, wp_post_id=None, field="wp_post_id"):
     base = (base or "item")[:200]
     slug = base
     i = 2
     qs = model.objects.filter(slug=slug)
-    if exclude_pk is not None:
-        qs = qs.exclude(pk=exclude_pk)
+    if wp_post_id is not None and hasattr(model, field):
+        qs = qs.exclude(**{field: wp_post_id})
     while qs.exists():
         slug = f"{base}-{i}"[:220]
         i += 1
         qs = model.objects.filter(slug=slug)
-        if exclude_pk is not None:
-            qs = qs.exclude(pk=exclude_pk)
+        if wp_post_id is not None and hasattr(model, field):
+            qs = qs.exclude(**{field: wp_post_id})
     return slug
 
 
-def _strip_html_summary(html: str, length: int) -> str:
+def _strip_html(html: str) -> str:
+    if not html:
+        return ""
     text = re.sub(r"<[^>]+>", " ", html)
-    text = re.sub(r"\s+", " ", text).strip()
-    return text[:length]
+    return re.sub(r"\s+", " ", text).strip()

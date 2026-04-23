@@ -30,14 +30,16 @@ class ProductAdmin(admin.ModelAdmin):
     search_fields = ("name", "brand", "description")
     prepopulated_fields = {"slug": ("name",)}
     filter_horizontal = ("categories",)
-    readonly_fields = ("created_at", "updated_at")
     fieldsets = (
-        (None, {"fields": ("name", "slug", "brand", "categories", "is_published")}),
-        ("価格・リンク", {"fields": ("price", "official_url", "affiliate_url")}),
+        (None, {"fields": ("name", "slug", "brand", "categories", "is_published", "sort_order")}),
+        ("価格・リンク", {
+            "fields": ("price", "official_url", "affiliate_url", "rakuten_url", "amazon_url")
+        }),
         ("画像", {"fields": ("image", "image_url")}),
         ("説明", {"fields": ("description", "features")}),
-        ("メタ", {"fields": ("created_at", "updated_at")}),
+        ("メタ", {"fields": ("wp_post_id", "created_at", "updated_at")}),
     )
+    readonly_fields = ("created_at", "updated_at", "wp_post_id")
 
     @admin.display(description="口コミ数")
     def review_count(self, obj):

@@ -38,6 +38,12 @@ class Product(models.Model):
     features = models.TextField("特徴", blank=True, help_text="箇条書きで記載")
     official_url = models.URLField("公式サイトURL", blank=True)
     affiliate_url = models.URLField("アフィリエイトURL", blank=True)
+    rakuten_url = models.URLField("楽天URL", blank=True)
+    amazon_url = models.URLField("AmazonURL", blank=True)
+    wp_post_id = models.IntegerField(
+        "WordPress投稿ID", null=True, blank=True, unique=True
+    )
+    sort_order = models.IntegerField("表示順", default=0, db_index=True)
     is_published = models.BooleanField("公開", default=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -45,7 +51,7 @@ class Product(models.Model):
     class Meta:
         verbose_name = "美顔器"
         verbose_name_plural = "美顔器"
-        ordering = ["-created_at"]
+        ordering = ["sort_order", "-created_at"]
 
     def __str__(self):
         return self.name

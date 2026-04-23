@@ -9,3 +9,5 @@ staticfiles/
 .env
 *.log
 .DS_Store
+wordpress-export.xml
+*.wxr

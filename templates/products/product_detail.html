@@ -34,18 +34,20 @@
     {% if product.price %}<p class="price-big">参考価格: ¥{{ product.price }}</p>{% endif %}
 
     {% if product.description %}
-      <p>{{ product.description|linebreaksbr }}</p>
+      <div class="product-desc">{{ product.description|safe }}</div>
     {% endif %}
 
     {% if product.features %}
       <h2 style="font-size:1.1rem;margin:18px 0 6px">特徴</h2>
-      <div class="features-list">{{ product.features|linebreaksbr }}</div>
+      <ul class="features-list">{{ product.features|safe }}</ul>
     {% endif %}
 
-    {% if product.official_url or product.affiliate_url %}
-      <div style="margin-top:16px">
+    {% if product.official_url or product.affiliate_url or product.rakuten_url or product.amazon_url %}
+      <div style="margin-top:16px;display:flex;gap:8px;flex-wrap:wrap">
+        {% if product.affiliate_url %}<a href="{{ product.affiliate_url }}" class="btn btn-primary" target="_blank" rel="nofollow noopener sponsored">公式サイトで見る</a>{% endif %}
+        {% if product.rakuten_url %}<a href="{{ product.rakuten_url }}" class="btn" target="_blank" rel="nofollow noopener sponsored">楽天で見る</a>{% endif %}
+        {% if product.amazon_url %}<a href="{{ product.amazon_url }}" class="btn" target="_blank" rel="nofollow noopener sponsored">Amazonで見る</a>{% endif %}
         {% if product.official_url %}<a href="{{ product.official_url }}" class="btn" target="_blank" rel="nofollow noopener">公式サイト</a>{% endif %}
-        {% if product.affiliate_url %}<a href="{{ product.affiliate_url }}" class="btn btn-primary" target="_blank" rel="nofollow noopener sponsored">購入する</a>{% endif %}
       </div>
     {% endif %}
 
