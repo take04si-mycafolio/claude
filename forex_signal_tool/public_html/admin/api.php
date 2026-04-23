@@ -1280,7 +1280,8 @@ switch ($action) {
             || preg_match('/^indicator_article_[a-z0-9_]+(_(css|jsonld))?$/', $key)
             || preg_match('/^indicator_ai_notes_[a-z0-9_]+$/', $key)
             || preg_match('/^indicator_(description|good|bad|feature)_[a-z0-9_]+$/', $key)
-            || preg_match('/^pair_article_(usdjpy|gbpjpy|eurjpy)(_(css|heading))?$/', $key);
+            || preg_match('/^pair_article_(usdjpy|gbpjpy|eurjpy)(_(css|heading))?$/', $key)
+            || preg_match('/^seo_strategy_[a-z0-9_]+$/', $key);
         if (!$is_valid) {
             json_out(['status' => 'error', 'message' => '無効なキーです']);
         }

@@ -96,6 +96,7 @@ h2{font-size:19px;font-weight:700;color:#f1f5f9;margin-bottom:4px}
   <div class="main-tabs" style="display:flex;gap:8px;margin-bottom:20px;flex-wrap:wrap">
     <button class="main-tab active" onclick="switchMainTab(this,'seo')">ページSEO設定</button>
     <button class="main-tab" onclick="switchMainTab(this,'ranking')">ランキング管理</button>
+    <button class="main-tab" onclick="switchMainTab(this,'strategy')">📋 SEO戦略</button>
   </div>
 
   <!-- SEOタブ -->
@@ -337,6 +338,48 @@ h2{font-size:19px;font-weight:700;color:#f1f5f9;margin-bottom:4px}
   </div>
 
   </div><!-- /tab-ranking -->
+
+  <!-- SEO戦略タブ -->
+  <div id="tab-strategy" style="display:none">
+  <h2>📋 SEO戦略 / キーワード戦略</h2>
+  <p class="subtitle">
+    ページごとのキーワード戦略・タイトル案・コンテンツ改善提案を管理します。<br>
+    戦略の更新はClaude Codeに依頼することで随時反映できます。
+  </p>
+
+  <div class="cont-section">
+    <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+      <label style="font-size:13px;font-weight:600;color:#e2e8f0;white-space:nowrap">ページ選択:</label>
+      <select id="strategy-page-select" class="cont-input" style="max-width:440px" onchange="loadStrategyForPage()">
+        <option value="">-- ページを選択 --</option>
+      </select>
+      <a id="strategy-page-link" href="#" target="_blank" style="font-size:11px;color:#60a5fa;display:none">ページを開く ↗</a>
+    </div>
+  </div>
+
+  <div id="strategy-editor-wrap" style="display:none">
+    <div class="cont-section">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;flex-wrap:wrap;gap:8px">
+        <h3 class="cont-title" style="margin-bottom:0" id="strategy-page-title">戦略テキスト</h3>
+        <span style="font-size:11px;color:#475569">Markdownで記述可（## 見出し、- 箇条書き）</span>
+      </div>
+      <textarea id="strategy-ta" class="cont-textarea" rows="30"
+        style="font-size:12px;font-family:monospace;line-height:1.7"
+        placeholder="このページのSEO戦略・キーワード案・タイトル改善案などを記述してください..."></textarea>
+      <div style="margin-top:6px;font-size:11px;color:#475569" id="strategy-saved-at"></div>
+      <div class="cont-actions" style="margin-top:10px">
+        <button class="save-btn" onclick="saveStrategy()" style="background:#059669">💾 保存</button>
+        <span id="strategy-save-st" class="save-status" style="margin-left:8px"></span>
+      </div>
+    </div>
+  </div>
+
+  <div id="strategy-empty-msg" style="display:none;text-align:center;padding:40px;color:#475569;font-size:13px">
+    このページの戦略はまだ登録されていません。<br>
+    テキストエリアに戦略を入力して「保存」してください。
+  </div>
+
+  </div><!-- /tab-strategy -->
 
 </main>
 <style>
@@ -673,9 +716,11 @@ function logout() {
 function switchMainTab(btn, id) {
   document.querySelectorAll('.main-tab').forEach(b => b.classList.remove('active'));
   btn.classList.add('active');
-  document.getElementById('tab-seo').style.display     = id === 'seo'     ? '' : 'none';
-  document.getElementById('tab-ranking').style.display = id === 'ranking' ? '' : 'none';
-  if (id === 'ranking' && !rkInfoLoaded) initRankingTab();
+  document.getElementById('tab-seo').style.display      = id === 'seo'      ? '' : 'none';
+  document.getElementById('tab-ranking').style.display  = id === 'ranking'  ? '' : 'none';
+  document.getElementById('tab-strategy').style.display = id === 'strategy' ? '' : 'none';
+  if (id === 'ranking'  && !rkInfoLoaded)      initRankingTab();
+  if (id === 'strategy' && !strategyTabInited) initStrategyTab();
 }
 
 // ===== コンテンツ管理 =====
@@ -1292,6 +1337,77 @@ async function pollSbtStatus() {
     }
   } catch(e) {
     sbtPollTimer = setTimeout(pollSbtStatus, 5000);
+  }
+}
+
+// ===== SEO戦略タブ =====
+let strategyTabInited = false;
+let strategyAllData   = {};
+let strategyCurrentKey = null;
+
+function initStrategyTab() {
+  strategyTabInited = true;
+  const sel = document.getElementById('strategy-page-select');
+  PAGES.forEach(p => {
+    const opt = document.createElement('option');
+    opt.value = JSON.stringify({type:p.type, key:p.key, name:p.name, url:p.url});
+    opt.textContent = p.name + '（' + p.url + '）';
+    sel.appendChild(opt);
+  });
+  fetch('/admin/api.php?action=content_init').then(r => r.json()).then(d => {
+    if (d.status === 'ok') strategyAllData = d.data || {};
+  });
+}
+
+function loadStrategyForPage() {
+  const val  = document.getElementById('strategy-page-select').value;
+  const link = document.getElementById('strategy-page-link');
+  document.getElementById('strategy-editor-wrap').style.display = 'none';
+  document.getElementById('strategy-empty-msg').style.display   = 'none';
+  document.getElementById('strategy-save-st').textContent       = '';
+  if (!val) { link.style.display = 'none'; strategyCurrentKey = null; return; }
+
+  const p = JSON.parse(val);
+  strategyCurrentKey = 'seo_strategy_' + p.type + '_' + p.key;
+  document.getElementById('strategy-page-title').textContent = p.name + ' — SEO戦略';
+  link.href = p.url; link.style.display = '';
+
+  const saved = strategyAllData[strategyCurrentKey];
+  const ta    = document.getElementById('strategy-ta');
+  const atEl  = document.getElementById('strategy-saved-at');
+  document.getElementById('strategy-editor-wrap').style.display = '';
+  if (saved && saved.value) {
+    ta.value = saved.value;
+    atEl.textContent = '最終更新: ' + (saved.updated_at || '');
+  } else {
+    ta.value = '';
+    atEl.textContent = '';
+    document.getElementById('strategy-empty-msg').style.display = '';
+  }
+}
+
+async function saveStrategy() {
+  if (!strategyCurrentKey) return;
+  const value = document.getElementById('strategy-ta').value;
+  const st    = document.getElementById('strategy-save-st');
+  st.className = 'save-status saving'; st.textContent = '保存中...';
+  try {
+    const res = await fetch('/admin/api.php?action=content_save', {
+      method: 'POST', headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({key: strategyCurrentKey, value}),
+    });
+    const d = await res.json();
+    if (d.status === 'ok') {
+      st.className = 'save-status ok'; st.textContent = '✓ 保存しました';
+      const now = new Date().toLocaleString('ja-JP');
+      strategyAllData[strategyCurrentKey] = {value, updated_at: now};
+      document.getElementById('strategy-saved-at').textContent = '最終更新: ' + now;
+      document.getElementById('strategy-empty-msg').style.display = 'none';
+    } else {
+      st.className = 'save-status err'; st.textContent = 'エラー: ' + d.message;
+    }
+  } catch(e) {
+    st.className = 'save-status err'; st.textContent = 'ネットワークエラー';
   }
 }
 </script>
