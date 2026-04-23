@@ -105,7 +105,7 @@ if ($content === '') {
   </div>
 </main>
 <footer style="text-align:center;font-size:12px;color:#9ca3af;padding:12px 16px 16px">
-  <a href="/terms.php" style="color:#9ca3af;text-decoration:none">利用規約</a><span style="margin:0 3px">｜</span><a href="/privacy.php" style="color:#9ca3af;text-decoration:none">プライバシーポリシー</a><span style="margin:0 3px">｜</span><a href="/contact.php" style="color:#9ca3af;text-decoration:none">お問い合わせ</a>
+  <a href="/terms.php" style="color:#9ca3af;text-decoration:none">利用規約</a><span style="margin:0 3px">｜</span><a href="/privacy.php" style="color:#9ca3af;text-decoration:none">プライバシーポリシー</a><span style="margin:0 3px">｜</span><a href="https://docs.google.com/forms/d/e/1FAIpQLScK3iVsLbEjilqdTpYvW-G7DJpv3OpYhnNqzP4LvOeFnVO1UA/viewform" target="_blank" rel="noopener" style="color:#9ca3af;text-decoration:none">お問い合わせ</a>
 </footer>
 
 <nav class="bottom-nav">
