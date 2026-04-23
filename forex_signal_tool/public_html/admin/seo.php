@@ -109,7 +109,7 @@ h2{font-size:19px;font-weight:700;color:#f1f5f9;margin-bottom:4px}
   </p>
 
   <div class="filter-bar">
-    <button class="filter-btn active" onclick="filterPages('all', this)">全て（38）</button>
+    <button class="filter-btn active" onclick="filterPages('all', this)">全て（62）</button>
     <button class="filter-btn" onclick="filterPages('main', this)">主要ページ</button>
     <button class="filter-btn" onclick="filterPages('category', this)">カテゴリ</button>
     <button class="filter-btn" onclick="filterPages('oscillator', this)">オシレーター</button>
@@ -117,6 +117,8 @@ h2{font-size:19px;font-weight:700;color:#f1f5f9;margin-bottom:4px}
     <button class="filter-btn" onclick="filterPages('line', this)">ライン</button>
     <button class="filter-btn" onclick="filterPages('volatility', this)">ボラティリティ</button>
     <button class="filter-btn" onclick="filterPages('candlestick', this)">ローソク足</button>
+    <button class="filter-btn" onclick="filterPages('composite', this)">コンポジット</button>
+    <button class="filter-btn" onclick="filterPages('bbsl', this)">BBSL</button>
     <input type="text" class="search-box" id="searchBox" placeholder="ページ名で絞り込み..." oninput="filterBySearch()">
   </div>
 
@@ -518,6 +520,83 @@ const PAGES = [
   {type:'indicator', key:'pin_bar', cat:'candlestick', name:'ピンバー',
    url:'/candlestick/pin_bar/', defaultTitle:'ピンバーの勝率｜反転シグナルの精度を検証',
    defaultMeta:'ピンバーの勝率を検証。サポート・レジスタンスでの反転精度をデータで分析。'},
+  // ---- 一目均衡表（トレンド追加） ----
+  {type:'indicator', key:'ichimoku', cat:'trend', name:'一目均衡表',
+   url:'/trend/ichimoku/', defaultTitle:'一目均衡表の勝率｜雲・転換線の精度をFXで検証',
+   defaultMeta:'一目均衡表（雲・転換線・基準線）の勝率をバックテストで検証。FXトレードでの有効性をデータで解説。'},
+  // ---- コンポジット（複合指標） ----
+  {type:'indicator', key:'rsi_macd_combo', cat:'composite', name:'RSI＋MACDコンボ',
+   url:'/composite/rsi_macd_combo/', defaultTitle:'RSI＋MACDコンボの勝率｜複合シグナルを検証',
+   defaultMeta:'RSIとMACDの複合シグナルの勝率を検証。ダマシを減らした厳選エントリーの精度を分析。'},
+  {type:'indicator', key:'rsi_stoch_combo', cat:'composite', name:'RSI＋ストキャスコンボ',
+   url:'/composite/rsi_stoch_combo/', defaultTitle:'RSI＋ストキャスコンボの勝率｜逆張り精度を検証',
+   defaultMeta:'RSIとストキャスティクスの複合シグナルの勝率を検証。レンジ相場での逆張り精度を分析。'},
+  {type:'indicator', key:'macd_stoch_combo', cat:'composite', name:'MACD＋ストキャスコンボ',
+   url:'/composite/macd_stoch_combo/', defaultTitle:'MACD＋ストキャスコンボの勝率｜押し目精度を検証',
+   defaultMeta:'MACDとストキャスティクスの複合シグナルの勝率を検証。押し目・戻り売りの精度を分析。'},
+  {type:'indicator', key:'triple_osc_combo', cat:'composite', name:'トリプルオシレーターコンボ',
+   url:'/composite/triple_osc_combo/', defaultTitle:'トリプルオシレーターの勝率｜3指標一致の精度検証',
+   defaultMeta:'RSI・MACD・ストキャスの3指標コンボの勝率を検証。高精度シグナルの有効性をデータで分析。'},
+  {type:'indicator', key:'all_and_consensus', cat:'composite', name:'全指標ANDコンセンサス',
+   url:'/composite/all_and_consensus/', defaultTitle:'全指標コンセンサスの勝率｜5指標一致の精度を検証',
+   defaultMeta:'全テクニカル指標の総合コンセンサスの勝率を検証。5指標以上一致の高精度シグナルを分析。'},
+  // ---- BBバンド損切りバリアント（オシレーター系） ----
+  {type:'indicator', key:'rsi_14_bbsl', cat:'bbsl', name:'RSI BBバンド損切り',
+   url:'/bbsl/rsi_14_bbsl/', defaultTitle:'RSI BBバンド損切りの勝率｜動的SLの精度を検証',
+   defaultMeta:'RSIにBBバンド動的SLを適用した戦略の勝率を検証。ボラティリティ連動の損切り精度を分析。'},
+  {type:'indicator', key:'macd_12_26_9_bbsl', cat:'bbsl', name:'MACD BBバンド損切り',
+   url:'/bbsl/macd_12_26_9_bbsl/', defaultTitle:'MACD BBバンド損切りの勝率｜動的SLの精度を検証',
+   defaultMeta:'MACDにBBバンド動的SLを適用した戦略の勝率を検証。クロスシグナルの利確・損切り精度を分析。'},
+  {type:'indicator', key:'stochastic_14_3_bbsl', cat:'bbsl', name:'ストキャス BBバンド損切り',
+   url:'/bbsl/stochastic_14_3_bbsl/', defaultTitle:'ストキャスBBバンド損切りの勝率｜動的SLの精度を検証',
+   defaultMeta:'ストキャスティクスにBBバンド動的SLを適用した戦略の勝率を検証。逆張りの利確・損切り精度を分析。'},
+  {type:'indicator', key:'cci_20_bbsl', cat:'bbsl', name:'CCI BBバンド損切り',
+   url:'/bbsl/cci_20_bbsl/', defaultTitle:'CCI BBバンド損切りの勝率｜動的SLの精度を検証',
+   defaultMeta:'CCIにBBバンド動的SLを適用した戦略の勝率を検証。トレンド判定の利確・損切り精度を分析。'},
+  {type:'indicator', key:'williams_r_14_bbsl', cat:'bbsl', name:'ウィリアムズ%R BBバンド損切り',
+   url:'/bbsl/williams_r_14_bbsl/', defaultTitle:'ウィリアムズ%R BBバンド損切りの勝率｜動的SLの精度を検証',
+   defaultMeta:'ウィリアムズ%RにBBバンド動的SLを適用した戦略の勝率を検証。逆張りシグナルの損切り精度を分析。'},
+  // ---- BBバンド損切りバリアント（トレンド系） ----
+  {type:'indicator', key:'sma_20_bbsl', cat:'bbsl', name:'SMA20 BBバンド損切り',
+   url:'/bbsl/sma_20_bbsl/', defaultTitle:'SMA20 BBバンド損切りの勝率｜動的SLの精度を検証',
+   defaultMeta:'SMA20にBBバンド動的SLを適用した戦略の勝率を検証。トレンドフォロー損切り精度を分析。'},
+  {type:'indicator', key:'sma_50_bbsl', cat:'bbsl', name:'SMA50 BBバンド損切り',
+   url:'/bbsl/sma_50_bbsl/', defaultTitle:'SMA50 BBバンド損切りの勝率｜動的SLの精度を検証',
+   defaultMeta:'SMA50にBBバンド動的SLを適用した戦略の勝率を検証。中期トレンド戦略の損切り精度を分析。'},
+  {type:'indicator', key:'sma_cross_20_50_bbsl', cat:'bbsl', name:'SMAクロス BBバンド損切り',
+   url:'/bbsl/sma_cross_20_50_bbsl/', defaultTitle:'SMAクロス BBバンド損切りの勝率｜動的SLの精度を検証',
+   defaultMeta:'SMAクロス（20/50）にBBバンド動的SLを適用した戦略の勝率を検証。ゴールデンクロスの損切り精度を分析。'},
+  {type:'indicator', key:'ema_cross_9_21_bbsl', cat:'bbsl', name:'EMAクロス BBバンド損切り',
+   url:'/bbsl/ema_cross_9_21_bbsl/', defaultTitle:'EMAクロス BBバンド損切りの勝率｜動的SLの精度を検証',
+   defaultMeta:'EMAクロス（9/21）にBBバンド動的SLを適用した戦略の勝率を検証。短期トレンド戦略の損切り精度を分析。'},
+  {type:'indicator', key:'ema_21_bbsl', cat:'bbsl', name:'EMA21 BBバンド損切り',
+   url:'/bbsl/ema_21_bbsl/', defaultTitle:'EMA21 BBバンド損切りの勝率｜動的SLの精度を検証',
+   defaultMeta:'EMA21にBBバンド動的SLを適用した戦略の勝率を検証。トレンドフォロー損切り精度を分析。'},
+  {type:'indicator', key:'bollinger_bands_20_2_bbsl', cat:'bbsl', name:'ボリンジャーBB BBバンド損切り',
+   url:'/bbsl/bollinger_bands_20_2_bbsl/', defaultTitle:'ボリンジャーバンドBBSL勝率｜動的SLの精度を検証',
+   defaultMeta:'ボリンジャーバンドにBBバンド動的SLを適用した戦略の勝率を検証。逆張り・順張りの損切り精度を分析。'},
+  {type:'indicator', key:'bb_squeeze_bbsl', cat:'bbsl', name:'BBスクイーズ BBバンド損切り',
+   url:'/bbsl/bb_squeeze_bbsl/', defaultTitle:'BBスクイーズBBSL勝率｜動的SLの精度を検証',
+   defaultMeta:'BBスクイーズ戦略にBBバンド動的SLを適用した勝率を検証。収縮後ブレイクの損切り精度を分析。'},
+  {type:'indicator', key:'ichimoku_cloud_bbsl', cat:'bbsl', name:'一目均衡表 BBバンド損切り',
+   url:'/bbsl/ichimoku_cloud_bbsl/', defaultTitle:'一目均衡表BBSL勝率｜動的SLの精度を検証',
+   defaultMeta:'一目均衡表にBBバンド動的SLを適用した戦略の勝率を検証。雲・転換線戦略の損切り精度を分析。'},
+  // ---- BBバンド損切りバリアント（コンポジット系） ----
+  {type:'indicator', key:'rsi_macd_combo_bbsl', cat:'bbsl', name:'RSI+MACD BBバンド損切り',
+   url:'/bbsl/rsi_macd_combo_bbsl/', defaultTitle:'RSI+MACD BBSL勝率｜複合+動的SLの精度を検証',
+   defaultMeta:'RSI＋MACDコンボにBBバンド動的SLを適用した勝率を検証。厳選エントリー+動的損切りの精度を分析。'},
+  {type:'indicator', key:'rsi_stoch_combo_bbsl', cat:'bbsl', name:'RSI+ストキャス BBバンド損切り',
+   url:'/bbsl/rsi_stoch_combo_bbsl/', defaultTitle:'RSI+ストキャス BBSL勝率｜複合+動的SLの精度を検証',
+   defaultMeta:'RSI＋ストキャスコンボにBBバンド動的SLを適用した勝率を検証。逆張り+動的損切りの精度を分析。'},
+  {type:'indicator', key:'macd_stoch_combo_bbsl', cat:'bbsl', name:'MACD+ストキャス BBバンド損切り',
+   url:'/bbsl/macd_stoch_combo_bbsl/', defaultTitle:'MACD+ストキャス BBSL勝率｜複合+動的SLの精度を検証',
+   defaultMeta:'MACD＋ストキャスコンボにBBバンド動的SLを適用した勝率を検証。押し目戦略+動的損切りの精度を分析。'},
+  {type:'indicator', key:'triple_osc_combo_bbsl', cat:'bbsl', name:'トリプルOSC BBバンド損切り',
+   url:'/bbsl/triple_osc_combo_bbsl/', defaultTitle:'トリプルOSC BBSL勝率｜3指標一致+動的SLの精度を検証',
+   defaultMeta:'トリプルオシレーターコンボにBBバンド動的SLを適用した勝率を検証。3指標一致+動的損切りの精度を分析。'},
+  {type:'indicator', key:'all_and_consensus_bbsl', cat:'bbsl', name:'全指標コンセンサス BBバンド損切り',
+   url:'/bbsl/all_and_consensus_bbsl/', defaultTitle:'全指標コンセンサス BBSL勝率｜全一致+動的SLの精度を検証',
+   defaultMeta:'全指標ANDコンセンサスにBBバンド動的SLを適用した勝率を検証。5指標以上一致+動的損切りの精度を分析。'},
 ];
 
 let savedData = {};

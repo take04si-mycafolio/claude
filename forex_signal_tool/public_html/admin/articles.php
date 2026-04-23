@@ -49,6 +49,35 @@ $INDICATOR_ARTICLES = [
     ['key' => 'indicator_article_three_white_soldiers','slug'=> 'three_white_soldiers','title'=> '三白兵',                              'page' => '/candlestick/three_white_soldiers/'],
     ['key' => 'indicator_article_three_black_crows', 'slug' => 'three_black_crows',  'title' => '三羽烏',                               'page' => '/candlestick/three_black_crows/'],
     ['key' => 'indicator_article_pin_bar',           'slug' => 'pin_bar',            'title' => 'ピンバー',                             'page' => '/candlestick/pin_bar/'],
+    // ---- 一目均衡表（トレンド追加） ----
+    ['key' => 'indicator_article_ichimoku',          'slug' => 'ichimoku',           'title' => '一目均衡表（雲・転換線・基準線）',     'page' => '/trend/ichimoku/'],
+    // ---- コンポジット（複合指標） ----
+    ['key' => 'indicator_article_rsi_macd_combo',    'slug' => 'rsi_macd_combo',     'title' => 'RSI＋MACDコンボ',                     'page' => '/composite/rsi_macd_combo/'],
+    ['key' => 'indicator_article_rsi_stoch_combo',   'slug' => 'rsi_stoch_combo',    'title' => 'RSI＋ストキャスコンボ',               'page' => '/composite/rsi_stoch_combo/'],
+    ['key' => 'indicator_article_macd_stoch_combo',  'slug' => 'macd_stoch_combo',   'title' => 'MACD＋ストキャスコンボ',              'page' => '/composite/macd_stoch_combo/'],
+    ['key' => 'indicator_article_triple_osc_combo',  'slug' => 'triple_osc_combo',   'title' => 'トリプルオシレーターコンボ',           'page' => '/composite/triple_osc_combo/'],
+    ['key' => 'indicator_article_all_and_consensus', 'slug' => 'all_and_consensus',  'title' => '全指標ANDコンセンサス',                'page' => '/composite/all_and_consensus/'],
+    // ---- BBバンド損切りバリアント（オシレーター系） ----
+    ['key' => 'indicator_article_rsi_14_bbsl',          'slug' => 'rsi_14_bbsl',          'title' => 'RSI BBバンド損切り',                  'page' => '/bbsl/rsi_14_bbsl/'],
+    ['key' => 'indicator_article_macd_12_26_9_bbsl',    'slug' => 'macd_12_26_9_bbsl',    'title' => 'MACD BBバンド損切り',                 'page' => '/bbsl/macd_12_26_9_bbsl/'],
+    ['key' => 'indicator_article_stochastic_14_3_bbsl', 'slug' => 'stochastic_14_3_bbsl', 'title' => 'ストキャスティクス BBバンド損切り',     'page' => '/bbsl/stochastic_14_3_bbsl/'],
+    ['key' => 'indicator_article_cci_20_bbsl',          'slug' => 'cci_20_bbsl',          'title' => 'CCI BBバンド損切り',                   'page' => '/bbsl/cci_20_bbsl/'],
+    ['key' => 'indicator_article_williams_r_14_bbsl',   'slug' => 'williams_r_14_bbsl',   'title' => 'ウィリアムズ%R BBバンド損切り',         'page' => '/bbsl/williams_r_14_bbsl/'],
+    // ---- BBバンド損切りバリアント（トレンド系） ----
+    ['key' => 'indicator_article_sma_20_bbsl',              'slug' => 'sma_20_bbsl',              'title' => 'SMA20 BBバンド損切り',                 'page' => '/bbsl/sma_20_bbsl/'],
+    ['key' => 'indicator_article_sma_50_bbsl',              'slug' => 'sma_50_bbsl',              'title' => 'SMA50 BBバンド損切り',                 'page' => '/bbsl/sma_50_bbsl/'],
+    ['key' => 'indicator_article_sma_cross_20_50_bbsl',     'slug' => 'sma_cross_20_50_bbsl',     'title' => 'SMAクロス BBバンド損切り',              'page' => '/bbsl/sma_cross_20_50_bbsl/'],
+    ['key' => 'indicator_article_ema_cross_9_21_bbsl',      'slug' => 'ema_cross_9_21_bbsl',      'title' => 'EMAクロス BBバンド損切り',              'page' => '/bbsl/ema_cross_9_21_bbsl/'],
+    ['key' => 'indicator_article_ema_21_bbsl',              'slug' => 'ema_21_bbsl',              'title' => 'EMA21 BBバンド損切り',                 'page' => '/bbsl/ema_21_bbsl/'],
+    ['key' => 'indicator_article_bollinger_bands_20_2_bbsl','slug' => 'bollinger_bands_20_2_bbsl','title' => 'ボリンジャーバンド BBバンド損切り',     'page' => '/bbsl/bollinger_bands_20_2_bbsl/'],
+    ['key' => 'indicator_article_bb_squeeze_bbsl',          'slug' => 'bb_squeeze_bbsl',          'title' => 'BBスクイーズ BBバンド損切り',           'page' => '/bbsl/bb_squeeze_bbsl/'],
+    ['key' => 'indicator_article_ichimoku_cloud_bbsl',      'slug' => 'ichimoku_cloud_bbsl',      'title' => '一目均衡表 BBバンド損切り',             'page' => '/bbsl/ichimoku_cloud_bbsl/'],
+    // ---- BBバンド損切りバリアント（コンポジット系） ----
+    ['key' => 'indicator_article_rsi_macd_combo_bbsl',      'slug' => 'rsi_macd_combo_bbsl',      'title' => 'RSI+MACD BBバンド損切り',              'page' => '/bbsl/rsi_macd_combo_bbsl/'],
+    ['key' => 'indicator_article_rsi_stoch_combo_bbsl',     'slug' => 'rsi_stoch_combo_bbsl',     'title' => 'RSI+ストキャス BBバンド損切り',         'page' => '/bbsl/rsi_stoch_combo_bbsl/'],
+    ['key' => 'indicator_article_macd_stoch_combo_bbsl',    'slug' => 'macd_stoch_combo_bbsl',    'title' => 'MACD+ストキャス BBバンド損切り',        'page' => '/bbsl/macd_stoch_combo_bbsl/'],
+    ['key' => 'indicator_article_triple_osc_combo_bbsl',    'slug' => 'triple_osc_combo_bbsl',    'title' => 'トリプルOSC BBバンド損切り',            'page' => '/bbsl/triple_osc_combo_bbsl/'],
+    ['key' => 'indicator_article_all_and_consensus_bbsl',   'slug' => 'all_and_consensus_bbsl',   'title' => '全指標コンセンサス BBバンド損切り',     'page' => '/bbsl/all_and_consensus_bbsl/'],
 ];
 
 // DB からカスタム複合指標を取得してリストに追加
