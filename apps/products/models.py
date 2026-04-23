@@ -5,18 +5,35 @@ from django.utils.text import slugify
 
 
 class Category(models.Model):
+    """階層型カテゴリ。parent=NULL は製品タイプ（美顔器、ドライヤー等）"""
+
     name = models.CharField("カテゴリ名", max_length=100, unique=True)
     slug = models.SlugField("スラッグ", max_length=120, unique=True)
+    parent = models.ForeignKey(
+        "self",
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name="children",
+        verbose_name="親カテゴリ (製品タイプ)",
+    )
     description = models.TextField("説明", blank=True)
+    sort_order = models.IntegerField("表示順", default=0)
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
         verbose_name = "カテゴリ"
         verbose_name_plural = "カテゴリ"
-        ordering = ["name"]
+        ordering = ["sort_order", "name"]
 
     def __str__(self):
+        if self.parent_id:
+            return f"{self.parent.name} > {self.name}"
         return self.name
+
+    @property
+    def is_product_type(self):
+        return self.parent_id is None
 
     def save(self, *args, **kwargs):
         if not self.slug:
@@ -28,8 +45,18 @@ class Product(models.Model):
     name = models.CharField("商品名", max_length=200)
     slug = models.SlugField("スラッグ", max_length=220, unique=True, allow_unicode=True)
     brand = models.CharField("メーカー", max_length=100, blank=True)
+    product_type = models.ForeignKey(
+        Category,
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name="products_of_type",
+        verbose_name="製品タイプ",
+        help_text="美顔器、ドライヤー等の製品タイプ",
+        limit_choices_to={"parent__isnull": True},
+    )
     categories = models.ManyToManyField(
-        Category, related_name="products", blank=True, verbose_name="カテゴリ"
+        Category, related_name="products", blank=True, verbose_name="機能カテゴリ"
     )
     price = models.PositiveIntegerField("参考価格(円)", null=True, blank=True)
     image = models.ImageField("画像", upload_to="products/", blank=True, null=True)

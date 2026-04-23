@@ -86,7 +86,7 @@
     <div class="gate">
       <h3>口コミの全文を読むには、あなたの口コミが必要です</h3>
       <p>このサイトはユーザー投稿型の口コミサイトです。<br>
-        1件でも口コミを投稿すれば、全商品の口コミを閲覧できるようになります。</p>
+        {% if product.product_type %}「<strong>{{ product.product_type.name }}</strong>」カテゴリの商品に1件でも口コミを書けば、{{ product.product_type.name }}の全商品の口コミを閲覧できます。{% else %}1件でも口コミを投稿すれば、このカテゴリの口コミを閲覧できます。{% endif %}</p>
       {% if user.is_authenticated %}
         <a href="{% url 'reviews:create' product.slug %}" class="btn btn-primary">この商品の口コミを書く</a>
       {% else %}

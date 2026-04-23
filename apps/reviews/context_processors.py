@@ -1,7 +1,18 @@
 def gate_status(request):
-    """テンプレートで {{ can_view_reviews }} を使えるようにする"""
+    """テンプレート共通で使う閲覧権限情報"""
     user = getattr(request, "user", None)
     if user is None or not user.is_authenticated:
-        return {"can_view_reviews": False, "has_written_review": False}
-    has_written = user.reviews.exists()
-    return {"can_view_reviews": has_written, "has_written_review": has_written}
+        return {
+            "unlocked_product_type_ids": frozenset(),
+            "has_any_review": False,
+        }
+    # ユーザーが投稿済みレビューの製品タイプIDセット
+    type_ids = frozenset(
+        user.reviews.filter(product__product_type__isnull=False)
+        .values_list("product__product_type_id", flat=True)
+        .distinct()
+    )
+    return {
+        "unlocked_product_type_ids": type_ids,
+        "has_any_review": user.reviews.exists(),
+    }

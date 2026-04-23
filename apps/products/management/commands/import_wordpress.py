@@ -114,6 +114,14 @@ class Command(BaseCommand):
         return cats
 
     def _import_products(self, items, categories, dry):
+        # biganki1 はすべて「美顔器」製品タイプに属するとみなす
+        bigankiki_type = None
+        if not dry:
+            bigankiki_type, _ = Category.objects.get_or_create(
+                slug="bigankiki",
+                defaults={"name": "美顔器", "sort_order": 10, "parent": None},
+            )
+
         count = 0
         for it in items:
             title = _text(it, "title") or "(無題)"
@@ -158,18 +166,20 @@ class Command(BaseCommand):
                 "features": features,
                 "sort_order": sort_order,
                 "is_published": True,
+                "product_type": bigankiki_type,
             }
             prod, created = Product.objects.update_or_create(
                 wp_post_id=post_id, defaults=defaults
             )
-            # カテゴリ紐付け（カスタムタクソノミーも登録）
+            # カテゴリ紐付け（機能カテゴリは美顔器の子として作成）
             cat_objs = []
             for slug, name in cat_pairs:
                 if slug in categories and categories[slug] is not None:
                     cat_objs.append(categories[slug])
                 else:
                     obj, _ = Category.objects.get_or_create(
-                        slug=slug[:120], defaults={"name": name}
+                        slug=slug[:120],
+                        defaults={"name": name, "parent": bigankiki_type},
                     )
                     categories[slug] = obj
                     cat_objs.append(obj)
@@ -244,7 +254,7 @@ def _postmeta(item):
     return result
 
 
-CATEGORY_DOMAINS = {"category", "biganki1_taxonomy4"}  # 標準カテゴリ + 機能分類
+CATEGORY_DOMAINS = {"biganki1_taxonomy4"}  # 機能分類のみ（標準カテゴリはブログ用なので除外）
 
 
 def _category_slugs(item):

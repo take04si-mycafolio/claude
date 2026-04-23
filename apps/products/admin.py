@@ -6,12 +6,20 @@ from .models import Article, Category, Product
 
 @admin.register(Category)
 class CategoryAdmin(admin.ModelAdmin):
-    list_display = ("name", "slug", "product_count")
+    list_display = ("indent_name", "parent", "sort_order", "product_count")
+    list_filter = ("parent",)
     search_fields = ("name",)
     prepopulated_fields = {"slug": ("name",)}
+    list_editable = ("sort_order",)
+
+    @admin.display(description="カテゴリ名")
+    def indent_name(self, obj):
+        return ("└ " if obj.parent_id else "") + obj.name
 
     @admin.display(description="商品数")
     def product_count(self, obj):
+        if obj.parent_id is None:
+            return obj.products_of_type.count()
         return obj.products.count()
 
 
@@ -26,12 +34,11 @@ class ProductAdmin(admin.ModelAdmin):
         "thumb",
         "updated_at",
     )
-    list_filter = ("is_published", "brand", "categories")
     search_fields = ("name", "brand", "description")
     prepopulated_fields = {"slug": ("name",)}
     filter_horizontal = ("categories",)
     fieldsets = (
-        (None, {"fields": ("name", "slug", "brand", "categories", "is_published", "sort_order")}),
+        (None, {"fields": ("name", "slug", "brand", "product_type", "categories", "is_published", "sort_order")}),
         ("価格・リンク", {
             "fields": ("price", "official_url", "affiliate_url", "rakuten_url", "amazon_url")
         }),
@@ -39,6 +46,7 @@ class ProductAdmin(admin.ModelAdmin):
         ("説明", {"fields": ("description", "features")}),
         ("メタ", {"fields": ("wp_post_id", "created_at", "updated_at")}),
     )
+    list_filter = ("is_published", "product_type", "brand", "categories")
     readonly_fields = ("created_at", "updated_at", "wp_post_id")
 
     @admin.display(description="口コミ数")

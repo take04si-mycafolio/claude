@@ -3,17 +3,17 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>{% block title %}{{ SITE_NAME|default:"美顔器レビュー" }}{% endblock %}</title>
-<meta name="description" content="{% block meta_description %}美顔器のリアルな口コミ・レビューをユーザー投稿で集めたサイトです。{% endblock %}">
+<title>{% block title %}美容家電TUSHOU{% endblock %}</title>
+<meta name="description" content="{% block meta_description %}美容家電の本音の口コミ・レビューが集まるサイト。美顔器・ドライヤー・脱毛器・マッサージ機などユーザー投稿型のレビューが読めます。{% endblock %}">
 <link rel="stylesheet" href="{% static 'site.css' %}">
 {% block head_extra %}{% endblock %}
 </head>
 <body>
 <header class="site-header">
   <div class="container header-inner">
-    <a class="site-logo" href="{% url 'products:list' %}">美顔器レビュー</a>
+    <a class="site-logo" href="{% url 'products:list' %}">美容家電TUSHOU</a>
     <nav class="site-nav">
-      <a href="{% url 'products:list' %}">商品一覧</a>
+      <a href="{% url 'products:list' %}">ホーム</a>
       <a href="{% url 'products:article_list' %}">記事</a>
       <a href="{% url 'reviews:list' %}">みんなの口コミ</a>
       {% if user.is_authenticated %}
@@ -28,6 +28,18 @@
       {% endif %}
     </nav>
   </div>
+  {% if product_types %}
+  <nav class="type-bar">
+    <div class="container type-bar-inner">
+      {% for t in product_types %}
+        <a href="{% url 'products:type_detail' t.slug %}"
+           class="type-link {% if active_type and active_type.slug == t.slug %}active{% endif %}">
+          {{ t.name }}
+        </a>
+      {% endfor %}
+    </div>
+  </nav>
+  {% endif %}
 </header>
 
 {% if messages %}
@@ -42,7 +54,7 @@
 
 <footer class="site-footer">
   <div class="container">
-    <p>&copy; {% now "Y" %} 美顔器レビュー. All rights reserved.</p>
+    <p>&copy; {% now "Y" %} 美容家電TUSHOU. All rights reserved.</p>
   </div>
 </footer>
 </body>

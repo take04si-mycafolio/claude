@@ -37,6 +37,35 @@ a:hover { text-decoration: underline; }
 .inline-form { display: inline; margin: 0; }
 .link-btn { background: none; border: none; color: var(--color-text); font: inherit; cursor: pointer; padding: 0; }
 
+/* Product type bar */
+.type-bar {
+  background: #fff;
+  border-top: 1px solid var(--color-border);
+  border-bottom: 1px solid var(--color-border);
+  overflow-x: auto;
+}
+.type-bar-inner {
+  display: flex;
+  gap: 4px;
+  padding: 0 20px;
+  flex-wrap: nowrap;
+  white-space: nowrap;
+}
+.type-link {
+  display: inline-block;
+  padding: 12px 18px;
+  color: var(--color-text);
+  font-size: 0.95rem;
+  border-bottom: 3px solid transparent;
+  transition: 0.15s;
+}
+.type-link:hover { text-decoration: none; color: var(--color-primary-dark); }
+.type-link.active {
+  border-bottom-color: var(--color-primary);
+  color: var(--color-primary-dark);
+  font-weight: 600;
+}
+
 /* Footer */
 .site-footer {
   margin-top: 64px;
