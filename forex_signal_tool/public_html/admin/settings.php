@@ -47,8 +47,8 @@ $cfg = [
 ];
 
 // ---- .env から SMTP 設定を読み取る ----
-// PROJECT_ROOT = ~/forex_project/forex_signal_tool → .env は1つ上の階層
-$envFile = dirname(PROJECT_ROOT) . '/.env';
+// PROJECT_ROOT = ~/forex_project/forex_signal_tool → .env は同ディレクトリ内
+$envFile = PROJECT_ROOT . '/.env';
 $smtpKeys = ['MAIL_SERVER', 'MAIL_PORT', 'MAIL_USE_TLS', 'MAIL_USERNAME', 'MAIL_PASSWORD', 'MAIL_DEFAULT_SENDER'];
 $envMail  = array_fill_keys($smtpKeys, '');
 $envLines = [];
