@@ -824,6 +824,40 @@ function resetIndicatorPageBt() {
 </script>
 <?php endif; ?>
 
+<?php if ($is_indicator && $ind_slug && !$is_custom_indicator): ?>
+<style>
+.ai-feedback-ta{width:100%;background:#0f172a;border:1px solid #334155;border-radius:6px;color:#e2e8f0;padding:10px;font-size:12px;line-height:1.6;resize:vertical;min-height:120px;font-family:inherit;outline:none}
+.ai-feedback-ta:focus{border-color:#0e7490}
+.ai-feedback-ta::placeholder{color:#334155}
+.ai-fb-save-btn{background:#0f766e;color:#fff;border:none;border-radius:6px;padding:6px 16px;font-size:12px;font-weight:600;cursor:pointer;transition:background .15s}
+.ai-fb-save-btn:hover{background:#0d9488}
+.ai-fb-save-btn:disabled{background:#334155;cursor:not-allowed}
+.ai-fb-status{font-size:11px}
+.ai-fb-status.ok{color:#22c55e}
+.ai-fb-status.err{color:#ef4444}
+</style>
+<div style="background:#0b1a2b;border:1px solid #1e3a5f;border-radius:10px;padding:18px 20px;margin-bottom:16px">
+  <div style="font-size:12px;font-weight:600;color:#64748b;margin-bottom:8px">🤖 AIフィードバック
+    <span style="font-size:10px;font-weight:400;color:#67e8f9;margin-left:6px">HTMLタグ使用可 / 公開ページに表示されます</span>
+  </div>
+  <div style="display:flex;gap:6px;margin-bottom:6px">
+    <button class="ai-fb-tab-btn active" onclick="aiFbTab('edit',this)" style="background:#0e7490;color:#fff;border:none;border-radius:4px;padding:4px 12px;font-size:11px;cursor:pointer">編集</button>
+    <button class="ai-fb-tab-btn" onclick="aiFbTab('preview',this)" style="background:#1e293b;color:#94a3b8;border:none;border-radius:4px;padding:4px 12px;font-size:11px;cursor:pointer">プレビュー</button>
+  </div>
+  <textarea id="ai-feedback-ta" class="ai-feedback-ta"
+    placeholder="HTMLタグが使えます。公開ページの「AI考察・分析」欄に表示されます。&#10;&#10;例）&lt;h3&gt;考察&lt;/h3&gt;&lt;ul&gt;&lt;li&gt;...&lt;/li&gt;&lt;/ul&gt;"
+    oninput="aiFbSyncPreview()"></textarea>
+  <div id="ai-fb-preview" style="display:none;background:#f8faff;border:1px solid #bfdbfe;border-radius:6px;padding:12px;font-size:12px;color:#1e293b;line-height:1.8;min-height:80px;max-height:400px;overflow-y:auto"></div>
+  <div style="display:flex;align-items:center;gap:10px;margin-top:6px">
+    <button class="ai-fb-save-btn" onclick="saveAiFeedback()">保存</button>
+    <button style="background:transparent;color:#ef4444;border:1px solid #7f1d1d;border-radius:6px;padding:6px 14px;font-size:12px;font-weight:600;cursor:pointer"
+            onclick="clearAiFeedback()">コンテンツを削除</button>
+    <span id="ai-fb-status" class="ai-fb-status"></span>
+  </div>
+  <div id="ai-fb-updated" style="font-size:11px;color:#475569;margin-top:4px"></div>
+</div>
+<?php endif; ?>
+
 <?php if ($is_indicator && $ind_slug && $is_custom_indicator): ?>
 <style>
 /* ===== BT2 inline card ===== */
