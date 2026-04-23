@@ -108,7 +108,7 @@ h2{font-size:19px;font-weight:700;color:#f1f5f9;margin-bottom:4px}
   </p>
 
   <div class="filter-bar">
-    <button class="filter-btn active" onclick="filterPages('all', this)">全て（36）</button>
+    <button class="filter-btn active" onclick="filterPages('all', this)">全て（38）</button>
     <button class="filter-btn" onclick="filterPages('main', this)">主要ページ</button>
     <button class="filter-btn" onclick="filterPages('category', this)">カテゴリ</button>
     <button class="filter-btn" onclick="filterPages('oscillator', this)">オシレーター</button>
@@ -408,6 +408,12 @@ const PAGES = [
   {type:'category', key:'candlestick', cat:'category', name:'ローソク足パターン',
    url:'/candlestick/', defaultTitle:'ローソク足パターンの勝率｜主要パターンを検証',
    defaultMeta:'ハンマー・包み足などローソク足パターンの勝率を検証。トレード精度をデータで分析。'},
+  {type:'category', key:'composite', cat:'category', name:'コンポジット（複合）指標',
+   url:'/composite/', defaultTitle:'FX複合テクニカル指標の勝率｜コンボシグナルを検証',
+   defaultMeta:'RSI+MACD・トリプルオシレーターなど複数指標の組み合わせによるコンボシグナルの勝率を検証。ダマシを減らした高精度エントリーを分析。'},
+  {type:'category', key:'bbsl', cat:'category', name:'BBバンド損切りバリアント',
+   url:'/bbsl/', defaultTitle:'BBバンド損切り戦略の勝率｜動的SL/TPの精度を検証',
+   defaultMeta:'ボリンジャーバンドをSL/TPに使用した動的損切り戦略の勝率を検証。各テクニカル指標のBBバンド版パフォーマンスをデータで比較分析。'},
   // オシレーター（key = url_slug）
   {type:'indicator', key:'rsi', cat:'oscillator', name:'RSI（14期間）',
    url:'/oscillator/rsi/', defaultTitle:'RSIの勝率｜FXで使えるシグナルを検証',
