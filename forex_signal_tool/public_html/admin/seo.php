@@ -95,7 +95,6 @@ h2{font-size:19px;font-weight:700;color:#f1f5f9;margin-bottom:4px}
   <!-- ページ切り替えタブ -->
   <div class="main-tabs" style="display:flex;gap:8px;margin-bottom:20px;flex-wrap:wrap">
     <button class="main-tab active" onclick="switchMainTab(this,'seo')">ページSEO設定</button>
-    <button class="main-tab" onclick="switchMainTab(this,'content')">コンテンツ管理（ランキング）</button>
     <button class="main-tab" onclick="switchMainTab(this,'ranking')">ランキング管理</button>
   </div>
 
@@ -140,25 +139,6 @@ h2{font-size:19px;font-weight:700;color:#f1f5f9;margin-bottom:4px}
     </table>
   </div>
   </div><!-- /tab-seo -->
-
-  <!-- コンテンツ管理タブ（記事管理ページへ移動済み） -->
-  <div id="tab-content" style="display:none">
-  <h2>ランキングページ コンテンツ管理</h2>
-  <p class="subtitle">ランキングページのコンテンツは記事管理ページで管理します。</p>
-
-  <div class="cont-section" style="border-left:3px solid #3b82f6">
-    <h3 class="cont-title">📄 記事管理ページで編集</h3>
-    <p class="cont-sub" style="margin-bottom:16px">
-      ランキングページのタイトル・導入文・分析・考察・手法別おすすめはすべて
-      <strong style="color:#f1f5f9">記事管理ページ</strong> で編集できます。
-    </p>
-    <a href="/admin/articles.php"
-       style="display:inline-flex;align-items:center;gap:8px;background:#1e3a5f;color:#60a5fa;border:1px solid #3b82f6;border-radius:8px;padding:12px 24px;font-size:14px;font-weight:600;text-decoration:none;transition:background .15s"
-       onmouseover="this.style.background='#1e4a8f'" onmouseout="this.style.background='#1e3a5f'">
-      📄 記事管理ページへ移動 →
-    </a>
-  </div>
-  </div><!-- /tab-content -->
 
   <!-- ランキング管理タブ -->
   <div id="tab-ranking" style="display:none">
@@ -694,9 +674,7 @@ function switchMainTab(btn, id) {
   document.querySelectorAll('.main-tab').forEach(b => b.classList.remove('active'));
   btn.classList.add('active');
   document.getElementById('tab-seo').style.display     = id === 'seo'     ? '' : 'none';
-  document.getElementById('tab-content').style.display = id === 'content' ? '' : 'none';
   document.getElementById('tab-ranking').style.display = id === 'ranking' ? '' : 'none';
-  if (id === 'content' && !contentLoaded) initContent();
   if (id === 'ranking' && !rkInfoLoaded) initRankingTab();
 }
 
