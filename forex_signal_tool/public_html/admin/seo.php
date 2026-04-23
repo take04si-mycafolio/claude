@@ -346,40 +346,31 @@ h2{font-size:19px;font-weight:700;color:#f1f5f9;margin-bottom:4px}
   <div id="tab-strategy" style="display:none">
   <h2>📋 SEO戦略 / キーワード戦略</h2>
   <p class="subtitle">
-    ページごとのキーワード戦略・タイトル案・コンテンツ改善提案を管理します。<br>
-    戦略の更新はClaude Codeに依頼することで随時反映できます。
+    ページごとのキーワード戦略・タイトル案・コンテンツ改善提案を管理します。✅ は戦略登録済み、⬜ は未作成です。
   </p>
 
-  <div class="cont-section">
-    <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
-      <label style="font-size:13px;font-weight:600;color:#e2e8f0;white-space:nowrap">ページ選択:</label>
-      <select id="strategy-page-select" class="cont-input" style="max-width:440px" onchange="loadStrategyForPage()">
-        <option value="">-- ページを選択 --</option>
-      </select>
-      <a id="strategy-page-link" href="#" target="_blank" style="font-size:11px;color:#60a5fa;display:none">ページを開く ↗</a>
+  <!-- 進捗サマリー -->
+  <div class="cont-section" style="padding:16px 20px">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;flex-wrap:wrap;gap:8px">
+      <span id="st-summary" style="font-size:13px;font-weight:600;color:#e2e8f0">読み込み中...</span>
+      <div style="display:flex;gap:6px;flex-wrap:wrap">
+        <button class="st-filter active" onclick="filterStrategy('all',this)">全て</button>
+        <button class="st-filter" onclick="filterStrategy('done',this)">✅ 完了のみ</button>
+        <button class="st-filter" onclick="filterStrategy('todo',this)">⬜ 未作成のみ</button>
+        <input type="text" id="st-search" placeholder="ページ名で絞り込み..." oninput="filterStrategySearch()"
+          style="background:#0f172a;border:1px solid #334155;border-radius:16px;color:#e2e8f0;padding:4px 12px;font-size:12px;outline:none;width:180px">
+      </div>
+    </div>
+    <div style="height:6px;background:#0f172a;border-radius:3px;overflow:hidden">
+      <div id="st-progress-bar" style="height:100%;background:linear-gradient(90deg,#059669,#34d399);width:0%;transition:width .5s;border-radius:3px"></div>
     </div>
   </div>
 
-  <div id="strategy-editor-wrap" style="display:none">
-    <div class="cont-section">
-      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;flex-wrap:wrap;gap:8px">
-        <h3 class="cont-title" style="margin-bottom:0" id="strategy-page-title">戦略テキスト</h3>
-        <span style="font-size:11px;color:#475569">Markdownで記述可（## 見出し、- 箇条書き）</span>
-      </div>
-      <textarea id="strategy-ta" class="cont-textarea" rows="30"
-        style="font-size:12px;font-family:monospace;line-height:1.7"
-        placeholder="このページのSEO戦略・キーワード案・タイトル改善案などを記述してください..."></textarea>
-      <div style="margin-top:6px;font-size:11px;color:#475569" id="strategy-saved-at"></div>
-      <div class="cont-actions" style="margin-top:10px">
-        <button class="save-btn" onclick="saveStrategy()" style="background:#059669">💾 保存</button>
-        <span id="strategy-save-st" class="save-status" style="margin-left:8px"></span>
-      </div>
+  <!-- 戦略一覧 -->
+  <div id="st-list">
+    <div style="text-align:center;padding:40px;color:#64748b">
+      <div class="spinner"></div><p style="margin-top:12px">読み込み中...</p>
     </div>
-  </div>
-
-  <div id="strategy-empty-msg" style="display:none;text-align:center;padding:40px;color:#475569;font-size:13px">
-    このページの戦略はまだ登録されていません。<br>
-    テキストエリアに戦略を入力して「保存」してください。
   </div>
 
   </div><!-- /tab-strategy -->
@@ -1420,69 +1411,149 @@ async function pollSbtStatus() {
   }
 }
 
-// ===== SEO戦略タブ =====
+// ===== SEO戦略タブ（一覧TODOリスト形式）=====
 let strategyTabInited = false;
 let strategyAllData   = {};
-let strategyCurrentKey = null;
+let strategyFilter    = 'all';
+
+const ST_CAT_LABELS = {
+  main:'主要ページ', category:'カテゴリ', oscillator:'オシレーター',
+  trend:'トレンド', line:'ライン', volatility:'ボラティリティ',
+  candlestick:'ローソク足', composite:'コンポジット', bbsl:'BBSL'
+};
 
 function initStrategyTab() {
   strategyTabInited = true;
-  const sel = document.getElementById('strategy-page-select');
-  PAGES.forEach(p => {
-    const opt = document.createElement('option');
-    opt.value = JSON.stringify({type:p.type, key:p.key, name:p.name, url:p.url});
-    opt.textContent = p.name + '（' + p.url + '）';
-    sel.appendChild(opt);
-  });
   fetch('/admin/api.php?action=content_init').then(r => r.json()).then(d => {
     if (d.status === 'ok') strategyAllData = d.data || {};
+    renderStrategyList();
   });
 }
 
-function loadStrategyForPage() {
-  const val  = document.getElementById('strategy-page-select').value;
-  const link = document.getElementById('strategy-page-link');
-  document.getElementById('strategy-editor-wrap').style.display = 'none';
-  document.getElementById('strategy-empty-msg').style.display   = 'none';
-  document.getElementById('strategy-save-st').textContent       = '';
-  if (!val) { link.style.display = 'none'; strategyCurrentKey = null; return; }
+function renderStrategyList() {
+  const list = document.getElementById('st-list');
+  const total = PAGES.length;
+  let done = 0;
+  PAGES.forEach(p => {
+    const k = 'seo_strategy_' + p.type + '_' + p.key;
+    if (strategyAllData[k] && strategyAllData[k].value) done++;
+  });
+  document.getElementById('st-summary').textContent =
+    total + 'ページ中 ' + done + '件完了（残り' + (total - done) + '件）';
+  document.getElementById('st-progress-bar').style.width = Math.round(done / total * 100) + '%';
 
-  const p = JSON.parse(val);
-  strategyCurrentKey = 'seo_strategy_' + p.type + '_' + p.key;
-  document.getElementById('strategy-page-title').textContent = p.name + ' — SEO戦略';
-  link.href = p.url; link.style.display = '';
+  // Group by cat
+  const groups = {};
+  PAGES.forEach(p => {
+    if (!groups[p.cat]) groups[p.cat] = [];
+    groups[p.cat].push(p);
+  });
 
-  const saved = strategyAllData[strategyCurrentKey];
-  const ta    = document.getElementById('strategy-ta');
-  const atEl  = document.getElementById('strategy-saved-at');
-  document.getElementById('strategy-editor-wrap').style.display = '';
-  if (saved && saved.value) {
-    ta.value = saved.value;
-    atEl.textContent = '最終更新: ' + (saved.updated_at || '');
-  } else {
-    ta.value = '';
-    atEl.textContent = '';
-    document.getElementById('strategy-empty-msg').style.display = '';
-  }
+  const searchVal = (document.getElementById('st-search') || {value:''}).value.toLowerCase();
+  let html = '';
+  Object.keys(groups).forEach(cat => {
+    const pages = groups[cat];
+    const filtered = pages.filter(p => {
+      const k = 'seo_strategy_' + p.type + '_' + p.key;
+      const isDone = !!(strategyAllData[k] && strategyAllData[k].value);
+      if (strategyFilter === 'done' && !isDone) return false;
+      if (strategyFilter === 'todo' && isDone)  return false;
+      if (searchVal && !p.name.toLowerCase().includes(searchVal)) return false;
+      return true;
+    });
+    if (!filtered.length) return;
+
+    html += '<div class="st-group" data-cat="' + cat + '">';
+    html += '<div class="st-group-label">' + (ST_CAT_LABELS[cat] || cat) + '</div>';
+    filtered.forEach(p => {
+      const k = 'seo_strategy_' + p.type + '_' + p.key;
+      const saved = strategyAllData[k];
+      const isDone = !!(saved && saved.value);
+      const dateStr = isDone ? '最終更新: ' + (saved.updated_at || '') : '';
+      const safeKey = k.replace(/[^a-z0-9_]/gi, '_');
+      html += `
+<div class="st-row ${isDone?'st-done':'st-todo'}" id="str-${safeKey}" data-status="${isDone?'done':'todo'}">
+  <div class="st-row-header" onclick="toggleStrategyEdit('${safeKey}')">
+    <div class="st-row-info">
+      <span class="st-row-name">${p.name}</span>
+      <span class="st-row-url">${p.url}</span>
+    </div>
+    <div class="st-row-meta">
+      <span class="st-badge ${isDone?'st-badge-done':'st-badge-todo'}" id="badge-${safeKey}">${isDone?'✅ 戦略済み':'⬜ 未作成'}</span>
+      <span class="st-row-date" id="date-${safeKey}">${dateStr}</span>
+      <span class="st-caret" id="caret-${safeKey}">▼</span>
+    </div>
+  </div>
+  <div class="st-editor" id="editor-${safeKey}" style="display:none">
+    <textarea class="cont-textarea" id="ta-${safeKey}" rows="15"
+      style="font-size:12px;font-family:monospace;line-height:1.7;margin-top:10px"
+      placeholder="このページのSEO戦略・キーワード案・タイトル改善案などを記述してください..."
+    >${isDone ? escHtml(saved.value) : ''}</textarea>
+    <div class="cont-actions" style="margin-top:8px">
+      <a href="${p.url}" target="_blank" style="font-size:11px;color:#60a5fa;margin-right:auto">ページを開く ↗</a>
+      <button class="save-btn" style="background:#059669" onclick="saveStrategyRow('${safeKey}','${p.type}','${p.key}')">💾 保存</button>
+      <span class="save-status" id="st-status-${safeKey}"></span>
+    </div>
+  </div>
+</div>`;
+    });
+    html += '</div>';
+  });
+
+  if (!html) html = '<div style="text-align:center;padding:40px;color:#64748b">該当するページはありません</div>';
+  list.innerHTML = html;
 }
 
-async function saveStrategy() {
-  if (!strategyCurrentKey) return;
-  const value = document.getElementById('strategy-ta').value;
-  const st    = document.getElementById('strategy-save-st');
+function escHtml(s) {
+  return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function toggleStrategyEdit(safeKey) {
+  const editor = document.getElementById('editor-' + safeKey);
+  const caret  = document.getElementById('caret-' + safeKey);
+  const open   = editor.style.display !== 'none';
+  editor.style.display = open ? 'none' : '';
+  caret.textContent    = open ? '▼' : '▲';
+  if (!open) document.getElementById('ta-' + safeKey).focus();
+}
+
+function filterStrategy(mode, btn) {
+  strategyFilter = mode;
+  document.querySelectorAll('.st-filter').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  renderStrategyList();
+}
+
+function filterStrategySearch() {
+  renderStrategyList();
+}
+
+async function saveStrategyRow(safeKey, type, key) {
+  const contentKey = 'seo_strategy_' + type + '_' + key;
+  const value = document.getElementById('ta-' + safeKey).value;
+  const st = document.getElementById('st-status-' + safeKey);
   st.className = 'save-status saving'; st.textContent = '保存中...';
   try {
     const res = await fetch('/admin/api.php?action=content_save', {
-      method: 'POST', headers: {'Content-Type':'application/json'},
-      body: JSON.stringify({key: strategyCurrentKey, value}),
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({key: contentKey, value}),
     });
     const d = await res.json();
     if (d.status === 'ok') {
       st.className = 'save-status ok'; st.textContent = '✓ 保存しました';
       const now = new Date().toLocaleString('ja-JP');
-      strategyAllData[strategyCurrentKey] = {value, updated_at: now};
-      document.getElementById('strategy-saved-at').textContent = '最終更新: ' + now;
-      document.getElementById('strategy-empty-msg').style.display = 'none';
+      strategyAllData[contentKey] = {value, updated_at: now};
+      document.getElementById('badge-' + safeKey).textContent = '✅ 戦略済み';
+      document.getElementById('badge-' + safeKey).className = 'st-badge st-badge-done';
+      document.getElementById('date-' + safeKey).textContent = '最終更新: ' + now;
+      const row = document.getElementById('str-' + safeKey);
+      if (row) { row.classList.remove('st-todo'); row.classList.add('st-done'); row.dataset.status = 'done'; }
+      // 進捗バー更新
+      let done = 0;
+      PAGES.forEach(p => { const k='seo_strategy_'+p.type+'_'+p.key; if(strategyAllData[k]&&strategyAllData[k].value) done++; });
+      const total = PAGES.length;
+      document.getElementById('st-summary').textContent = total+'ページ中 '+done+'件完了（残り'+(total-done)+'件）';
+      document.getElementById('st-progress-bar').style.width = Math.round(done/total*100)+'%';
     } else {
       st.className = 'save-status err'; st.textContent = 'エラー: ' + d.message;
     }
@@ -1492,6 +1563,27 @@ async function saveStrategy() {
 }
 </script>
 <style>
+/* SEO戦略一覧 */
+.st-filter{background:#1e293b;border:1px solid #334155;color:#94a3b8;border-radius:16px;padding:4px 14px;font-size:12px;cursor:pointer;transition:all .15s}
+.st-filter:hover{border-color:#475569;color:#e2e8f0}
+.st-filter.active{background:#064e3b;border-color:#059669;color:#34d399}
+.st-group{margin-bottom:20px}
+.st-group-label{font-size:11px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:.08em;padding:0 4px 8px;border-bottom:1px solid #1e293b;margin-bottom:6px}
+.st-row{background:#1e293b;border:1px solid #334155;border-radius:10px;margin-bottom:6px;overflow:hidden;transition:border-color .15s}
+.st-row.st-done{border-left:3px solid #059669}
+.st-row.st-todo{border-left:3px solid #475569}
+.st-row-header{display:flex;align-items:center;justify-content:space-between;padding:12px 16px;cursor:pointer;gap:12px;flex-wrap:wrap}
+.st-row-header:hover{background:#252f3f}
+.st-row-info{display:flex;flex-direction:column;gap:2px;flex:1;min-width:0}
+.st-row-name{font-size:13px;font-weight:600;color:#f1f5f9;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.st-row-url{font-size:10px;color:#475569;font-family:monospace}
+.st-row-meta{display:flex;align-items:center;gap:10px;flex-shrink:0;flex-wrap:wrap}
+.st-badge{font-size:11px;font-weight:700;border-radius:12px;padding:3px 10px;white-space:nowrap}
+.st-badge-done{background:#064e3b;color:#34d399}
+.st-badge-todo{background:#1e293b;color:#64748b;border:1px solid #334155}
+.st-row-date{font-size:10px;color:#475569;white-space:nowrap}
+.st-caret{color:#475569;font-size:11px;transition:transform .15s}
+.st-editor{padding:0 16px 14px;border-top:1px solid #0f172a}
 .main-tab{background:#1e293b;border:1px solid #334155;color:#94a3b8;border-radius:8px;padding:8px 18px;font-size:13px;cursor:pointer;transition:all .15s}
 .main-tab:hover,.main-tab.active{background:#1e3a5f;border-color:#3b82f6;color:#60a5fa}
 .cont-section{background:#1e293b;border-radius:12px;padding:20px;margin-bottom:20px}
