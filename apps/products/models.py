@@ -60,13 +60,13 @@ class Product(models.Model):
     )
     price = models.PositiveIntegerField("参考価格(円)", null=True, blank=True)
     image = models.ImageField("画像", upload_to="products/", blank=True, null=True)
-    image_url = models.URLField("画像URL(外部)", blank=True)
+    image_url = models.URLField("画像URL(外部)", max_length=1000, blank=True)
     description = models.TextField("商品説明", blank=True)
     features = models.TextField("特徴", blank=True, help_text="箇条書きで記載")
-    official_url = models.URLField("公式サイトURL", blank=True)
-    affiliate_url = models.URLField("アフィリエイトURL", blank=True)
-    rakuten_url = models.URLField("楽天URL", blank=True)
-    amazon_url = models.URLField("AmazonURL", blank=True)
+    official_url = models.URLField("公式サイトURL", max_length=1000, blank=True)
+    affiliate_url = models.URLField("アフィリエイトURL", max_length=1000, blank=True)
+    rakuten_url = models.URLField("楽天URL", max_length=1000, blank=True)
+    amazon_url = models.URLField("AmazonURL", max_length=1000, blank=True)
     wp_post_id = models.IntegerField(
         "WordPress投稿ID", null=True, blank=True, unique=True
     )
