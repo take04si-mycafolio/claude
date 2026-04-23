@@ -34,6 +34,7 @@ $PAGES = [
   ['type'=>'indicator','key'=>'ema21',               'cat'=>'trend',       'name'=>'EMA 21',                   'url'=>'/trend/ema21/'],
   ['type'=>'indicator','key'=>'bollinger_bands',     'cat'=>'trend',       'name'=>'ボリンジャーBB',           'url'=>'/trend/bollinger_bands/'],
   ['type'=>'indicator','key'=>'bb_squeeze',          'cat'=>'trend',       'name'=>'BBスクイーズ',             'url'=>'/trend/bb_squeeze/'],
+  ['type'=>'indicator','key'=>'ichimoku',            'cat'=>'trend',       'name'=>'一目均衡表',               'url'=>'/trend/ichimoku/'],
   ['type'=>'indicator','key'=>'pivot',               'cat'=>'line',        'name'=>'ピボット',                 'url'=>'/line/pivot/'],
   ['type'=>'indicator','key'=>'fibonacci',           'cat'=>'line',        'name'=>'フィボナッチ',             'url'=>'/line/fibonacci/'],
   ['type'=>'indicator','key'=>'support_resistance',  'cat'=>'line',        'name'=>'動的SR',                   'url'=>'/line/support_resistance/'],
@@ -47,6 +48,33 @@ $PAGES = [
   ['type'=>'indicator','key'=>'three_white_soldiers','cat'=>'candlestick', 'name'=>'三白兵',                   'url'=>'/candlestick/three_white_soldiers/'],
   ['type'=>'indicator','key'=>'three_black_crows',   'cat'=>'candlestick', 'name'=>'三羽烏',                   'url'=>'/candlestick/three_black_crows/'],
   ['type'=>'indicator','key'=>'pin_bar',             'cat'=>'candlestick', 'name'=>'ピンバー',                 'url'=>'/candlestick/pin_bar/'],
+  // コンポジット子ページ
+  ['type'=>'indicator','key'=>'rsi_macd_combo',      'cat'=>'composite',   'name'=>'RSI+MACDコンボ',           'url'=>'/composite/rsi_macd_combo/'],
+  ['type'=>'indicator','key'=>'rsi_stoch_combo',     'cat'=>'composite',   'name'=>'RSI+ストキャスコンボ',     'url'=>'/composite/rsi_stoch_combo/'],
+  ['type'=>'indicator','key'=>'macd_stoch_combo',    'cat'=>'composite',   'name'=>'MACD+ストキャスコンボ',    'url'=>'/composite/macd_stoch_combo/'],
+  ['type'=>'indicator','key'=>'triple_osc_combo',    'cat'=>'composite',   'name'=>'トリプルOSCコンボ',        'url'=>'/composite/triple_osc_combo/'],
+  ['type'=>'indicator','key'=>'all_and_consensus',   'cat'=>'composite',   'name'=>'全指標コンセンサス',       'url'=>'/composite/all_and_consensus/'],
+  // BBバンド損切りバリアント（オシレーター系）
+  ['type'=>'indicator','key'=>'rsi_14_bbsl',         'cat'=>'bbsl',        'name'=>'RSI BBSL',                 'url'=>'/bbsl/rsi_14_bbsl/'],
+  ['type'=>'indicator','key'=>'macd_12_26_9_bbsl',   'cat'=>'bbsl',        'name'=>'MACD BBSL',                'url'=>'/bbsl/macd_12_26_9_bbsl/'],
+  ['type'=>'indicator','key'=>'stochastic_14_3_bbsl','cat'=>'bbsl',        'name'=>'ストキャス BBSL',          'url'=>'/bbsl/stochastic_14_3_bbsl/'],
+  ['type'=>'indicator','key'=>'cci_20_bbsl',         'cat'=>'bbsl',        'name'=>'CCI BBSL',                 'url'=>'/bbsl/cci_20_bbsl/'],
+  ['type'=>'indicator','key'=>'williams_r_14_bbsl',  'cat'=>'bbsl',        'name'=>'W%R BBSL',                 'url'=>'/bbsl/williams_r_14_bbsl/'],
+  // BBバンド損切りバリアント（トレンド系）
+  ['type'=>'indicator','key'=>'sma_20_bbsl',         'cat'=>'bbsl',        'name'=>'SMA20 BBSL',               'url'=>'/bbsl/sma_20_bbsl/'],
+  ['type'=>'indicator','key'=>'sma_50_bbsl',         'cat'=>'bbsl',        'name'=>'SMA50 BBSL',               'url'=>'/bbsl/sma_50_bbsl/'],
+  ['type'=>'indicator','key'=>'sma_cross_20_50_bbsl','cat'=>'bbsl',        'name'=>'SMAクロス BBSL',           'url'=>'/bbsl/sma_cross_20_50_bbsl/'],
+  ['type'=>'indicator','key'=>'ema_cross_9_21_bbsl', 'cat'=>'bbsl',        'name'=>'EMAクロス BBSL',           'url'=>'/bbsl/ema_cross_9_21_bbsl/'],
+  ['type'=>'indicator','key'=>'ema_21_bbsl',         'cat'=>'bbsl',        'name'=>'EMA21 BBSL',               'url'=>'/bbsl/ema_21_bbsl/'],
+  ['type'=>'indicator','key'=>'bollinger_bands_20_2_bbsl','cat'=>'bbsl',   'name'=>'BB BBSL',                  'url'=>'/bbsl/bollinger_bands_20_2_bbsl/'],
+  ['type'=>'indicator','key'=>'bb_squeeze_bbsl',     'cat'=>'bbsl',        'name'=>'BBスクイーズ BBSL',        'url'=>'/bbsl/bb_squeeze_bbsl/'],
+  ['type'=>'indicator','key'=>'ichimoku_cloud_bbsl', 'cat'=>'bbsl',        'name'=>'一目均衡表 BBSL',          'url'=>'/bbsl/ichimoku_cloud_bbsl/'],
+  // BBバンド損切りバリアント（コンポジット系）
+  ['type'=>'indicator','key'=>'rsi_macd_combo_bbsl', 'cat'=>'bbsl',        'name'=>'RSI+MACD BBSL',            'url'=>'/bbsl/rsi_macd_combo_bbsl/'],
+  ['type'=>'indicator','key'=>'rsi_stoch_combo_bbsl','cat'=>'bbsl',        'name'=>'RSI+ストキャス BBSL',      'url'=>'/bbsl/rsi_stoch_combo_bbsl/'],
+  ['type'=>'indicator','key'=>'macd_stoch_combo_bbsl','cat'=>'bbsl',       'name'=>'MACD+ストキャス BBSL',     'url'=>'/bbsl/macd_stoch_combo_bbsl/'],
+  ['type'=>'indicator','key'=>'triple_osc_combo_bbsl','cat'=>'bbsl',       'name'=>'トリプルOSC BBSL',         'url'=>'/bbsl/triple_osc_combo_bbsl/'],
+  ['type'=>'indicator','key'=>'all_and_consensus_bbsl','cat'=>'bbsl',      'name'=>'全指標コンセンサス BBSL',  'url'=>'/bbsl/all_and_consensus_bbsl/'],
 ];
 
 // URL → ページID のマップを構築
@@ -263,6 +291,8 @@ svg{width:100%;height:100%}
     <div class="leg-item"><div class="leg-dot" style="background:#f59e0b"></div>ライン</div>
     <div class="leg-item"><div class="leg-dot" style="background:#ef4444"></div>ボラティリティ</div>
     <div class="leg-item"><div class="leg-dot" style="background:#ec4899"></div>ローソク足</div>
+    <div class="leg-item"><div class="leg-dot" style="background:#6366f1"></div>コンポジット</div>
+    <div class="leg-item"><div class="leg-dot" style="background:#84cc16"></div>BBSL</div>
   </div>
 </div>
 
@@ -297,7 +327,7 @@ const RAW = <?= $graphData ?>;
 
 // ---- カラー ----
 const TYPE_COLOR = {main:'#22c55e', pair:'#a855f7', category:'#3b82f6', indicator:'#64748b', signals:'#22c55e'};
-const CAT_COLOR  = {oscillator:'#06b6d4', trend:'#8b5cf6', line:'#f59e0b', volatility:'#ef4444', candlestick:'#ec4899', composite:'#6366f1', bbsl:'#84cc16', main:'#22c55e'};
+const CAT_COLOR  = {oscillator:'#06b6d4', trend:'#8b5cf6', line:'#f59e0b', volatility:'#ef4444', candlestick:'#ec4899', composite:'#6366f1', bbsl:'#84cc16', main:'#22c55e', category:'#3b82f6'};
 
 function nodeColor(d) {
   if (d.type === 'indicator') return CAT_COLOR[d.cat] || '#64748b';
