@@ -923,19 +923,35 @@ tr.trade-row.sim-active td{background:rgba(59,130,246,.10)!important}
           });
         }
 
-        /* ローソク足データ取得（同一ペア×TFはキャッシュ再利用） */
-        const key = t.pair + '_' + t.tf;
+        /* トレード時刻周辺のローソク足を取得（from/to 指定） */
+        const bar = TF_SECS[t.tf] || 3600;
+        const centerTs = t.ts || Math.floor(Date.now()/1000);
+        const from = centerTs - 60 * bar;
+        const to   = (t.exitTs || centerTs) + 40 * bar;
+        const key  = t.pair + '_' + t.tf + '_' + centerTs;
         if (cacheKey !== key) {
-          const res = await fetch('/chart_data.php?pair=' + t.pair + '&tf=' + t.tf + '&_=' + Date.now());
+          const res = await fetch('/chart_data.php?pair=' + t.pair + '&tf=' + t.tf +
+            '&from=' + from + '&to=' + to + '&minimal=1&_=' + Date.now());
           const d = await res.json();
           cacheKey = key; cacheData = d;
         }
-        const candles = (cacheData && cacheData.candles) || [];
+        let candles = (cacheData && cacheData.candles) || [];
+
+        /* 該当期間にデータがない場合は最新データにフォールバック */
+        if (candles.length === 0) {
+          const res2 = await fetch('/chart_data.php?pair=' + t.pair + '&tf=' + t.tf + '&minimal=1&_=' + Date.now());
+          const d2 = await res2.json();
+          candles = (d2 && d2.candles) || [];
+          cacheData = d2;
+        }
         mCs.setData(candles);
 
-        /* IN / OUT マーカー */
+        /* IN / OUT マーカー（データ範囲内のみ） */
+        const firstTs = candles.length > 0 ? candles[0].time : 0;
+        const lastTs  = candles.length > 0 ? candles[candles.length-1].time : 0;
+        const inRange = (x) => x && x >= firstTs && x <= lastTs;
         const markers = [];
-        if (t.ts) {
+        if (inRange(t.ts)) {
           markers.push({
             time: t.ts,
             position: t.signal === 'BUY' ? 'belowBar' : 'aboveBar',
@@ -944,7 +960,7 @@ tr.trade-row.sim-active td{background:rgba(59,130,246,.10)!important}
             text: 'IN', size: 1.5,
           });
         }
-        if (t.exitTs && t.outcome && t.outcome !== 'OPEN') {
+        if (inRange(t.exitTs) && t.outcome && t.outcome !== 'OPEN') {
           const isWin = t.outcome === 'WIN';
           const outAbove = isWin ? t.signal === 'BUY' : t.signal !== 'BUY';
           markers.push({
@@ -956,7 +972,7 @@ tr.trade-row.sim-active td{background:rgba(59,130,246,.10)!important}
           });
         }
         markers.sort((a, b) => a.time - b.time);
-        mCs.setMarkers(markers);
+        try { mCs.setMarkers(markers); } catch(e) { /* 範囲外でも無視 */ }
 
         /* 価格ライン（エントリー・TP・SL） */
         ['_plEp','_plTp','_plSl'].forEach(k => {
@@ -966,13 +982,14 @@ tr.trade-row.sim-active td{background:rgba(59,130,246,.10)!important}
         if (t.tpP)    mCs._plTp = mCs.createPriceLine({price:t.tpP,  color:'#f97316',lineWidth:1,lineStyle:2,axisLabelVisible:true,title:'TP'});
         if (t.slP)    mCs._plSl = mCs.createPriceLine({price:t.slP,  color:'#3b82f6',lineWidth:1,lineStyle:2,axisLabelVisible:true,title:'SL'});
 
+        if (candles.length === 0) {
+          loading.textContent = 'このトレードの期間のチャートデータがありません';
+          return;
+        }
         loading.style.display = 'none';
 
         /* 該当バーにジャンプ */
-        const firstTs = candles.length > 0 ? candles[0].time : 0;
-        const lastTs  = candles.length > 0 ? candles[candles.length-1].time : 0;
-        if (t.ts && candles.length >= 5 && t.ts >= firstTs && t.ts <= lastTs) {
-          const bar = TF_SECS[t.tf] || 3600;
+        if (inRange(t.ts) && candles.length >= 5) {
           mChart.timeScale().setVisibleRange({ from: t.ts - 15*bar, to: t.ts + 20*bar });
         } else {
           mChart.timeScale().fitContent();
