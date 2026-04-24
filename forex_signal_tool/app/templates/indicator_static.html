@@ -875,6 +875,7 @@ tr.trade-row.sim-active td{background:rgba(59,130,246,.10)!important}
     const TF_SECS = { '5min':300,'15min':900,'30min':1800,'1hr':3600,'4hr':14400,'daily':86400 };
 
     let mChart=null, mCs=null, cacheKey=null, cacheData=null;
+    let pendingTrade = null; // shown.bs.modal 待ちのトレードデータ
 
     /* JST フォーマッター（クロスヘア tooltip） */
     function jstFmt(ts) {
@@ -896,125 +897,138 @@ tr.trade-row.sim-active td{background:rgba(59,130,246,.10)!important}
       return hh + ':' + mi;
     }
 
-    function initModalChart() {
-      if (mChart) return;
-      const el = document.getElementById('modal-chart');
-      mChart = LightweightCharts.createChart(el, {
-        autoSize: true, height: 320,
-        layout: { background:{color:'#131722'}, textColor:'#94a3b8', fontSize:11 },
-        grid: { vertLines:{color:'#1a2233'}, horzLines:{color:'#1a2233'} },
-        crosshair: { mode:1 },
-        rightPriceScale: { borderColor:'#1a2233', scaleMargins:{top:.1,bottom:.1} },
-        timeScale: { borderColor:'#1a2233', timeVisible:true, secondsVisible:false, tickMarkFormatter: jstTick },
-        localization: { timeFormatter: jstFmt },
-        handleScroll:true, handleScale:true,
-      });
-      mCs = mChart.addCandlestickSeries({
-        upColor:'#26a69a', downColor:'#ef5350',
-        borderUpColor:'#26a69a', borderDownColor:'#ef5350',
-        wickUpColor:'#26a69a', wickDownColor:'#ef5350',
-      });
-      new ResizeObserver(() => {
-        const w = el.clientWidth;
-        if (w > 0) mChart.applyOptions({width:w});
-      }).observe(el);
+    /* チャートデータ取得＆描画（shown.bs.modal 後に呼ぶ） */
+    async function renderChart(t) {
+      const loading = document.getElementById('modal-chart-loading');
+      loading.style.display = 'flex';
+      loading.textContent = '読み込み中...';
+      try {
+        /* LightweightCharts 初期化（初回のみ） */
+        if (!mChart) {
+          const el = document.getElementById('modal-chart');
+          mChart = LightweightCharts.createChart(el, {
+            autoSize: true, height: 320,
+            layout: { background:{color:'#131722'}, textColor:'#94a3b8', fontSize:11 },
+            grid: { vertLines:{color:'#1a2233'}, horzLines:{color:'#1a2233'} },
+            crosshair: { mode:1 },
+            rightPriceScale: { borderColor:'#1a2233', scaleMargins:{top:.1,bottom:.1} },
+            timeScale: { borderColor:'#1a2233', timeVisible:true, secondsVisible:false, tickMarkFormatter: jstTick },
+            localization: { timeFormatter: jstFmt },
+            handleScroll:true, handleScale:true,
+          });
+          mCs = mChart.addCandlestickSeries({
+            upColor:'#26a69a', downColor:'#ef5350',
+            borderUpColor:'#26a69a', borderDownColor:'#ef5350',
+            wickUpColor:'#26a69a', wickDownColor:'#ef5350',
+          });
+        }
+
+        /* ローソク足データ取得（同一ペア×TFはキャッシュ再利用） */
+        const key = t.pair + '_' + t.tf;
+        if (cacheKey !== key) {
+          const res = await fetch('/chart_data.php?pair=' + t.pair + '&tf=' + t.tf + '&_=' + Date.now());
+          const d = await res.json();
+          cacheKey = key; cacheData = d;
+        }
+        const candles = (cacheData && cacheData.candles) || [];
+        mCs.setData(candles);
+
+        /* IN / OUT マーカー */
+        const markers = [];
+        if (t.ts) {
+          markers.push({
+            time: t.ts,
+            position: t.signal === 'BUY' ? 'belowBar' : 'aboveBar',
+            color: '#eab308',
+            shape: t.signal === 'BUY' ? 'arrowUp' : 'arrowDown',
+            text: 'IN', size: 1.5,
+          });
+        }
+        if (t.exitTs && t.outcome && t.outcome !== 'OPEN') {
+          const isWin = t.outcome === 'WIN';
+          const outAbove = isWin ? t.signal === 'BUY' : t.signal !== 'BUY';
+          markers.push({
+            time: t.exitTs,
+            position: outAbove ? 'aboveBar' : 'belowBar',
+            color: isWin ? '#f97316' : '#3b82f6',
+            shape: outAbove ? 'arrowDown' : 'arrowUp',
+            text: 'OUT', size: 1.5,
+          });
+        }
+        markers.sort((a, b) => a.time - b.time);
+        mCs.setMarkers(markers);
+
+        /* 価格ライン（エントリー・TP・SL） */
+        ['_plEp','_plTp','_plSl'].forEach(k => {
+          try { if(mCs[k]) mCs.removePriceLine(mCs[k]); } catch(e) {}
+        });
+        if (t.entryP) mCs._plEp = mCs.createPriceLine({price:t.entryP,color:'#eab308',  lineWidth:1,lineStyle:0,axisLabelVisible:true,title:'Entry'});
+        if (t.tpP)    mCs._plTp = mCs.createPriceLine({price:t.tpP,  color:'#f97316',lineWidth:1,lineStyle:2,axisLabelVisible:true,title:'TP'});
+        if (t.slP)    mCs._plSl = mCs.createPriceLine({price:t.slP,  color:'#3b82f6',lineWidth:1,lineStyle:2,axisLabelVisible:true,title:'SL'});
+
+        loading.style.display = 'none';
+
+        /* 該当バーにジャンプ */
+        const firstTs = candles.length > 0 ? candles[0].time : 0;
+        const lastTs  = candles.length > 0 ? candles[candles.length-1].time : 0;
+        if (t.ts && candles.length >= 5 && t.ts >= firstTs && t.ts <= lastTs) {
+          const bar = TF_SECS[t.tf] || 3600;
+          mChart.timeScale().setVisibleRange({ from: t.ts - 15*bar, to: t.ts + 20*bar });
+        } else {
+          mChart.timeScale().fitContent();
+        }
+      } catch(e) {
+        loading.textContent = 'チャート読み込みエラー: ' + e.message;
+      }
     }
 
-    async function openTradeModal(row) {
-      const pair    = row.dataset.pair;
-      const tf      = row.dataset.tf || '1hr';
-      const ts      = parseInt(row.dataset.entryTs) || 0;
-      const exitTs  = parseInt(row.dataset.exitTs) || 0;
-      const signal  = row.dataset.signal || '';
-      const outcome = row.dataset.outcome || '';
-      const entryP  = parseFloat(row.dataset.entryPrice) || 0;
-      const tpP     = parseFloat(row.dataset.tpPrice) || 0;
-      const slP     = parseFloat(row.dataset.slPrice) || 0;
-      const timeLabel = row.dataset.entryLabel || '';
+    function openTradeModal(row) {
+      const t = {
+        pair:    row.dataset.pair,
+        tf:      row.dataset.tf || '1hr',
+        ts:      parseInt(row.dataset.entryTs) || 0,
+        exitTs:  parseInt(row.dataset.exitTs) || 0,
+        signal:  row.dataset.signal || '',
+        outcome: row.dataset.outcome || '',
+        entryP:  parseFloat(row.dataset.entryPrice) || 0,
+        tpP:     parseFloat(row.dataset.tpPrice) || 0,
+        slP:     parseFloat(row.dataset.slPrice) || 0,
+        timeLabel: row.dataset.entryLabel || '',
+      };
 
       /* ヘッダー更新 */
       const badge = document.getElementById('modal-badge');
-      badge.textContent = signal === 'BUY' ? '買い' : '売り';
-      badge.className = 'signal-type-badge ' + (signal === 'BUY' ? 'buy' : 'sell');
+      badge.textContent = t.signal === 'BUY' ? '買い' : '売り';
+      badge.className = 'signal-type-badge ' + (t.signal === 'BUY' ? 'buy' : 'sell');
       document.getElementById('modal-pair-tf').textContent =
-        (PAIR_JA[pair]||pair) + ' ' + (TF_LBL[tf]||tf);
+        (PAIR_JA[t.pair]||t.pair) + ' ' + (TF_LBL[t.tf]||t.tf);
       const outEl = document.getElementById('modal-outcome');
-      if (outcome === 'WIN')       { outEl.textContent='✓ 利確'; outEl.style.color='#22c55e'; }
-      else if (outcome === 'LOSS') { outEl.textContent='✗ 損切'; outEl.style.color='#ef5350'; }
-      else                         { outEl.textContent='OPEN';   outEl.style.color='#f59e0b'; }
-      document.getElementById('modal-entry').textContent = entryP ? entryP.toFixed(3) : '—';
-      document.getElementById('modal-tp').textContent    = tpP    ? tpP.toFixed(3)    : '—';
-      document.getElementById('modal-sl').textContent    = slP    ? slP.toFixed(3)    : '—';
-      document.getElementById('modal-time').textContent  = timeLabel;
+      if (t.outcome === 'WIN')       { outEl.textContent='✓ 利確'; outEl.style.color='#22c55e'; }
+      else if (t.outcome === 'LOSS') { outEl.textContent='✗ 損切'; outEl.style.color='#ef5350'; }
+      else                           { outEl.textContent='OPEN';   outEl.style.color='#f59e0b'; }
+      document.getElementById('modal-entry').textContent = t.entryP ? t.entryP.toFixed(3) : '—';
+      document.getElementById('modal-tp').textContent    = t.tpP    ? t.tpP.toFixed(3)    : '—';
+      document.getElementById('modal-sl').textContent    = t.slP    ? t.slP.toFixed(3)    : '—';
+      document.getElementById('modal-time').textContent  = t.timeLabel;
 
-      /* モーダル表示 */
-      bootstrap.Modal.getOrCreateInstance(document.getElementById('tradeModal')).show();
-
-      /* チャート描画（モーダルDOM確定後） */
-      setTimeout(async () => {
-        initModalChart();
-        const loading = document.getElementById('modal-chart-loading');
-        loading.style.display = 'flex';
-        try {
-          const key = pair + '_' + tf;
-          if (cacheKey !== key) {
-            const d = await fetch(`/chart_data.php?pair=${pair}&tf=${tf}&_=${Date.now()}`).then(r=>r.json());
-            cacheKey = key; cacheData = d;
-          }
-          const d = cacheData;
-          const candles = d.candles || [];
-          mCs.setData(candles);
-
-          /* クリックしたトレードの IN / OUT マーカーを生成 */
-          const markers = [];
-          if (ts) {
-            markers.push({
-              time: ts,
-              position: signal === 'BUY' ? 'belowBar' : 'aboveBar',
-              color: '#eab308',
-              shape: signal === 'BUY' ? 'arrowUp' : 'arrowDown',
-              text: 'IN', size: 1.5,
-            });
-          }
-          if (exitTs && outcome && outcome !== 'OPEN') {
-            const isWin = outcome === 'WIN';
-            const outAbove = isWin ? signal === 'BUY' : signal !== 'BUY';
-            markers.push({
-              time: exitTs,
-              position: outAbove ? 'aboveBar' : 'belowBar',
-              color: isWin ? '#f97316' : '#3b82f6',
-              shape: outAbove ? 'arrowDown' : 'arrowUp',
-              text: 'OUT', size: 1.5,
-            });
-          }
-          markers.sort((a, b) => a.time - b.time);
-          mCs.setMarkers(markers);
-
-          /* 価格ライン（エントリー・TP・SL） */
-          ['_plEp','_plTp','_plSl'].forEach(k => {
-            try { if(mCs[k]) mCs.removePriceLine(mCs[k]); } catch(e) {}
-          });
-          const ec = '#eab308';
-          if (entryP) mCs._plEp = mCs.createPriceLine({price:entryP,color:ec,     lineWidth:1,lineStyle:0,axisLabelVisible:true,title:'Entry'});
-          if (tpP)    mCs._plTp = mCs.createPriceLine({price:tpP,  color:'#f97316',lineWidth:1,lineStyle:2,axisLabelVisible:true,title:'TP'});
-          if (slP)    mCs._plSl = mCs.createPriceLine({price:slP,  color:'#3b82f6',lineWidth:1,lineStyle:2,axisLabelVisible:true,title:'SL'});
-
-          loading.style.display = 'none';
-
-          /* 該当バーにジャンプ（tsがデータ範囲内の場合のみ） */
-          const firstTs = candles.length > 0 ? candles[0].time : 0;
-          const lastTs  = candles.length > 0 ? candles[candles.length-1].time : 0;
-          if (ts && candles.length >= 5 && ts >= firstTs && ts <= lastTs) {
-            const bar = TF_SECS[tf] || 3600;
-            mChart.timeScale().setVisibleRange({ from: ts - 15*bar, to: ts + 20*bar });
-          } else {
-            mChart.timeScale().fitContent();
-          }
-        } catch(e) {
-          loading.textContent = 'エラー: ' + e.message;
-        }
-      }, 150);
+      const modalEl = document.getElementById('tradeModal');
+      if (modalEl.classList.contains('show')) {
+        /* モーダルが既に開いている場合はすぐ描画 */
+        renderChart(t);
+      } else {
+        /* 初回表示: shown.bs.modal（アニメーション完了）後に描画 */
+        pendingTrade = t;
+        bootstrap.Modal.getOrCreateInstance(modalEl).show();
+      }
     }
+
+    /* モーダルアニメーション完了イベント → チャート描画 */
+    document.getElementById('tradeModal').addEventListener('shown.bs.modal', function() {
+      if (!pendingTrade) return;
+      const t = pendingTrade;
+      pendingTrade = null;
+      renderChart(t);
+    });
 
     /* トレード行クリック */
     document.addEventListener('click', function(e) {
