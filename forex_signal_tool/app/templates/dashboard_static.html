@@ -659,6 +659,46 @@ function qfhOpen(row){
   {% endif %}
 </div>
 
+<!-- テクニカル別シグナル動向（当該ペアのみ） -->
+{% if data.category_panels %}
+<div class="section-card">
+  <div class="section-title">
+    <i class="bi bi-grid-3x3-gap-fill text-info me-2"></i>{% if current_pair == 'USDJPY' %}ドル円{% elif current_pair == 'GBPJPY' %}ポンド円{% elif current_pair == 'EURJPY' %}ユーロ円{% else %}{{ data.display }}{% endif %} テクニカル別シグナル動向
+    <span class="info-tip" data-tip="アクティブな買い・売りシグナル数を、テクニカル指標の系統別に集計しています。各カテゴリのページで詳細指標一覧が確認できます。">
+      <i class="bi bi-info-circle-fill"></i>
+    </span>
+  </div>
+  <div class="cp-grid-pair">
+    {% for c in data.category_panels %}
+    <a href="{{ c.url }}" class="cp-card-pair">
+      <div class="cp-card-name">{{ c.display }}</div>
+      <div class="cp-card-counts">
+        <div class="cp-count-buy"><span class="cp-num">{{ c.buy_count }}</span><span class="cp-lbl">買い</span></div>
+        <div class="cp-count-sell"><span class="cp-num">{{ c.sell_count }}</span><span class="cp-lbl">売り</span></div>
+      </div>
+      <div class="cp-card-link">詳細を見る →</div>
+    </a>
+    {% endfor %}
+  </div>
+</div>
+<style>
+.cp-grid-pair{display:grid;grid-template-columns:1fr;gap:10px}
+@media (min-width:640px){.cp-grid-pair{grid-template-columns:repeat(3,1fr);gap:12px}}
+.cp-card-pair{display:flex;flex-direction:column;background:#fff;border:1px solid #e2e8f0;border-radius:10px;padding:14px 16px;text-decoration:none;color:inherit;transition:border-color .15s,box-shadow .15s}
+.cp-card-pair:hover{border-color:#3b82f6;box-shadow:0 2px 8px rgba(59,130,246,.08)}
+.cp-card-name{font-size:14px;font-weight:600;color:#1e293b;margin-bottom:10px}
+.cp-card-counts{display:flex;gap:10px;margin-bottom:8px}
+.cp-count-buy,.cp-count-sell{flex:1;display:flex;align-items:baseline;justify-content:center;gap:6px;border-radius:6px;padding:6px 8px}
+.cp-count-buy{background:#ecfdf5}
+.cp-count-sell{background:#fef2f2}
+.cp-count-buy .cp-num{font-size:18px;font-weight:700;color:#059669}
+.cp-count-sell .cp-num{font-size:18px;font-weight:700;color:#dc2626}
+.cp-count-buy .cp-lbl{font-size:11px;color:#065f46}
+.cp-count-sell .cp-lbl{font-size:11px;color:#991b1b}
+.cp-card-link{font-size:11px;color:#3b82f6;text-align:right;margin-top:auto}
+</style>
+{% endif %}
+
 <!-- 勝率ランキング（TF別タブ） -->
 {% if data.ranking_tf_order %}
 <div class="section-card">

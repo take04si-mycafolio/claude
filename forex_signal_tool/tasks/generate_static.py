@@ -517,7 +517,37 @@ def get_pair_data(pair: str) -> dict:
         "score_band_stats":          score_band_stats,
         "quantflow_monthly":         quantflow_monthly,
         "quantflow_trades_by_month": quantflow_trades_by_month,
+        "category_panels":           _build_pair_category_panels(signal_dicts),
     }
+
+
+def _build_pair_category_panels(signal_dicts: list) -> list:
+    """指定通貨ペアのアクティブシグナルからテクニカル系統別の買い/売り集計を作成。"""
+    target_cats = ["オシレーター", "トレンド", "ライン", "ボラティリティ", "ローソク足パターン", "コンポジット"]
+    counts = {c: {"buy": 0, "sell": 0} for c in target_cats}
+    for s in signal_dicts:
+        cat = INDICATOR_INFO.get(s.get("indicator_name", ""), {}).get("category", "")
+        if cat not in counts:
+            continue
+        if s.get("signal_type") == "BUY":
+            counts[cat]["buy"] += 1
+        elif s.get("signal_type") == "SELL":
+            counts[cat]["sell"] += 1
+    panels = []
+    for cname in target_cats:
+        cinfo = CATEGORY_INFO.get(cname, {})
+        bc = counts[cname]["buy"]
+        sc = counts[cname]["sell"]
+        ov = "BUY" if bc > sc else "SELL" if sc > bc else "NEUTRAL"
+        panels.append({
+            "name":        cname,
+            "display":     cinfo.get("display", cname),
+            "url":         f"/{cinfo.get('slug', '')}/",
+            "buy_count":   bc,
+            "sell_count":  sc,
+            "overall_cls": "pp-buy" if ov == "BUY" else "pp-sell" if ov == "SELL" else "pp-neutral",
+        })
+    return panels
 
 
 def get_all_signals() -> list:
