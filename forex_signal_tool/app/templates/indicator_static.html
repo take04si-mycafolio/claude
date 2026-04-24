@@ -1081,7 +1081,23 @@ tr.trade-row.sim-active td{background:rgba(59,130,246,.10)!important}
       if (!row || !row.dataset.pair) return;
       document.querySelectorAll('tr.trade-row.sim-active').forEach(r=>r.classList.remove('sim-active'));
       row.classList.add('sim-active');
-      openTradeModal(row);
+      try {
+        openTradeModal(row);
+      } catch(err) {
+        alert('[openTradeModal] エラー: ' + err.message);
+      }
+    });
+
+    /* デバッグ: 初期化完了をページに表示 */
+    window.addEventListener('load', function() {
+      const chk = document.createElement('div');
+      chk.id = 'chart-debug-badge';
+      chk.style.cssText = 'position:fixed;bottom:10px;right:10px;background:#059669;color:#fff;padding:4px 10px;border-radius:4px;font-size:10px;z-index:9999;opacity:.8';
+      chk.textContent = 'JS OK / bootstrap=' + (typeof bootstrap !== 'undefined') +
+        ' / LWC=' + (typeof LightweightCharts !== 'undefined') +
+        ' / rows=' + document.querySelectorAll('.trade-row').length;
+      document.body.appendChild(chk);
+      setTimeout(() => { chk.style.display = 'none'; }, 8000);
     });
   })();
 
