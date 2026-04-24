@@ -61,6 +61,34 @@ def main():
     except Exception as e:
         logger.exception("マクロ指標取得 エラー: %s", e)
 
+    # ---- QuantFlow チェーン実行: スコア再計算 → ライブシグナル判定 → メール通知 ----
+    # 新規価格データ保存の直後に連鎖的に走らせることで、
+    # 方向転換検知・メール通知までの遅延を最小化する
+    import subprocess
+    tasks_dir = os.path.dirname(__file__)
+    python    = sys.executable
+
+    def _run_task(label: str, script_name: str) -> None:
+        script_path = os.path.join(tasks_dir, script_name)
+        logger.info("--- %s 開始 ---", label)
+        try:
+            ret = subprocess.call([python, script_path])
+            if ret == 0:
+                logger.info("--- %s 完了 ---", label)
+            else:
+                logger.error("--- %s 失敗 (exit=%d) ---", label, ret)
+        except Exception as e:
+            logger.exception("--- %s 例外: %s ---", label, e)
+
+    # 1c. 1時間足 QuantFlow スコア再計算
+    _run_task("QuantFlow 1hr スコア再計算", "update_quantflow_scores.py")
+
+    # 1d. 5分足 QuantFlow スコア再計算
+    _run_task("QuantFlow 5min スコア再計算", "update_quantflow_scores_5min.py")
+
+    # 1e. ライブシグナル判定＋メール通知（方向転換検出・TP/SL判定も含む）
+    _run_task("ライブシグナルチェック", "check_live_signal.py")
+
     # ---- 2. シグナル更新 ----
     try:
         from app.services.signal_engine import run_signal_engine
