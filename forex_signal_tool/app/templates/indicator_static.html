@@ -902,7 +902,13 @@ tr.trade-row.sim-active td{background:rgba(59,130,246,.10)!important}
       const loading = document.getElementById('modal-chart-loading');
       loading.style.display = 'flex';
       loading.textContent = '読み込み中...';
+      let step = 'init';
       try {
+        step = 'check-lib';
+        if (typeof LightweightCharts === 'undefined') {
+          throw new Error('LightweightChartsライブラリが読み込めていません');
+        }
+        step = 'init-chart';
         /* LightweightCharts 初期化（初回のみ） */
         if (!mChart) {
           const el = document.getElementById('modal-chart');
@@ -925,14 +931,15 @@ tr.trade-row.sim-active td{background:rgba(59,130,246,.10)!important}
           /* コンテナのサイズ変化を監視して自動リサイズ */
           new ResizeObserver(() => {
             const cw = el.clientWidth;
-            if (cw > 0 && mChart) mChart.resize(cw, 320);
+            if (cw > 0 && mChart) { try { mChart.resize(cw, 320); } catch(e){} }
           }).observe(el);
         } else {
           /* 2回目以降: コンテナ幅に合わせて再リサイズ */
           const el = document.getElementById('modal-chart');
-          if (el.clientWidth > 0) mChart.resize(el.clientWidth, 320);
+          if (el.clientWidth > 0) { try { mChart.resize(el.clientWidth, 320); } catch(e){} }
         }
 
+        step = 'fetch-data';
         /* トレード時刻周辺のローソク足を取得（from/to 指定） */
         const bar = TF_SECS[t.tf] || 3600;
         const centerTs = t.ts || Math.floor(Date.now()/1000);
@@ -942,11 +949,13 @@ tr.trade-row.sim-active td{background:rgba(59,130,246,.10)!important}
         if (cacheKey !== key) {
           const res = await fetch('/chart_data.php?pair=' + t.pair + '&tf=' + t.tf +
             '&from=' + from + '&to=' + to + '&minimal=1&_=' + Date.now());
+          if (!res.ok) throw new Error('chart_data.php HTTP ' + res.status);
           const d = await res.json();
           cacheKey = key; cacheData = d;
         }
         let candles = (cacheData && cacheData.candles) || [];
 
+        step = 'fallback-fetch';
         /* 該当期間にデータがない場合は最新データにフォールバック */
         if (candles.length === 0) {
           const res2 = await fetch('/chart_data.php?pair=' + t.pair + '&tf=' + t.tf + '&minimal=1&_=' + Date.now());
@@ -954,11 +963,19 @@ tr.trade-row.sim-active td{background:rgba(59,130,246,.10)!important}
           candles = (d2 && d2.candles) || [];
           cacheData = d2;
         }
+
+        if (candles.length === 0) {
+          loading.textContent = 'チャートデータが0件です（pair=' + t.pair + ' tf=' + t.tf + '）';
+          return;
+        }
+
+        step = 'set-data';
         mCs.setData(candles);
 
+        step = 'set-markers';
         /* IN / OUT マーカー（データ範囲内のみ） */
-        const firstTs = candles.length > 0 ? candles[0].time : 0;
-        const lastTs  = candles.length > 0 ? candles[candles.length-1].time : 0;
+        const firstTs = candles[0].time;
+        const lastTs  = candles[candles.length-1].time;
         const inRange = (x) => x && x >= firstTs && x <= lastTs;
         const markers = [];
         if (inRange(t.ts)) {
@@ -984,6 +1001,7 @@ tr.trade-row.sim-active td{background:rgba(59,130,246,.10)!important}
         markers.sort((a, b) => a.time - b.time);
         try { mCs.setMarkers(markers); } catch(e) { /* 範囲外でも無視 */ }
 
+        step = 'price-lines';
         /* 価格ライン（エントリー・TP・SL） */
         ['_plEp','_plTp','_plSl'].forEach(k => {
           try { if(mCs[k]) mCs.removePriceLine(mCs[k]); } catch(e) {}
@@ -992,12 +1010,10 @@ tr.trade-row.sim-active td{background:rgba(59,130,246,.10)!important}
         if (t.tpP)    mCs._plTp = mCs.createPriceLine({price:t.tpP,  color:'#f97316',lineWidth:1,lineStyle:2,axisLabelVisible:true,title:'TP'});
         if (t.slP)    mCs._plSl = mCs.createPriceLine({price:t.slP,  color:'#3b82f6',lineWidth:1,lineStyle:2,axisLabelVisible:true,title:'SL'});
 
-        if (candles.length === 0) {
-          loading.textContent = 'このトレードの期間のチャートデータがありません';
-          return;
-        }
+        step = 'hide-loading';
         loading.style.display = 'none';
 
+        step = 'zoom';
         /* 該当バーにジャンプ */
         if (inRange(t.ts) && candles.length >= 5) {
           mChart.timeScale().setVisibleRange({ from: t.ts - 15*bar, to: t.ts + 20*bar });
@@ -1005,7 +1021,9 @@ tr.trade-row.sim-active td{background:rgba(59,130,246,.10)!important}
           mChart.timeScale().fitContent();
         }
       } catch(e) {
-        loading.textContent = 'チャート読み込みエラー: ' + e.message;
+        loading.style.display = 'flex';
+        loading.textContent = '[' + step + '] エラー: ' + e.message;
+        console.error('renderChart error at step', step, e);
       }
     }
 
