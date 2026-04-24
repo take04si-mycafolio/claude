@@ -89,7 +89,19 @@
   最終更新: {{ updated_at }}
 </div>
 
-<!-- ===== スキャル向け リアルタイム・トレンド方向 ===== -->
+{% if pair_article_css %}
+<style>{{ pair_article_css | safe }}</style>
+{% endif %}
+{% if pair_article %}
+<div class="section-card pair-article-body">
+  {% if pair_article_heading %}
+  <div class="section-title" style="margin-bottom:14px">{{ pair_article_heading | e }}</div>
+  {% endif %}
+  {{ pair_article | safe }}
+</div>
+{% endif %}
+
+<!-- ===== スキャル向け リアルタイム・トレンド方向（白基調） ===== -->
 <div class="section-card scalp-trend-card" id="scalp-trend-section">
   <div class="section-title section-title-row">
     <div class="section-title-left">
@@ -175,65 +187,72 @@
 </div>
 
 <style>
-.scalp-trend-card{background:linear-gradient(135deg,#0f172a 0%,#1e293b 100%);color:#e2e8f0;border-left:3px solid #eab308}
-.scalp-trend-card .section-title{color:#f1f5f9}
-.scalp-updated-badge{font-size:10px;color:#64748b;font-family:monospace;background:#0f172a;padding:2px 8px;border-radius:10px;border:1px solid #334155}
-.scalp-tf-tabs{gap:4px;margin-bottom:14px;border-bottom:1px solid #334155}
-.scalp-tf-tabs .nav-link{background:#0f172a;border:1px solid #334155;color:#94a3b8;border-radius:16px 16px 0 0;padding:5px 14px;font-size:12px;font-weight:600}
-.scalp-tf-tabs .nav-link:hover{background:#1e293b;color:#e2e8f0}
-.scalp-tf-tabs .nav-link.active{background:#422006;border-color:#eab308;color:#fcd34d}
+/* ===== スキャル向けトレンドUI（白基調） ===== */
+.scalp-trend-card{background:#fff;color:#1e293b;border:1px solid #e2e8f0;border-left:3px solid #eab308;border-radius:12px}
+.scalp-trend-card .section-title{color:#1e293b}
+.scalp-updated-badge{font-size:10px;color:#64748b;font-family:monospace;background:#f8fafc;padding:3px 10px;border-radius:10px;border:1px solid #e2e8f0}
+.scalp-tf-tabs{gap:4px;margin-bottom:14px;border-bottom:1px solid #e2e8f0}
+.scalp-tf-tabs .nav-link{background:#fff;border:1px solid #e2e8f0;color:#64748b;border-radius:16px 16px 0 0;padding:6px 16px;font-size:12px;font-weight:600;border-bottom:none}
+.scalp-tf-tabs .nav-link:hover{background:#f8fafc;color:#1e293b}
+.scalp-tf-tabs .nav-link.active{background:#fffbeb;border-color:#eab308;color:#a16207}
 
-.scalp-verdict{display:flex;align-items:center;gap:14px;background:#0f172a;border:1px solid #334155;border-radius:10px;padding:14px 16px;margin-bottom:14px;transition:border-color .3s}
-.scalp-verdict.sv-strong-buy{border-color:#22c55e;background:linear-gradient(135deg,#052e16,#14532d)}
-.scalp-verdict.sv-buy{border-color:#4ade80;background:#052e16}
-.scalp-verdict.sv-neutral{border-color:#64748b}
-.scalp-verdict.sv-sell{border-color:#f87171;background:#450a0a}
-.scalp-verdict.sv-strong-sell{border-color:#dc2626;background:linear-gradient(135deg,#450a0a,#7f1d1d)}
-.scalp-verdict-arrow{font-size:36px;font-weight:900;width:54px;text-align:center;line-height:1;flex-shrink:0}
-.sv-strong-buy .scalp-verdict-arrow,.sv-buy .scalp-verdict-arrow{color:#4ade80}
-.sv-sell .scalp-verdict-arrow,.sv-strong-sell .scalp-verdict-arrow{color:#f87171}
+/* 総合判定カード */
+.scalp-verdict{display:flex;align-items:center;gap:14px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:16px 18px;margin-bottom:14px;transition:border-color .3s,background .3s}
+.scalp-verdict.sv-strong-buy{border-color:#059669;background:linear-gradient(135deg,#ecfdf5,#d1fae5)}
+.scalp-verdict.sv-buy{border-color:#10b981;background:#ecfdf5}
+.scalp-verdict.sv-neutral{border-color:#cbd5e1;background:#f8fafc}
+.scalp-verdict.sv-sell{border-color:#f87171;background:#fef2f2}
+.scalp-verdict.sv-strong-sell{border-color:#dc2626;background:linear-gradient(135deg,#fef2f2,#fee2e2)}
+.scalp-verdict-arrow{font-size:36px;font-weight:900;width:54px;text-align:center;line-height:1;flex-shrink:0;color:#94a3b8}
+.sv-strong-buy .scalp-verdict-arrow,.sv-buy .scalp-verdict-arrow{color:#059669}
+.sv-sell .scalp-verdict-arrow,.sv-strong-sell .scalp-verdict-arrow{color:#dc2626}
 .sv-neutral .scalp-verdict-arrow{color:#94a3b8}
 .scalp-verdict-main{flex:1;min-width:0}
-.scalp-verdict-label{font-size:16px;font-weight:700;color:#f1f5f9;margin-bottom:3px}
-.scalp-verdict-desc{font-size:12px;color:#94a3b8;line-height:1.5}
-.scalp-verdict-score{font-size:14px;font-weight:800;padding:6px 10px;border-radius:6px;background:#1e293b;color:#e2e8f0;flex-shrink:0}
-.sv-strong-buy .scalp-verdict-score,.sv-buy .scalp-verdict-score{background:#14532d;color:#4ade80}
-.sv-sell .scalp-verdict-score,.sv-strong-sell .scalp-verdict-score{background:#7f1d1d;color:#f87171}
+.scalp-verdict-label{font-size:16px;font-weight:700;color:#0f172a;margin-bottom:3px}
+.scalp-verdict-desc{font-size:12px;color:#64748b;line-height:1.5}
+.scalp-verdict-score{font-size:13px;font-weight:800;padding:6px 10px;border-radius:6px;background:#fff;color:#475569;border:1px solid #e2e8f0;flex-shrink:0;font-family:monospace}
+.sv-strong-buy .scalp-verdict-score,.sv-buy .scalp-verdict-score{background:#fff;color:#059669;border-color:#6ee7b7}
+.sv-sell .scalp-verdict-score,.sv-strong-sell .scalp-verdict-score{background:#fff;color:#dc2626;border-color:#fca5a5}
 
-.scalp-block{background:#0f172a;border:1px solid #1e293b;border-radius:10px;padding:12px 14px;margin-bottom:10px}
-.scalp-block-title{display:flex;align-items:center;justify-content:space-between;font-size:12px;font-weight:600;color:#94a3b8;margin-bottom:10px}
-.scalp-block-val{font-size:14px;font-weight:700;color:#f1f5f9;font-family:monospace}
-.scalp-block-note{font-size:11px;color:#64748b;margin-top:8px}
+/* 各ブロック */
+.scalp-block{background:#fff;border:1px solid #e2e8f0;border-radius:10px;padding:14px 16px;margin-bottom:10px}
+.scalp-block-title{display:flex;align-items:center;justify-content:space-between;font-size:13px;font-weight:700;color:#334155;margin-bottom:12px}
+.scalp-block-val{font-size:15px;font-weight:700;color:#0f172a;font-family:monospace}
+.scalp-block-note{font-size:11px;color:#64748b;margin-top:8px;line-height:1.5}
 
-.scalp-rsi-gauge-wrap{position:relative;padding-top:4px;padding-bottom:16px}
-.scalp-rsi-zones{display:flex;height:18px;border-radius:9px;overflow:hidden;background:#1e293b}
-.scalp-rsi-zone{display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:600;color:rgba(255,255,255,.6)}
-.scalp-rsi-zone.zone-oversold{background:#1e3a5f}
-.scalp-rsi-zone.zone-neutral{background:#334155}
-.scalp-rsi-zone.zone-overbought{background:#7f1d1d}
-.scalp-rsi-pointer{position:absolute;top:0;width:2px;height:26px;background:#fcd34d;transition:left .4s ease;transform:translateX(-50%)}
-.scalp-rsi-pointer::after{content:'';position:absolute;top:-3px;left:-4px;width:10px;height:10px;background:#fcd34d;border-radius:50%;box-shadow:0 0 8px rgba(252,211,77,.6)}
-.scalp-rsi-ticks{display:flex;justify-content:space-between;font-size:9px;color:#475569;margin-top:2px;font-family:monospace}
+/* RSIゲージ */
+.scalp-rsi-gauge-wrap{position:relative;padding-top:4px;padding-bottom:18px}
+.scalp-rsi-zones{display:flex;height:22px;border-radius:11px;overflow:hidden;background:#f1f5f9;border:1px solid #e2e8f0}
+.scalp-rsi-zone{display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:700;letter-spacing:.02em}
+.scalp-rsi-zone.zone-oversold{background:#dbeafe;color:#1e40af}
+.scalp-rsi-zone.zone-neutral{background:#f1f5f9;color:#475569}
+.scalp-rsi-zone.zone-overbought{background:#fee2e2;color:#991b1b}
+.scalp-rsi-pointer{position:absolute;top:2px;width:3px;height:28px;background:#f59e0b;transition:left .4s ease;transform:translateX(-50%);border-radius:2px}
+.scalp-rsi-pointer::after{content:'';position:absolute;top:-4px;left:-5px;width:13px;height:13px;background:#f59e0b;border:2px solid #fff;border-radius:50%;box-shadow:0 1px 4px rgba(245,158,11,.5)}
+.scalp-rsi-ticks{display:flex;justify-content:space-between;font-size:10px;color:#94a3b8;margin-top:4px;font-family:monospace}
 
-.scalp-ma-list{display:flex;flex-direction:column;gap:6px}
-.scalp-ma-row{display:grid;grid-template-columns:80px 1fr auto;gap:8px;align-items:center;padding:6px 10px;background:#1e293b;border-radius:6px}
-.scalp-ma-name{font-size:11px;font-weight:600;color:#94a3b8}
-.scalp-ma-val{font-size:13px;font-family:monospace;color:#e2e8f0;text-align:right}
-.scalp-ma-status{font-size:11px;font-weight:700;padding:3px 8px;border-radius:4px;white-space:nowrap}
-.scalp-ma-status.above{background:#052e16;color:#4ade80}
-.scalp-ma-status.below{background:#450a0a;color:#f87171}
-.scalp-ma-status.equal{background:#334155;color:#cbd5e1}
+/* MAリスト */
+.scalp-ma-list{display:flex;flex-direction:column;gap:7px}
+.scalp-ma-row{display:grid;grid-template-columns:80px 1fr auto;gap:10px;align-items:center;padding:8px 12px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:7px}
+.scalp-ma-name{font-size:12px;font-weight:700;color:#475569}
+.scalp-ma-val{font-size:14px;font-family:monospace;color:#0f172a;text-align:right;font-weight:600}
+.scalp-ma-status{font-size:11px;font-weight:700;padding:4px 10px;border-radius:5px;white-space:nowrap}
+.scalp-ma-status.above{background:#ecfdf5;color:#047857;border:1px solid #a7f3d0}
+.scalp-ma-status.below{background:#fef2f2;color:#b91c1c;border:1px solid #fca5a5}
+.scalp-ma-status.equal{background:#f1f5f9;color:#475569;border:1px solid #cbd5e1}
 
+/* パーフェクトオーダー */
 .scalp-perfect-order{padding:4px 0}
-.scalp-po-status{font-size:14px;font-weight:700;margin-bottom:3px}
-.scalp-po-status.po-up{color:#4ade80}
-.scalp-po-status.po-down{color:#f87171}
-.scalp-po-status.po-none{color:#94a3b8}
-.scalp-po-desc{font-size:11px;color:#64748b}
+.scalp-po-status{font-size:15px;font-weight:700;margin-bottom:4px}
+.scalp-po-status.po-up{color:#047857}
+.scalp-po-status.po-down{color:#b91c1c}
+.scalp-po-status.po-none{color:#64748b}
+.scalp-po-desc{font-size:12px;color:#64748b;line-height:1.5}
 
-.scalp-reco{display:flex;align-items:center;gap:10px;background:#422006;border:1px solid #ca8a04;border-radius:8px;padding:10px 14px;font-size:13px;color:#fef3c7}
-.scalp-reco-icon{font-size:18px;flex-shrink:0}
-.scalp-reco-text strong{color:#fcd34d}
+/* スキャル判定 */
+.scalp-reco{display:flex;align-items:center;gap:12px;background:#fffbeb;border:1px solid #fde68a;border-left:3px solid #f59e0b;border-radius:8px;padding:12px 16px;font-size:13px;color:#78350f;line-height:1.6}
+.scalp-reco-icon{font-size:20px;flex-shrink:0}
+.scalp-reco-text strong{color:#b45309;margin-right:4px}
 </style>
 
 <script>
@@ -279,7 +298,7 @@
              desc:'MAの並びがバラバラ — トレンド不在または転換局面', score:0 };
   }
 
-  function buildVerdict(totalScore, rsiCls, poStatus) {
+  function buildVerdict(totalScore) {
     let label, arrow, desc, cls, reco;
     if (totalScore >= 5) {
       label = '強い上昇トレンド'; arrow = '▲▲'; cls = 'sv-strong-buy';
@@ -345,14 +364,14 @@
       poSt.className = 'scalp-po-status ' + poInfo.cls;
       setText('scalp-po-desc', poInfo.desc);
 
-      /* Score calculation */
+      /* Score */
       let score = rsiInfo.score + poInfo.score;
       if (lastPrice != null && lastSma20 != null) score += (lastPrice > lastSma20) ? 1 : -1;
       if (lastPrice != null && lastEma21 != null) score += (lastPrice > lastEma21) ? 1 : -1;
       if (lastPrice != null && lastSma50 != null) score += (lastPrice > lastSma50) ? 1 : -1;
 
       /* Verdict */
-      const v = buildVerdict(score, rsiInfo.label, poInfo.status);
+      const v = buildVerdict(score);
       const verdictEl = document.getElementById('scalp-verdict');
       verdictEl.className = 'scalp-verdict ' + v.cls;
       setText('scalp-verdict-arrow', v.arrow);
@@ -393,18 +412,6 @@
   startTimer();
 })();
 </script>
-
-{% if pair_article_css %}
-<style>{{ pair_article_css | safe }}</style>
-{% endif %}
-{% if pair_article %}
-<div class="section-card pair-article-body">
-  {% if pair_article_heading %}
-  <div class="section-title" style="margin-bottom:14px">{{ pair_article_heading | e }}</div>
-  {% endif %}
-  {{ pair_article | safe }}
-</div>
-{% endif %}
 
 <!-- トレンドスコア（USD/JPY のみ） -->
 {% if false %}{# QuantFlow表示OFF: 再表示するには → data.trend_score and not data.trend_score.error #}
