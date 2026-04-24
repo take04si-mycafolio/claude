@@ -2,9 +2,12 @@
 """
 QuantFlow ライブシグナル監視タスク
 
-quantflow_scores_5min テーブルを読み、スコア方向転換を検出してポジションを記録する。
-OPEN ポジションがあれば最新5分足でTP/SLをチェックする。
-エントリー・決済時にメール通知を送る。
+バックテスト（quantflow_backtest.py）と同一ロジックで動作する:
+- 1時間足の quantflow_scores テーブルを読み、方向転換を検出してポジションを記録する
+- |score| >= 30 かつ 直前1時間足と方向が変わった時にエントリー
+- OPEN ポジションがあれば最新5分足でTP/SLをチェックする
+- シグナル方向が変化（反対方向 or None）したらOPENを強制決済
+- 同じ 1時間足シグナル期間内で重複エントリーしない（SL後の再エントリー防止）
 
 cron 例（5分ごと）:
   */5 * * * * /path/to/python3 /path/to/tasks/check_live_signal.py >> /tmp/live_signal.log 2>&1
@@ -166,35 +169,43 @@ def main():
         sl_pips = float(Setting.get("quantflow_sl_pips") or 10.0)
         tp_pips = float(Setting.get("quantflow_tp_pips") or 20.0)
 
-        # 1. quantflow_scores_5min から直近2件取得
+        # 1. quantflow_scores（1時間足）から直近2件取得
+        #    BT と同じテーブルを参照することで挙動を揃える
         rows = db.session.execute(text(
-            "SELECT score, `timestamp` FROM quantflow_scores_5min "
+            "SELECT score, `timestamp` FROM quantflow_scores "
             "WHERE currency_pair = :pair "
             "ORDER BY `timestamp` DESC LIMIT 2"
         ), {"pair": PAIR}).fetchall()
 
         if len(rows) < 2:
-            logger.warning("スコアデータが不足しています（%d 件）", len(rows))
+            logger.warning("1時間足スコアデータが不足しています（%d 件）。update_quantflow_scores.py を先に実行してください。", len(rows))
             return
 
         curr_score, curr_ts = rows[0].score, rows[0].timestamp
         prev_score          = rows[1].score
+
+        curr_dir = _score_dir(curr_score)
+        prev_dir = _score_dir(prev_score)
 
         # 2. OPEN ポジション取得
         open_sig = QuantFlowLiveSignal.query.filter_by(
             currency_pair=PAIR, status="OPEN"
         ).first()
 
-        # 3. 既存OPENポジションのTP/SLチェック
+        # 3. 既存OPENポジションのTP/SLチェック（BTと同じ: 5分足で判定）
         if open_sig:
             _check_tp_sl(open_sig, db)
-            # _check_tp_sl が CLOSED にした可能性があるので再取得
             db.session.refresh(open_sig)
 
-        # 4. 方向転換検出
-        curr_dir = _score_dir(curr_score)
-        prev_dir = _score_dir(prev_score)
+        # 4. 方向が変わった / None になった → OPENなら強制決済（SIGNAL_END）
+        if open_sig and open_sig.status == "OPEN" and curr_dir != open_sig.direction:
+            logger.info("シグナル方向変化: open=%s curr=%s → 強制決済",
+                        open_sig.direction, curr_dir or "neutral")
+            _force_close(open_sig, db)
+            send_quantflow_signal_email(open_sig, "EXIT_SIGNAL_END")
+            db.session.refresh(open_sig)
 
+        # 5. 新規エントリー判定
         if not curr_dir or curr_dir == prev_dir:
             logger.info(
                 "方向転換なし: curr=%d(%s) prev=%d(%s)",
@@ -203,15 +214,16 @@ def main():
             )
             return
 
-        # 5. 重複エントリー防止: 今回のスコアタイムスタンプ以降に既入ポジションがあればスキップ
-        if open_sig and open_sig.status == "OPEN" and open_sig.entry_ts >= curr_ts:
-            logger.info("このシグナルは既に記録済みです（entry_ts=%s）", open_sig.entry_ts)
+        # 6. 同じ1時間足シグナル期間内の重複エントリー防止
+        #    （最新の任意ステータスのポジションが curr_ts 以降なら既に処理済み）
+        last_any = (QuantFlowLiveSignal.query
+                    .filter_by(currency_pair=PAIR)
+                    .order_by(QuantFlowLiveSignal.entry_ts.desc())
+                    .first())
+        if last_any and last_any.entry_ts >= curr_ts and last_any.direction == curr_dir:
+            logger.info("この1時間足シグナル（%s）は既に処理済み（最新entry_ts=%s）",
+                        curr_ts, last_any.entry_ts)
             return
-
-        # 6. まだOPENなら強制決済（SIGNAL_END）
-        if open_sig and open_sig.status == "OPEN":
-            _force_close(open_sig, db)
-            send_quantflow_signal_email(open_sig, "EXIT_SIGNAL_END")
 
         # 7. 新シグナル作成
         new_sig = _create_signal(curr_dir, curr_score, sl_pips, tp_pips)
@@ -221,7 +233,8 @@ def main():
         db.session.add(new_sig)
         db.session.commit()
         send_quantflow_signal_email(new_sig, "ENTRY")
-        logger.info("シグナル記録完了: id=%d", new_sig.id)
+        logger.info("シグナル記録完了: id=%d  score=%d  dir=%s  1h_ts=%s",
+                    new_sig.id, curr_score, curr_dir, curr_ts)
 
 
 if __name__ == "__main__":

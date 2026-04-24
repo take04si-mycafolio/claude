@@ -436,8 +436,18 @@ h2{font-size:20px;font-weight:700;color:#f1f5f9;margin-bottom:6px}
         headers: {'Content-Type': 'application/json'},
         body: JSON.stringify({action: 'test_quantflow_email'}),
       }).then(function(r){ return r.json(); });
-      msg.textContent = res.status === 'ok' ? '✅ ' + res.message : '❌ ' + res.message;
-      msg.style.color  = res.status === 'ok' ? '#4ade80' : '#f87171';
+      msg.innerHTML = '';
+      var head = document.createElement('div');
+      head.textContent = res.status === 'ok' ? '✅ ' + (res.message.split('\n')[0] || '送信成功') : '❌ テスト送信が失敗しました';
+      head.style.color = res.status === 'ok' ? '#4ade80' : '#f87171';
+      head.style.fontWeight = '600';
+      msg.appendChild(head);
+      if (res.message) {
+        var pre = document.createElement('pre');
+        pre.textContent = res.message;
+        pre.style.cssText = 'white-space:pre-wrap;word-break:break-all;background:#0f172a;border:1px solid #334155;color:#cbd5e1;padding:10px 12px;border-radius:6px;font-size:11px;font-family:monospace;margin-top:6px;max-height:320px;overflow:auto';
+        msg.appendChild(pre);
+      }
     } catch(e) {
       msg.textContent = '❌ 通信エラー';
       msg.style.color  = '#f87171';
