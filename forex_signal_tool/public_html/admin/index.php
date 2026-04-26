@@ -300,6 +300,7 @@ main{max-width:900px;margin:0 auto;padding:28px 20px}
       <span>クロン健全性ダッシュボード</span>
       <div style="display:flex;align-items:center;gap:8px">
         <span id="cron-checked-at" style="font-size:11px;color:#64748b"></span>
+        <button id="btn-reset-bt" onclick="resetBtStatus()" style="background:#3f0a0a;border:1px solid #991b1b;color:#f87171;font-size:11px;padding:4px 10px;border-radius:6px;cursor:pointer" title="バックテストが「実行中」のまま固まっている場合にリセット">BT状態リセット</button>
         <button onclick="loadCronHealth()" style="background:#1e293b;border:1px solid #334155;color:#94a3b8;font-size:12px;padding:4px 10px;border-radius:6px;cursor:pointer">再読込</button>
       </div>
     </div>
@@ -1506,6 +1507,37 @@ async function loadCronHealth() {
 }
 loadCronHealth();
 setInterval(loadCronHealth, 60 * 1000);
+
+async function resetBtStatus() {
+  if (!confirm('バックテストの「実行中」状態をリセットします。\n実際にバックテストが動いている場合は中断されます。続けますか？')) return;
+  var btn = document.getElementById('btn-reset-bt');
+  btn.disabled = true;
+  btn.textContent = 'リセット中...';
+  try {
+    var res  = await fetch('/admin/api.php?action=reset_bt_status', {method:'POST'});
+    var data = await res.json();
+    if (data.ok) {
+      btn.textContent = '完了';
+      btn.style.color = '#4ade80';
+      btn.style.borderColor = '#15803d';
+      setTimeout(function() {
+        btn.textContent = 'BT状態リセット';
+        btn.style.color = '#f87171';
+        btn.style.borderColor = '#991b1b';
+        btn.disabled = false;
+        loadCronHealth();
+      }, 2000);
+    } else {
+      alert('エラー: ' + (data.error || '不明'));
+      btn.disabled = false;
+      btn.textContent = 'BT状態リセット';
+    }
+  } catch(e) {
+    alert('通信エラー: ' + e.message);
+    btn.disabled = false;
+    btn.textContent = 'BT状態リセット';
+  }
+}
 
 // ===== アクティブシグナル =====
 let _sigData = null;

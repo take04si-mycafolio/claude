@@ -694,6 +694,16 @@ switch ($action) {
         break;
 
     // ---- テクニカルページ専用バックテストのリセット ----
+    case 'reset_bt_status':
+        require_login();
+        try {
+            setting_set('backtest_status', 'done');
+            json_out(['ok' => true]);
+        } catch (Exception $e) {
+            json_out(['ok' => false, 'error' => $e->getMessage()]);
+        }
+        break;
+
     case 'reset_indicator_page_bt':
         require_login();
         $indicatorName = trim($body['indicator_name'] ?? '');
