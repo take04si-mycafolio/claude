@@ -46,6 +46,23 @@ def main():
     with app.app_context():
         pair = "USDJPY"
 
+        # --- テーブルが存在しない場合は自動作成 ---
+        db.session.execute(text("""
+            CREATE TABLE IF NOT EXISTS quantflow_scores_5min (
+                id             BIGINT AUTO_INCREMENT PRIMARY KEY,
+                currency_pair  VARCHAR(10)    NOT NULL,
+                `timestamp`    DATETIME       NOT NULL,
+                score          INT            NOT NULL,
+                trend_score    INT,
+                external_score INT,
+                close_price    DECIMAL(12,5),
+                created_at     DATETIME DEFAULT CURRENT_TIMESTAMP,
+                UNIQUE KEY uniq_qfs5m_pair_ts (currency_pair, `timestamp`),
+                INDEX idx_qfs5m_pair_ts (currency_pair, `timestamp`)
+            )
+        """))
+        db.session.commit()
+
         # --- 最終タイムスタンプ確認 ---
         last_ts_raw = db.session.execute(text(
             "SELECT MAX(`timestamp`) FROM quantflow_scores_5min WHERE currency_pair='USDJPY'"

@@ -48,6 +48,7 @@ def create_app():
 
     # Register models so Migrate can detect them
     from app.models import price_data, signal, backtest, report, settings, simulation_trade, backtest_snapshot, session_ranking  # noqa
+    from app.models import quantflow_score, quantflow_score_5min, quantflow_trade, quantflow_live_signal, custom_indicator  # noqa
 
     # Register blueprints
     from app.routes.dashboard import bp as dashboard_bp

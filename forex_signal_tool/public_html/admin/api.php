@@ -241,36 +241,37 @@ switch ($action) {
         try {
             $pdo = get_pdo();
 
+            function _query_last($pdo, string $sql): array {
+                try {
+                    $r = $pdo->query($sql)->fetch(PDO::FETCH_ASSOC);
+                    return $r ?: ['last_jst' => null, 'min_ago' => null];
+                } catch (Exception $e) {
+                    return ['last_jst' => null, 'min_ago' => null, '_err' => $e->getMessage()];
+                }
+            }
+
             // 为替ペア 5min 最終データ
-            $r = $pdo->query("
-                SELECT DATE_FORMAT(CONVERT_TZ(MAX(`timestamp`),'+00:00','+09:00'),'%Y/%m/%d %H:%i') AS last_jst,
+            $r  = _query_last($pdo, "SELECT DATE_FORMAT(CONVERT_TZ(MAX(`timestamp`),'+00:00','+09:00'),'%Y/%m/%d %H:%i') AS last_jst,
                        TIMESTAMPDIFF(MINUTE, MAX(`timestamp`), UTC_TIMESTAMP()) AS min_ago
-                FROM price_data WHERE currency_pair IN ('USDJPY','GBPJPY','EURJPY') AND timeframe='5min'
-            ")->fetch(PDO::FETCH_ASSOC);
+                FROM price_data WHERE currency_pair IN ('USDJPY','GBPJPY','EURJPY') AND timeframe='5min'");
             $priceMin = $r['min_ago'] !== null ? (int)$r['min_ago'] : null;
 
             // マクロ指標 (US10Y/USBF/DXY)
-            $r2 = $pdo->query("
-                SELECT DATE_FORMAT(CONVERT_TZ(MAX(`timestamp`),'+00:00','+09:00'),'%Y/%m/%d %H:%i') AS last_jst,
+            $r2 = _query_last($pdo, "SELECT DATE_FORMAT(CONVERT_TZ(MAX(`timestamp`),'+00:00','+09:00'),'%Y/%m/%d %H:%i') AS last_jst,
                        TIMESTAMPDIFF(MINUTE, MAX(`timestamp`), UTC_TIMESTAMP()) AS min_ago
-                FROM price_data WHERE currency_pair IN ('US10Y','USBF','DXY')
-            ")->fetch(PDO::FETCH_ASSOC);
+                FROM price_data WHERE currency_pair IN ('US10Y','USBF','DXY')");
             $macroMin = $r2['min_ago'] !== null ? (int)$r2['min_ago'] : null;
 
             // QuantFlow 5分足
-            $r3 = $pdo->query("
-                SELECT DATE_FORMAT(CONVERT_TZ(MAX(`timestamp`),'+00:00','+09:00'),'%Y/%m/%d %H:%i') AS last_jst,
+            $r3 = _query_last($pdo, "SELECT DATE_FORMAT(CONVERT_TZ(MAX(`timestamp`),'+00:00','+09:00'),'%Y/%m/%d %H:%i') AS last_jst,
                        TIMESTAMPDIFF(MINUTE, MAX(`timestamp`), UTC_TIMESTAMP()) AS min_ago
-                FROM quantflow_scores_5min WHERE currency_pair='USDJPY'
-            ")->fetch(PDO::FETCH_ASSOC);
+                FROM quantflow_scores_5min WHERE currency_pair='USDJPY'");
             $qf5mMin = $r3['min_ago'] !== null ? (int)$r3['min_ago'] : null;
 
             // QuantFlow 1時間足
-            $r4 = $pdo->query("
-                SELECT DATE_FORMAT(CONVERT_TZ(MAX(`timestamp`),'+00:00','+09:00'),'%Y/%m/%d %H:%i') AS last_jst,
+            $r4 = _query_last($pdo, "SELECT DATE_FORMAT(CONVERT_TZ(MAX(`timestamp`),'+00:00','+09:00'),'%Y/%m/%d %H:%i') AS last_jst,
                        TIMESTAMPDIFF(MINUTE, MAX(`timestamp`), UTC_TIMESTAMP()) AS min_ago
-                FROM quantflow_scores WHERE currency_pair='USDJPY'
-            ")->fetch(PDO::FETCH_ASSOC);
+                FROM quantflow_scores WHERE currency_pair='USDJPY'");
             $qf1hMin = $r4['min_ago'] !== null ? (int)$r4['min_ago'] : null;
 
             // バックテスト / シグナル (settings テーブル)
@@ -298,16 +299,16 @@ switch ($action) {
                     'name'  => '価格データ取得（為替ペア 5min）',
                     'last'  => $r['last_jst']  ?? '-',
                     'ago'   => format_ago($priceMin),
-                    'level' => health_level($priceMin, 420, 780),   // 1日2回クロン: warn=7h, error=13h
-                    'note'  => $priceMin >= 780 ? 'fetch_data.py クロン未設定の可能性（*/5 * * * * で設定してください）' : '',
+                    'level' => health_level($priceMin, 420, 780),
+                    'note'  => ($priceMin !== null && $priceMin >= 780) ? 'fetch_data.py クロン未設定の可能性（*/5 * * * * で設定してください）' : '',
                 ],
                 [
                     'key'   => 'macro',
                     'name'  => 'マクロ指標取得（DXY / 米金利）',
                     'last'  => $r2['last_jst'] ?? '-',
                     'ago'   => format_ago($macroMin),
-                    'level' => health_level($macroMin, 480, 1440),  // warn=8h, error=24h
-                    'note'  => $macroMin >= 1440 ? 'fetch_data.py クロンが止まっている可能性' : '',
+                    'level' => health_level($macroMin, 480, 1440),
+                    'note'  => ($macroMin !== null && $macroMin >= 1440) ? 'fetch_data.py クロンが止まっている可能性' : '',
                 ],
                 [
                     'key'   => 'bt',
@@ -330,16 +331,16 @@ switch ($action) {
                     'name'  => 'QuantFlow スコア（5分足）',
                     'last'  => $r3['last_jst'] ?? '-',
                     'ago'   => format_ago($qf5mMin),
-                    'level' => health_level($qf5mMin, 30, 120),
-                    'note'  => $qf5mMin >= 120 ? 'update_quantflow_scores_5min.py クロン未設定、または price_data.5min が古い' : '',
+                    'level' => isset($r3['_err']) ? 'unknown' : health_level($qf5mMin, 30, 120),
+                    'note'  => isset($r3['_err']) ? 'テーブル未作成: update_quantflow_scores_5min.py を一度実行してください' : (($qf5mMin !== null && $qf5mMin >= 120) ? 'update_quantflow_scores_5min.py クロン未設定、または price_data.5min が古い' : ''),
                 ],
                 [
                     'key'   => 'qf1h',
                     'name'  => 'QuantFlow スコア（1時間足）',
                     'last'  => $r4['last_jst'] ?? '-',
                     'ago'   => format_ago($qf1hMin),
-                    'level' => health_level($qf1hMin, 90, 240),
-                    'note'  => $qf1hMin >= 240 ? 'update_quantflow_scores.py クロンを確認してください' : '',
+                    'level' => isset($r4['_err']) ? 'unknown' : health_level($qf1hMin, 90, 240),
+                    'note'  => isset($r4['_err']) ? 'テーブルエラー: ' . ($r4['_err'] ?? '') : (($qf1hMin !== null && $qf1hMin >= 240) ? 'update_quantflow_scores.py クロンを確認してください' : ''),
                 ],
             ];
 
