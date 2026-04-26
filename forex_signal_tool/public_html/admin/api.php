@@ -293,22 +293,41 @@ switch ($action) {
                 return round($m / 1440, 1) . '日前';
             }
 
+            // FX 市場休場判定 (UTC): 金曜 21:00〜日曜 22:00
+            $utc_h   = (int)gmdate('G'); // 0-23
+            $utc_dow = (int)gmdate('N'); // 1=Mon〜7=Sun
+            $market_closed = (
+                $utc_dow === 6 ||                        // 土曜終日
+                ($utc_dow === 5 && $utc_h >= 21) ||      // 金曜 21:00 以降
+                ($utc_dow === 7 && $utc_h < 22)          // 日曜 22:00 前
+            );
+            // 休場中は閾値を90時間（市場最大クローズ + 余裕）に引き上げ
+            $px_warn  = $market_closed ? 5400 : 90;
+            $px_err   = $market_closed ? 5400 : 780;
+            $mac_warn = $market_closed ? 5400 : 480;
+            $mac_err  = $market_closed ? 5400 : 1440;
+            $q5_warn  = $market_closed ? 5400 : 30;
+            $q5_err   = $market_closed ? 5400 : 120;
+            $q1_warn  = $market_closed ? 5400 : 90;
+            $q1_err   = $market_closed ? 5400 : 240;
+            $weekend_note = $market_closed ? '週末 FX 市場休場中（金曜 NYクローズ〜日曜 22:00 UTC）' : '';
+
             $items = [
                 [
                     'key'   => 'price',
                     'name'  => '価格データ取得（為替ペア 5min）',
                     'last'  => $r['last_jst']  ?? '-',
                     'ago'   => format_ago($priceMin),
-                    'level' => health_level($priceMin, 420, 780),
-                    'note'  => ($priceMin !== null && $priceMin >= 780) ? 'fetch_data.py クロン未設定の可能性（*/5 * * * * で設定してください）' : '',
+                    'level' => health_level($priceMin, $px_warn, $px_err),
+                    'note'  => $weekend_note ?: (($priceMin !== null && $priceMin >= 780) ? 'fetch_data.py クロン未設定の可能性（*/30 * * * * で設定してください）' : ''),
                 ],
                 [
                     'key'   => 'macro',
                     'name'  => 'マクロ指標取得（DXY / 米金利）',
                     'last'  => $r2['last_jst'] ?? '-',
                     'ago'   => format_ago($macroMin),
-                    'level' => health_level($macroMin, 480, 1440),
-                    'note'  => ($macroMin !== null && $macroMin >= 1440) ? 'fetch_data.py クロンが止まっている可能性' : '',
+                    'level' => health_level($macroMin, $mac_warn, $mac_err),
+                    'note'  => $weekend_note ?: (($macroMin !== null && $macroMin >= 1440) ? 'fetch_data.py クロンが止まっている可能性' : ''),
                 ],
                 [
                     'key'   => 'bt',
@@ -331,16 +350,16 @@ switch ($action) {
                     'name'  => 'QuantFlow スコア（5分足）',
                     'last'  => $r3['last_jst'] ?? '-',
                     'ago'   => format_ago($qf5mMin),
-                    'level' => isset($r3['_err']) ? 'unknown' : health_level($qf5mMin, 30, 120),
-                    'note'  => isset($r3['_err']) ? 'テーブル未作成: update_quantflow_scores_5min.py を一度実行してください' : (($qf5mMin !== null && $qf5mMin >= 120) ? 'update_quantflow_scores_5min.py クロン未設定、または price_data.5min が古い' : ''),
+                    'level' => isset($r3['_err']) ? 'unknown' : health_level($qf5mMin, $q5_warn, $q5_err),
+                    'note'  => isset($r3['_err']) ? 'テーブル未作成: update_quantflow_scores_5min.py を一度実行してください' : ($weekend_note ?: (($qf5mMin !== null && $qf5mMin >= 120) ? 'update_quantflow_scores_5min.py クロン未設定、または price_data.5min が古い' : '')),
                 ],
                 [
                     'key'   => 'qf1h',
                     'name'  => 'QuantFlow スコア（1時間足）',
                     'last'  => $r4['last_jst'] ?? '-',
                     'ago'   => format_ago($qf1hMin),
-                    'level' => isset($r4['_err']) ? 'unknown' : health_level($qf1hMin, 90, 240),
-                    'note'  => isset($r4['_err']) ? 'テーブルエラー: ' . ($r4['_err'] ?? '') : (($qf1hMin !== null && $qf1hMin >= 240) ? 'update_quantflow_scores.py クロンを確認してください' : ''),
+                    'level' => isset($r4['_err']) ? 'unknown' : health_level($qf1hMin, $q1_warn, $q1_err),
+                    'note'  => isset($r4['_err']) ? 'テーブルエラー: ' . ($r4['_err'] ?? '') : ($weekend_note ?: (($qf1hMin !== null && $qf1hMin >= 240) ? 'update_quantflow_scores.py クロンを確認してください' : '')),
                 ],
             ];
 
