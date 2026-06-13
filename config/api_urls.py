@@ -11,4 +11,5 @@ urlpatterns = [
     path("auth/", include("apps.accounts.api_urls")),  # signup / login / refresh
     path("me/", MeView.as_view(), name="api_me"),
     path("", include("apps.products.api_urls")),  # categories / products / search / detail
+    path("", include("apps.reviews.api_urls")),  # reviews(投稿) / reviews/my(履歴)
 ]
