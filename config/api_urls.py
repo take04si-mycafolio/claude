@@ -10,4 +10,5 @@ from apps.accounts.api_views import MeView
 urlpatterns = [
     path("auth/", include("apps.accounts.api_urls")),  # signup / login / refresh
     path("me/", MeView.as_view(), name="api_me"),
+    path("", include("apps.products.api_urls")),  # categories / products / search / detail
 ]
