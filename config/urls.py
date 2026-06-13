@@ -69,6 +69,8 @@ urlpatterns += [
     path("admin/seo/link-map/", admin_seo.link_map, name="admin_seo_link_map"),
     path("admin/seo/link-map/data/", admin_seo.link_map_data, name="admin_seo_link_map_data"),
     path("admin/", admin.site.urls),
+    # ネイティブアプリ連携API。必ず products の catch-all(<uslug:slug>/)より前に置く。
+    path("api/", include("config.api_urls")),
     path("accounts/", include("apps.accounts.urls", namespace="accounts")),
     path("reviews/", include("apps.reviews.urls", namespace="reviews")),
     path("", include("apps.pages.urls", namespace="pages")),
