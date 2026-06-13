@@ -1,0 +1,78 @@
+{% comment %}
+ミッション達成お祝いポップアップ（ログインボーナス風）。
+context_processor mission_alerts が未読の UserMissionCompletion を渡す。
+{% endcomment %}
+{% if mission_alerts %}
+<div id="mission-celebration"
+     data-seen-url="{% url 'accounts:mission_alerts_seen' %}"
+     class="fixed inset-0 z-[100] flex items-center justify-center px-4 bg-ink-900/50 backdrop-blur-sm">
+  <div class="relative w-full max-w-sm bg-white rounded-3xl shadow-2xl border border-gold-200 overflow-hidden animate-[pop_.35s_ease-out]">
+    <div class="bg-gradient-to-br from-rose-400 via-rose-500 to-gold-400 px-6 pt-7 pb-6 text-center text-white">
+      <div class="text-4xl mb-1">🎉</div>
+      <div class="text-lg font-bold tracking-wide">ミッション達成！</div>
+      <p class="text-xs text-white/85 mt-1">プレゼントを獲得しました</p>
+    </div>
+
+    <div class="px-6 py-5 space-y-4 max-h-[55vh] overflow-y-auto"
+         data-ids="{% for c in mission_alerts %}{{ c.id }}{% if not forloop.last %},{% endif %}{% endfor %}">
+      {% for c in mission_alerts %}
+        <div class="rounded-2xl border border-rose-100 bg-rose-50/60 p-4">
+          <div class="text-sm font-bold text-ink-900">{{ c.mission.title }}</div>
+          <div class="mt-1 text-xs text-mute-500">{{ c.mission.reward_label }}</div>
+          {% if c.status == "awarded" and c.assigned_code %}
+            <div class="mt-3 flex items-center gap-2 bg-white border border-gold-200 rounded-xl px-3 py-2.5">
+              <span class="text-[10px] text-gold-700 shrink-0">CODE</span>
+              <code class="font-mono text-sm font-bold text-gold-800 tracking-wider break-all select-all">{{ c.assigned_code }}</code>
+            </div>
+          {% elif c.status == "sold_out" %}
+            <p class="mt-2 text-xs text-mute-500">惜しくも定員に達したため、今回はプレゼント対象外となりました。またの挑戦をお待ちしています。</p>
+          {% else %}
+            <p class="mt-2 text-xs text-rose-600">🎁 コードは現在準備中です。後ほどマイページでご確認ください。</p>
+          {% endif %}
+        </div>
+      {% endfor %}
+    </div>
+
+    <div class="px-6 pb-6">
+      <button type="button" id="mission-celebration-close"
+              class="w-full py-3 rounded-full bg-rose-500 hover:bg-rose-600 text-white text-sm font-medium transition shadow-sm">
+        受け取る
+      </button>
+      <a href="{% url 'accounts:missions' %}" class="block mt-2 text-center text-xs text-mute-500 hover:text-rose-600">ミッション一覧を見る →</a>
+    </div>
+  </div>
+</div>
+
+<style>
+@keyframes pop { 0% { transform: scale(.85); opacity: 0 } 100% { transform: scale(1); opacity: 1 } }
+</style>
+<script>
+(function () {
+  var root = document.getElementById("mission-celebration");
+  if (!root) return;
+  var body = root.querySelector("[data-ids]");
+  var ids = (body && body.dataset.ids ? body.dataset.ids.split(",") : []).filter(Boolean);
+  var url = root.dataset.seenUrl;
+
+  function getCookie(name) {
+    var m = document.cookie.match("(^|;)\\s*" + name + "\\s*=\\s*([^;]+)");
+    return m ? m.pop() : "";
+  }
+  function markSeen() {
+    if (!ids.length) return;
+    var data = new FormData();
+    ids.forEach(function (id) { data.append("ids", id); });
+    fetch(url, {
+      method: "POST",
+      headers: { "X-CSRFToken": getCookie("csrftoken") },
+      body: data,
+      keepalive: true,
+    });
+  }
+  function close() { markSeen(); root.remove(); }
+
+  document.getElementById("mission-celebration-close").addEventListener("click", close);
+  root.addEventListener("click", function (e) { if (e.target === root) close(); });
+})();
+</script>
+{% endif %}

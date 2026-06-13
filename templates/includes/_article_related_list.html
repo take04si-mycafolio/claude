@@ -1,0 +1,15 @@
+{# 関連記事ブロック: 比較/選び方/悩み別/カテゴリTOP を優先(最大4本) #}
+<nav class="bk-mc-related-list" aria-label="関連記事">
+  <p class="bk-mc-rl-head">あわせて読みたい</p>
+  <ul>
+    {% for c in cards %}
+    <li>
+      <a href="{{ c.url }}">
+        <span class="bk-mc-rl-kind">{{ c.kind }}</span>
+        <span class="bk-mc-rl-title">{{ c.title }}</span>
+        <span class="bk-mc-rl-arrow" aria-hidden="true">→</span>
+      </a>
+    </li>
+    {% endfor %}
+  </ul>
+</nav>

@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 800" width="800" height="800">
+  <rect fill="#eeeeee" width="800" height="800"/>
+  <g fill="none" stroke="#bbbbbb" stroke-width="8" stroke-linejoin="round">
+    <rect x="200" y="220" width="400" height="280" rx="8"/>
+  </g>
+  <g fill="#cccccc">
+    <circle cx="500" cy="300" r="28"/>
+    <path d="M 220 470 L 330 360 L 410 420 L 530 290 L 600 470 Z"/>
+  </g>
+  <text x="400" y="610" text-anchor="middle" font-family="Arial, sans-serif" font-size="78" fill="#aaaaaa" font-weight="bold" letter-spacing="4">NO IMAGE</text>
+  <text x="400" y="680" text-anchor="middle" font-family="'Noto Sans JP', 'Hiragino Sans', sans-serif" font-size="38" fill="#bbbbbb">画像はありません</text>
+</svg>

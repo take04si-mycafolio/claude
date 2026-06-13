@@ -1,0 +1,188 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block head_extra %}
+<link rel="stylesheet" href="{% static 'article-css.css' %}?v=16">
+{% endblock %}
+{% block title %}{{ ptype.meta_title|default:ptype.name }}{% endblock %}
+{% block meta_description %}{{ ptype.meta_description|default:cfg.lede|truncatechars:140 }}{% endblock %}
+
+{% block content %}
+
+{# ===== [1] ヒーロー ===== #}
+<section class="relative overflow-hidden rounded-3xl bg-gradient-to-br from-rose-100 via-rose-50 to-cream-100 p-8 sm:p-14 mb-8 text-center">
+  <p class="font-serif text-rose-500 tracking-[0.25em] text-[11px] sm:text-xs uppercase">{{ cfg.eyebrow }}</p>
+  <h1 class="mt-3 text-2xl sm:text-4xl font-bold text-ink-900 leading-tight">{{ cfg.h1 }}</h1>
+  <p class="mt-4 text-sm sm:text-base text-mute-600 max-w-xl mx-auto leading-relaxed">{{ cfg.lede }}</p>
+  {# 商品検索フォーム（このカテゴリ内を検索 → 商品一覧へ） #}
+  <form method="get" action="{% url 'products:all_products' %}" class="mt-7 max-w-xl mx-auto">
+    <input type="hidden" name="type" value="{{ ptype.slug }}">
+    <div class="flex gap-2 bg-white rounded-full border border-rose-200 shadow-card p-1.5">
+      <input type="search" name="q" placeholder="{{ ptype.name }}を商品名・ブランドで検索"
+        class="flex-1 min-w-0 rounded-full bg-transparent px-5 py-2.5 text-sm focus:outline-none">
+      <button type="submit" class="shrink-0 rounded-full bg-rose-500 hover:bg-rose-600 text-white text-sm font-medium px-6 py-2.5 transition shadow-sm">検索</button>
+    </div>
+  </form>
+</section>
+
+{# ===== [2] 信頼の指標バンド (実データのみ) ===== #}
+<section class="grid grid-cols-2 lg:grid-cols-2 gap-3 sm:gap-4 mb-12">
+  <div class="bg-white rounded-2xl border border-rose-100 shadow-card p-4 sm:p-5 text-center">
+    <div class="text-2xl sm:text-3xl font-bold text-rose-600 tabular-nums">{{ product_count }}</div>
+    <div class="mt-1 text-[11px] sm:text-xs text-mute-500 leading-snug">比較している機種</div>
+  </div>
+  <div class="bg-white rounded-2xl border border-rose-100 shadow-card p-4 sm:p-5 text-center">
+    <div class="text-xl sm:text-2xl font-bold text-ink-900 tabular-nums pt-1">{{ last_updated|date:"Y.n.j"|default:"—" }}</div>
+    <div class="mt-1 text-[11px] sm:text-xs text-mute-500 leading-snug">最終更新</div>
+  </div>
+</section>
+
+{# ===== [9] 全機種一覧 ===== #}
+<section class="mb-12 text-center">
+  <a href="{% url 'products:all_products' %}?type={{ ptype.slug }}" class="inline-flex items-center justify-center px-8 py-3 rounded-full bg-white border border-rose-200 text-rose-600 hover:bg-rose-50 font-medium text-sm transition">{{ ptype.name }}の全機種一覧を見る →</a>
+</section>
+
+{# ===== [3] 評価のしかた ===== #}
+<section class="bg-cream-100 rounded-2xl p-6 sm:p-8 mb-12">
+  <p class="font-serif text-rose-500 tracking-[0.25em] text-xs uppercase">Our Standard</p>
+  <h2 class="mt-1 text-xl sm:text-2xl font-bold text-ink-900">評価のしかた</h2>
+  <p class="mt-3 text-sm text-mute-600 leading-relaxed max-w-2xl">当サイトは紹介料を受け取りますが、ランキングや評価は実際の口コミと一定の基準だけで決めています。良い点も、気になる点も、そのまま載せます。</p>
+  <div class="mt-5 flex flex-wrap gap-2">
+    {% for c in cfg.criteria %}
+      <span class="inline-flex items-center px-3 py-1.5 rounded-full bg-white border border-rose-200 text-rose-600 text-xs font-medium">{{ c }}</span>
+    {% endfor %}
+  </div>
+</section>
+
+{# ===== [5] 比較ガイド(柱)カード ===== #}
+<section class="mb-12">
+  <a href="/{{ cfg.hub_slug }}/" class="group block rounded-2xl border-2 border-rose-300 bg-gradient-to-br from-rose-50 to-white p-6 sm:p-8 shadow-card hover:shadow-soft transition">
+    <div class="flex items-center gap-2 mb-2">
+      <span class="inline-flex items-center px-2.5 py-1 rounded-full bg-rose-500 text-white text-[11px] font-bold">迷ったらここから</span>
+    </div>
+    <h2 class="text-lg sm:text-xl font-bold text-ink-900 group-hover:text-rose-600">{{ cfg.hub_title }}</h2>
+    <p class="mt-2 text-sm text-mute-600 leading-relaxed">{{ cfg.hub_text }}</p>
+    <span class="mt-4 inline-flex items-center gap-1 text-sm text-rose-600 font-medium">比較ガイドを読む →</span>
+  </a>
+</section>
+
+{# ===== [6] 脱毛器一覧 (標準の並び・最大20件) ===== #}
+<section id="popular" class="mb-12 scroll-mt-20">
+  <div class="flex items-end justify-between mb-5">
+    <div>
+      <p class="font-serif text-rose-500 tracking-[0.25em] text-xs uppercase">Lineup</p>
+      <h2 class="mt-1 text-xl sm:text-2xl font-bold text-ink-900">{{ ptype.name }}一覧</h2>
+    </div>
+    <a href="{% url 'products:all_products' %}?type={{ ptype.slug }}" class="hidden sm:inline-flex items-center gap-1 text-sm text-rose-600 hover:underline">{{ ptype.name }}の一覧 →</a>
+  </div>
+  {% if popular %}
+    <ul class="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-5">
+      {% for p in popular %}
+        <li class="group bg-white rounded-2xl border border-rose-100 shadow-card overflow-hidden hover:shadow-soft hover:-translate-y-0.5 transition flex flex-col">
+          <a href="{{ p.get_absolute_url }}" class="block">
+            <div class="aspect-square bg-cream-100 overflow-hidden flex items-center justify-center">
+              {% if p.display_image %}<img src="{{ p.display_image }}" alt="{{ p.name }}" loading="lazy" class="w-full h-full object-cover group-hover:scale-105 transition duration-500">{% else %}<img src="{% static 'no-image.svg' %}" alt="画像はありません" loading="lazy" class="w-full h-full object-cover">{% endif %}
+            </div>
+            <div class="p-4">
+              {% if p.brand %}<div class="text-[11px] tracking-wider text-mute-500 uppercase mb-1">{{ p.brand }}</div>{% endif %}
+              <h3 class="font-semibold text-ink-900 text-sm leading-snug line-clamp-2 group-hover:text-rose-600">{{ p.name }}</h3>
+              <div class="flex items-center justify-between mt-3">
+                {% if p.avg_rating %}
+                  <span class="flex items-center gap-1"><span class="stars-row text-sm">{% for _ in "12345"|make_list %}{% if forloop.counter <= p.avg_rating %}★{% else %}<span class="off">★</span>{% endif %}{% endfor %}</span><span class="text-xs text-ink-700 font-semibold tabular-nums">{{ p.avg_rating|floatformat:1 }}</span><span class="text-[11px] text-mute-500">({{ p.review_count }})</span></span>
+                {% else %}
+                  <span class="text-xs text-mute-500">口コミ募集中</span>
+                {% endif %}
+                {% if p.price %}<span class="text-rose-600 font-semibold text-sm">¥{{ p.price|stringformat:"s" }}</span>{% endif %}
+              </div>
+            </div>
+          </a>
+          {% if not p.avg_rating %}
+            <a href="{{ p.get_absolute_url }}#review" class="mt-auto block text-center text-[11px] text-rose-600 border-t border-rose-100 py-2 hover:bg-rose-50 transition">口コミを書く →</a>
+          {% endif %}
+        </li>
+      {% endfor %}
+    </ul>
+    <a href="{% url 'products:type_ranking' ptype.slug %}" class="group block mt-6 rounded-2xl border-2 border-rose-300 bg-gradient-to-br from-rose-50 to-white p-6 sm:p-8 shadow-card hover:shadow-soft transition">
+      <div class="flex items-center gap-2 mb-2">
+        <span class="inline-flex items-center px-2.5 py-1 rounded-full bg-rose-500 text-white text-[11px] font-bold">ランキング</span>
+      </div>
+      <h2 class="text-lg sm:text-xl font-bold text-ink-900 group-hover:text-rose-600">{{ ptype.name }}の全ランキングを見る</h2>
+      <p class="mt-2 text-sm text-mute-600 leading-relaxed">口コミ・評価をもとにした{{ ptype.name }}の全機種ランキング。価格帯や機能で比較して選べます。</p>
+      <span class="mt-4 inline-flex items-center gap-1 text-sm text-rose-600 font-medium">ランキングを見る →</span>
+    </a>
+  {% else %}
+    <div class="bg-white rounded-2xl border border-rose-100 p-10 text-center text-mute-500">商品準備中です</div>
+  {% endif %}
+</section>
+
+{# ===== [4] 目的から探す ===== #}
+<section class="mb-12">
+  <p class="font-serif text-rose-500 tracking-[0.25em] text-xs uppercase">Find Your Way</p>
+  <h2 class="mt-1 text-xl sm:text-2xl font-bold text-ink-900 mb-5">目的から探す</h2>
+  <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
+    {% for g in cfg.find_groups %}
+      <div class="bg-white rounded-2xl border border-rose-100 shadow-card p-5">
+        <h3 class="text-sm font-bold text-ink-900 mb-3 pb-2 border-b border-rose-50">{{ g.label }}</h3>
+        <ul class="space-y-2">
+          {% for it in g.items %}
+            <li><a href="{{ it.u }}" class="inline-flex items-center gap-1 text-sm text-mute-600 hover:text-rose-600 transition">› {{ it.t }}</a></li>
+          {% endfor %}
+        </ul>
+      </div>
+    {% endfor %}
+  </div>
+</section>
+
+{# ===== [8] テーマ別に読む ===== #}
+<section class="mb-12">
+  <p class="font-serif text-rose-500 tracking-[0.25em] text-xs uppercase">By Theme</p>
+  <h2 class="mt-1 text-xl sm:text-2xl font-bold text-ink-900 mb-5">テーマ別に読む</h2>
+  <div class="grid sm:grid-cols-3 gap-4">
+    {% for g in cfg.theme_groups %}
+      <div class="bg-white rounded-2xl border border-rose-100 shadow-card p-5">
+        <h3 class="text-sm font-bold text-ink-900 mb-3 pb-2 border-b border-rose-50">{{ g.label }}</h3>
+        <ul class="space-y-2">
+          {% for it in g.items %}
+            <li><a href="{{ it.u }}" class="inline-flex items-center gap-1 text-sm text-mute-600 hover:text-rose-600 transition">› {{ it.t }}</a></li>
+          {% endfor %}
+        </ul>
+      </div>
+    {% endfor %}
+  </div>
+</section>
+
+{% include "includes/_adsense.html" %}
+
+{# ===== [10] 新着・更新フィード (一番下・4カラム・最大40件) ===== #}
+{% if feed %}
+<section class="mt-12 mb-12">
+  <p class="font-serif text-rose-500 tracking-[0.25em] text-xs uppercase">Updates</p>
+  <h2 class="mt-1 text-xl sm:text-2xl font-bold text-ink-900 mb-5">新着・更新</h2>
+  <ul class="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+    {% for f in feed %}
+      <li>
+        <a href="{{ f.url }}" class="group block h-full bg-white rounded-2xl border border-rose-100 overflow-hidden hover:shadow-card transition">
+          <div class="aspect-square bg-cream-100 overflow-hidden">
+            {% if f.image %}<img src="{{ f.image }}" alt="{{ f.title }}" loading="lazy" class="w-full h-full object-cover group-hover:scale-105 transition duration-500">{% else %}<img src="{% static 'no-image.svg' %}" alt="画像はありません" loading="lazy" class="w-full h-full object-cover">{% endif %}
+          </div>
+          <div class="p-3">
+            <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold
+              {% if f.kind == '口コミ分析' %}bg-rose-100 text-rose-600{% elif f.kind == '新モデル' %}bg-gold-400/20 text-gold-600{% else %}bg-cream-100 text-mute-600{% endif %}">{{ f.kind }}</span>
+            <h3 class="mt-1.5 text-xs font-medium text-ink-900 line-clamp-2 group-hover:text-rose-600">{{ f.title }}</h3>
+            <div class="mt-1 text-[11px] text-mute-500 tabular-nums">{{ f.date|date:"Y.n.j" }}</div>
+          </div>
+        </a>
+      </li>
+    {% endfor %}
+  </ul>
+</section>
+{% endif %}
+
+{% endblock %}
+
+{% block breadcrumb %}
+<nav class="text-xs text-mute-500 mb-3">
+  <a href="{% url 'products:list' %}" class="hover:text-rose-600">ホーム</a>
+  <span class="mx-1">›</span><span>{{ ptype.name }}</span>
+</nav>
+{% endblock %}

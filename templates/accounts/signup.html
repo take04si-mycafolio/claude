@@ -1,24 +1,23 @@
 {% extends "base.html" %}
-{% block title %}会員登録 | 美顔器レビュー{% endblock %}
-
+{% block title %}新規登録{% endblock %}
 {% block content %}
-<div class="form-card">
-  <h1>無料会員登録</h1>
-  <p style="color:var(--color-muted)">ご登録後、口コミを1件投稿すると全商品の口コミが閲覧できます。</p>
-  <form method="post" novalidate>
-    {% csrf_token %}
-    {% for field in form %}
-      <div class="form-row">
-        <label for="{{ field.id_for_label }}">{{ field.label }}{% if field.field.required %} <span style="color:#c44">*</span>{% endif %}</label>
-        {{ field }}
-        {% if field.help_text %}<small class="helptext">{{ field.help_text }}</small>{% endif %}
-        {{ field.errors }}
-      </div>
-    {% endfor %}
-    <button type="submit" class="btn btn-primary btn-block">登録する</button>
-  </form>
-  <p style="margin-top:16px;text-align:center;font-size:0.9rem">
-    すでにアカウントをお持ちの方は <a href="{% url 'accounts:login' %}">ログイン</a>
-  </p>
+<div class="max-w-md mx-auto">
+  <div class="bg-white rounded-2xl border border-rose-100 shadow-card p-7 sm:p-9">
+    <h1 class="text-xl font-bold text-ink-900 mb-1">新規登録</h1>
+    <p class="text-xs text-mute-500 mb-6">無料・1分で完了します</p>
+    <form method="post" class="space-y-4">
+      {% csrf_token %}
+      {% for f in form %}
+        <div>
+          <label for="{{ f.id_for_label }}" class="block text-sm font-medium text-ink-900 mb-1.5">{{ f.label }}</label>
+          <div class="[&_input]:w-full [&_select]:w-full [&_input]:rounded-lg [&_select]:rounded-lg [&_input]:border-rose-200 [&_select]:border-rose-200 [&_input]:bg-white [&_input:focus]:ring-rose-300 [&_select:focus]:ring-rose-300 [&_input:focus]:border-rose-400 [&_select:focus]:border-rose-400">{{ f }}</div>
+          {% if f.help_text %}<p class="text-xs text-mute-500 mt-1">{{ f.help_text|safe }}</p>{% endif %}
+          {% if f.errors %}<ul class="text-xs text-rose-600 mt-1">{% for e in f.errors %}<li>{{ e }}</li>{% endfor %}</ul>{% endif %}
+        </div>
+      {% endfor %}
+      <button type="submit" class="w-full px-6 py-3 rounded-full bg-rose-500 hover:bg-rose-600 text-white font-medium text-sm shadow-sm transition">登録する</button>
+    </form>
+    <p class="mt-6 text-center text-xs text-mute-500">すでにアカウントをお持ちの方は <a href="{% url 'accounts:login' %}" class="text-rose-600 font-medium hover:underline">ログイン</a></p>
+  </div>
 </div>
 {% endblock %}

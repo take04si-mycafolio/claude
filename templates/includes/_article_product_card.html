@@ -1,0 +1,78 @@
+{% load article_extras %}
+<div class="bk-mc-product-card">
+  <div class="bk-mc-pc-main">
+    <div class="bk-mc-pc-image">
+      {% if product.display_image %}
+        <img src="{{ product.display_image }}" alt="{{ product.name }}" loading="lazy">
+      {% endif %}
+    </div>
+    <div class="bk-mc-pc-info">
+      {% if product.brand %}<div class="bk-mc-pc-brand">{{ product.brand }}</div>{% endif %}
+      <div class="bk-mc-pc-name">
+        <a href="{{ product.get_absolute_url }}">{{ product.name }}</a>
+      </div>
+      {% if product.price %}
+        <div class="bk-mc-pc-price-row">
+          <span class="bk-mc-pc-price-label">参考価格</span>
+          <span class="bk-mc-pc-price">{{ product.price|yenformat }}</span>
+        </div>
+      {% endif %}
+    </div>
+  </div>
+
+  {% if intro %}
+    <div class="bk-mc-pc-intro">{{ intro|safe }}</div>
+  {% endif %}
+
+  {% if product.amazon_url or product.rakuten_url or product.official_url %}
+    <div class="bk-mc-pc-cta">
+      <div class="bk-mc-pc-pr-label">
+        <span class="bk-mc-pc-pr">PR</span>
+        <span>楽天/Amazon等のアフィリエイトリンクを含みます</span>
+      </div>
+      <div class="bk-mc-pc-buttons">
+        {% if product.rakuten_url %}
+          <a href="{{ product.rakuten_url }}" target="_blank" rel="nofollow noopener sponsored"
+             class="bk-mc-pc-btn bk-mc-pc-btn-rakuten">楽天で見る</a>
+        {% endif %}
+        {% if product.amazon_url %}
+          <a href="{{ product.amazon_url }}" target="_blank" rel="nofollow noopener sponsored"
+             class="bk-mc-pc-btn bk-mc-pc-btn-amazon">Amazonで見る</a>
+        {% endif %}
+        {% if product.official_url %}
+          <a href="{{ product.official_url }}" target="_blank" rel="nofollow noopener"
+             class="bk-mc-pc-btn bk-mc-pc-btn-official">公式サイト</a>
+        {% endif %}
+      </div>
+    </div>
+  {% endif %}
+
+  {% if reviews_ctx %}
+    <div class="bk-mc-pc-reviews">
+      <div class="bk-mc-pc-reviews-head">
+        <span class="bk-mc-pc-stars">{{ review_avg_stars }}</span>
+        <span class="bk-mc-pc-rating-num">{{ review_avg|floatformat:1 }}</span>
+        <span class="bk-mc-pc-review-count">({{ review_count }}件の口コミ)</span>
+      </div>
+      <div class="bk-mc-pc-reviews-track">
+        {% for r in reviews_ctx %}
+          <div class="bk-mc-pc-review-card">
+            <div class="bk-mc-pc-review-stars">{{ r.stars }}</div>
+            {% if r.title %}<div class="bk-mc-pc-review-title">{{ r.title }}</div>{% endif %}
+            <p class="bk-mc-pc-review-body">{{ r.body|truncatechars:90 }}</p>
+            <div class="bk-mc-pc-review-meta">
+              {% if r.skin_type %}<span class="bk-mc-pc-review-tag">{{ r.skin_type }}</span>{% endif %}
+              {% if r.usage_period %}<span class="bk-mc-pc-review-tag">{{ r.usage_period }}</span>{% endif %}
+              {% if r.helpful_count %}<span class="bk-mc-pc-review-helpful">👍 {{ r.helpful_count }}</span>{% endif %}
+              <span class="bk-mc-pc-review-date">{{ r.created_at|date:"Y/n/j" }}</span>
+            </div>
+          </div>
+        {% endfor %}
+      </div>
+    </div>
+  {% endif %}
+
+  <div class="bk-mc-pc-detail">
+    <a href="{{ product.get_absolute_url }}">この商品の詳細・口コミを見る<span class="bk-mc-pc-arrow">→</span></a>
+  </div>
+</div>

@@ -1,17 +1,31 @@
 {% extends "base.html" %}
-{% block title %}記事一覧 | 美顔器レビュー{% endblock %}
-
+{% block title %}記事一覧 | 美容家電TUSHOU{% endblock %}
 {% block content %}
-<h1 style="margin:24px 0 8px">記事一覧</h1>
-<div class="article-list">
-  {% for a in articles %}
-    <a class="article-card" href="{{ a.get_absolute_url }}">
-      <h3>{{ a.title }}</h3>
-      {% if a.published_at %}<span class="meta" style="font-size:0.85rem;color:var(--color-muted)">{{ a.published_at|date:"Y/m/d" }}</span>{% endif %}
-      <p>{{ a.excerpt|default:a.content|striptags|truncatechars:160 }}</p>
-    </a>
-  {% empty %}
-    <p>記事がまだありません。管理画面から追加、もしくはWordPress XMLをインポートしてください。</p>
-  {% endfor %}
+<div class="mb-6 sm:mb-8">
+  <p class="font-serif text-rose-500 tracking-[0.3em] text-xs uppercase">Articles</p>
+  <h1 class="mt-1 text-2xl sm:text-3xl font-bold text-ink-900">美容家電を深掘りする記事</h1>
 </div>
+
+{% if articles %}
+<ul class="grid sm:grid-cols-2 lg:grid-cols-3 gap-5">
+  {% for a in articles %}
+    <li>
+      <a href="{{ a.get_absolute_url }}" class="group block bg-white rounded-2xl border border-rose-100 shadow-card overflow-hidden hover:shadow-soft hover:-translate-y-0.5 transition h-full">
+        {% if a.thumbnail_url %}
+          <div class="aspect-[16/9] overflow-hidden bg-cream-100">
+            <img src="{{ a.thumbnail_url }}" alt="{{ a.title }}" loading="lazy" class="w-full h-full object-cover group-hover:scale-105 transition duration-500">
+          </div>
+        {% endif %}
+        <div class="p-5">
+          <h3 class="font-bold text-ink-900 leading-snug line-clamp-2 group-hover:text-rose-600 transition">{{ a.title }}</h3>
+          <p class="mt-2 text-xs text-mute-500 line-clamp-2 leading-relaxed">{{ a.excerpt|default:a.content|striptags|truncatechars:120 }}</p>
+          <div class="mt-3 text-[11px] text-mute-500">{{ a.published_at|default:a.created_at|date:"Y/m/d" }}</div>
+        </div>
+      </a>
+    </li>
+  {% endfor %}
+</ul>
+{% else %}
+<p class="text-mute-500">記事はまだありません。</p>
+{% endif %}
 {% endblock %}

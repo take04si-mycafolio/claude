@@ -1,72 +1,98 @@
 {% extends "base.html" %}
+{% load static %}
+{% block head_extra %}{% if noindex %}<meta name="robots" content="noindex,nofollow">{% endif %}{% endblock %}
 {% block title %}{% if active_type %}{{ active_type.name }}の口コミ・レビュー | 美容家電TUSHOU{% else %}美容家電の口コミ・レビュー | 美容家電TUSHOU{% endif %}{% endblock %}
-{% block meta_description %}{% if active_type %}{{ active_type.name }}のリアルな口コミが集まるサイト。{{ active_type.description }}{% else %}美容家電の本音の口コミが集まるサイト。美顔器・ドライヤー・脱毛器などユーザー投稿のレビューで、あなたにぴったりのアイテムが見つかります。{% endif %}{% endblock %}
+{% block meta_description %}{% if active_type %}{{ active_type.name }}のリアルな口コミ。{{ active_type.description }}{% else %}美顔器・ドライヤー・脱毛器など美容家電の本音口コミが集まるサイト。{% endif %}{% endblock %}
 
 {% block content %}
 {% if not active_type %}
-<section class="hero">
-  <h1>美容家電のリアルな口コミを集めたサイト</h1>
-  <p>実際に使った方のレビューが読めます。あなたの口コミもぜひシェアしてください。</p>
+<section class="relative overflow-hidden rounded-3xl bg-gradient-to-br from-rose-100 via-rose-50 to-cream-100 p-8 sm:p-14 mb-10 text-center">
+  <p class="font-serif text-rose-500 tracking-[0.3em] text-xs sm:text-sm uppercase">Real Voices</p>
+  <h1 class="mt-3 text-2xl sm:text-4xl font-bold text-ink-900 leading-tight">本音の声で、私だけの一台を。</h1>
+  <p class="mt-4 text-sm sm:text-base text-mute-600 max-w-xl mx-auto leading-relaxed">使った人にしかわからない使用感や効果実感を、肌質・年代別の生のレビューで。広告だけではわからない美容家電の本当の姿。</p>
+  <div class="absolute -right-12 -top-12 w-48 h-48 rounded-full bg-rose-200/40 blur-3xl"></div>
+  <div class="absolute -left-10 bottom-0 w-40 h-40 rounded-full bg-gold-400/30 blur-3xl"></div>
 </section>
 {% else %}
-<nav aria-label="breadcrumb" style="font-size:0.85rem;margin:16px 0;color:var(--color-muted)">
-  <a href="{% url 'products:list' %}">ホーム</a> ›
+<nav class="text-xs text-mute-500 mb-3" aria-label="breadcrumb">
+  <a href="{% url 'products:list' %}" class="hover:text-rose-600">ホーム</a>
+  <span class="mx-1">›</span>
   <span>{{ active_type.name }}</span>
 </nav>
-<h1 style="margin:16px 0 4px">{{ active_type.name }}の口コミ・レビュー</h1>
-{% if active_type.description %}<p style="color:var(--color-muted);margin:0 0 16px">{{ active_type.description }}</p>{% endif %}
+<div class="mb-6 sm:mb-8">
+  <h1 class="text-2xl sm:text-3xl font-bold text-ink-900">{{ active_type.name }}<span class="text-rose-500">の口コミ</span></h1>
+  {% if active_type.description %}<p class="mt-2 text-sm text-mute-600 leading-relaxed">{{ active_type.description }}</p>{% endif %}
+</div>
 {% endif %}
 
-<form method="get" class="toolbar">
-  <input type="search" name="q" value="{{ q }}" placeholder="商品名・メーカーで検索">
+<form method="get" class="flex gap-2 mb-6">
+  <input type="search" name="q" value="{{ q }}" placeholder="商品名・メーカーで検索"
+    class="flex-1 min-w-0 rounded-full border border-rose-200 bg-white px-5 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-rose-300 focus:border-rose-300">
   {% if active_type %}<input type="hidden" name="type" value="{{ active_type.slug }}">{% endif %}
-  <button type="submit" class="btn">検索</button>
+  <button type="submit" class="rounded-full bg-rose-500 hover:bg-rose-600 text-white text-sm font-medium px-6 transition shadow-sm">検索</button>
 </form>
 
 {% if functions %}
-<nav class="category-bar">
+<nav class="flex flex-wrap gap-2 mb-6">
   <a href="{% if active_type %}{% url 'products:type_detail' active_type.slug %}{% else %}{% url 'products:list' %}{% endif %}"
-     {% if not active_function %}class="active"{% endif %}>すべて</a>
+     class="px-4 py-1.5 rounded-full border text-xs sm:text-sm transition
+       {% if not active_function %}bg-rose-500 text-white border-rose-500{% else %}bg-white border-rose-200 text-ink-700 hover:border-rose-400{% endif %}">すべて</a>
   {% for c in functions %}
-    <a href="?category={{ c.slug }}" {% if active_function == c.slug %}class="active"{% endif %}>{{ c.name }}</a>
+    <a href="?category={{ c.slug }}" class="px-4 py-1.5 rounded-full border text-xs sm:text-sm transition
+      {% if active_function == c.slug %}bg-rose-500 text-white border-rose-500{% else %}bg-white border-rose-200 text-ink-700 hover:border-rose-400{% endif %}">{{ c.name }}</a>
   {% endfor %}
 </nav>
 {% endif %}
 
 {% if products %}
-<p style="color:var(--color-muted);font-size:0.9rem">{{ products|length }}件の商品</p>
-<div class="product-grid">
+<p class="text-xs text-mute-500 mb-3">{{ products|length }}件の商品</p>
+
+<ul class="grid grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-6">
   {% for p in products %}
-    <a class="product-card" href="{{ p.get_absolute_url }}">
-      <div class="img">
-        {% if p.display_image %}<img src="{{ p.display_image }}" alt="{{ p.name }}" loading="lazy">{% else %}No Image{% endif %}
-      </div>
-      <div class="body">
-        {% if p.brand %}<div class="brand">{{ p.brand }}</div>{% endif %}
-        <h3>{{ p.name }}</h3>
-        <div class="meta">
-          <span>
-            {% if p.avg_rating %}
-              <span class="stars">{% for _ in "12345"|make_list %}{% if forloop.counter <= p.avg_rating %}★{% else %}☆{% endif %}{% endfor %}</span>
-              {{ p.avg_rating|floatformat:1 }}（{{ p.review_count }}件）
-            {% else %}
-              <span style="color:var(--color-muted)">口コミ募集中</span>
-            {% endif %}
-          </span>
-          {% if p.price %}<span class="price">¥{{ p.price|stringformat:"s" }}</span>{% endif %}
+    <li class="group relative bg-white rounded-2xl border border-rose-100 shadow-card overflow-hidden hover:shadow-soft hover:-translate-y-0.5 transition">
+      {% if forloop.counter <= 3 and not q and not active_function %}
+        <div class="absolute z-10 left-3 top-3">
+          <div class="flex flex-col items-center justify-center w-11 h-11 rounded-full
+            {% if forloop.counter == 1 %}bg-gradient-to-br from-gold-400 to-rose-500{% elif forloop.counter == 2 %}bg-gradient-to-br from-rose-300 to-rose-500{% else %}bg-gradient-to-br from-rose-200 to-rose-400{% endif %}
+            text-white shadow-lg">
+            <span class="text-[9px] tracking-wider uppercase opacity-90 leading-none">No</span>
+            <span class="font-bold text-base leading-none">{{ forloop.counter }}</span>
+          </div>
         </div>
-      </div>
-    </a>
+      {% endif %}
+      <a href="{{ p.get_absolute_url }}" class="block">
+        <div class="aspect-square bg-cream-100 overflow-hidden flex items-center justify-center">
+          {% if p.display_image %}<img src="{{ p.display_image }}" alt="{{ p.name }}" loading="lazy"
+                 class="w-full h-full object-cover group-hover:scale-105 transition duration-500">{% else %}<img src="{% static 'no-image.svg' %}" alt="画像はありません" loading="lazy" class="w-full h-full object-cover group-hover:scale-105 transition duration-500">{% endif %}
+        </div>
+        <div class="p-4 sm:p-5">
+          {% if p.brand %}<div class="text-[11px] tracking-wider text-mute-500 uppercase mb-1">{{ p.brand }}</div>{% endif %}
+          <h3 class="font-semibold text-ink-900 text-sm sm:text-base leading-snug line-clamp-2 group-hover:text-rose-600 transition">{{ p.name }}</h3>
+          <div class="flex flex-col sm:flex-row sm:items-baseline sm:justify-between mt-3 gap-1 sm:gap-2">
+            <div class="flex items-center gap-1.5 min-w-0">
+              {% if p.avg_rating %}
+                <span class="stars-row text-sm" aria-label="{{ p.avg_rating|floatformat:1 }}点">
+                  {% for _ in "12345"|make_list %}{% if forloop.counter <= p.avg_rating %}★{% else %}<span class="off">★</span>{% endif %}{% endfor %}
+                </span>
+                <span class="text-xs text-ink-700 font-semibold tabular-nums">{{ p.avg_rating|floatformat:1 }}</span>
+                <span class="text-xs text-mute-500">({{ p.review_count }})</span>
+              {% else %}
+                <span class="text-xs text-mute-500">口コミ募集中</span>
+              {% endif %}
+            </div>
+            {% if p.price %}<span class="text-rose-600 font-semibold text-sm sm:text-base shrink-0">¥{{ p.price|stringformat:"s" }}</span>{% endif %}
+          </div>
+        </div>
+      </a>
+    </li>
   {% endfor %}
-</div>
+</ul>
+
+{% include "includes/_adsense.html" %}
+
 {% else %}
-  {% if active_type %}
-  <p style="background:#fff;border:1px solid var(--color-border);border-radius:10px;padding:20px;text-align:center">
-    {{ active_type.name }}の商品はまだ登録されていません。<br>
-    <small style="color:var(--color-muted)">管理画面から追加するか、ご自身で口コミを書くこともできます。</small>
-  </p>
-  {% else %}
-  <p>商品が登録されていません。</p>
-  {% endif %}
+<div class="bg-white rounded-2xl border border-rose-100 p-10 text-center">
+  <p class="text-ink-700">{% if active_type %}{{ active_type.name }}の商品はまだ登録されていません。{% else %}商品が登録されていません。{% endif %}</p>
+</div>
 {% endif %}
 {% endblock %}

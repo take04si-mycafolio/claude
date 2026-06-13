@@ -1,0 +1,340 @@
+/* =====================================================================
+   lp-home.css  —  TOPページ専用LP（美容雑誌 / ウォーターカラー）
+   TUSHOU Beauty Reviews / SHARE YOUR VOICE
+   接頭辞 lp2- で他ページのクラスと衝突しない。
+   ブランドカラー:
+     ピンク #E86F86 / 淡いピンク #FFF1F4 / ゴールド #C99A3D
+     濃いブラウン #3A2A22 / 白 #FFFFFF / 薄いベージュ #FFF8F1
+   ===================================================================== */
+
+:root {
+  --lp2-pink:       #E86F86;
+  --lp2-pink-deep:  #D45670;
+  --lp2-pink-soft:  #FFF1F4;
+  --lp2-gold:       #C99A3D;
+  --lp2-gold-soft:  #E8C97A;
+  --lp2-brown:      #3A2A22;
+  --lp2-white:      #FFFFFF;
+  --lp2-beige:      #FFF8F1;
+}
+
+/* ===== 全体の地色（淡いピンク〜ベージュのウォーターカラー） ========= */
+.lp2 {
+  color: var(--lp2-brown);
+  position: relative;
+  font-feature-settings: "palt";
+}
+.lp2-section { margin-bottom: 84px; position: relative; }
+@media (max-width: 640px) { .lp2-section { margin-bottom: 60px; } }
+
+/* 水彩のにじみ（装飾／非干渉） */
+.lp2-wash {
+  position: absolute; border-radius: 50%; filter: blur(60px);
+  pointer-events: none; z-index: 0;
+}
+.lp2-wash--pink { background: radial-gradient(circle, rgba(232,111,134,.22), transparent 70%); }
+.lp2-wash--gold { background: radial-gradient(circle, rgba(201,154,61,.16), transparent 70%); }
+
+/* 花びら（CSSのみ・軽量） */
+.lp2-petal {
+  position: absolute; width: 18px; height: 18px; pointer-events: none; z-index: 1;
+  background: radial-gradient(circle at 30% 30%, #ffd7df, #f6a9b7);
+  border-radius: 80% 0 80% 0; opacity: .55; transform: rotate(20deg);
+}
+
+/* ----- 英字の特集ラベル ----- */
+.lp2-eyebrow {
+  font-family: "Cormorant Garamond", serif;
+  color: var(--lp2-gold);
+  letter-spacing: .34em; font-size: 12px; font-weight: 600; text-transform: uppercase;
+  display: inline-flex; align-items: center; gap: 12px;
+}
+.lp2-eyebrow::before, .lp2-eyebrow::after {
+  content: ""; width: 26px; height: 1px;
+  background: linear-gradient(90deg, transparent, var(--lp2-gold), transparent);
+}
+.lp2-eyebrow--left::before { display: none; }
+
+.lp2-h2 {
+  font-size: clamp(1.45rem, 4.6vw, 2.1rem);
+  font-weight: 700; color: var(--lp2-brown); line-height: 1.55; margin-top: 12px;
+}
+.lp2-lead { color: #6a5249; line-height: 2; font-size: 15px; }
+
+.lp2-head { margin-bottom: 30px; position: relative; z-index: 2; }
+.lp2-head--center { text-align: center; }
+
+/* ゴールド細線 */
+.lp2-hairline { height: 1px; border: 0;
+  background: linear-gradient(90deg, transparent, rgba(201,154,61,.55), transparent); }
+
+/* ===== カード共通 ================================================== */
+.lp2-card {
+  background: var(--lp2-white);
+  border: 1px solid rgba(201,154,61,.22);
+  border-radius: 22px;
+  box-shadow: 0 1px 2px rgba(58,42,34,.04), 0 12px 30px rgba(58,42,34,.06);
+  transition: transform .25s ease, box-shadow .25s ease;
+  position: relative; z-index: 2;
+}
+.lp2-card--hover:hover { transform: translateY(-3px); box-shadow: 0 18px 38px rgba(232,111,134,.16); }
+
+/* ===== CTAボタン ================================================== */
+.lp2-cta {
+  display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+  padding: 17px 48px; border-radius: 999px;
+  background: linear-gradient(135deg, var(--lp2-pink) 0%, var(--lp2-pink-deep) 100%);
+  color: #fff !important; font-weight: 700; font-size: 16px;
+  text-decoration: none !important;
+  box-shadow: 0 10px 24px rgba(232,111,134,.36);
+  transition: transform .2s ease, box-shadow .2s ease; min-width: 240px;
+}
+.lp2-cta:hover { transform: translateY(-2px); box-shadow: 0 14px 30px rgba(232,111,134,.46); }
+.lp2-cta__note { margin-top: 14px; font-size: 12px; color: #9a8278; letter-spacing: .02em; }
+.lp2-cta-ghost {
+  display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+  padding: 14px 30px; border-radius: 999px; background: var(--lp2-white);
+  color: var(--lp2-pink-deep) !important; border: 1.5px solid rgba(232,111,134,.45);
+  font-weight: 600; font-size: 14px; text-decoration: none !important; transition: background .2s ease;
+}
+.lp2-cta-ghost:hover { background: var(--lp2-pink-soft); }
+
+/* =====================================================================
+   1. HERO
+   ===================================================================== */
+.lp2-hero {
+  position: relative; overflow: hidden; border-radius: 30px;
+  background:
+    radial-gradient(80% 60% at 78% 18%, rgba(255,241,244,.95) 0%, transparent 60%),
+    radial-gradient(70% 70% at 12% 90%, rgba(232,111,134,.10) 0%, transparent 60%),
+    linear-gradient(155deg, var(--lp2-beige) 0%, var(--lp2-pink-soft) 100%);
+  border: 1px solid rgba(201,154,61,.2);
+}
+.lp2-hero__inner {
+  position: relative; z-index: 2;
+  display: grid; grid-template-columns: 1fr; gap: 18px;
+  padding: 44px 22px 52px;
+}
+@media (min-width: 860px) {
+  .lp2-hero__inner {
+    grid-template-columns: 1.05fr 0.95fr; align-items: center;
+    padding: 70px 56px; gap: 30px;
+  }
+}
+
+/* 左カラム: 縦書き + 大見出し */
+.lp2-hero__lead { display: flex; gap: 18px; align-items: flex-start; }
+@media (max-width: 859px) { .lp2-hero__lead { justify-content: center; } }
+
+/* 縦書きコピー */
+.lp2-vertical {
+  writing-mode: vertical-rl; font-weight: 700; color: var(--lp2-brown);
+  letter-spacing: .16em; line-height: 1.85;
+  font-size: clamp(.95rem, 3.6vw, 1.2rem);
+  border-right: 2px solid var(--lp2-gold); padding-right: 14px;
+  margin-top: 6px; white-space: nowrap;
+}
+.lp2-vertical em { font-style: normal; color: var(--lp2-pink); }
+
+/* 大きな英字見出し SHARE YOUR VOICE（ピンクのセリフ） */
+.lp2-hero__title {
+  font-family: "Cormorant Garamond", serif; font-weight: 700;
+  color: var(--lp2-pink); line-height: .98; letter-spacing: .01em;
+  font-size: clamp(2.9rem, 12vw, 5.6rem);
+  text-shadow: 0 2px 16px rgba(232,111,134,.18);
+}
+.lp2-hero__copy { color: #5f4a42; line-height: 2; font-size: 14.5px; margin-top: 20px; }
+.lp2-hero__copy strong { color: var(--lp2-pink-deep); font-weight: 700; }
+@media (max-width: 859px) { .lp2-hero__copy { text-align: center; } }
+
+/* 右カラム: 人物写真 + 浮遊カード */
+.lp2-hero__visual { position: relative; min-height: 300px; }
+@media (min-width: 860px) { .lp2-hero__visual { min-height: 440px; } }
+.lp2-hero__photo {
+  display: block; width: 94%; max-width: 430px; margin: 0 auto;
+  filter: drop-shadow(0 18px 30px rgba(58,42,34,.16));
+}
+
+/* 浮遊する商品評価カード */
+.lp2-fcard {
+  position: absolute; z-index: 3; display: flex; align-items: center; gap: 9px;
+  background: rgba(255,255,255,.92); backdrop-filter: blur(4px);
+  border: 1px solid rgba(201,154,61,.3); border-radius: 16px;
+  padding: 8px 12px 8px 8px; box-shadow: 0 10px 24px rgba(58,42,34,.12);
+  text-decoration: none;
+}
+.lp2-fcard img { width: 40px; height: 40px; object-fit: contain; padding: 4px; border-radius: 10px; background: var(--lp2-beige); }
+.lp2-fcard__name { font-size: 12px; font-weight: 700; color: var(--lp2-brown); line-height: 1.2; }
+.lp2-fcard__meta { font-size: 10px; color: #8a7268; margin-top: 2px; }
+.lp2-fcard__rate { color: var(--lp2-gold); font-weight: 700; font-size: 12px; }
+.lp2-fcard--a { left: -4px; top: 8%; }
+.lp2-fcard--b { right: -6px; top: 34%; }
+.lp2-fcard--c { left: 2%; bottom: 12%; }
+@media (max-width: 859px) {
+  .lp2-fcard--a { left: 0; top: 2%; }
+  .lp2-fcard--b { right: 0; top: 30%; }
+  .lp2-fcard--c { left: 0; bottom: 6%; }
+}
+/* 統計バッジ */
+.lp2-statcard {
+  position: absolute; right: 4%; bottom: 8%; z-index: 3; text-align: center;
+  background: linear-gradient(135deg, var(--lp2-pink), var(--lp2-pink-deep));
+  color: #fff; border-radius: 16px; padding: 10px 16px;
+  box-shadow: 0 12px 26px rgba(232,111,134,.36);
+}
+.lp2-statcard b { display: block; font-size: 22px; font-weight: 700; line-height: 1; }
+.lp2-statcard small { font-size: 10px; opacity: .92; }
+
+/* Hero下のCTA */
+.lp2-hero__cta { text-align: center; margin-top: 30px; position: relative; z-index: 2; }
+
+/* Hero内検索（既存 ?q= 維持） */
+.lp2-search { display: flex; gap: 8px; max-width: 420px; margin-top: 22px; }
+@media (max-width: 859px) { .lp2-search { margin-left: auto; margin-right: auto; } }
+.lp2-search input {
+  flex: 1; border-radius: 999px; border: 1px solid rgba(201,154,61,.35);
+  background: rgba(255,255,255,.9); padding: 12px 18px; font-size: 14px;
+}
+.lp2-search input:focus { outline: none; box-shadow: 0 0 0 3px rgba(232,111,134,.18); }
+.lp2-search button {
+  border-radius: 999px; border: 0; cursor: pointer; background: var(--lp2-pink);
+  color: #fff; font-weight: 600; font-size: 14px; padding: 0 22px;
+}
+.lp2-search button:hover { background: var(--lp2-pink-deep); }
+.lp2-stats { display: flex; flex-wrap: wrap; gap: 8px 16px; margin-top: 18px; font-size: 12px; color: #8a7268; }
+@media (max-width: 859px) { .lp2-stats { justify-content: center; } }
+.lp2-stats b { color: var(--lp2-pink-deep); font-size: 16px; font-weight: 700; }
+.lp2-stats .lp2-sep { color: rgba(201,154,61,.6); }
+
+/* 吹き出し */
+.lp2-quote {
+  display: inline-flex; align-items: center; gap: 8px;
+  font-family: "Cormorant Garamond", serif; color: var(--lp2-pink-deep);
+  font-size: 15px; font-style: italic;
+}
+.lp2-quote::before, .lp2-quote::after { content: "”"; font-size: 28px; color: var(--lp2-gold-soft); line-height: 0; }
+.lp2-quote::before { content: "“"; }
+
+/* =====================================================================
+   2. WHY REVIEWS MATTER（線画イラスト併置）
+   ===================================================================== */
+.lp2-split { display: grid; grid-template-columns: 1fr; gap: 24px; align-items: center; }
+@media (min-width: 768px) { .lp2-split { grid-template-columns: 1.1fr .9fr; gap: 40px; } }
+.lp2-split--rev { direction: rtl; }
+.lp2-split--rev > * { direction: ltr; }
+.lp2-illust { width: 100%; max-width: 360px; margin: 0 auto; display: block; }
+
+/* =====================================================================
+   3. REAL VOICE（実口コミカード）
+   ===================================================================== */
+.lp2-stars { color: var(--lp2-gold); font-size: 15px; letter-spacing: 1px; }
+.lp2-stars .off { color: #e7dccd; }
+.lp2-vcard { padding: 22px 22px 18px; height: 100%; display: flex; flex-direction: column; }
+.lp2-vcard__title { font-weight: 700; color: var(--lp2-brown); font-size: 15px; line-height: 1.5; margin: 10px 0 8px; }
+.lp2-vcard__body { font-size: 13px; color: #6a5249; line-height: 1.85; flex: 1; }
+.lp2-vcard__foot {
+  display: flex; align-items: center; gap: 8px; margin-top: 14px; padding-top: 12px;
+  border-top: 1px solid rgba(201,154,61,.2); font-size: 11px; color: #8a7268;
+}
+.lp2-avatar {
+  width: 26px; height: 26px; border-radius: 50%; flex-shrink: 0;
+  background: linear-gradient(135deg, var(--lp2-pink-soft), #ffd9e1);
+  display: flex; align-items: center; justify-content: center; font-size: 12px;
+}
+.lp2-chip {
+  margin-left: auto; font-size: 10px; padding: 2px 9px; border-radius: 999px;
+  background: var(--lp2-pink-soft); color: var(--lp2-pink-deep); font-weight: 600;
+}
+
+/* =====================================================================
+   商品カード（top_products / TOP3 / articles 共通）
+   ===================================================================== */
+.lp2-pcard {
+  display: block; position: relative; overflow: hidden; background: var(--lp2-white);
+  border-radius: 20px; border: 1px solid rgba(201,154,61,.2);
+  box-shadow: 0 1px 2px rgba(58,42,34,.04), 0 10px 24px rgba(58,42,34,.05);
+  transition: transform .25s ease, box-shadow .25s ease;
+}
+.lp2-pcard:hover { transform: translateY(-3px); box-shadow: 0 16px 32px rgba(232,111,134,.16); }
+.lp2-pcard__img { aspect-ratio: 1/1; background: var(--lp2-beige); overflow: hidden; display: flex; align-items: center; justify-content: center; }
+.lp2-pcard__img img { width: 100%; height: 100%; object-fit: cover; transition: transform .5s ease; }
+.lp2-pcard:hover .lp2-pcard__img img { transform: scale(1.05); }
+.lp2-price { color: var(--lp2-pink-deep); font-weight: 700; font-size: 14px; }
+.lp2-rank {
+  position: absolute; z-index: 10; left: 12px; top: 12px; width: 40px; height: 40px;
+  border-radius: 9999px; display: flex; flex-direction: column; align-items: center; justify-content: center;
+  color: #fff; box-shadow: 0 6px 14px rgba(58,42,34,.25);
+}
+.lp2-rank--1 { background: linear-gradient(135deg, var(--lp2-gold-soft), var(--lp2-pink)); }
+.lp2-rank--2 { background: linear-gradient(135deg, #f0b8c2, var(--lp2-pink)); }
+.lp2-rank--3 { background: linear-gradient(135deg, #f3d0d7, var(--lp2-pink-deep)); }
+.lp2-rank small { font-size: 8px; letter-spacing: .1em; text-transform: uppercase; opacity: .9; line-height: 1; }
+.lp2-rank b { font-size: 15px; line-height: 1; }
+
+/* =====================================================================
+   4. YOUR REVIEW HELPS（値カード）
+   ===================================================================== */
+.lp2-icon {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 60px; height: 60px; border-radius: 9999px; font-size: 26px;
+  background: linear-gradient(135deg, var(--lp2-pink-soft), #ffe3ea);
+  border: 1px solid rgba(201,154,61,.28);
+}
+
+/* =====================================================================
+   5. CATEGORY（ゴールド線画アイコンのカード）
+   ===================================================================== */
+.lp2-cat {
+  display: flex; flex-direction: column; align-items: center; gap: 10px;
+  text-align: center; padding: 22px 12px 18px; border-radius: 20px; background: var(--lp2-white);
+  border: 1px solid rgba(201,154,61,.22);
+  box-shadow: 0 1px 2px rgba(58,42,34,.04), 0 10px 22px rgba(58,42,34,.05);
+  transition: transform .25s ease, box-shadow .25s ease; text-decoration: none;
+}
+.lp2-cat:hover { transform: translateY(-3px); box-shadow: 0 16px 30px rgba(232,111,134,.16); }
+.lp2-cat__icon { height: 56px; width: auto; object-fit: contain; }
+.lp2-cat__emoji {
+  display: inline-flex; align-items: center; justify-content: center; height: 56px; width: 56px;
+  border-radius: 9999px; font-size: 26px; background: linear-gradient(135deg, var(--lp2-pink-soft), #ffe1e8);
+}
+.lp2-cat__name { font-weight: 700; font-size: 14px; color: var(--lp2-brown); }
+.lp2-cat:hover .lp2-cat__name { color: var(--lp2-pink-deep); }
+
+/* =====================================================================
+   6. HOW TO POST（番号ステップ + 線画イラスト）
+   ===================================================================== */
+.lp2-step-num {
+  flex-shrink: 0; width: 38px; height: 38px; border-radius: 9999px;
+  display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 16px;
+  color: #fff; background: linear-gradient(135deg, var(--lp2-pink), var(--lp2-pink-deep));
+  box-shadow: 0 6px 14px rgba(232,111,134,.3);
+}
+.lp2-step-num--done { background: linear-gradient(135deg, var(--lp2-gold-soft), var(--lp2-gold)); }
+
+/* =====================================================================
+   7. REVIEW GUIDE（NG/OK）
+   ===================================================================== */
+.lp2-ng { border: 1.5px solid rgba(232,111,134,.4); background: rgba(255,241,244,.6); border-radius: 16px; padding: 18px; }
+.lp2-ok { border: 1.5px solid rgba(201,154,61,.45); background: var(--lp2-beige); border-radius: 16px; padding: 18px; }
+.lp2-ng__label { font-size: 12px; font-weight: 700; color: var(--lp2-pink-deep); margin-bottom: 6px; }
+.lp2-ok__label { font-size: 12px; font-weight: 700; color: var(--lp2-gold); margin-bottom: 6px; }
+
+/* =====================================================================
+   9. FINAL CTA（フラットレイ写真のバンド）
+   ===================================================================== */
+.lp2-band {
+  position: relative; overflow: hidden; border-radius: 30px; text-align: center;
+  padding: 56px 24px;
+  background:
+    radial-gradient(60% 80% at 50% 0%, rgba(255,255,255,.7), transparent 70%),
+    linear-gradient(160deg, var(--lp2-pink-soft) 0%, var(--lp2-beige) 100%);
+  border: 1px solid rgba(201,154,61,.2);
+}
+@media (min-width: 640px) { .lp2-band { padding: 70px 48px; } }
+.lp2-band__flatlay {
+  position: absolute; bottom: 0; width: 230px; opacity: .9; pointer-events: none; z-index: 1;
+}
+.lp2-band__flatlay--l { left: -30px; }
+.lp2-band__flatlay--r { right: -30px; }
+@media (max-width: 720px) { .lp2-band__flatlay { width: 130px; opacity: .55; } }
+.lp2-band > .lp2-band__content { position: relative; z-index: 2; }

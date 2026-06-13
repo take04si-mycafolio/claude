@@ -1,0 +1,53 @@
+{% extends "base.html" %}
+{% block title %}お問い合わせ | 美容家電TUSHOU{% endblock %}
+{% block content %}
+<div class="max-w-2xl mx-auto">
+  <p class="font-serif text-rose-500 tracking-[0.3em] text-xs uppercase">Contact</p>
+  <h1 class="mt-1 mb-2 text-2xl sm:text-3xl font-bold text-ink-900">お問い合わせ</h1>
+  <p class="text-sm text-mute-600 mb-8">サイトに関するご質問・ご意見はこちらから。通常2〜3営業日以内にご返信いたします。</p>
+
+  <form method="post" class="bg-white rounded-2xl border border-rose-100 shadow-card p-6 sm:p-8 space-y-5" autocomplete="on">
+    {% csrf_token %}
+
+    {# ハニーポット - 人には見えないがbotには見える #}
+    <div aria-hidden="true" style="position:absolute;left:-9999px;top:-9999px;width:1px;height:1px;overflow:hidden">
+      <label>このフィールドは空のままにしてください {{ form.website }}</label>
+    </div>
+    {{ form.rendered_at }}
+
+    <div>
+      <label for="{{ form.name.id_for_label }}" class="block text-sm font-medium text-ink-900 mb-1.5">お名前</label>
+      <div class="[&_input]:w-full [&_input]:rounded-lg [&_input]:border-rose-200 [&_input]:bg-white [&_input]:py-2.5 [&_input]:px-3.5 [&_input:focus]:ring-2 [&_input:focus]:ring-rose-300 [&_input:focus]:border-rose-300">{{ form.name }}</div>
+      {% if form.name.errors %}<p class="mt-1 text-xs text-rose-600">{{ form.name.errors|join:" " }}</p>{% endif %}
+    </div>
+
+    <div>
+      <label for="{{ form.email.id_for_label }}" class="block text-sm font-medium text-ink-900 mb-1.5">メールアドレス <span class="text-rose-500">*</span></label>
+      <div class="[&_input]:w-full [&_input]:rounded-lg [&_input]:border-rose-200 [&_input]:bg-white [&_input]:py-2.5 [&_input]:px-3.5 [&_input:focus]:ring-2 [&_input:focus]:ring-rose-300 [&_input:focus]:border-rose-300">{{ form.email }}</div>
+      <p class="text-xs text-mute-500 mt-1">ご返信のため必須です。<a href="{% url 'pages:privacy' %}" class="text-rose-600 hover:underline">プライバシーポリシー</a>に従って取り扱います。</p>
+      {% if form.email.errors %}<p class="mt-1 text-xs text-rose-600">{{ form.email.errors|join:" " }}</p>{% endif %}
+    </div>
+
+    <div>
+      <label for="{{ form.subject.id_for_label }}" class="block text-sm font-medium text-ink-900 mb-1.5">件名 <span class="text-rose-500">*</span></label>
+      <div class="[&_input]:w-full [&_input]:rounded-lg [&_input]:border-rose-200 [&_input]:bg-white [&_input]:py-2.5 [&_input]:px-3.5 [&_input:focus]:ring-2 [&_input:focus]:ring-rose-300 [&_input:focus]:border-rose-300">{{ form.subject }}</div>
+      {% if form.subject.errors %}<p class="mt-1 text-xs text-rose-600">{{ form.subject.errors|join:" " }}</p>{% endif %}
+    </div>
+
+    <div>
+      <label for="{{ form.body.id_for_label }}" class="block text-sm font-medium text-ink-900 mb-1.5">お問い合わせ内容 <span class="text-rose-500">*</span></label>
+      <div class="[&_textarea]:w-full [&_textarea]:rounded-lg [&_textarea]:border-rose-200 [&_textarea]:bg-white [&_textarea]:py-2.5 [&_textarea]:px-3.5 [&_textarea:focus]:ring-2 [&_textarea:focus]:ring-rose-300 [&_textarea:focus]:border-rose-300 [&_textarea]:min-h-[180px] [&_textarea]:leading-7">{{ form.body }}</div>
+      {% if form.body.errors %}<p class="mt-1 text-xs text-rose-600">{{ form.body.errors|join:" " }}</p>{% endif %}
+    </div>
+
+    {% if form.website.errors or form.rendered_at.errors %}
+      <div class="bg-rose-50 border border-rose-200 text-rose-700 text-sm rounded-lg p-3">不正な送信が検出されました。ページを再読み込みしてもう一度お試しください。</div>
+    {% endif %}
+    {% if form.non_field_errors %}<p class="text-xs text-rose-600">{{ form.non_field_errors }}</p>{% endif %}
+
+    <p class="text-xs text-mute-500 leading-relaxed">送信前に <a href="{% url 'pages:terms' %}" class="text-rose-600 hover:underline">利用規約</a> および <a href="{% url 'pages:privacy' %}" class="text-rose-600 hover:underline">プライバシーポリシー</a> をご確認ください。送信ボタンを押した時点で同意したものとみなします。</p>
+
+    <button type="submit" class="w-full px-8 py-3.5 rounded-full bg-rose-500 hover:bg-rose-600 text-white font-bold text-sm shadow-sm transition">送信する</button>
+  </form>
+</div>
+{% endblock %}

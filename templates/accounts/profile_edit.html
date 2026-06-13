@@ -1,0 +1,62 @@
+{% extends "base.html" %}
+{% load static %}
+{% block title %}プロフィール編集{% endblock %}
+{% block content %}
+<div class="max-w-2xl mx-auto">
+  <nav class="text-xs text-mute-500 mb-4">
+    <a href="{% url 'accounts:profile' %}" class="hover:text-rose-600">マイページ</a>
+    <span class="mx-1">›</span><span>プロフィール編集</span>
+  </nav>
+  <form method="post" enctype="multipart/form-data" class="bg-white rounded-2xl border border-rose-100 shadow-card p-6 sm:p-8 space-y-6">
+    {% csrf_token %}
+    <div>
+      <h1 class="text-xl font-bold text-ink-900">プロフィール編集</h1>
+      <p class="text-xs text-mute-500 mt-1">公開される情報を設定できます</p>
+    </div>
+
+    {# アップロード画像 #}
+    <div>
+      <label class="block text-sm font-medium text-ink-900 mb-2">アップロード画像</label>
+      <div class="flex items-center gap-4">
+        <div class="w-16 h-16 rounded-full overflow-hidden bg-cream-100 ring-2 ring-rose-100 flex items-center justify-center shrink-0">
+          {% if user.avatar %}
+            <img src="{{ user.avatar.url }}" alt="現在のアバター" class="w-full h-full object-cover">
+          {% else %}
+            <span class="text-mute-400 text-[10px]">なし</span>
+          {% endif %}
+        </div>
+        <div class="flex-1 min-w-0">
+          <input type="file" name="avatar" accept="image/*" id="id_avatar"
+                 class="block w-full text-sm text-mute-700 file:mr-3 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-xs file:font-medium file:bg-rose-50 file:text-rose-700 hover:file:bg-rose-100 cursor-pointer">
+          {% if user.avatar %}
+            <label class="inline-flex items-center mt-2 text-xs text-mute-500 cursor-pointer">
+              <input type="checkbox" name="avatar-clear" id="avatar-clear_id" class="mr-1 rounded border-rose-200 text-rose-500 focus:ring-rose-300">
+              現在の画像を削除
+            </label>
+          {% endif %}
+        </div>
+      </div>
+      <p class="text-xs text-mute-500 mt-2">未設定の場合は下のプリセットアイコンが表示されます</p>
+      {% if form.avatar.errors %}<p class="mt-1 text-xs text-rose-600">{{ form.avatar.errors|join:" " }}</p>{% endif %}
+    </div>
+
+
+    {# 通常のフィールド #}
+    {% for f in form %}
+      {% if f.name != 'avatar' %}
+        <div>
+          <label for="{{ f.id_for_label }}" class="block text-sm font-medium text-ink-900 mb-1.5">{{ f.label }}</label>
+          <div class="[&_input]:w-full [&_select]:w-full [&_textarea]:w-full [&_input]:rounded-lg [&_select]:rounded-lg [&_textarea]:rounded-lg [&_input]:border-rose-200 [&_select]:border-rose-200 [&_textarea]:border-rose-200 [&_input]:bg-white [&_textarea]:bg-white [&_input:focus]:ring-rose-300 [&_input:focus]:border-rose-400 [&_select:focus]:ring-rose-300 [&_select:focus]:border-rose-400 [&_textarea:focus]:ring-rose-300 [&_textarea:focus]:border-rose-400 [&_input]:py-2 [&_select]:py-2">{{ f }}</div>
+          {% if f.help_text %}<p class="text-xs text-mute-500 mt-1">{{ f.help_text }}</p>{% endif %}
+          {% if f.errors %}<ul class="text-xs text-rose-600 mt-1">{% for e in f.errors %}<li>{{ e }}</li>{% endfor %}</ul>{% endif %}
+        </div>
+      {% endif %}
+    {% endfor %}
+
+    <div class="flex flex-col-reverse sm:flex-row gap-3 pt-3 border-t border-rose-100">
+      <a href="{% url 'accounts:profile' %}" class="text-center px-6 py-3 rounded-full border border-rose-200 text-mute-600 hover:bg-cream-100 text-sm font-medium transition">キャンセル</a>
+      <button type="submit" class="flex-1 px-8 py-3 rounded-full bg-rose-500 hover:bg-rose-600 text-white font-medium text-sm shadow-sm transition">保存する</button>
+    </div>
+  </form>
+</div>
+{% endblock %}

@@ -1,0 +1,14 @@
+{% load static %}
+<a class="tushou-lp-prod-card" href="{{ p.get_absolute_url }}">
+  <div class="tushou-lp-prod-card__img">
+    {% if p.display_image %}<img src="{{ p.display_image }}" alt="{{ p.name }}" loading="lazy">{% else %}<img src="{% static 'no-image.svg' %}" alt="{{ p.name }}" loading="lazy">{% endif %}
+  </div>
+  <div class="tushou-lp-prod-card__body">
+    {% if p.brand %}<p class="tushou-lp-prod-card__brand">{{ p.brand }}</p>{% endif %}
+    <h3 class="tushou-lp-prod-card__name">{{ p.name }}</h3>
+    <div class="tushou-lp-prod-card__meta">
+      <span class="tushou-lp-prod-card__rate">{% if p.avg_rating %}<span class="tushou-lp-stars">{% for _ in "12345"|make_list %}{% if forloop.counter <= p.avg_rating %}★{% else %}<i>★</i>{% endif %}{% endfor %}</span><span class="tushou-lp-rating">{{ p.avg_rating|floatformat:1 }}（{{ p.review_count }}）</span>{% else %}<span class="tushou-lp-noreview">口コミ募集中</span>{% endif %}</span>
+      {% if p.price %}<span class="tushou-lp-price">¥{{ p.price|stringformat:"s" }}</span>{% endif %}
+    </div>
+  </div>
+</a>

@@ -1,28 +1,62 @@
 {% extends "base.html" %}
-{% block title %}{{ article.title }} | 美顔器レビュー{% endblock %}
-{% block meta_description %}{{ article.excerpt|default:article.content|striptags|truncatechars:150 }}{% endblock %}
-
+{% load static article_extras %}
+{% block head_extra %}<link rel="stylesheet" href="{% static 'article-css.css' %}?v=22">{% if article.structured_data %}<script type="application/ld+json">{{ article.structured_data|safe }}</script>{% endif %}{% endblock %}
+{% block title %}{{ article.meta_title|default:article.title }} | 美容家電TUSHOU{% endblock %}
+{% block meta_description %}{{ article.meta_description|default:article.excerpt|default:article.content|striptags|truncatechars:140 }}{% endblock %}
 {% block content %}
-<article class="article-content" style="margin:24px 0">
-  <h1>{{ article.title }}</h1>
-  {% if article.published_at %}<p style="color:var(--color-muted)">{{ article.published_at|date:"Y年m月d日" }}{% if article.wp_author %} / {{ article.wp_author }}{% endif %}</p>{% endif %}
-  <div>{{ article.content|safe }}</div>
+<article class="bg-white rounded-2xl border border-rose-100 shadow-card overflow-hidden">
+  <div class="p-3 sm:p-12 max-w-3xl mx-auto">
+    <p class="text-xs text-mute-500 mb-2">
+      <span>公開日: {{ article.published_at|default:article.created_at|date:"Y年n月j日" }}</span>
+      {% if article.updated_at and article.updated_at|date:"Y-m-d" != article.published_at|default:article.created_at|date:"Y-m-d" %}
+        <span class="ml-2">更新日: {{ article.updated_at|date:"Y年n月j日" }}</span>
+      {% endif %}
+    </p>
+    <h1 class="text-2xl sm:text-4xl font-bold text-ink-900 leading-tight">{{ article.title }}</h1>
+
+      {% if article.display_thumbnail %}
+        <div class="mt-6 mb-5 bg-cream-100 rounded-xl overflow-hidden">
+          <img src="{{ article.display_thumbnail }}" alt="{{ article.title }}" class="block w-full h-auto">
+        </div>
+      {% endif %}
+
+      {% render_article article.content as a %}
+    <div class="mt-8 prose prose-rose bk-mc-wrap max-w-none text-[0.95rem] leading-8 text-ink-700 prose-img:rounded-xl prose-a:text-rose-600 prose-strong:text-rose-700 prose-headings:scroll-mt-20">
+      {{ a.html }}
+    </div>
+  </div>
 </article>
+{% include "includes/_adsense.html" %}
 
 {% if article.related_products.all %}
-<section class="section">
-  <h2>この記事で紹介された美顔器</h2>
-  <div class="product-grid">
-    {% for p in article.related_products.all %}
-      <a class="product-card" href="{{ p.get_absolute_url }}">
-        <div class="img">{% if p.display_image %}<img src="{{ p.display_image }}" alt="{{ p.name }}">{% else %}No Image{% endif %}</div>
-        <div class="body">
-          {% if p.brand %}<div class="brand">{{ p.brand }}</div>{% endif %}
-          <h3>{{ p.name }}</h3>
-        </div>
-      </a>
-    {% endfor %}
+<section class="mt-10">
+  <div class="flex items-center gap-3 mb-5">
+    <span class="inline-block w-1.5 h-6 bg-gradient-to-b from-rose-500 to-gold-500 rounded"></span>
+    <h2 class="text-xl font-bold text-ink-900">この記事で取り上げた商品</h2>
   </div>
+  <ul class="grid grid-cols-2 lg:grid-cols-4 gap-4">
+    {% for p in article.related_products.all %}
+      <li><a href="{{ p.get_absolute_url }}" class="group block bg-white rounded-2xl border border-rose-100 overflow-hidden hover:shadow-card transition">
+        <div class="aspect-square bg-cream-100">
+          {% if p.display_image %}<img src="{{ p.display_image }}" alt="{{ p.name }}" loading="lazy" class="w-full h-full object-cover group-hover:scale-105 transition duration-500">{% endif %}
+        </div>
+        <div class="p-3">
+          {% if p.brand %}<div class="text-[10px] text-mute-500 uppercase tracking-wider">{{ p.brand }}</div>{% endif %}
+          <h3 class="text-xs font-medium text-ink-900 line-clamp-2 group-hover:text-rose-600">{{ p.name }}</h3>
+        </div>
+      </a></li>
+    {% endfor %}
+  </ul>
 </section>
 {% endif %}
+{% endblock %}
+
+{% block breadcrumb %}
+<nav class="text-xs text-mute-500 mb-4">
+  <a href="{% url 'products:list' %}" class="hover:text-rose-600">ホーム</a>
+  <span class="mx-1">›</span>
+  {% if article.product_type %}<a href="{% url 'products:type_detail' article.product_type.slug %}" class="hover:text-rose-600">{{ article.product_type.name }}</a>{% else %}<a href="{% url 'products:article_list' %}" class="hover:text-rose-600">記事</a>{% endif %}
+  <span class="mx-1">›</span>
+  <span class="text-ink-700">{{ article.title|truncatechars:30 }}</span>
+</nav>
 {% endblock %}

@@ -35,7 +35,7 @@ class Review(models.Model):
         verbose_name="投稿者",
     )
     rating = models.PositiveSmallIntegerField(
-        "星評価",
+        "総合評価",
         validators=[MinValueValidator(1), MaxValueValidator(5)],
     )
     title = models.CharField("タイトル", max_length=120)
@@ -49,10 +49,32 @@ class Review(models.Model):
     skin_type = models.CharField(
         "投稿時の肌質", max_length=16, choices=SkinType.choices, blank=True
     )
+    cospa = models.PositiveSmallIntegerField(
+        "コスパ", null=True, blank=True,
+        validators=[MinValueValidator(1), MaxValueValidator(5)],
+    )
+    control = models.PositiveSmallIntegerField(
+        "操作性", null=True, blank=True,
+        validators=[MinValueValidator(1), MaxValueValidator(5)],
+    )
+    safety = models.PositiveSmallIntegerField(
+        "安全性", null=True, blank=True,
+        validators=[MinValueValidator(1), MaxValueValidator(5)],
+    )
+    expression = models.PositiveSmallIntegerField(
+        "表情", null=True, blank=True,
+        validators=[MinValueValidator(1), MaxValueValidator(5)],
+    )
+    icon = models.PositiveSmallIntegerField(
+        "アイコン番号", null=True, blank=True,
+        validators=[MinValueValidator(1), MaxValueValidator(10)],
+    )
+    wp_comment_id = models.IntegerField(
+        "WPコメントID", null=True, blank=True, unique=True,
+        help_text="WordPressからの取り込み元ID",
+    )
     is_approved = models.BooleanField(
-        "承認済み",
-        default=True,
-        help_text="管理者が非表示にする場合はチェックを外してください",
+        "承認済み", default=True,
     )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -69,3 +91,62 @@ class Review(models.Model):
 
     def __str__(self):
         return f"{self.product.name} - {self.title} ({self.rating}★)"
+
+
+class ReviewImage(models.Model):
+    MAX_PER_REVIEW = 4
+
+    review = models.ForeignKey(
+        Review,
+        on_delete=models.CASCADE,
+        related_name="images",
+        verbose_name="口コミ",
+    )
+    image = models.ImageField("画像", upload_to="reviews/%Y/%m/")
+    order = models.PositiveSmallIntegerField("表示順", default=0)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        verbose_name = "口コミ画像"
+        verbose_name_plural = "口コミ画像"
+        ordering = ["order", "id"]
+
+    def __str__(self):
+        return f"review#{self.review_id} image#{self.pk}"
+
+    def save(self, *args, **kwargs):
+        # 新規アップロード時のみ圧縮する（保存済みの再保存では再圧縮しない）
+        if self.pk is None and self.image and hasattr(self.image, "file"):
+            from .imaging import compress_image
+            self.image = compress_image(self.image)
+        super().save(*args, **kwargs)
+
+    def delete(self, *args, **kwargs):
+        # DBレコード削除時に実ファイルも削除する
+        self.image.delete(save=False)
+        super().delete(*args, **kwargs)
+
+
+class ReviewHelpful(models.Model):
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="review_helpfuls",
+        verbose_name="ユーザー",
+    )
+    review = models.ForeignKey(
+        Review,
+        on_delete=models.CASCADE,
+        related_name="helpfuls",
+        verbose_name="口コミ",
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        unique_together = [("user", "review")]
+        ordering = ["-created_at"]
+        verbose_name = "参考になった"
+        verbose_name_plural = "参考になった"
+
+    def __str__(self):
+        return f"{self.user} 👍 review#{self.review_id}"

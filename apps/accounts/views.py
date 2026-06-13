@@ -4,13 +4,15 @@ from django.contrib.auth import login
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.views import LoginView, LogoutView
 from django.core.mail import send_mail
+from django.http import Http404, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.template.loader import render_to_string
 from django.urls import reverse
 from django.utils.encoding import force_bytes, force_str
 from django.utils.http import urlsafe_base64_decode, urlsafe_base64_encode
+from django.views.decorators.http import require_POST
 
-from .forms import EmailAuthenticationForm, SignUpForm
+from .forms import EmailAuthenticationForm, ProfileEditForm, SignUpForm
 from .models import User
 from .tokens import email_verification_token
 
@@ -78,8 +80,102 @@ def resend_verification(request):
 
 @login_required
 def profile(request):
+    from apps.reviews.models import Review
     reviews = request.user.reviews.select_related("product").order_by("-created_at")
-    return render(request, "accounts/profile.html", {"reviews": reviews})
+    bookmarks = (
+        request.user.bookmarks
+        .select_related("product", "product__product_type")
+        .order_by("-created_at")
+    )
+    helpful_reviews = (
+        Review.objects.filter(helpfuls__user=request.user, is_approved=True)
+        .select_related("product", "user")
+        .order_by("-helpfuls__created_at")
+    )
+    from .missions import mission_summary
+    return render(request, "accounts/profile.html", {
+        "reviews": reviews,
+        "bookmarks": bookmarks,
+        "helpful_reviews": helpful_reviews,
+        "mission_summary": mission_summary(request.user),
+    })
+
+
+@login_required
+def user_detail(request, pk):
+    """他の会員が閲覧できる公開ユーザーページ。
+
+    マイページの公開サブセット（プロフィール・実績・投稿口コミ）を表示する。
+    メールアドレス・気になる・ミッション等の非公開情報は出さない。
+    """
+    # is_active=False はWP取り込みの投稿者アカウント（ログイン不可）も含むため、
+    # 公開ページ自体はそれらも閲覧できるようにする。
+    # 他人の staff/superuser ページは非公開にするが、自分のページは常に閲覧可。
+    profile_user = get_object_or_404(User, pk=pk)
+    is_own = request.user.pk == profile_user.pk
+    if not is_own and (profile_user.is_staff or profile_user.is_superuser):
+        raise Http404("ページが見つかりません")
+    reviews = (
+        profile_user.reviews.filter(is_approved=True)
+        .select_related("product", "product__product_type")
+        .prefetch_related("images")
+        .order_by("-created_at")
+    )
+    from apps.reviews.models import ReviewImage
+    photos = (
+        ReviewImage.objects.filter(
+            review__user=profile_user, review__is_approved=True
+        )
+        .select_related("review", "review__product")
+        .order_by("-id")
+    )
+    bookmarks = (
+        profile_user.bookmarks
+        .select_related("product", "product__product_type")
+        .order_by("-created_at")
+    )
+    return render(request, "accounts/user_detail.html", {
+        "profile_user": profile_user,
+        "reviews": reviews,
+        "photos": photos,
+        "bookmarks": bookmarks,
+        "is_own": is_own,
+    })
+
+
+@login_required
+def missions(request):
+    from .missions import user_mission_overview
+    overview = user_mission_overview(request.user)
+    return render(request, "accounts/missions.html", {
+        "missions": overview,
+        "completed_count": sum(1 for d in overview if d["is_complete"]),
+        "total_count": len(overview),
+    })
+
+
+@login_required
+@require_POST
+def mission_alerts_seen(request):
+    """お祝いポップアップ表示後に達成記録を既読化する（JSから呼ぶ）。"""
+    from .missions import mark_completions_seen
+    ids = request.POST.getlist("ids")
+    ids = [int(i) for i in ids if i.isdigit()]
+    mark_completions_seen(request.user, ids or None)
+    return JsonResponse({"ok": True})
+
+
+@login_required
+def profile_edit(request):
+    if request.method == "POST":
+        form = ProfileEditForm(request.POST, request.FILES, instance=request.user)
+        if form.is_valid():
+            form.save()
+            messages.success(request, "プロフィールを更新しました。")
+            return redirect("accounts:profile")
+    else:
+        form = ProfileEditForm(instance=request.user)
+    return render(request, "accounts/profile_edit.html", {"form": form})
 
 
 class EmailLoginView(LoginView):

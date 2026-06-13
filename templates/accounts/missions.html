@@ -1,0 +1,130 @@
+{% extends "base.html" %}
+{% block title %}ミッション{% endblock %}
+{% block content %}
+<div class="mb-6 sm:mb-8">
+  <div class="flex items-center gap-3">
+    <span class="inline-block w-1.5 h-6 bg-rose-500 rounded"></span>
+    <h1 class="text-xl sm:text-2xl font-serif font-bold text-ink-900">ミッション</h1>
+  </div>
+  <p class="mt-2 text-sm text-mute-500">
+    アクションを達成するとプレゼントがもらえます。
+    {% if total_count %}<span class="text-rose-600 font-medium">{{ completed_count }} / {{ total_count }} 達成</span>{% endif %}
+  </p>
+</div>
+
+{% if missions %}
+  <div class="grid sm:grid-cols-2 gap-5">
+    {% for m in missions %}
+      <div class="bg-white rounded-2xl border {% if m.locked %}border-mute-200 opacity-75{% elif m.is_complete %}border-gold-200{% else %}border-rose-100{% endif %} shadow-card p-5 flex flex-col">
+        <div class="flex items-start justify-between gap-3">
+          <h2 class="text-base font-bold text-ink-900">{{ m.mission.title }}</h2>
+          {% if m.is_complete and not m.missed %}
+            <span class="shrink-0 text-[11px] px-2.5 py-1 rounded-full bg-gold-50 text-gold-700 border border-gold-200 font-medium">達成 🎁</span>
+          {% elif m.locked %}
+            <span class="shrink-0 text-[11px] px-2.5 py-1 rounded-full bg-mute-100 text-mute-500 border border-mute-200 font-medium">🔒 {{ m.level_label }}</span>
+          {% elif m.ended %}
+            <span class="shrink-0 text-[11px] px-2.5 py-1 rounded-full bg-mute-100 text-mute-500 border border-mute-200 font-medium">期間終了</span>
+          {% elif m.not_started %}
+            <span class="shrink-0 text-[11px] px-2.5 py-1 rounded-full bg-mute-100 text-mute-500 border border-mute-200 font-medium">開始前</span>
+          {% elif m.sold_out %}
+            <span class="shrink-0 text-[11px] px-2.5 py-1 rounded-full bg-mute-100 text-mute-500 border border-mute-200 font-medium">受付終了</span>
+          {% else %}
+            <span class="shrink-0 text-xs text-mute-500">{{ m.done_steps }}/{{ m.total_steps }}</span>
+          {% endif %}
+        </div>
+
+        {% if m.mission.description %}
+          <p class="mt-1.5 text-xs text-mute-500 leading-relaxed">{{ m.mission.description }}</p>
+        {% endif %}
+
+        {# 参加ランク条件（下限〜上限） #}
+        {% if m.min_level > 1 or m.max_level < 10 %}
+          <div class="mt-2 text-[11px]">
+            <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full {% if m.eligible %}bg-rose-50 text-rose-600 border border-rose-100{% else %}bg-mute-100 text-mute-500 border border-mute-200{% endif %}">
+              レビューランク {{ m.level_label }}
+            </span>
+          </div>
+        {% endif %}
+
+        {# キャンペーン期間 #}
+        {% if m.starts_at or m.ends_at %}
+          <div class="mt-2 text-[11px]">
+            <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full {% if m.ended or m.not_started %}bg-mute-100 text-mute-500 border border-mute-200{% else %}bg-cream-200 text-mute-600{% endif %}">
+              📅 {% if m.starts_at %}{{ m.starts_at|date:"n/j" }}{% endif %}〜{% if m.ends_at %}{{ m.ends_at|date:"n/j" }}{% endif %}
+            </span>
+          </div>
+        {% endif %}
+
+        {# 先着・数量限定の残数 #}
+        {% if m.limit is not None %}
+          <div class="mt-2 text-[11px]">
+            {% if m.remaining > 0 %}
+              <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-rose-50 text-rose-600 border border-rose-100">
+                先着{{ m.limit }}名様・残り{{ m.remaining }}
+              </span>
+            {% else %}
+              <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-mute-100 text-mute-500 border border-mute-200">
+                先着{{ m.limit }}名様・受付終了
+              </span>
+            {% endif %}
+          </div>
+        {% endif %}
+
+        {# ステップ一覧 #}
+        <ul class="mt-4 space-y-3">
+          {% for s in m.steps %}
+            <li>
+              <div class="flex items-center justify-between gap-2 text-xs">
+                <span class="flex items-center gap-1.5 {% if s.is_done %}text-ink-900{% else %}text-mute-500{% endif %}">
+                  {% if s.is_done %}
+                    <span class="text-rose-500">✓</span>
+                  {% else %}
+                    <span class="inline-block w-3.5 h-3.5 rounded-full border border-rose-200"></span>
+                  {% endif %}
+                  {{ s.label }}
+                </span>
+                <span class="shrink-0 text-mute-500">{{ s.current }}/{{ s.target }}</span>
+              </div>
+              <div class="mt-1.5 h-1.5 bg-rose-50 rounded-full overflow-hidden">
+                <div class="h-full bg-gradient-to-r from-rose-400 to-gold-400 rounded-full" style="width: {{ s.percent }}%"></div>
+              </div>
+            </li>
+          {% endfor %}
+        </ul>
+
+        {# プレゼント #}
+        <div class="mt-5 pt-4 border-t border-rose-100">
+          <div class="text-[11px] tracking-wider text-mute-500 uppercase mb-1.5">プレゼント</div>
+          <div class="text-sm font-medium text-ink-900">{{ m.mission.reward_label }}</div>
+          {% if m.locked %}
+            {% if m.above_level %}
+              <p class="mt-2 text-xs text-mute-500">このキャンペーンはレビューランク {{ m.level_label }} の会員が対象です（現在 Lv.{{ user.review_level }}）。</p>
+            {% else %}
+              <p class="mt-2 text-xs text-mute-500">このキャンペーンはレビューランク {{ m.level_label }} の会員が対象です（現在 Lv.{{ user.review_level }}）。口コミを投稿してランクを上げましょう。</p>
+            {% endif %}
+          {% elif m.is_complete %}
+            {% if m.reward_code %}
+              <div class="mt-2.5 flex items-center gap-2 bg-gold-50 border border-gold-200 rounded-xl px-3 py-2.5">
+                <span class="text-[10px] text-gold-700 shrink-0">CODE</span>
+                <code class="font-mono text-sm font-bold text-gold-800 tracking-wider break-all select-all">{{ m.reward_code }}</code>
+              </div>
+            {% elif m.code_pending %}
+              <p class="mt-2.5 text-xs text-rose-600">🎁 達成おめでとうございます！コードは現在準備中です。後ほどご確認ください。</p>
+            {% elif m.missed %}
+              <p class="mt-2.5 text-xs text-mute-500">惜しくも定員に達したため、今回はプレゼント対象外となりました。</p>
+            {% endif %}
+          {% elif m.sold_out %}
+            <p class="mt-2 text-xs text-mute-500">このプレゼントは配布上限に達しました（受付終了）。</p>
+          {% else %}
+            <p class="mt-2 text-xs text-mute-500">すべてのアクションを達成すると受け取れます。</p>
+          {% endif %}
+        </div>
+      </div>
+    {% endfor %}
+  </div>
+{% else %}
+  <div class="bg-white rounded-2xl border border-rose-100 shadow-card p-10 text-center">
+    <p class="text-sm text-mute-500">現在公開中のミッションはありません。</p>
+  </div>
+{% endif %}
+{% endblock %}

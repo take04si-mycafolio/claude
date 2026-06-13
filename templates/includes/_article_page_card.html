@@ -1,0 +1,9 @@
+{# ページカード: 重要ページ(カテゴリTOP/比較/選び方/悩み別)への内部リンク #}
+<a class="bk-mc-page-card" href="{{ c.url }}">
+  <span class="bk-mc-pc-kind">{{ c.kind }}</span>
+  <span class="bk-mc-pc-body">
+    <span class="bk-mc-pc-title">{{ c.title }}</span>
+    {% if c.desc %}<span class="bk-mc-pc-desc">{{ c.desc }}</span>{% endif %}
+  </span>
+  <span class="bk-mc-pc-arrow" aria-hidden="true">→</span>
+</a>

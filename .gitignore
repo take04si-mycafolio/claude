@@ -11,3 +11,20 @@ staticfiles/
 .DS_Store
 wordpress-export.xml
 *.wxr
+
+# --- バックアップ・退避ファイル ---
+*.bak
+*.bak[0-9]
+*.bak.*
+*.bak-*
+*.orig
+backups/
+p,
+
+# --- DBダンプ・アーカイブ（秘密・巨大） ---
+*.dump
+*.sql
+*.tar.gz
+
+# --- 実行時生成物 ---
+*.sock

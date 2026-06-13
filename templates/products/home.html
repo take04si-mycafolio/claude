@@ -1,0 +1,291 @@
+{% load static %}<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>美容家電のおすすめ口コミ・比較サイト｜美顔器・ドライヤー・脱毛器の本音レビュー【2026年最新】</title>
+<meta name="description" content="美容家電のリアルな口コミ{{ stats.reviews }}件以上を掲載。美顔器・ドライヤー・脱毛器・電動歯ブラシなどカテゴリ別の専門レビューと2026年最新ランキング、選び方ガイド、悩み別おすすめを紹介。">
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600;700&family=Noto+Serif+JP:wght@400;500;600;700&family=Noto+Sans+JP:wght@400;500;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="{% static 'css/tushou-lp.css' %}?v=28">
+
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "WebSite",
+  "name": "美容家電TUSHOU",
+  "url": "https://sc-tsusho.jp/",
+  "description": "美容家電の本音口コミと比較ランキング。美顔器・ドライヤー・脱毛器のリアルなユーザーレビューが集まるサイト。",
+  "potentialAction": {
+    "@type": "SearchAction",
+    "target": "https://sc-tsusho.jp/?q={search_term_string}",
+    "query-input": "required name=search_term_string"
+  }
+}
+</script>
+
+<!-- Google Analytics 4 -->
+{% if not request.user.is_staff %}
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-N7Y1TT8G6V"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+  gtag('config', 'G-N7Y1TT8G6V', { 'anonymize_ip': true });
+</script>
+{% endif %}
+
+<!-- Google AdSense -->
+<script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-3695194481616471" crossorigin="anonymous"></script>
+
+<style>
+  html,body{margin:0;padding:0;background:#fff}
+  /* グローバルフッター（法的表記・既存リンクを維持） */
+  .tushou-lp-foot{background:#fff;border-top:1px solid rgba(201,154,61,.2);color:#7A6E73;font-family:'Noto Sans JP',sans-serif;font-size:13px;line-height:1.9}
+  .tushou-lp-foot__inner{max-width:1180px;margin:auto;padding:38px 24px}
+  .tushou-lp-foot__disc{font-size:12px;color:rgba(90,82,86,.85);margin:0 0 18px}
+  .tushou-lp-foot__row{display:flex;flex-wrap:wrap;gap:16px 28px;align-items:flex-end;justify-content:space-between}
+  .tushou-lp-foot__brand{font-family:'Cormorant Garamond',serif;font-size:22px;color:#C99A3D}
+  .tushou-lp-foot__brand small{display:block;font-family:'Noto Sans JP',sans-serif;font-size:12px;color:#7A6E73}
+  .tushou-lp-foot__links{display:flex;flex-wrap:wrap;gap:8px 22px}
+  .tushou-lp-foot__links a{color:#7A6E73;text-decoration:none}
+  .tushou-lp-foot__links a:hover{color:#E86F86}
+  .tushou-lp-foot__copy{margin:22px 0 0;font-size:11px;color:rgba(90,82,86,.7)}
+</style>
+</head>
+<body>
+
+<main class="tushou-lp">
+  <header class="tushou-lp-header">
+    <div class="tushou-lp-header__inner">
+      <a class="tushou-lp-logo" href="{% url 'products:list' %}">
+        <span>TUSHOU</span><small>Beauty Reviews</small>
+      </a>
+      <nav class="tushou-lp-nav">
+        <a href="{% url 'reviews:list' %}">口コミを探す</a>
+        <a href="{% url 'products:all_products' %}">カテゴリ</a>
+        <a href="{% url 'products:all_products' %}">ランキング</a>
+        <a href="{% url 'pages:post_review_lp' %}">はじめての方へ</a>
+        <a href="{% url 'accounts:profile' %}">マイページ</a>
+      </nav>
+      <a class="tushou-lp-head-cta" href="{% url 'pages:post_review_lp' %}">✎ 口コミを投稿する</a>
+    </div>
+  </header>
+
+  <section class="tushou-lp-hero">
+    <div class="tushou-lp-hero__inner">
+      <p class="tushou-lp-vertical">本音の口コミ、<br>美容家電選びの新定番。</p>
+      <div class="tushou-lp-hero__text">
+        <h1>SHARE<br>YOUR<br>VOICE</h1>
+        <p class="tushou-lp-lead">あなたの「買ってよかった」も、<br>「ここは少し微妙だった」も、<br>次に選ぶ誰かの大切なヒントになります。</p>
+        <a href="{% url 'pages:post_review_lp' %}" class="tushou-lp-btn">✎ 口コミを投稿する</a>
+        <p class="tushou-lp-note">1分で投稿・写真なしOK・無料</p>
+      </div>
+      <div class="tushou-lp-hero__visual">
+        <img class="tushou-lp-hero__woman" src="{% static 'images/lp/hero-woman.png' %}" alt="美容家電レビューを見る女性">
+        <div class="tushou-lp-float tushou-lp-float--a"><b>ドライヤー</b><span>★★★★★ 4.6</span><small>128件の口コミ</small></div>
+        <div class="tushou-lp-float tushou-lp-float--b"><b>美顔器</b><span>★★★★★ 4.7</span><small>256件の口コミ</small></div>
+        <div class="tushou-lp-float tushou-lp-float--c"><b>ヘアアイロン</b><span>★★★★☆ 4.5</span><small>184件の口コミ</small></div>
+        <div class="tushou-lp-help"><small>役に立った！</small><b>1,234</b><span>人が参考にしています</span></div>
+        <div class="tushou-lp-quote">“ 本音の口コミが<br>いちばん参考になる！ ”</div>
+      </div>
+    </div>
+    <div class="tushou-lp-wave"></div>
+  </section>
+
+  <section class="tushou-lp-section tushou-lp-why">
+    <div class="tushou-lp-container tushou-lp-split">
+      <div>
+        <p class="tushou-lp-label">WHY REVIEWS MATTER</p>
+        <h2>美容家電は、<br>使ってみないと分からない。</h2>
+        <p>スペックやランキングだけでは見えない、実際の使い心地やメリット・デメリット。あなたのリアルな体験が、これから選ぶ人にとって、いちばん信頼できる情報になります。</p>
+      </div>
+      <img class="tushou-lp-illust" src="{% static 'images/lp/mirror-illustration.png' %}?v=5" alt="鏡を見る女性のイラスト">
+    </div>
+  </section>
+
+  <section class="tushou-lp-section tushou-lp-real">
+    <div class="tushou-lp-container">
+      <div class="tushou-lp-center">
+        <p class="tushou-lp-label">REAL VOICE</p>
+        <h2>きれいごとだけじゃない口コミを集めています。</h2>
+      </div>
+      <div class="tushou-lp-card-grid">
+        <article class="tushou-lp-review"><span>★★★★★ 5.0</span><h3>髪がまとまりやすくなった</h3><p>乾かすだけでサラサラに。朝のスタイリングがとても楽になりました！</p><small>30代女性｜ドライヤー</small></article>
+        <article class="tushou-lp-review"><span>★★★★☆ 4.0</span><h3>少し重いけど仕上がりは満足</h3><p>本体はやや重いですが、その分パワーがあって仕上がりはツヤツヤで満足です。</p><small>20代女性｜ヘアアイロン</small></article>
+        <article class="tushou-lp-review"><span>★★★★☆ 4.0</span><h3>乾燥肌なので最初は短時間がよかった</h3><p>使い始めはピリピリ感が気になりましたが、短時間から慣らすと肌の調子が良くなりました。</p><small>30代女性｜美顔器</small></article>
+      </div>
+      <p class="tushou-lp-more"><a href="{% url 'reviews:list' %}">すべての口コミを見る ＞</a></p>
+    </div>
+  </section>
+
+  <section class="tushou-lp-section">
+    <div class="tushou-lp-container">
+      <div class="tushou-lp-center">
+        <p class="tushou-lp-label">YOUR REVIEW HELPS</p>
+        <h2>あなたの一言が、誰かの後悔を減らします。</h2>
+        <p class="tushou-lp-center-text">うまい文章である必要はありません。実際に使った人だから分かるリアルな感想こそ、次に選ぶ人の安心につながります。</p>
+      </div>
+      <div class="tushou-lp-card-grid">
+        <article class="tushou-lp-benefit"><b>01</b><h3>迷っている人の判断材料になる</h3><p>あなたが迷ったこと、失敗したこと、満足したことは、同じように悩む人のヒントになります。</p></article>
+        <article class="tushou-lp-benefit"><b>02</b><h3>良い商品が正しく評価される</h3><p>実際に満足した人の声が集まることで、本当に良い商品が選ばれやすくなります。</p></article>
+        <article class="tushou-lp-benefit"><b>03</b><h3>注意点も安心につながる</h3><p>デメリットや気になった点も、買う前に知っていれば後悔を減らせます。</p></article>
+      </div>
+    </div>
+  </section>
+
+  <section class="tushou-lp-section tushou-lp-category">
+    <div class="tushou-lp-container">
+      <div class="tushou-lp-center">
+        <p class="tushou-lp-label">CATEGORY</p>
+        <h2>口コミを募集しているカテゴリ</h2>
+      </div>
+      <div class="tushou-lp-category-grid">
+        <a href="/bigankiki/"><img class="tushou-lp-cat-icon" src="{% static 'lp/icon-biganki.png' %}" alt="美顔器" loading="lazy"><h3>美顔器</h3><p>刺激・使いやすさ・肌質との相性</p></a>
+        <a href="/datsumouki/"><img class="tushou-lp-cat-icon" src="{% static 'lp/icon-datsumouki.png' %}" alt="脱毛器" loading="lazy"><h3>脱毛器</h3><p>痛み・照射しやすさ・VIO対応</p></a>
+        <a href="/dryer/"><img class="tushou-lp-cat-icon" src="{% static 'lp/icon-dryer.png' %}" alt="ドライヤー" loading="lazy"><h3>ドライヤー</h3><p>風量・速乾性・髪のまとまり</p></a>
+        <a href="/hair-iron/"><img class="tushou-lp-cat-icon" src="{% static 'lp/icon-hairiron.png' %}" alt="ヘアアイロン" loading="lazy"><h3>ヘアアイロン</h3><p>伸びやすさ・カールの持ち・傷みにくさ</p></a>
+      </div>
+    </div>
+  </section>
+
+  <section class="tushou-lp-section tushou-lp-how">
+    <div class="tushou-lp-container">
+      <div class="tushou-lp-center">
+        <p class="tushou-lp-label">HOW TO POST</p>
+        <h2>口コミ投稿はかんたんです。</h2>
+      </div>
+      <div class="tushou-lp-how__body">
+      <div class="tushou-lp-steps">
+        <article><b>1</b><span>⌕</span><h3>商品を選ぶ</h3><p>カテゴリから商品を検索・選択します。</p></article>
+        <article><b>2</b><span>✎</span><h3>使用感を書く</h3><p>良かったこと・気になったことを自由に記入します。</p></article>
+        <article><b>3</b><span>□</span><h3>写真があれば添付</h3><p>写真があると、もっと参考になります。</p></article>
+        <article><b>4</b><span>✓</span><h3>投稿完了</h3><p>内容を確認して投稿完了です。</p></article>
+      </div>
+      <img class="tushou-lp-phone" src="{% static 'images/lp/phone-illustration.png' %}" alt="スマホで口コミを投稿する女性">
+      </div>
+    </div>
+  </section>
+
+  <section class="tushou-lp-section tushou-lp-guide">
+    <div class="tushou-lp-container">
+      <div class="tushou-lp-center">
+        <p class="tushou-lp-label">REVIEW GUIDE</p>
+        <h2>どんな口コミを書けばいい？</h2>
+      </div>
+      <div class="tushou-lp-guide-grid">
+        <article><b>あまり参考になりにくい口コミ</b><p>「微妙でした」</p><p>「普通でした」</p><p>「おすすめしません」</p></article>
+        <article><b>参考になりやすい口コミ</b><p>「乾燥肌の自分には少し刺激を感じたので、最初は短時間から試せばよかったです。」</p><p>「本体は少し重いですが、風量が強くてロングヘアでも乾かす時間が短くなりました。」</p></article>
+      </div>
+    </div>
+  </section>
+
+  <section class="tushou-lp-section tushou-lp-faq">
+    <div class="tushou-lp-container">
+      <div class="tushou-lp-center">
+        <p class="tushou-lp-label">FAQ</p>
+        <h2>口コミ投稿がはじめてでも安心です。</h2>
+      </div>
+      <div class="tushou-lp-faq-grid">
+        <article><h3><span>Q</span>悪い口コミを書いても大丈夫ですか？</h3><p>大丈夫です。誹謗中傷ではなく、自分の体験として分かりやすく書いてください。</p></article>
+        <article><h3><span>Q</span>写真がなくても投稿できますか？</h3><p>はい。写真なしでも投稿できます。使用感だけでも十分参考になります。</p></article>
+        <article><h3><span>Q</span>短い口コミでもいいですか？</h3><p>はい。具体的な使用感があれば短くても価値があります。</p></article>
+        <article><h3><span>Q</span>本名は表示されますか？</h3><p>表示名で投稿できます。個人情報が分かる内容は書かないようにしてください。</p></article>
+      </div>
+    </div>
+  </section>
+
+  {% if top_products %}
+  <section class="tushou-lp-section tushou-lp-popular">
+    <div class="tushou-lp-container">
+      <div class="tushou-lp-center">
+        <p class="tushou-lp-label">POPULAR</p>
+        <h2>みんなの評価が高い美容家電</h2>
+      </div>
+      <div class="tushou-lp-prod-grid">
+        {% for p in top_products %}{% include "products/_lp_prod_card.html" with p=p rank=forloop.counter %}{% endfor %}
+      </div>
+      <div class="tushou-lp-seeall"><a href="{% url 'products:all_products' %}">すべての商品を見る<span class="tushou-lp-arr">→</span></a></div>
+    </div>
+  </section>
+  {% endif %}
+
+  {% if types_with_top %}
+  <section class="tushou-lp-section tushou-lp-bytype">
+    <div class="tushou-lp-container">
+      <div class="tushou-lp-center">
+        <p class="tushou-lp-label">BY CATEGORY</p>
+        <h2>カテゴリ別の注目アイテム</h2>
+      </div>
+      {% for type, products in types_with_top %}
+      <div class="tushou-lp-bytype__block">
+        <div class="tushou-lp-bytype__head">
+          <h3>{{ type.name }}</h3>
+          <a href="{% url 'products:type_detail' type.slug %}">{{ type.name }}をもっと見る<span class="tushou-lp-arr">→</span></a>
+        </div>
+        <div class="tushou-lp-prod-grid">
+          {% for p in products %}{% include "products/_lp_prod_card.html" with p=p rank=forloop.counter %}{% endfor %}
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+  </section>
+  {% endif %}
+
+  {% if recent_articles %}
+  <section class="tushou-lp-section tushou-lp-articles">
+    <div class="tushou-lp-container">
+      <div class="tushou-lp-center">
+        <p class="tushou-lp-label">ARTICLES</p>
+        <h2>新着の特集・コラム</h2>
+      </div>
+      <div class="tushou-lp-article-grid">
+        {% for a in recent_articles %}
+        <a class="tushou-lp-article-card" href="{{ a.get_absolute_url }}">
+          {% if a.display_thumbnail %}<div class="tushou-lp-article-card__img"><img src="{{ a.display_thumbnail }}" alt="{{ a.title }}" loading="lazy"></div>{% endif %}
+          <div class="tushou-lp-article-card__body">
+            {% if a.product_type %}<p class="tushou-lp-prod-card__brand">{{ a.product_type.name }}</p>{% endif %}
+            <h3>{{ a.title }}</h3>
+            <p class="tushou-lp-article-card__excerpt">{{ a.excerpt|default:a.content|striptags|truncatechars:120 }}</p>
+            <p class="tushou-lp-article-card__date">{{ a.published_at|default:a.created_at|date:"Y/m/d" }}</p>
+          </div>
+        </a>
+        {% endfor %}
+      </div>
+      <div class="tushou-lp-seeall"><a href="{% url 'products:article_list' %}">記事一覧を見る<span class="tushou-lp-arr">→</span></a></div>
+    </div>
+  </section>
+  {% endif %}
+
+  <section class="tushou-lp-final">
+    <img class="tushou-lp-final__left" src="{% static 'images/lp/footer-beauty-device.png' %}" alt="">
+    <div class="tushou-lp-final__content">
+      <p class="tushou-lp-label">JOIN US</p>
+      <h2>あなたの体験を、<br>次の誰かの安心に。</h2>
+      <p>買ってよかった商品。少し期待と違った商品。使ってみて初めて分かったこと。その声を、TUSHOUに残してみませんか？</p>
+      <a href="{% url 'pages:post_review_lp' %}" class="tushou-lp-btn">✎ 口コミを投稿する</a>
+      <p class="tushou-lp-note">1分で投稿・写真なしOK・無料</p>
+    </div>
+    <img class="tushou-lp-final__right" src="{% static 'images/lp/footer-hairdryer.png' %}" alt="">
+  </section>
+
+  <footer class="tushou-lp-foot">
+    <div class="tushou-lp-foot__inner">
+      <p class="tushou-lp-foot__disc">当サイトは Amazon.co.jp アソシエイト・楽天アフィリエイトをはじめ各種アフィリエイトプログラムに参加しており、商品リンクから購入が発生した場合、当サイトに紹介料が支払われることがあります。掲載評価は実際の口コミに基づいており、紹介料の有無で評価は変わりません。</p>
+      <div class="tushou-lp-foot__row">
+        <div class="tushou-lp-foot__brand">TUSHOU<small>美容家電の本音の口コミが集まるサイト</small></div>
+        <div class="tushou-lp-foot__links">
+          <a href="{% url 'pages:terms' %}">利用規約</a>
+          <a href="{% url 'pages:privacy' %}">プライバシーポリシー</a>
+          <a href="{% url 'pages:contact' %}">お問い合わせ</a>
+        </div>
+      </div>
+      <p class="tushou-lp-foot__copy">&copy; {% now "Y" %} 美容家電TUSHOU. All rights reserved.</p>
+    </div>
+  </footer>
+</main>
+
+</body>
+</html>

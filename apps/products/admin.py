@@ -146,16 +146,18 @@ class ProductAdmin(admin.ModelAdmin):
 
 @admin.register(Article)
 class ArticleAdmin(admin.ModelAdmin):
-    list_display = ("title", "product_type", "is_published", "published_at", "updated_at")
+    list_display = ("title", "slug", "is_published", "index_status",
+                    "index_checked_at", "updated_at")
     list_display_links = ("title",)
-    list_filter = ("is_published", "product_type", "published_at")
+    list_filter = ("is_published", "index_status", "product_type", "published_at")
     search_fields = ("title", "slug", "excerpt", "content", "seo_keyword")
     prepopulated_fields = {"slug": ("title",)}
-    list_editable = ("product_type", "is_published")
+    list_editable = ("is_published",)
     list_select_related = ("product_type",)
     filter_horizontal = ("related_products",)
     autocomplete_fields = ("product_type",)
-    readonly_fields = ("created_at", "updated_at", "seo_check_display")
+    readonly_fields = ("created_at", "updated_at", "seo_check_display",
+                       "index_status", "index_checked_at", "index_raw_status")
     date_hierarchy = "published_at"
     list_per_page = 30
     save_on_top = True
@@ -168,6 +170,7 @@ class ArticleAdmin(admin.ModelAdmin):
         "set_category_biyou",
         "publish_selected",
         "unpublish_selected",
+        "recheck_indexing",
     )
 
     fieldsets = (
@@ -188,6 +191,11 @@ class ArticleAdmin(admin.ModelAdmin):
             "description": "Schema.org の JSON-LD をペーストすると、記事ページ内に script タグで自動出力されます。FAQPage / ItemList / Article などに対応。Google リッチリザルトテスト( https://search.google.com/test/rich-results )で事前に検証してから貼り付けるのが安全です。",
         }),
         ("品質チェック結果", {"fields": ("seo_check_display",), "classes": ("collapse",)}),
+        ("Googleインデックス状況", {
+            "fields": ("index_status", "index_checked_at", "index_raw_status"),
+            "classes": ("collapse",),
+            "description": "check_indexing コマンド（URL Inspection API）で自動更新されます。手動編集は不要です。",
+        }),
         ("WP移行情報", {"fields": ("wp_post_id", "wp_author"), "classes": ("collapse",)}),
         ("日時", {"fields": ("created_at", "updated_at"), "classes": ("collapse",)}),
     )
@@ -272,6 +280,25 @@ class ArticleAdmin(admin.ModelAdmin):
     def unpublish_selected(self, request, queryset):
         n = queryset.update(is_published=False)
         self.message_user(request, f"{n}件を非公開にしました")
+
+    @admin.action(description="🔎 選択した記事のインデックス状況を再チェック")
+    def recheck_indexing(self, request, queryset):
+        from django.core.management import call_command
+        from django.contrib import messages
+        slugs = list(queryset.values_list("slug", flat=True))
+        if not slugs:
+            self.message_user(request, "対象がありません", level=messages.WARNING)
+            return
+        try:
+            # check_indexing --slug=... を選択記事について順次実行
+            call_command("check_indexing", slug=slugs)
+        except Exception as e:  # noqa: BLE001
+            self.message_user(
+                request, f"インデックス再チェックに失敗しました: {type(e).__name__}: {e}",
+                level=messages.ERROR,
+            )
+            return
+        self.message_user(request, f"{len(slugs)}件のインデックス状況を再チェックしました")
 
 
 

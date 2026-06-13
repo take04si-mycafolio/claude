@@ -5,57 +5,194 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>{% block title %}美容家電TUSHOU{% endblock %}</title>
 <meta name="description" content="{% block meta_description %}美容家電の本音の口コミ・レビューが集まるサイト。美顔器・ドライヤー・脱毛器・マッサージ機などユーザー投稿型のレビューが読めます。{% endblock %}">
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700&family=Cormorant+Garamond:wght@500;700&display=swap" rel="stylesheet">
+
+<script src="https://cdn.tailwindcss.com?plugins=line-clamp,forms,typography"></script>
+<script>
+  tailwind.config = {
+    theme: {
+      extend: {
+        colors: {
+          rose: {
+            50:  '#FBF6F4',
+            100: '#F7E9E9',
+            200: '#F2DEE0',
+            300: '#E5BFC3',
+            400: '#D49AA1',
+            500: '#C97B84',
+            600: '#A0606A',
+            700: '#7E4953',
+            800: '#5D3540',
+          },
+          gold: { 400: '#E1B988', 500: '#D4A574', 600: '#B6824E' },
+          cream: { 50: '#FDFBF8', 100: '#FAF7F4', 200: '#F2EBE5' },
+          ink: { 700: '#3A2E33', 900: '#1F1418' },
+          mute: { 500: '#7A6E73', 600: '#5C5256' },
+        },
+        fontFamily: {
+          sans: ['"Noto Sans JP"', 'system-ui', 'sans-serif'],
+          serif: ['"Cormorant Garamond"', 'serif'],
+        },
+        boxShadow: {
+          card: '0 1px 2px rgba(60,30,40,0.04), 0 4px 12px rgba(60,30,40,0.05)',
+          soft: '0 8px 24px rgba(60,30,40,0.08)',
+        },
+      }
+    }
+  }
+</script>
+
 <link rel="stylesheet" href="{% static 'site.css' %}">
+
+<!-- Google Analytics 4 -->
+{% if not request.user.is_staff and not request.path|slice:":7" == "/admin/" %}
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-N7Y1TT8G6V"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+  gtag('config', 'G-N7Y1TT8G6V', {
+    'anonymize_ip': true
+  });
+</script>
+{% endif %}
+
+<!-- Google AdSense -->
+<script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-3695194481616471" crossorigin="anonymous"></script>
+
 {% block head_extra %}{% endblock %}
 </head>
-<body>
-<header class="site-header">
-  <div class="container header-inner">
-    <a class="site-logo" href="{% url 'products:list' %}">美容家電TUSHOU</a>
-    <nav class="site-nav">
-      <a href="{% url 'products:list' %}">ホーム</a>
-      <a href="{% url 'products:article_list' %}">記事</a>
-      <a href="{% url 'reviews:list' %}">みんなの口コミ</a>
-      {% if user.is_authenticated %}
-        <a href="{% url 'accounts:profile' %}">マイページ</a>
-        <form method="post" action="{% url 'accounts:logout' %}" class="inline-form">
-          {% csrf_token %}
-          <button type="submit" class="link-btn">ログアウト</button>
-        </form>
-      {% else %}
-        <a href="{% url 'accounts:login' %}">ログイン</a>
-        <a href="{% url 'accounts:signup' %}" class="btn btn-primary btn-sm">無料登録</a>
-      {% endif %}
-    </nav>
-  </div>
-  {% if product_types %}
-  <nav class="type-bar">
-    <div class="container type-bar-inner">
+<body class="bg-cream-100 text-ink-700 font-sans antialiased min-h-screen flex flex-col">
+
+<header class="bg-white/95 backdrop-blur sticky top-0 z-30 border-b border-rose-200">
+  <div class="max-w-[920px] mx-auto px-5">
+    <div class="flex items-center justify-between py-3.5 gap-4">
+      <a href="{% url 'products:list' %}" class="flex items-center gap-2 group">
+        <span class="font-serif text-2xl font-bold text-rose-600 tracking-tight">TUSHOU</span>
+        <span class="hidden sm:inline text-[11px] tracking-widest text-mute-500 uppercase">Beauty Reviews</span>
+      </a>
+      <nav class="flex items-center gap-1 sm:gap-3 text-sm">
+        {% if user.is_authenticated %}
+          {# 全画面共通: ハンバーガーメニュー #}
+          <details class="relative" data-menu>
+            <summary class="list-none cursor-pointer p-2 hover:text-rose-600 [&::-webkit-details-marker]:hidden" aria-label="メニュー">
+              <svg class="w-6 h-6" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M4 6h16M4 12h16M4 18h16"/>
+              </svg>
+            </summary>
+            <div class="absolute right-0 top-full mt-2 w-56 bg-white border border-rose-200 rounded-2xl shadow-soft overflow-hidden z-40">
+              <a href="{% url 'products:list' %}" class="block px-5 py-3 hover:bg-rose-50 border-b border-rose-100">ホーム</a>
+              <a href="{% url 'products:article_list' %}" class="block px-5 py-3 hover:bg-rose-50 border-b border-rose-100">記事</a>
+              <a href="{% url 'reviews:list' %}" class="block px-5 py-3 hover:bg-rose-50">口コミ</a>
+              <div class="bg-cream-50/60 border-t-4 border-rose-100">
+                <div class="px-5 pt-2 pb-1 text-[10px] tracking-widest text-mute-500 uppercase">Account</div>
+                <a href="{% url 'accounts:profile' %}" class="block px-5 py-3 hover:bg-rose-50 border-b border-rose-100">マイページ</a>
+                <a href="{% url 'accounts:missions' %}" class="block px-5 py-3 hover:bg-rose-50 border-b border-rose-100">ミッション</a>
+                <form method="post" action="{% url 'accounts:logout' %}" class="m-0">
+                  {% csrf_token %}
+                  <button type="submit" class="w-full text-left px-5 py-3 hover:bg-rose-50 text-mute-500">ログアウト</button>
+                </form>
+              </div>
+            </div>
+          </details>
+        {% else %}
+          <a href="{% url 'accounts:login' %}" class="px-2 py-1 hover:text-rose-600">ログイン</a>
+          <a href="{% url 'accounts:signup' %}" class="ml-1 inline-flex items-center px-3.5 py-1.5 rounded-full bg-rose-500 text-white text-xs font-medium tracking-wide hover:bg-rose-600 transition shadow-sm">無料登録</a>
+        {% endif %}
+      </nav>
+    </div>
+    {% if product_types %}
+    <nav id="header-categories" class="header-categories flex gap-0.5 overflow-x-auto -mx-5 px-5 scrollbar-thin">
       {% for t in product_types %}
         <a href="{% url 'products:type_detail' t.slug %}"
-           class="type-link {% if active_type and active_type.slug == t.slug %}active{% endif %}">
-          {{ t.name }}
-        </a>
+           class="whitespace-nowrap py-3 px-4 text-sm border-b-2 transition
+             {% if active_type and active_type.slug == t.slug %}border-rose-500 text-rose-600 font-medium{% else %}border-transparent text-ink-700 hover:text-rose-600 hover:border-rose-200{% endif %}">{{ t.name }}</a>
       {% endfor %}
-    </div>
-  </nav>
-  {% endif %}
+    </nav>
+    {% endif %}
+  </div>
 </header>
 
 {% if messages %}
-  <div class="container messages">
-    {% for m in messages %}<div class="msg msg-{{ m.tags }}">{{ m }}</div>{% endfor %}
+  <div class="max-w-[920px] mx-auto px-5 mt-4 space-y-2">
+    {% for m in messages %}
+      <div class="px-4 py-3 rounded-lg text-sm
+        {% if 'success' in m.tags %}bg-emerald-50 text-emerald-800 border border-emerald-200
+        {% elif 'error' in m.tags or 'danger' in m.tags %}bg-rose-50 text-rose-800 border border-rose-200
+        {% elif 'warning' in m.tags %}bg-amber-50 text-amber-800 border border-amber-200
+        {% else %}bg-rose-50 text-rose-700 border border-rose-100{% endif %}">{{ m }}</div>
+    {% endfor %}
   </div>
 {% endif %}
 
-<main class="container">
+<main class="flex-1 max-w-[920px] w-full mx-auto px-2.5 sm:px-5 py-6 sm:py-10">
   {% block content %}{% endblock %}
 </main>
 
-<footer class="site-footer">
-  <div class="container">
-    <p>&copy; {% now "Y" %} 美容家電TUSHOU. All rights reserved.</p>
+
+<div class="max-w-[920px] w-full mx-auto px-5 py-4">
+  {% block breadcrumb %}{% endblock %}
+</div>
+<footer class="mt-4 bg-white border-t border-rose-200">
+  <div class="max-w-[920px] mx-auto px-5 py-10 text-sm text-mute-500">
+      <p class="text-xs text-mute-500/80 mb-4 leading-relaxed">
+        当サイトは Amazon.co.jp アソシエイト・楽天アフィリエイトをはじめ各種アフィリエイトプログラムに参加しており、
+        商品リンクから購入が発生した場合、当サイトに紹介料が支払われることがあります。掲載評価は実際の口コミに基づいており、紹介料の有無で評価は変わりません。
+      </p>
+
+    <div class="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4">
+      <div>
+        <div class="font-serif text-xl text-rose-600 mb-1">TUSHOU</div>
+        <p class="text-mute-500">美容家電の本音の口コミが集まるサイト</p>
+      </div>
+      <div class="flex flex-wrap gap-x-5 gap-y-1">
+        <a href="{% url 'pages:terms' %}" class="hover:text-rose-600">利用規約</a>
+        <a href="{% url 'pages:privacy' %}" class="hover:text-rose-600">プライバシーポリシー</a>
+        <a href="{% url 'pages:contact' %}" class="hover:text-rose-600">お問い合わせ</a>
+      </div>
+    </div>
+    <p class="mt-6 text-xs text-mute-500/80">&copy; {% now "Y" %} 美容家電TUSHOU. All rights reserved.</p>
   </div>
 </footer>
+<script>
+document.addEventListener('click', e => {
+  document.querySelectorAll('details[data-menu][open]').forEach(d => {
+    if (!d.contains(e.target)) d.removeAttribute('open');
+  });
+});
+</script>
+
+<style>
+#header-categories {
+  transition: max-height 0.25s ease, opacity 0.2s ease, transform 0.25s ease;
+  max-height: 60px;
+}
+#header-categories.is-collapsed {
+  max-height: 0;
+  opacity: 0;
+  transform: translateY(-8px);
+  pointer-events: none;
+}
+</style>
+<script>
+(function() {
+  var nav = document.getElementById("header-categories");
+  if (!nav) return;
+  var threshold = 50;
+  function update() {
+    if (window.scrollY > threshold) {
+      nav.classList.add("is-collapsed");
+    } else {
+      nav.classList.remove("is-collapsed");
+    }
+  }
+  window.addEventListener("scroll", update, { passive: true });
+  update();
+})();
+</script>
+{% include "includes/mission_celebration.html" %}
 </body>
 </html>

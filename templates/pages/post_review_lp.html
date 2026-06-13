@@ -1,0 +1,265 @@
+{% extends "base.html" %}
+{% load static %}
+{% block title %}あなたの一言が、誰かの後悔を防ぎます｜美容家電TUSHOU{% endblock %}
+{% block meta_description %}美容家電の本音口コミを投稿しよう。あなたの体験が次に買う人の判断材料になります。良かった点も気になった点も、ありがとうベースで共有できる口コミサイト。{% endblock %}
+
+{% block content %}
+<style>
+  /* LP専用の補助スタイル(自己完結) */
+  .lp-hero { background: linear-gradient(135deg, #FBF6F4 0%, #F7E9E9 50%, #FBF6F4 100%); }
+  .lp-section { padding: 60px 0; }
+  @media (max-width: 640px) { .lp-section { padding: 40px 0; } }
+  .lp-pretitle { font-family: "Cormorant Garamond", serif; color: #C97B84; letter-spacing: .3em; font-size: 11px; text-transform: uppercase; }
+  .lp-h2 { font-size: clamp(1.4rem, 4vw, 1.85rem); font-weight: 700; color: #1F1418; line-height: 1.5; }
+  .lp-lead { color: #5C5256; line-height: 2; font-size: 15px; }
+  .lp-cta-primary {
+    display: inline-flex; align-items: center; justify-content: center;
+    gap: 8px; padding: 18px 44px; border-radius: 999px;
+    background: linear-gradient(135deg, #C97B84 0%, #A0606A 100%);
+    color: #fff !important; font-weight: 700; font-size: 16px;
+    text-decoration: none !important;
+    box-shadow: 0 6px 18px rgba(201,123,132,.3);
+    transition: all .2s; min-width: 240px;
+  }
+  .lp-cta-primary:hover { transform: translateY(-2px); box-shadow: 0 10px 24px rgba(201,123,132,.4); }
+  .lp-card { background: #fff; border: 1px solid #F7E9E9; border-radius: 20px; padding: 28px; box-shadow: 0 1px 3px rgba(60,30,40,.04), 0 6px 16px rgba(60,30,40,.04); }
+  .lp-quote-block { background: #FBF6F4; border-left: 4px solid #C97B84; border-radius: 0 12px 12px 0; padding: 16px 22px; line-height: 2; color: #5C5256; font-size: 15px; }
+</style>
+
+{# ================ 1. ファーストビュー ================ #}
+<section class="lp-hero rounded-3xl overflow-hidden -mx-5 sm:mx-0 -mt-6 sm:-mt-10">
+  <div class="px-6 sm:px-12 py-14 sm:py-20 text-center max-w-3xl mx-auto relative">
+    <p class="lp-pretitle">Your Voice Matters</p>
+    <h1 class="mt-4 text-2xl sm:text-4xl font-bold text-ink-900 leading-tight">
+      あなたの一言が、<br>
+      誰かの<span class="text-rose-600">"後悔"</span>を防ぎます。
+    </h1>
+    <p class="mt-7 lp-lead text-sm sm:text-base text-mute-600">
+      美容家電で「思っていたのと違った」と感じた経験はありませんか？<br class="hidden sm:inline">
+      その体験は、次に買う人にとって大切な判断材料になります。
+    </p>
+    <div class="mt-10">
+      <a href="/reviews/new/" class="lp-cta-primary">✏ 口コミを書く</a>
+      <p class="mt-4 text-xs text-mute-500">投稿は1分で完了します</p>
+    </div>
+    <div class="absolute -right-12 -top-12 w-48 h-48 rounded-full bg-rose-200/40 blur-3xl pointer-events-none"></div>
+    <div class="absolute -left-12 -bottom-12 w-40 h-40 rounded-full bg-gold-400/30 blur-3xl pointer-events-none"></div>
+  </div>
+</section>
+
+{# ================ 2. 共感セクション ================ #}
+<section class="lp-section">
+  <div class="max-w-3xl mx-auto text-center px-2">
+    <p class="lp-pretitle">The Common Frustration</p>
+    <h2 class="lp-h2 mt-3 mb-7">美容家電選びで、<br class="sm:hidden">失敗したくない人は多い</h2>
+    <div class="lp-quote-block text-left max-w-xl mx-auto">
+      高かったのに合わなかった。<br>
+      口コミを見て買ったのに、自分には向いていなかった。<br>
+      使い方や肌質によって、感じ方が大きく違った。
+    </div>
+    <p class="mt-7 lp-lead text-sm sm:text-base">美容家電は、買う前に分かりにくいことがたくさんあります。</p>
+  </div>
+</section>
+
+{# ================ 3. 問題提起 ================ #}
+<section class="lp-section bg-cream-100/50 -mx-5 px-5 sm:-mx-0 sm:px-0 sm:bg-transparent">
+  <div class="max-w-3xl mx-auto text-center">
+    <p class="lp-pretitle">What's Really Missing</p>
+    <h2 class="lp-h2 mt-3 mb-7">でも、本当に知りたい情報は<br class="sm:hidden">意外と少ない</h2>
+    <p class="lp-lead text-sm sm:text-base mb-7">
+      公式サイトには良いことが書かれています。<br>
+      ランキング記事にもおすすめ商品が並んでいます。
+    </p>
+    <div class="lp-card text-left">
+      <p class="text-sm text-mute-500 mb-4 font-medium">でも、実際に知りたいのは…</p>
+      <ul class="space-y-3 text-ink-700 leading-relaxed">
+        <li class="flex gap-3"><span class="text-rose-500 flex-shrink-0">●</span><span>「どんな人に<strong class="text-rose-600">合わなかった</strong>のか」</span></li>
+        <li class="flex gap-3"><span class="text-rose-500 flex-shrink-0">●</span><span>「どこに<strong class="text-rose-600">注意すれば</strong>よかったのか」</span></li>
+        <li class="flex gap-3"><span class="text-rose-500 flex-shrink-0">●</span><span>「買う前に<strong class="text-rose-600">何を知っておく</strong>べきだったのか」</span></li>
+      </ul>
+      <p class="mt-5 text-sm text-mute-600">…というリアルな体験です。</p>
+    </div>
+  </div>
+</section>
+
+{# ================ 4. サイトの理念 ================ #}
+<section class="lp-section">
+  <div class="max-w-3xl mx-auto px-2">
+    <div class="text-center mb-8">
+      <p class="lp-pretitle">Our Mission</p>
+      <h2 class="lp-h2 mt-3">このサイトは、<br class="sm:hidden">失敗を減らすための口コミサイトです</h2>
+    </div>
+    <div class="lp-card">
+      <p class="lp-lead text-sm sm:text-base">
+        ここは、ただ不満を書く場所ではありません。<br>
+        良かった点も、気になった点も、<strong class="text-rose-600">次に買う人のために冷静に共有する場所</strong>です。
+      </p>
+      <p class="mt-5 lp-lead text-sm sm:text-base">
+        あなたの体験が、誰かの<strong class="text-rose-600">無駄な出費や後悔を防ぐきっかけ</strong>になります。
+      </p>
+    </div>
+  </div>
+</section>
+
+{# ================ 5. 投稿する価値 (3カード) ================ #}
+<section class="lp-section bg-gradient-to-b from-cream-50 via-cream-100 to-white -mx-5 px-5 rounded-3xl">
+  <div class="max-w-5xl mx-auto">
+    <div class="text-center mb-10">
+      <p class="lp-pretitle">Why Share</p>
+      <h2 class="lp-h2 mt-3">あなたの口コミには、価値があります</h2>
+    </div>
+    <div class="grid sm:grid-cols-3 gap-4 sm:gap-6">
+      <div class="lp-card text-center">
+        <div class="inline-flex items-center justify-center w-14 h-14 rounded-full bg-gradient-to-br from-rose-100 to-rose-200 mb-4 text-2xl">💡</div>
+        <h3 class="font-bold text-ink-900 text-base sm:text-lg mb-3">誰かの購入判断を助ける</h3>
+        <p class="text-sm text-mute-600 leading-relaxed">実際に使った人の声は、これから買う人にとって大きなヒントになります。</p>
+      </div>
+      <div class="lp-card text-center">
+        <div class="inline-flex items-center justify-center w-14 h-14 rounded-full bg-gradient-to-br from-rose-100 to-rose-200 mb-4 text-2xl">🛡️</div>
+        <h3 class="font-bold text-ink-900 text-base sm:text-lg mb-3">同じ失敗を減らせる</h3>
+        <p class="text-sm text-mute-600 leading-relaxed">合わなかった理由や注意点は、次の人にとって大切な情報です。</p>
+      </div>
+      <div class="lp-card text-center">
+        <div class="inline-flex items-center justify-center w-14 h-14 rounded-full bg-gradient-to-br from-rose-100 to-rose-200 mb-4 text-2xl">⭐</div>
+        <h3 class="font-bold text-ink-900 text-base sm:text-lg mb-3">良い商品が正しく評価される</h3>
+        <p class="text-sm text-mute-600 leading-relaxed">本当に満足した体験も、商品選びに迷う人の背中を押します。</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+{# ================ 6. ありがとう文化 ================ #}
+<section class="lp-section">
+  <div class="max-w-3xl mx-auto px-2">
+    <div class="text-center mb-8">
+      <p class="lp-pretitle">Thank You Culture</p>
+      <h2 class="lp-h2 mt-3">口コミには「ありがとう」が届きます</h2>
+    </div>
+    <p class="lp-lead text-sm sm:text-base text-center mb-7 max-w-xl mx-auto">
+      投稿された口コミには、読んだ人が<strong class="text-rose-600">「参考になった」「助かりました」</strong>という反応を送れます。<br>
+      あなたの投稿が誰かの役に立ったことが、数字やバッジで見える仕組みを用意しています。
+    </p>
+
+    <div class="lp-card">
+      <p class="text-xs text-mute-500 mb-4 text-center">表示例</p>
+      <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4">
+        <div class="text-center">
+          <div class="text-2xl sm:text-3xl font-bold text-rose-600">128</div>
+          <div class="text-xs text-mute-500 mt-1">参考になった</div>
+        </div>
+        <div class="text-center">
+          <div class="text-2xl sm:text-3xl font-bold text-rose-600">23</div>
+          <div class="text-xs text-mute-500 mt-1">投稿数</div>
+        </div>
+        <div class="text-center">
+          <div class="inline-block px-3 py-1 rounded-full bg-gradient-to-br from-gold-400 to-rose-500 text-white text-xs font-bold">美顔器マスター</div>
+          <div class="text-xs text-mute-500 mt-1">カテゴリバッジ</div>
+        </div>
+        <div class="text-center">
+          <div class="inline-block px-3 py-1 rounded-full border-2 border-rose-400 text-rose-600 text-xs font-bold">レベル7</div>
+          <div class="text-xs text-mute-500 mt-1">レビューランク</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+{# ================ 中間CTA ================ #}
+<section class="lp-section text-center">
+  <a href="/reviews/new/" class="lp-cta-primary">✏ 口コミを書いてみる</a>
+  <p class="mt-3 text-xs text-mute-500">1分で完了・無料</p>
+</section>
+
+{# ================ 7. 悪口ではなく役立つ口コミへ ================ #}
+<section class="lp-section bg-cream-100/40 -mx-5 px-5 rounded-3xl">
+  <div class="max-w-3xl mx-auto">
+    <div class="text-center mb-8">
+      <p class="lp-pretitle">Constructive Voice</p>
+      <h2 class="lp-h2 mt-3">悪口ではなく、<br class="sm:hidden">次の人に役立つ口コミを</h2>
+    </div>
+    <p class="lp-lead text-sm sm:text-base text-center mb-8 max-w-xl mx-auto">
+      不満や失敗談にも価値があります。<br>
+      ただし、大切なのは<strong class="text-rose-600">「何が合わなかったのか」を具体的に伝えること</strong>です。
+    </p>
+
+    <div class="space-y-5">
+      <div class="grid sm:grid-cols-2 gap-3">
+        <div class="lp-card !p-5 border-2 border-rose-200/50 bg-rose-50/30">
+          <div class="text-xs font-bold text-rose-600 mb-2">✗ NG</div>
+          <p class="text-sm text-ink-700">全然ダメだった</p>
+        </div>
+        <div class="lp-card !p-5 border-2 border-emerald-200 bg-emerald-50/30">
+          <div class="text-xs font-bold text-emerald-700 mb-2">✓ OK</div>
+          <p class="text-sm text-ink-700">乾燥肌の自分には刺激を感じやすく、短時間から試せばよかったと感じました</p>
+        </div>
+      </div>
+
+      <div class="grid sm:grid-cols-2 gap-3">
+        <div class="lp-card !p-5 border-2 border-rose-200/50 bg-rose-50/30">
+          <div class="text-xs font-bold text-rose-600 mb-2">✗ NG</div>
+          <p class="text-sm text-ink-700">買わない方がいい</p>
+        </div>
+        <div class="lp-card !p-5 border-2 border-emerald-200 bg-emerald-50/30">
+          <div class="text-xs font-bold text-emerald-700 mb-2">✓ OK</div>
+          <p class="text-sm text-ink-700">即効性を期待している人には向かないかもしれません</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+{# ================ 8. 投稿の流れ ================ #}
+<section class="lp-section">
+  <div class="max-w-3xl mx-auto px-2">
+    <div class="text-center mb-8">
+      <p class="lp-pretitle">Easy Steps</p>
+      <h2 class="lp-h2 mt-3">口コミ投稿はかんたんです</h2>
+    </div>
+    <div class="space-y-4 sm:space-y-0 sm:grid sm:grid-cols-4 sm:gap-4">
+      <div class="flex sm:flex-col items-center gap-4 sm:gap-3 lp-card !p-5 sm:text-center">
+        <div class="flex-shrink-0 w-12 h-12 rounded-full bg-gradient-to-br from-rose-400 to-rose-600 text-white font-bold text-lg flex items-center justify-center">1</div>
+        <p class="text-sm font-medium text-ink-900">商品を選ぶ</p>
+      </div>
+      <div class="flex sm:flex-col items-center gap-4 sm:gap-3 lp-card !p-5 sm:text-center">
+        <div class="flex-shrink-0 w-12 h-12 rounded-full bg-gradient-to-br from-rose-400 to-rose-600 text-white font-bold text-lg flex items-center justify-center">2</div>
+        <p class="text-sm font-medium text-ink-900">評価と<br class="hidden sm:inline">使用感を書く</p>
+      </div>
+      <div class="flex sm:flex-col items-center gap-4 sm:gap-3 lp-card !p-5 sm:text-center">
+        <div class="flex-shrink-0 w-12 h-12 rounded-full bg-gradient-to-br from-rose-400 to-rose-600 text-white font-bold text-lg flex items-center justify-center">3</div>
+        <p class="text-sm font-medium text-ink-900">写真があれば<br class="hidden sm:inline">添付</p>
+      </div>
+      <div class="flex sm:flex-col items-center gap-4 sm:gap-3 lp-card !p-5 sm:text-center">
+        <div class="flex-shrink-0 w-12 h-12 rounded-full bg-gradient-to-br from-gold-400 to-rose-500 text-white font-bold text-lg flex items-center justify-center">✓</div>
+        <p class="text-sm font-medium text-ink-900">投稿完了</p>
+      </div>
+    </div>
+    <p class="text-center text-xs text-mute-500 mt-5">写真付きの口コミは、より多くの人の参考になります。</p>
+  </div>
+</section>
+
+{# ================ 9. ファイナルCTA ================ #}
+<section class="lp-section">
+  <div class="max-w-2xl mx-auto px-6 sm:px-12 py-12 sm:py-16 rounded-3xl bg-gradient-to-br from-rose-100 via-rose-50 to-cream-100 text-center relative overflow-hidden">
+    <p class="lp-pretitle">Share Your Story</p>
+    <h2 class="lp-h2 mt-3 mb-5">あなたの体験を、<br class="sm:hidden">次の誰かの安心に</h2>
+    <p class="lp-lead text-sm sm:text-base mb-9 max-w-md mx-auto">
+      良かったことも、気になったことも大歓迎です。<br>
+      あなたのリアルな声を聞かせてください。
+    </p>
+    <a href="/reviews/new/" class="lp-cta-primary">✏ 口コミを書く</a>
+    <p class="mt-4 text-xs text-mute-500">1分で完了・無料</p>
+    <div class="absolute -right-16 -top-16 w-56 h-56 rounded-full bg-rose-300/30 blur-3xl pointer-events-none"></div>
+    <div class="absolute -left-16 -bottom-16 w-48 h-48 rounded-full bg-gold-400/20 blur-3xl pointer-events-none"></div>
+  </div>
+</section>
+
+{# ================ 10. 注意書き ================ #}
+<section class="py-8">
+  <div class="max-w-3xl mx-auto px-4 text-center">
+    <p class="text-xs text-mute-500/80 leading-relaxed">
+      口コミは個人の感想です。感じ方には個人差があります。<br>
+      誹謗中傷や事実確認が難しい断定表現は掲載を見送る場合があります。
+    </p>
+  </div>
+</section>
+{% endblock %}

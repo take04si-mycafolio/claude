@@ -1,34 +1,161 @@
 {% extends "base.html" %}
-{% block title %}マイページ | 美顔器レビュー{% endblock %}
-
+{% block title %}マイページ{% endblock %}
 {% block content %}
-<h1 style="margin:24px 0 8px">マイページ</h1>
+<div class="grid lg:grid-cols-[3fr_7fr] gap-6 sm:gap-8">
+  <aside class="min-w-0 bg-white rounded-2xl border border-rose-100 shadow-card p-6 self-start">
+    <div class="flex items-center gap-4">
+      {% if user.avatar %}
+        <img src="{{ user.avatar.url }}" alt="プロフィール画像" class="w-16 h-16 rounded-full object-cover shadow-inner ring-2 ring-rose-100">
+      {% else %}
+        <div class="w-16 h-16 rounded-full avatar-default flex items-center justify-center text-white text-xl shadow-inner">♡</div>
+      {% endif %}
+      <div class="min-w-0">
+        <div class="font-bold text-ink-900 truncate">{{ user.nickname|default:user.email }}</div>
+        <div class="text-xs text-mute-500 truncate">{{ user.email }}</div>
+      </div>
+    </div>
 
-<div class="form-card" style="margin:16px 0">
-  <p><strong>ニックネーム:</strong> {{ user.nickname|default:"(未設定)" }}</p>
-  <p><strong>メールアドレス:</strong> {{ user.email }}
-    {% if user.email_verified %}
-      <span class="tag" style="background:#e7f6e8;color:#2c5d32">認証済み</span>
-    {% else %}
-      <span class="tag" style="background:#fff6e0;color:#835d19">未認証</span>
-      <a href="{% url 'accounts:resend_verification' %}" style="margin-left:8px">確認メールを再送</a>
+    {% if user.bio %}<p class="mt-4 text-sm text-ink-700 leading-relaxed whitespace-pre-line">{{ user.bio }}</p>{% endif %}
+
+    <dl class="mt-5 space-y-2 text-xs">
+      {% if user.age_range %}<div class="flex justify-between"><dt class="text-mute-500">年代</dt><dd class="text-ink-700">{{ user.get_age_range_display }}</dd></div>{% endif %}
+      {% if user.skin_type %}<div class="flex justify-between"><dt class="text-mute-500">肌質</dt><dd class="text-ink-700">{{ user.get_skin_type_display }}</dd></div>{% endif %}
+      {% if user.gender %}<div class="flex justify-between"><dt class="text-mute-500">性別</dt><dd class="text-ink-700">{{ user.get_gender_display }}</dd></div>{% endif %}
+    </dl>
+
+    {# Thank You Culture Stats #}
+    <div class="mt-5 pt-5 border-t border-rose-100">
+      <div class="flex items-center justify-between mb-3">
+        <span class="text-[11px] tracking-wider text-mute-500 uppercase">Thank You</span>
+        {% if user.category_badge %}<span class="inline-block text-[10px] px-2 py-0.5 rounded-full bg-gold-50 text-gold-700 border border-gold-200">{{ user.category_badge }}</span>{% endif %}
+      </div>
+      <div class="grid grid-cols-2 gap-2.5">
+        <div class="bg-gradient-to-br from-rose-50 to-cream-50 rounded-xl p-3 text-center">
+          <div class="text-2xl font-serif font-bold text-rose-600 leading-none">{{ user.helpful_count }}</div>
+          <div class="text-[10px] text-mute-500 mt-1.5">参考になった</div>
+        </div>
+        <div class="bg-gradient-to-br from-cream-50 to-rose-50 rounded-xl p-3 text-center">
+          <div class="text-2xl font-serif font-bold text-rose-600 leading-none">{{ user.review_count }}</div>
+          <div class="text-[10px] text-mute-500 mt-1.5">投稿数</div>
+        </div>
+        <div class="col-span-2 bg-gradient-to-r from-rose-100 via-gold-50 to-cream-50 rounded-xl p-3 text-center">
+          <div class="flex items-center justify-center gap-2">
+            <span class="text-xs text-mute-500">レビューランク</span>
+            <span class="text-xl font-serif font-bold text-rose-700 leading-none">Lv.{{ user.review_level }}</span>
+          </div>
+          <div class="mt-2 h-1.5 bg-white/60 rounded-full overflow-hidden">
+            <div class="h-full bg-gradient-to-r from-rose-400 to-gold-400 rounded-full" style="width: {% widthratio user.review_level 10 100 %}%"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    {# ミッション サマリ #}
+    <div class="mt-5 pt-5 border-t border-rose-100">
+      <div class="flex items-center justify-between mb-3">
+        <span class="text-[11px] tracking-wider text-mute-500 uppercase">Mission</span>
+        <span class="text-xs text-rose-600 font-medium">{{ mission_summary.completed }} / {{ mission_summary.total }} 達成</span>
+      </div>
+      {% if mission_summary.items %}
+        <div class="space-y-2.5">
+          {% for m in mission_summary.items %}
+            <div class="bg-rose-50/70 rounded-xl p-3">
+              <div class="flex items-center justify-between gap-2">
+                <span class="text-xs font-medium text-ink-900 truncate">{{ m.mission.title }}</span>
+                {% if m.is_complete %}
+                  <span class="shrink-0 text-[10px] px-2 py-0.5 rounded-full bg-gold-50 text-gold-700 border border-gold-200">達成🎁</span>
+                {% else %}
+                  <span class="shrink-0 text-[10px] text-mute-500">{{ m.done_steps }}/{{ m.total_steps }}</span>
+                {% endif %}
+              </div>
+              <div class="mt-2 h-1.5 bg-white/70 rounded-full overflow-hidden">
+                <div class="h-full bg-gradient-to-r from-rose-400 to-gold-400 rounded-full" style="width: {{ m.percent }}%"></div>
+              </div>
+            </div>
+          {% endfor %}
+        </div>
+        <a href="{% url 'accounts:missions' %}" class="mt-3 inline-block text-xs text-rose-600 font-medium hover:underline">すべてのミッションを見る →</a>
+      {% else %}
+        <p class="text-xs text-mute-500">現在公開中のミッションはありません。</p>
+      {% endif %}
+    </div>
+
+    {% if user.twitter or user.instagram or user.tiktok or user.youtube_url or user.website_url %}
+    <div class="mt-5 pt-5 border-t border-rose-100">
+      <div class="text-[11px] tracking-wider text-mute-500 uppercase mb-2">Connect</div>
+      <div class="flex flex-wrap gap-2">
+        {% if user.twitter %}<a href="https://x.com/{{ user.twitter }}" target="_blank" rel="noopener" class="inline-flex items-center gap-1 px-3 py-1 rounded-full border border-rose-200 text-xs text-ink-700 hover:bg-rose-50">𝕏 @{{ user.twitter }}</a>{% endif %}
+        {% if user.instagram %}<a href="https://instagram.com/{{ user.instagram }}" target="_blank" rel="noopener" class="inline-flex items-center gap-1 px-3 py-1 rounded-full border border-rose-200 text-xs text-ink-700 hover:bg-rose-50">📷 @{{ user.instagram }}</a>{% endif %}
+        {% if user.tiktok %}<a href="https://tiktok.com/@{{ user.tiktok }}" target="_blank" rel="noopener" class="inline-flex items-center gap-1 px-3 py-1 rounded-full border border-rose-200 text-xs text-ink-700 hover:bg-rose-50">🎵 @{{ user.tiktok }}</a>{% endif %}
+        {% if user.youtube_url %}<a href="{{ user.youtube_url }}" target="_blank" rel="noopener" class="inline-flex items-center gap-1 px-3 py-1 rounded-full border border-rose-200 text-xs text-ink-700 hover:bg-rose-50">▶ YouTube</a>{% endif %}
+        {% if user.website_url %}<a href="{{ user.website_url }}" target="_blank" rel="noopener" class="inline-flex items-center gap-1 px-3 py-1 rounded-full border border-rose-200 text-xs text-ink-700 hover:bg-rose-50">🔗 Site</a>{% endif %}
+      </div>
+    </div>
     {% endif %}
-  </p>
-  <p><strong>年代:</strong> {{ user.get_age_range_display|default:"-" }}</p>
-  <p><strong>肌質:</strong> {{ user.get_skin_type_display|default:"-" }}</p>
-  <p><strong>口コミ閲覧:</strong>
-    {% if has_written_review %}
-      <span class="tag" style="background:#e7f6e8;color:#2c5d32">解放済み</span>
-    {% else %}
-      <span class="tag">未解放（口コミを1件投稿してください）</span>
-    {% endif %}
-  </p>
+
+    <a href="{% url 'accounts:profile_edit' %}" class="mt-5 inline-flex items-center justify-center w-full px-4 py-2.5 rounded-full bg-rose-500 hover:bg-rose-600 text-white text-sm font-medium transition shadow-sm">プロフィールを編集</a>
+    <a href="{% url 'accounts:user_detail' user.pk %}" class="mt-2 inline-flex items-center justify-center gap-1.5 w-full px-4 py-2.5 rounded-full border border-rose-200 text-rose-600 hover:bg-rose-50 text-sm font-medium transition">公開ページを見る</a>
+  </aside>
+
+  <div class="min-w-0 space-y-10">
+    {# 気になる商品 #}
+    <section>
+      <div class="flex items-center justify-between mb-4">
+        <div class="flex items-center gap-3">
+          <span class="inline-block w-1.5 h-5 bg-rose-500 rounded"></span>
+          <h2 class="text-lg font-bold text-ink-900">気になる商品 <span class="text-rose-500 text-sm font-normal">({{ bookmarks|length }})</span></h2>
+        </div>
+      </div>
+      {% if bookmarks %}
+        <ul class="grid grid-cols-2 sm:grid-cols-3 gap-4">
+          {% for bm in bookmarks %}
+            <li><a href="{{ bm.product.get_absolute_url }}" class="group block bg-white rounded-2xl border border-rose-100 overflow-hidden hover:shadow-card transition">
+              <div class="aspect-square bg-cream-100 overflow-hidden">
+                {% if bm.product.display_image %}<img src="{{ bm.product.display_image }}" alt="{{ bm.product.name }}" loading="lazy" class="w-full h-full object-cover group-hover:scale-105 transition duration-500">{% endif %}
+              </div>
+              <div class="p-3">
+                {% if bm.product.brand %}<div class="text-[10px] text-mute-500 uppercase tracking-wider truncate">{{ bm.product.brand }}</div>{% endif %}
+                <h3 class="text-xs font-medium text-ink-900 line-clamp-2 group-hover:text-rose-600">{{ bm.product.name }}</h3>
+              </div>
+            </a></li>
+          {% endfor %}
+        </ul>
+      {% else %}
+        <div class="bg-white rounded-2xl border border-rose-100 p-8 text-center text-sm text-mute-500">
+          まだ気になる商品はありません。<br>
+          商品ページで <span class="text-rose-500">♡ 気になる</span> をタップして集めよう。
+        </div>
+      {% endif %}
+    </section>
+
+    {# 参考になった口コミ #}
+    <section>
+      <div class="flex items-center gap-3 mb-4">
+        <span class="inline-block w-1.5 h-5 bg-gold-500 rounded"></span>
+        <h2 class="text-lg font-bold text-ink-900">参考になった口コミ <span class="text-rose-500 text-sm font-normal">({{ helpful_reviews|length }})</span></h2>
+      </div>
+      {% if helpful_reviews %}
+        <div class="space-y-4">{% for r in helpful_reviews %}{% include "reviews/_review_card.html" with r=r show_product=True %}{% endfor %}</div>
+      {% else %}
+        <div class="bg-white rounded-2xl border border-rose-100 p-8 text-center text-sm text-mute-500">
+          まだ「参考になった」をマークした口コミはありません。<br>
+          口コミを読んで <span class="text-rose-500">♡ 参考になった</span> をタップしよう。
+        </div>
+      {% endif %}
+    </section>
+
+    {# 自分の口コミ #}
+    <section>
+      <div class="flex items-center gap-3 mb-4">
+        <span class="inline-block w-1.5 h-5 bg-rose-500 rounded"></span>
+        <h2 class="text-lg font-bold text-ink-900">あなたの口コミ <span class="text-rose-500 text-sm font-normal">({{ reviews|length }})</span></h2>
+      </div>
+      {% if reviews %}
+        <div class="space-y-4">{% for r in reviews %}{% include "reviews/_review_card.html" with r=r show_product=True %}{% endfor %}</div>
+      {% else %}
+        <div class="bg-white rounded-2xl border border-rose-100 p-8 text-center text-sm text-mute-500">まだ口コミを投稿していません。<br><a href="{% url 'products:list' %}" class="inline-block mt-3 px-5 py-2 rounded-full bg-rose-500 text-white text-xs hover:bg-rose-600">商品を探す</a></div>
+      {% endif %}
+    </section>
+  </div>
 </div>
-
-<h2 style="margin-top:32px">あなたの投稿した口コミ</h2>
-{% for r in reviews %}
-  {% include "reviews/_review_card.html" with r=r show_product=True %}
-{% empty %}
-  <p>まだ口コミがありません。<a href="{% url 'products:list' %}">商品一覧から口コミを書く</a></p>
-{% endfor %}
 {% endblock %}

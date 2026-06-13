@@ -1,22 +1,159 @@
 {% extends "base.html" %}
-{% block title %}{{ product.name }}の口コミを投稿 | 美顔器レビュー{% endblock %}
+{% load static %}
+{% block title %}口コミを書く | {{ product.name }}{% endblock %}
+
+{% block head_extra %}
+<style>
+  .star-rating { display: inline-flex; flex-direction: row-reverse; gap: 4px; }
+  .star-rating input { position:absolute; opacity:0; pointer-events:none; }
+  .star-rating label {
+    font-size: 2rem; line-height: 1; color: #F2DEE0;
+    cursor: pointer; user-select: none; transition: color .15s;
+  }
+  .star-rating.lg label { font-size: 2.25rem; }
+  .star-rating label:hover,
+  .star-rating label:hover ~ label,
+  .star-rating input:checked ~ label { color: #D4A574; }
+</style>
+{% endblock %}
 
 {% block content %}
-<div class="form-card" style="max-width:640px">
-  <h1>{{ product.name }}の口コミを{% if existing %}編集{% else %}投稿{% endif %}</h1>
-  <p style="color:var(--color-muted)">実際に使った感想をぜひシェアしてください。投稿後、他の口コミも閲覧できるようになります。</p>
+<div class="max-w-3xl mx-auto">
+  <nav class="text-xs text-mute-500 mb-4">
+    <a href="{% url 'products:list' %}" class="hover:text-rose-600">ホーム</a><span class="mx-1">›</span>
+    <a href="{{ product.get_absolute_url }}" class="hover:text-rose-600">{{ product.name|truncatechars:20 }}</a><span class="mx-1">›</span><span>口コミを書く</span>
+  </nav>
 
-  <form method="post" novalidate>
+  <div class="bg-white rounded-2xl border border-rose-100 shadow-card p-5 sm:p-6 mb-6 flex items-center gap-4 sm:gap-5">
+    <div class="shrink-0 w-20 h-20 sm:w-24 sm:h-24 rounded-xl bg-cream-100 overflow-hidden flex items-center justify-center">
+      {% if product.display_image %}<img src="{{ product.display_image }}" alt="{{ product.name }}" class="w-full h-full object-cover">{% endif %}
+    </div>
+    <div class="min-w-0">
+      {% if product.brand %}<div class="text-[11px] text-mute-500 tracking-wider uppercase mb-1">{{ product.brand }}</div>{% endif %}
+      <h1 class="font-bold text-ink-900 text-base sm:text-lg leading-snug">{{ product.name }}</h1>
+      <p class="text-xs text-mute-500 mt-1">{% if existing %}口コミを編集{% else %}この商品の口コミを書く{% endif %}</p>
+    </div>
+  </div>
+
+  <form method="post" enctype="multipart/form-data" class="space-y-6">
     {% csrf_token %}
-    {% for field in form %}
-      <div class="form-row {% if field.name == 'rating' %}radio-inline{% endif %}">
-        <label for="{{ field.id_for_label }}">{{ field.label }}{% if field.field.required %} <span style="color:#c44">*</span>{% endif %}</label>
-        {{ field }}
-        {% if field.help_text %}<small class="helptext">{{ field.help_text }}</small>{% endif %}
-        {{ field.errors }}
+
+    <section class="bg-white rounded-2xl border border-rose-100 shadow-card p-6 sm:p-8">
+      <h2 class="text-base font-bold text-ink-900 flex items-center gap-2 mb-1"><span class="inline-block w-1 h-4 bg-rose-500 rounded"></span>総合評価<span class="text-rose-500">*</span></h2>
+      <p class="text-xs text-mute-500 mb-4">クリックで★を選択</p>
+      <div class="star-rating lg">
+        {% for v in "54321" %}
+          <input type="radio" id="rating-{{ v }}" name="{{ form.rating.html_name }}" value="{{ v }}" {% if form.rating.value|stringformat:"s" == v %}checked{% endif %}>
+          <label for="rating-{{ v }}" title="{{ v }}点">★</label>
+        {% endfor %}
       </div>
-    {% endfor %}
-    <button type="submit" class="btn btn-primary btn-block">{% if existing %}更新する{% else %}投稿する{% endif %}</button>
+      {% if form.rating.errors %}<p class="mt-2 text-xs text-rose-600">{{ form.rating.errors|join:" " }}</p>{% endif %}
+    </section>
+
+    <section class="bg-white rounded-2xl border border-rose-100 shadow-card p-6 sm:p-8 space-y-5">
+      <div>
+        <label for="{{ form.title.id_for_label }}" class="block text-sm font-medium text-ink-900 mb-1.5">タイトル<span class="text-rose-500 ml-0.5">*</span></label>
+        <div class="[&_input]:w-full [&_input]:rounded-lg [&_input]:border-rose-200 [&_input]:bg-white [&_input]:py-2.5 [&_input]:px-3.5 [&_input:focus]:ring-2 [&_input:focus]:ring-rose-300 [&_input:focus]:border-rose-300">{{ form.title }}</div>
+        {% if form.title.errors %}<p class="mt-1 text-xs text-rose-600">{{ form.title.errors|join:" " }}</p>{% endif %}
+      </div>
+      <div>
+        <label for="{{ form.body.id_for_label }}" class="block text-sm font-medium text-ink-900 mb-1.5">本文<span class="text-rose-500 ml-0.5">*</span></label>
+        <div class="[&_textarea]:w-full [&_textarea]:rounded-lg [&_textarea]:border-rose-200 [&_textarea]:bg-white [&_textarea]:py-2.5 [&_textarea]:px-3.5 [&_textarea:focus]:ring-2 [&_textarea:focus]:ring-rose-300 [&_textarea:focus]:border-rose-300 [&_textarea]:min-h-[160px] [&_textarea]:leading-7">{{ form.body }}</div>
+        {% if form.body.errors %}<p class="mt-1 text-xs text-rose-600">{{ form.body.errors|join:" " }}</p>{% endif %}
+      </div>
+    </section>
+
+    <section class="bg-white rounded-2xl border border-rose-100 shadow-card p-6 sm:p-8">
+      <h2 class="text-base font-bold text-ink-900 flex items-center gap-2 mb-1"><span class="inline-block w-1 h-4 bg-gold-500 rounded"></span>詳細評価<span class="text-mute-500 text-xs font-normal ml-1">（任意）</span></h2>
+      <p class="text-xs text-mute-500 mb-5">気になった項目だけでも教えてください</p>
+      <div class="grid sm:grid-cols-2 gap-x-8 gap-y-6">
+        {% for f in form %}
+          {% if f.name == 'cospa' or f.name == 'control' or f.name == 'safety' or f.name == 'expression' %}
+            <div>
+              <div class="text-sm font-medium text-ink-900 mb-1.5">{{ f.label }}</div>
+              <div class="star-rating">
+                {% for v in "54321" %}
+                  <input type="radio" id="{{ f.html_name }}-{{ v }}" name="{{ f.html_name }}" value="{{ v }}" {% if f.value|stringformat:"s" == v %}checked{% endif %}>
+                  <label for="{{ f.html_name }}-{{ v }}" title="{{ v }}点">★</label>
+                {% endfor %}
+              </div>
+              {% if f.errors %}<p class="mt-1 text-xs text-rose-600">{{ f.errors|join:" " }}</p>{% endif %}
+            </div>
+          {% endif %}
+        {% endfor %}
+      </div>
+    </section>
+
+    <section class="bg-white rounded-2xl border border-rose-100 shadow-card p-6 sm:p-8 space-y-5">
+      <h2 class="text-base font-bold text-ink-900 flex items-center gap-2 mb-1"><span class="inline-block w-1 h-4 bg-rose-300 rounded"></span>あなたの情報<span class="text-mute-500 text-xs font-normal ml-1">（任意）</span></h2>
+      <p class="text-xs text-mute-500">同じ肌質・利用状況の人の参考になります</p>
+      <div class="grid sm:grid-cols-3 gap-4">
+        {% for f in form %}
+          {% if f.name == 'usage_period' or f.name == 'effectiveness' or f.name == 'skin_type' %}
+            <div>
+              <label for="{{ f.id_for_label }}" class="block text-xs font-medium text-ink-900 mb-1.5">{{ f.label }}</label>
+              <div class="[&_select]:w-full [&_select]:rounded-lg [&_select]:border-rose-200 [&_select]:bg-white [&_select]:py-2 [&_select]:px-3 [&_select:focus]:ring-2 [&_select:focus]:ring-rose-300 [&_select:focus]:border-rose-300">{{ f }}</div>
+              {% if f.errors %}<p class="mt-1 text-xs text-rose-600">{{ f.errors|join:" " }}</p>{% endif %}
+            </div>
+          {% endif %}
+        {% endfor %}
+      </div>
+      <div>
+        <label class="block text-sm font-medium text-ink-900 mb-2">表情アイコン</label>
+        <p class="text-xs text-mute-500 mb-3">口コミに表示される表情を選んでください</p>
+        <div class="grid grid-cols-4 sm:grid-cols-8 gap-2">
+          {% for radio in form.icon %}
+            {% with val=radio.data.value %}
+            <label for="icon-{{ val }}" class="cursor-pointer select-none">
+              <input type="radio" id="icon-{{ val }}" name="{{ form.icon.html_name }}" value="{{ val }}" class="peer sr-only" {% if form.icon.value|stringformat:"s" == val|stringformat:"s" %}checked{% endif %}>
+              <div class="w-14 h-14 rounded-full ring-2 ring-transparent hover:ring-rose-200 peer-checked:ring-rose-500 peer-checked:ring-offset-2 transition overflow-hidden flex items-center justify-center">
+                <img src="{% static 'icons/' %}icon{{ val }}.png" alt="表情{{ val }}" class="w-full h-full object-cover">
+              </div>
+            </label>
+            {% endwith %}
+          {% endfor %}
+          <label for="icon-empty" class="cursor-pointer select-none">
+            <input type="radio" id="icon-empty" name="{{ form.icon.html_name }}" value="" class="peer sr-only" {% if not form.icon.value %}checked{% endif %}>
+            <div class="w-14 h-14 rounded-full ring-2 ring-rose-100 peer-checked:ring-rose-500 peer-checked:ring-offset-2 transition flex items-center justify-center text-mute-500 text-2xl">♡</div>
+          </label>
+        </div>
+      </div>
+    </section>
+
+    <section class="bg-white rounded-2xl border border-rose-100 shadow-card p-6 sm:p-8">
+      <h2 class="text-base font-bold text-ink-900 flex items-center gap-2 mb-1"><span class="inline-block w-1 h-4 bg-rose-400 rounded"></span>写真<span class="text-mute-500 text-xs font-normal ml-1">（任意・最大4枚）</span></h2>
+      <p class="text-xs text-mute-500 mb-4">実際の使用感が伝わる写真があると参考になります。アップロード時に自動で圧縮して保存します。</p>
+
+      {% if existing and existing.images.all %}
+        <div class="mb-4">
+          <div class="text-xs font-medium text-ink-900 mb-2">現在の写真<span class="text-mute-500 font-normal ml-1">（削除したい写真にチェック）</span></div>
+          <div class="grid grid-cols-3 sm:grid-cols-4 gap-3">
+            {% for img in existing.images.all %}
+              <label class="relative block group cursor-pointer">
+                <img src="{{ img.image.url }}" alt="口コミ写真" class="w-full aspect-square object-cover rounded-xl border border-rose-100">
+                <span class="absolute inset-0 rounded-xl bg-ink-900/0 peer-checked:bg-ink-900/40 transition"></span>
+                <span class="absolute top-1.5 right-1.5 inline-flex items-center gap-1 text-[10px] px-2 py-0.5 rounded-full bg-white/90 border border-rose-200 text-mute-600">
+                  <input type="checkbox" name="delete_images" value="{{ img.id }}" class="accent-rose-500"> 削除
+                </span>
+              </label>
+            {% endfor %}
+          </div>
+        </div>
+      {% endif %}
+
+      <label class="block">
+        <span class="sr-only">画像を選択</span>
+        <input type="file" name="{{ form.images.html_name }}" accept="image/*" multiple
+               class="block w-full text-sm text-mute-600 file:mr-3 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-medium file:bg-rose-50 file:text-rose-600 hover:file:bg-rose-100 cursor-pointer">
+      </label>
+      <p class="mt-2 text-[11px] text-mute-500">JPEG / PNG など。1枚あたり15MBまで。</p>
+      {% if form.images.errors %}<p class="mt-2 text-xs text-rose-600">{{ form.images.errors|join:" " }}</p>{% endif %}
+    </section>
+
+    <div class="flex flex-col-reverse sm:flex-row gap-3">
+      <a href="{{ product.get_absolute_url }}" class="text-center px-6 py-3 rounded-full border border-rose-200 text-mute-600 hover:bg-cream-100 text-sm font-medium transition">キャンセル</a>
+      <button type="submit" class="flex-1 px-8 py-3.5 rounded-full bg-rose-500 hover:bg-rose-600 text-white font-bold text-sm shadow-sm transition">{% if existing %}口コミを更新する{% else %}口コミを投稿する{% endif %}</button>
+    </div>
   </form>
 </div>
 {% endblock %}

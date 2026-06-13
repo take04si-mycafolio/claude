@@ -1,13 +1,17 @@
 {% extends "base.html" %}
-{% block title %}みんなの口コミ | 美顔器レビュー{% endblock %}
-
+{% block title %}みんなの口コミ | 美容家電TUSHOU{% endblock %}
 {% block content %}
-<h1 style="margin:24px 0 8px">みんなの口コミ</h1>
-<p style="color:var(--color-muted)">最新の投稿から100件を表示しています。</p>
+<div class="mb-6 sm:mb-8">
+  <p class="font-serif text-rose-500 tracking-[0.3em] text-xs uppercase">All Reviews</p>
+  <h1 class="mt-1 text-2xl sm:text-3xl font-bold text-ink-900">みんなの口コミ</h1>
+  <p class="mt-2 text-sm text-mute-500">{{ reviews|length }}件の投稿</p>
+</div>
 
-{% for r in reviews %}
-  {% include "reviews/_review_card.html" with r=r show_product=True %}
-{% empty %}
-  <p>まだ口コミがありません。</p>
-{% endfor %}
+{% if reviews %}
+  <div class="space-y-4">
+    {% for r in reviews %}{% include "reviews/_review_card.html" with r=r show_product=True %}{% endfor %}
+  </div>
+{% else %}
+  <div class="bg-white rounded-2xl border border-rose-100 p-10 text-center text-mute-500">まだ口コミがありません。</div>
+{% endif %}
 {% endblock %}

@@ -1,16 +1,100 @@
-<article class="review-card">
-  <header>
-    <div>
-      <span class="stars">{% for _ in "12345"|make_list %}{% if forloop.counter <= r.rating %}★{% else %}☆{% endif %}{% endfor %}</span>
-      <h3 style="display:inline;margin-left:8px">{{ r.title }}</h3>
+{% load static reviews_extras %}
+{% is_helpful_for r user as is_helpful %}
+{% helpful_count r as h_count %}
+<article class="bg-white rounded-2xl shadow-card border border-rose-100 p-5 sm:p-6 mb-4">
+  <div class="flex items-start gap-4">
+    {# メインアバター(=ユーザー) + 右上に表情アイコン #}
+    <div class="relative shrink-0 w-14 h-14 sm:w-16 sm:h-16">
+      {# ベース: ユーザー初期 or デフォルトシルエット #}
+      <div class="w-full h-full rounded-full bg-cream-200 ring-1 ring-rose-200 overflow-hidden flex items-center justify-center text-mute-500">
+        {% if r.user.nickname %}
+          <span class="text-lg sm:text-xl font-medium text-mute-600">{{ r.user.nickname|slice:":1" }}</span>
+        {% else %}
+          <svg viewBox="0 0 24 24" class="w-8 h-8" fill="currentColor"><path d="M12 12c2.7 0 4.9-2.2 4.9-4.9S14.7 2.2 12 2.2 7.1 4.4 7.1 7.1 9.3 12 12 12zm0 2.4c-3.3 0-9.8 1.6-9.8 4.9v2.5h19.6v-2.5c0-3.3-6.5-4.9-9.8-4.9z"/></svg>
+        {% endif %}
+      </div>
+      {# 表情アイコン: 右上にバッジ #}
+      {% with icon_n=r.icon|default:r.user.icon_number %}
+        {% if icon_n %}
+          <div class="absolute -top-1 -right-1 w-7 h-7 sm:w-8 sm:h-8 rounded-full overflow-hidden overflow-hidden">
+            <img src="{% static 'icons/' %}icon{{ icon_n }}.png" alt="表情{{ icon_n }}" class="w-full h-full object-cover" loading="lazy">
+          </div>
+        {% endif %}
+      {% endwith %}
     </div>
-    <span class="meta">{{ r.user.nickname|default:r.user.email }} ・ {{ r.created_at|date:"Y/m/d" }}</span>
-  </header>
-  <p>{{ r.body|linebreaksbr }}</p>
-  <div class="tags">
-    {% if r.usage_period %}<span class="tag">使用期間: {{ r.get_usage_period_display }}</span>{% endif %}
-    {% if r.effectiveness %}<span class="tag">{{ r.get_effectiveness_display }}</span>{% endif %}
-    {% if r.skin_type %}<span class="tag">肌質: {{ r.get_skin_type_display }}</span>{% endif %}
-    {% if show_product %}<span class="tag"><a href="{{ r.product.get_absolute_url }}">{{ r.product.name }}</a></span>{% endif %}
+
+    <div class="flex-1 min-w-0">
+      <div class="flex flex-wrap items-baseline gap-x-3 gap-y-1">
+        <span class="stars-row text-base sm:text-lg">{% for _ in "12345"|make_list %}{% if forloop.counter <= r.rating %}★{% else %}<span class="off">★</span>{% endif %}{% endfor %}</span>
+        <span class="font-semibold text-base sm:text-lg text-ink-900 break-words min-w-0">{{ r.title }}</span>
+      </div>
+      <div class="text-xs text-mute-500 mt-1 flex flex-wrap items-center gap-x-1.5 gap-y-1">
+        {% if r.user_id %}
+          <a href="{% url 'accounts:user_detail' r.user_id %}" class="font-medium text-mute-600 hover:text-rose-600 hover:underline">{{ r.user.nickname|default:"匿名" }}</a>
+          <span class="inline-flex items-center text-[10px] font-semibold text-rose-700 bg-rose-50 border border-rose-200 rounded-full px-1.5 py-0.5 leading-none" title="レビューランク">Lv.{{ r.user.review_level }}</span>
+        {% else %}
+          <span class="font-medium text-mute-600">{{ r.user.nickname|default:"匿名" }}</span>
+        {% endif %}
+        {% if r.user_id %}
+          {% if r.user.category_badge %}
+            <span class="inline-flex items-center text-[10px] text-gold-700 bg-gold-50 border border-gold-200 rounded-full px-1.5 py-0.5 leading-none" title="カテゴリバッジ">{{ r.user.category_badge }}</span>
+          {% endif %}
+        {% endif %}
+        <span class="text-mute-400">・</span>
+        <span>{{ r.created_at|date:"Y/m/d" }}</span>
+      </div>
+    </div>
+  </div>
+
+  <p class="mt-4 text-sm sm:text-[0.95rem] leading-7 text-ink-700 whitespace-pre-line break-words">{{ r.body|linebreaksbr }}</p>
+
+  {% if r.images.all %}
+    <div class="mt-4 grid grid-cols-3 sm:grid-cols-4 gap-2.5">
+      {% for img in r.images.all %}
+        <a href="{{ img.image.url }}" target="_blank" rel="noopener" class="block group">
+          <img src="{{ img.image.url }}" alt="口コミ写真" loading="lazy" class="w-full aspect-square object-cover rounded-xl border border-rose-100 group-hover:opacity-90 transition">
+        </a>
+      {% endfor %}
+    </div>
+  {% endif %}
+
+  {% if r.cospa or r.control or r.safety or r.expression %}
+    <dl class="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4 mt-5 pt-4 border-t border-rose-100">
+      {% if r.cospa %}<div><dt class="text-[11px] tracking-wider text-mute-500 mb-1">コスパ</dt><dd class="flex items-center gap-2"><div class="axis-bar flex-1"><span style="width:{% widthratio r.cospa 5 100 %}%"></span></div><span class="text-xs font-semibold text-rose-600 tabular-nums">{{ r.cospa }}<span class="text-mute-500/70">/5</span></span></dd></div>{% endif %}
+      {% if r.control %}<div><dt class="text-[11px] tracking-wider text-mute-500 mb-1">操作性</dt><dd class="flex items-center gap-2"><div class="axis-bar flex-1"><span style="width:{% widthratio r.control 5 100 %}%"></span></div><span class="text-xs font-semibold text-rose-600 tabular-nums">{{ r.control }}<span class="text-mute-500/70">/5</span></span></dd></div>{% endif %}
+      {% if r.safety %}<div><dt class="text-[11px] tracking-wider text-mute-500 mb-1">安全性</dt><dd class="flex items-center gap-2"><div class="axis-bar flex-1"><span style="width:{% widthratio r.safety 5 100 %}%"></span></div><span class="text-xs font-semibold text-rose-600 tabular-nums">{{ r.safety }}<span class="text-mute-500/70">/5</span></span></dd></div>{% endif %}
+      {% if r.expression %}<div><dt class="text-[11px] tracking-wider text-mute-500 mb-1">表情</dt><dd class="flex items-center gap-2"><div class="axis-bar flex-1"><span style="width:{% widthratio r.expression 5 100 %}%"></span></div><span class="text-xs font-semibold text-rose-600 tabular-nums">{{ r.expression }}<span class="text-mute-500/70">/5</span></span></dd></div>{% endif %}
+    </dl>
+  {% endif %}
+
+  <div class="flex flex-wrap gap-1.5 mt-4">
+    {% if r.skin_type %}<span class="inline-flex items-center px-2.5 py-0.5 text-[11px] rounded-full bg-rose-100 text-rose-700">肌質: {{ r.get_skin_type_display }}</span>{% endif %}
+    {% if r.user.age_range %}<span class="inline-flex items-center px-2.5 py-0.5 text-[11px] rounded-full bg-cream-200 text-mute-600">{{ r.user.get_age_range_display }}</span>{% endif %}
+    {% if r.user.gender %}<span class="inline-flex items-center px-2.5 py-0.5 text-[11px] rounded-full bg-cream-200 text-mute-600">{{ r.user.get_gender_display }}</span>{% endif %}
+    {% if r.usage_period %}<span class="inline-flex items-center px-2.5 py-0.5 text-[11px] rounded-full bg-cream-200 text-mute-600">使用期間: {{ r.get_usage_period_display }}</span>{% endif %}
+    {% if r.effectiveness %}<span class="inline-flex items-center px-2.5 py-0.5 text-[11px] rounded-full bg-cream-200 text-mute-600">{{ r.get_effectiveness_display }}</span>{% endif %}
+    {% if show_product %}<a href="{{ r.product.get_absolute_url }}" class="inline-block align-middle max-w-full truncate px-2.5 py-0.5 text-[11px] rounded-full bg-rose-500 text-white hover:bg-rose-600">{{ r.product.name }}</a>{% endif %}
+  </div>
+
+  <div class="mt-5 pt-4 border-t border-rose-100 flex items-center justify-between gap-3">
+    <div class="text-xs text-mute-500">
+      {% if h_count %}<span class="font-semibold text-rose-600 tabular-nums">{{ h_count }}</span>人が参考になったと回答{% else %}<span class="text-mute-500/70">最初の参考リアクション募集中</span>{% endif %}
+    </div>
+    {% if user.is_authenticated %}
+      {% if r.user_id != user.id %}
+        <form method="post" action="{% url 'reviews:helpful_toggle' r.id %}" class="inline m-0">
+          {% csrf_token %}
+          <input type="hidden" name="next" value="{{ request.get_full_path }}">
+          <button type="submit" class="inline-flex items-center gap-1.5 px-4 py-1.5 rounded-full text-xs font-medium transition border {% if is_helpful %}bg-rose-500 text-white border-rose-500 hover:bg-rose-600{% else %}bg-white text-rose-600 border-rose-300 hover:bg-rose-50{% endif %}">
+            <span class="text-sm leading-none">{% if is_helpful %}✓{% else %}♡{% endif %}</span>
+            <span>{% if is_helpful %}参考になりました{% else %}参考になった{% endif %}</span>
+          </button>
+        </form>
+      {% else %}
+        <span class="text-[11px] text-mute-500/80 italic">あなたの投稿</span>
+      {% endif %}
+    {% else %}
+      <a href="{% url 'accounts:login' %}?next={{ request.get_full_path }}" class="text-xs text-rose-600 hover:underline">♡ 参考になった</a>
+    {% endif %}
   </div>
 </article>

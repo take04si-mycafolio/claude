@@ -1,0 +1,158 @@
+{% extends "base.html" %}
+{% load static %}
+{% block title %}{{ profile_user.nickname|default:"会員" }}さんのページ{% endblock %}
+{% block meta_description %}{{ profile_user.nickname|default:"会員" }}さんの口コミ・プロフィール。美容家電TUSHOUの会員ページです。{% endblock %}
+
+{% block head_extra %}
+<style>
+  .ptab { color:#7A6E73; border-bottom:2px solid transparent; transition:color .15s, border-color .15s; }
+  .ptab:hover { color:#A0606A; }
+  .ptab.is-active { color:#A0606A; border-bottom-color:#C97B84; font-weight:600; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="max-w-2xl mx-auto">
+
+  {# ===== プロフィールヘッダー ===== #}
+  <div class="bg-white rounded-2xl border border-rose-100 shadow-card overflow-hidden">
+    {# バナー #}
+    <div class="h-24 sm:h-32 bg-gradient-to-r from-rose-300 via-gold-200 to-cream-200"></div>
+
+    <div class="px-5 sm:px-6 pb-5">
+      {# アバター + アクション #}
+      <div class="flex items-end justify-between -mt-12 sm:-mt-14">
+        <div class="w-24 h-24 sm:w-28 sm:h-28 rounded-full ring-4 ring-white bg-cream-100 overflow-hidden shadow-sm flex items-center justify-center shrink-0">
+          {% if profile_user.avatar %}
+            <img src="{{ profile_user.avatar.url }}" alt="{{ profile_user.nickname }}" class="w-full h-full object-cover">
+          {% elif profile_user.icon_number %}
+            <img src="{% static 'icons/' %}icon{{ profile_user.icon_number }}.png" alt="アイコン" class="w-full h-full object-cover">
+          {% else %}
+            <div class="w-full h-full bg-gradient-to-br from-rose-300 to-gold-300 flex items-center justify-center text-white text-3xl font-serif font-bold">{{ profile_user.nickname|default:"♡"|slice:":1" }}</div>
+          {% endif %}
+        </div>
+        <div class="mb-2">
+          {% if is_own %}
+            <a href="{% url 'accounts:profile_edit' %}" class="inline-flex items-center gap-1.5 px-4 py-2 rounded-full border border-rose-300 text-rose-600 text-sm font-medium hover:bg-rose-50 transition">プロフィールを編集</a>
+          {% endif %}
+        </div>
+      </div>
+
+      {# 名前・バッジ #}
+      <div class="mt-3">
+        <div class="flex items-center flex-wrap gap-x-2 gap-y-1">
+          <h1 class="text-xl font-bold text-ink-900 break-words">{{ profile_user.nickname|default:"匿名ユーザー" }}</h1>
+          <span class="inline-flex items-center text-[11px] font-semibold text-rose-700 bg-rose-50 border border-rose-200 rounded-full px-2 py-0.5 leading-none">Lv.{{ profile_user.review_level }}</span>
+          {% if profile_user.category_badge %}<span class="inline-flex items-center text-[11px] text-gold-700 bg-gold-50 border border-gold-200 rounded-full px-2 py-0.5 leading-none">{{ profile_user.category_badge }}</span>{% endif %}
+        </div>
+        {% if profile_user.twitter %}<div class="text-sm text-mute-500 mt-0.5">@{{ profile_user.twitter }}</div>{% endif %}
+      </div>
+
+      {# 自己紹介 #}
+      {% if profile_user.bio %}<p class="mt-3 text-sm text-ink-700 leading-relaxed whitespace-pre-line break-words">{{ profile_user.bio }}</p>{% endif %}
+
+      {# 属性チップ #}
+      {% if profile_user.age_range or profile_user.skin_type or profile_user.gender %}
+        <div class="mt-3 flex flex-wrap gap-1.5">
+          {% if profile_user.age_range %}<span class="inline-flex items-center px-2.5 py-0.5 text-[11px] rounded-full bg-cream-200 text-mute-600">{{ profile_user.get_age_range_display }}</span>{% endif %}
+          {% if profile_user.skin_type %}<span class="inline-flex items-center px-2.5 py-0.5 text-[11px] rounded-full bg-rose-100 text-rose-700">{{ profile_user.get_skin_type_display }}</span>{% endif %}
+          {% if profile_user.gender %}<span class="inline-flex items-center px-2.5 py-0.5 text-[11px] rounded-full bg-cream-200 text-mute-600">{{ profile_user.get_gender_display }}</span>{% endif %}
+        </div>
+      {% endif %}
+
+      {# メタ情報（登録・SNS） #}
+      <div class="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1.5 text-xs text-mute-500">
+        <span class="inline-flex items-center gap-1">📅 {{ profile_user.created_at|date:"Y年n月" }}から</span>
+        {% if profile_user.twitter %}<a href="https://x.com/{{ profile_user.twitter }}" target="_blank" rel="noopener" class="hover:text-rose-600">𝕏 X</a>{% endif %}
+        {% if profile_user.instagram %}<a href="https://instagram.com/{{ profile_user.instagram }}" target="_blank" rel="noopener" class="hover:text-rose-600">📷 Instagram</a>{% endif %}
+        {% if profile_user.tiktok %}<a href="https://tiktok.com/@{{ profile_user.tiktok }}" target="_blank" rel="noopener" class="hover:text-rose-600">🎵 TikTok</a>{% endif %}
+        {% if profile_user.youtube_url %}<a href="{{ profile_user.youtube_url }}" target="_blank" rel="noopener" class="hover:text-rose-600">▶ YouTube</a>{% endif %}
+        {% if profile_user.website_url %}<a href="{{ profile_user.website_url }}" target="_blank" rel="noopener" class="hover:text-rose-600 truncate max-w-[200px]">🔗 {{ profile_user.website_url }}</a>{% endif %}
+      </div>
+    </div>
+
+    {# ステータスバー（Instagram風） #}
+    <div class="grid grid-cols-3 border-t border-rose-100 divide-x divide-rose-100">
+      <div class="py-3 text-center">
+        <div class="text-lg font-bold text-ink-900 leading-none">{{ profile_user.review_count }}</div>
+        <div class="text-[11px] text-mute-500 mt-1">投稿</div>
+      </div>
+      <div class="py-3 text-center">
+        <div class="text-lg font-bold text-ink-900 leading-none">{{ profile_user.helpful_count }}</div>
+        <div class="text-[11px] text-mute-500 mt-1">参考になった</div>
+      </div>
+      <div class="py-3 text-center">
+        <div class="text-lg font-bold text-rose-600 leading-none">Lv.{{ profile_user.review_level }}</div>
+        <div class="text-[11px] text-mute-500 mt-1">レビューランク</div>
+      </div>
+    </div>
+  </div>
+
+  {# ===== タブ ===== #}
+  <div class="mt-5 flex" role="tablist">
+    <button type="button" data-tab="reviews" class="ptab is-active flex-1 py-3 text-sm">口コミ <span class="text-mute-400">{{ reviews|length }}</span></button>
+    <button type="button" data-tab="photos" class="ptab flex-1 py-3 text-sm">写真 <span class="text-mute-400">{{ photos|length }}</span></button>
+    <button type="button" data-tab="bookmarks" class="ptab flex-1 py-3 text-sm">気になる <span class="text-mute-400">{{ bookmarks|length }}</span></button>
+  </div>
+
+  {# 口コミタブ #}
+  <div data-panel="reviews" class="mt-5">
+    {% if reviews %}
+      <div class="space-y-4">{% for r in reviews %}{% include "reviews/_review_card.html" with r=r show_product=True %}{% endfor %}</div>
+    {% else %}
+      <div class="bg-white rounded-2xl border border-rose-100 p-10 text-center text-sm text-mute-500">まだ口コミの投稿はありません。</div>
+    {% endif %}
+  </div>
+
+  {# 写真タブ（Instagram風グリッド） #}
+  <div data-panel="photos" class="mt-5 hidden">
+    {% if photos %}
+      <div class="grid grid-cols-3 gap-1 sm:gap-1.5">
+        {% for p in photos %}
+          <a href="{{ p.review.product.get_absolute_url }}" class="group block relative aspect-square overflow-hidden rounded-sm sm:rounded-md bg-cream-100">
+            <img src="{{ p.image.url }}" alt="口コミ写真" loading="lazy" class="w-full h-full object-cover group-hover:scale-105 transition duration-300">
+          </a>
+        {% endfor %}
+      </div>
+    {% else %}
+      <div class="bg-white rounded-2xl border border-rose-100 p-10 text-center text-sm text-mute-500">まだ写真付きの口コミはありません。</div>
+    {% endif %}
+  </div>
+
+  {# 気になるタブ #}
+  <div data-panel="bookmarks" class="mt-5 hidden">
+    {% if bookmarks %}
+      <ul class="grid grid-cols-2 sm:grid-cols-3 gap-4">
+        {% for bm in bookmarks %}
+          <li><a href="{{ bm.product.get_absolute_url }}" class="group block bg-white rounded-2xl border border-rose-100 overflow-hidden hover:shadow-card transition">
+            <div class="aspect-square bg-cream-100 overflow-hidden">
+              {% if bm.product.display_image %}<img src="{{ bm.product.display_image }}" alt="{{ bm.product.name }}" loading="lazy" class="w-full h-full object-cover group-hover:scale-105 transition duration-500">{% endif %}
+            </div>
+            <div class="p-3">
+              {% if bm.product.brand %}<div class="text-[10px] text-mute-500 uppercase tracking-wider truncate">{{ bm.product.brand }}</div>{% endif %}
+              <h3 class="text-xs font-medium text-ink-900 line-clamp-2 group-hover:text-rose-600">{{ bm.product.name }}</h3>
+            </div>
+          </a></li>
+        {% endfor %}
+      </ul>
+    {% else %}
+      <div class="bg-white rounded-2xl border border-rose-100 p-10 text-center text-sm text-mute-500">まだ「気になる」に登録した商品はありません。</div>
+    {% endif %}
+  </div>
+
+</div>
+
+<script>
+  (function () {
+    var tabs = document.querySelectorAll('[data-tab]');
+    var panels = document.querySelectorAll('[data-panel]');
+    tabs.forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        var name = btn.getAttribute('data-tab');
+        tabs.forEach(function (b) { b.classList.toggle('is-active', b === btn); });
+        panels.forEach(function (p) { p.classList.toggle('hidden', p.getAttribute('data-panel') !== name); });
+      });
+    });
+  })();
+</script>
+{% endblock %}

@@ -125,6 +125,11 @@ class Product(models.Model):
     )
     discontinued_at = models.DateField("生産終了日", null=True, blank=True)
     is_published = models.BooleanField("公開", default=True)
+    related_articles = models.ManyToManyField(
+        "Article", blank=True, related_name="related_products_reverse",
+        verbose_name="関連記事",
+        help_text="商品ページ下部に表示する関連記事(機構hub/悩みhub/比較/選び方など最大4本)",
+    )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -216,6 +221,27 @@ class Article(models.Model):
     wp_author = models.CharField("WP投稿者", max_length=500, blank=True)
     published_at = models.DateTimeField("公開日", null=True, blank=True)
     is_published = models.BooleanField("公開", default=True)
+    INDEX_STATUS_CHOICES = [
+        ('', '未チェック'),
+        ('indexed', '✅ Indexed'),
+        ('crawled_not_indexed', '🔄 Crawled, not indexed'),
+        ('discovered_not_indexed', '⏳ Discovered, not indexed'),
+        ('excluded', '🚫 Excluded'),
+        ('unknown_to_google', '⏳ 未登録/未クロール'),
+        ('error', '⚠️ API error'),
+    ]
+    index_status = models.CharField(
+        "Googleインデックス状況", max_length=64, blank=True, default='',
+        choices=INDEX_STATUS_CHOICES,
+        help_text="URL Inspection API の coverageState から判定。check_indexing コマンドで更新。",
+    )
+    index_checked_at = models.DateTimeField(
+        "インデックス確認日時", null=True, blank=True,
+    )
+    index_raw_status = models.TextField(
+        "インデックスAPI生レスポンス", blank=True, default='',
+        help_text="URL Inspection API の coverageState 等を生で保持（デバッグ用）。",
+    )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 

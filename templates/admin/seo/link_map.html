@@ -1,0 +1,253 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<title>SEO 内部リンクマップ | TUSHOU管理</title>
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<script src="https://d3js.org/d3.v7.min.js"></script>
+<style>
+:root {
+  --bg: #0f1626;
+  --bg2: #161e33;
+  --panel: #1c2540;
+  --border: #2a345a;
+  --text: #e3e9ff;
+  --muted: #8893b8;
+  --accent: #c97b84;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; height: 100%; background: var(--bg); color: var(--text);
+  font-family: 'Noto Sans JP', system-ui, sans-serif; overflow: hidden; }
+header { padding: 14px 22px; background: var(--bg2); border-bottom: 1px solid var(--border);
+  display: flex; align-items: center; justify-content: space-between; }
+header .logo { font-weight: 700; }
+header .logo span.bear { font-size: 1.2rem; margin-right: 6px; }
+nav.topnav a { margin-left: 18px; color: var(--muted); text-decoration: none; font-size: 13px; }
+nav.topnav a.active { color: var(--accent); font-weight: 600; }
+nav.topnav a.danger { color: #ff6b6b; }
+nav.topnav a:hover { color: var(--text); }
+
+.toolbar { padding: 10px 22px; background: var(--bg2); border-bottom: 1px solid var(--border);
+  display: flex; gap: 10px; flex-wrap: wrap; align-items: center; font-size: 12px; }
+.stat { padding: 6px 12px; background: var(--panel); border: 1px solid var(--border); border-radius: 6px; }
+.stat strong { color: var(--accent); margin-left: 4px; }
+.btn { padding: 6px 14px; border: 1px solid var(--border); background: var(--panel);
+  color: var(--text); border-radius: 6px; cursor: pointer; font-size: 12px; }
+.btn.active { background: var(--accent); border-color: var(--accent); color: #fff; }
+.btn:hover { border-color: var(--accent); }
+input[type=search] { padding: 6px 12px; border-radius: 6px; background: var(--panel);
+  color: var(--text); border: 1px solid var(--border); width: 200px; font-size: 12px; }
+
+.legend { padding: 8px 22px; background: var(--bg2); border-bottom: 1px solid var(--border);
+  display: flex; gap: 14px; flex-wrap: wrap; font-size: 11px; color: var(--muted); }
+.legend-item { display: inline-flex; align-items: center; gap: 5px; }
+.legend-dot { width: 8px; height: 8px; border-radius: 50%; }
+.legend-item.link-toggle { cursor: pointer; user-select: none; padding: 2px 6px; border-radius: 5px; transition: background .12s; }
+.legend-item.link-toggle:hover { background: var(--panel); }
+.legend-item.link-toggle.off { opacity: 0.38; text-decoration: line-through; }
+
+#graph { width: 100%; height: calc(100vh - 175px); cursor: grab; }
+#graph:active { cursor: grabbing; }
+.link { stroke: #2a345a; stroke-opacity: 0.55; stroke-width: 1px; }
+.link.related { stroke: #f472b6; stroke-width: 1.5px; stroke-dasharray: 1,5; stroke-linecap: round; stroke-opacity: 0.9; }
+.link.content { stroke: #ef4444; stroke-width: 1.5px; stroke-dasharray: 1,5; stroke-linecap: round; stroke-opacity: 0.9; }
+.link.relart { stroke: #facc15; stroke-width: 1.5px; stroke-dasharray: 1,5; stroke-linecap: round; stroke-opacity: 0.9; }
+.link.prodrel { stroke: #3b82f6; stroke-width: 1.5px; stroke-dasharray: 1,5; stroke-linecap: round; stroke-opacity: 0.9; }
+.node circle { stroke-width: 2px; transition: all .15s; }
+.node:hover circle { stroke-width: 3px; r: 14; }
+.node text { fill: var(--text); font-size: 11px; pointer-events: none; user-select: none;
+  text-shadow: 0 1px 4px rgba(0,0,0,0.8); }
+.node.dimmed { opacity: 0.15; }
+.link.dimmed { opacity: 0.05; }
+</style>
+</head>
+<body>
+<header>
+  <div class="logo"><span class="bear">🛒</span>SEO 内部リンクマップ</div>
+  <nav class="topnav">
+    <a href="/admin/">管理画面に戻る</a>
+    <a href="/" target="_blank">サイトを見る</a>
+    <a href="/admin/logout/" class="danger">ログアウト</a>
+  </nav>
+</header>
+<div class="toolbar">
+  <span class="stat">ページ数<strong id="stat-pages">0</strong></span>
+  <span class="stat">リンク数<strong id="stat-links">0</strong></span>
+  <span class="stat">記事<strong id="stat-articles">0</strong></span>
+  <span class="stat">商品<strong id="stat-products">0</strong></span>
+  <button class="btn active" data-filter="all">すべて</button>
+  <button class="btn" data-filter="article">記事のみ</button>
+  <button class="btn" data-filter="product">商品のみ</button>
+  <button class="btn" data-filter="orphan">被リンクなし</button>
+  <input type="search" id="search-input" placeholder="ページ名で検索...">
+  <button class="btn" id="refresh-btn" title="DBから最新の記事/商品/リンク情報を再取得">🔄 データ更新</button>
+  <button class="btn" id="reset-btn">表示リセット</button>
+  <span id="last-updated" style="color:var(--muted);font-size:11px;margin-left:8px"></span>
+</div>
+<div class="legend">
+  <span class="legend-item"><span class="legend-dot" style="background:#4ade80"></span>TOPページ</span>
+  <span class="legend-item"><span class="legend-dot" style="background:#22d3ee"></span>カテゴリ</span>
+  <span class="legend-item"><span class="legend-dot" style="background:#a78bfa"></span>記事</span>
+  <span class="legend-item"><span class="legend-dot" style="background:#60a5fa"></span>商品</span>
+  <span class="legend-item link-toggle" data-kind="structure" title="クリックで表示/非表示"><span style="display:inline-block;width:24px;height:1px;background:#2a345a"></span> 構造リンク</span>
+  <span class="legend-item link-toggle" data-kind="related" title="クリックで表示/非表示"><span style="display:inline-block;width:24px;height:0;border-top:1.5px dotted #f472b6"></span> 関連商品</span>
+  <span class="legend-item link-toggle" data-kind="relart" title="クリックで表示/非表示"><span style="display:inline-block;width:24px;height:0;border-top:1.5px dotted #facc15"></span> 関連記事</span>
+  <span class="legend-item link-toggle" data-kind="prodrel" title="クリックで表示/非表示"><span style="display:inline-block;width:24px;height:0;border-top:1.5px dotted #3b82f6"></span> 商品→関連ページ</span>
+  <span class="legend-item link-toggle" data-kind="content" title="クリックで表示/非表示"><span style="display:inline-block;width:24px;height:0;border-top:1.5px dotted #ef4444"></span> 本文中リンク</span>
+</div>
+<svg id="graph"></svg>
+<script>
+const COLORS = { main: '#4ade80', article: '#a78bfa', product: '#60a5fa', category: '#22d3ee' };
+const RADIUS = { main: 16, category: 11, article: 8, product: 8 };
+
+let allNodes = [], allEdges = [], simulation, link, node, currentFilter = 'all';
+
+function loadData(showSpinner=false) {
+  const btn = document.getElementById('refresh-btn');
+  if (showSpinner && btn) {
+    btn.disabled = true;
+    btn.textContent = '🔄 更新中…';
+  }
+  return fetch("./data/?_=" + Date.now())
+    .then(r => r.json())
+    .then(data => {
+      allNodes = data.nodes;
+      allEdges = data.edges;
+      document.getElementById('stat-pages').textContent = data.stats.pages;
+      document.getElementById('stat-links').textContent = data.stats.links;
+      document.getElementById('stat-articles').textContent = data.stats.articles;
+      document.getElementById('stat-products').textContent = data.stats.products;
+      const now = new Date();
+      const upd = document.getElementById('last-updated');
+      if (upd) upd.textContent = '最終取得: ' + now.toLocaleTimeString('ja-JP');
+      render();
+      if (showSpinner && btn) {
+        btn.disabled = false;
+        btn.textContent = '🔄 データ更新';
+      }
+    })
+    .catch(err => {
+      if (btn) {
+        btn.disabled = false;
+        btn.textContent = '⚠ 更新失敗(再試行)';
+      }
+      console.error(err);
+    });
+}
+loadData();
+
+// 凡例クリックでリンク種別ごとに表示/非表示をトグル
+const hiddenKinds = new Set();
+function applyLinkVisibility() {
+  if (link) link.style("display", d => hiddenKinds.has(d.kind || "structure") ? "none" : null);
+}
+document.querySelectorAll('.legend .link-toggle').forEach(el => {
+  el.addEventListener('click', () => {
+    const k = el.dataset.kind;
+    if (hiddenKinds.has(k)) { hiddenKinds.delete(k); el.classList.remove('off'); }
+    else { hiddenKinds.add(k); el.classList.add('off'); }
+    applyLinkVisibility();
+  });
+});
+
+function render() {
+  const svg = d3.select("#graph");
+  svg.selectAll("*").remove();
+  const width = window.innerWidth;
+  const height = window.innerHeight - 175;
+  svg.attr("width", width).attr("height", height);
+
+  const g = svg.append("g");
+  svg.call(d3.zoom().on("zoom", e => g.attr("transform", e.transform)));
+
+  simulation = d3.forceSimulation(allNodes)
+    .force("link", d3.forceLink(allEdges).id(d => d.id).distance(d => d.kind === "content" ? 110 : 70))
+    .force("charge", d3.forceManyBody().strength(-220))
+    .force("center", d3.forceCenter(width/2, height/2))
+    .force("collide", d3.forceCollide().radius(20));
+
+  link = g.append("g").selectAll("line")
+    .data(allEdges).enter().append("line")
+    .attr("class", d => "link " + (d.kind || "structure"));
+  applyLinkVisibility();
+
+  node = g.append("g").selectAll("g")
+    .data(allNodes).enter().append("g")
+    .attr("class", "node")
+    .call(d3.drag()
+      .on("start", e => { if (!e.active) simulation.alphaTarget(0.3).restart(); e.subject.fx = e.subject.x; e.subject.fy = e.subject.y; })
+      .on("drag", e => { e.subject.fx = e.x; e.subject.fy = e.y; })
+      .on("end", e => { if (!e.active) simulation.alphaTarget(0); e.subject.fx = null; e.subject.fy = null; }));
+
+  node.append("circle")
+    .attr("r", d => RADIUS[d.type] || 7)
+    .attr("fill", d => COLORS[d.type] || "#888")
+    .attr("fill-opacity", 0.25)
+    .attr("stroke", d => COLORS[d.type] || "#888");
+
+  node.append("text")
+    .text(d => d.label)
+    .attr("dy", d => -(RADIUS[d.type] || 7) - 6)
+    .attr("text-anchor", "middle");
+
+  node.append("title").text(d => `${d.label}\n${d.url || ""}`);
+
+  node.on("click", (e, d) => { if (d.url) window.open(d.url, "_blank"); });
+
+  simulation.on("tick", () => {
+    link
+      .attr("x1", d => d.source.x).attr("y1", d => d.source.y)
+      .attr("x2", d => d.target.x).attr("y2", d => d.target.y);
+    node.attr("transform", d => `translate(${d.x},${d.y})`);
+  });
+}
+
+function applyFilter() {
+  if (!node) return;
+  const q = (document.getElementById("search-input").value || "").trim().toLowerCase();
+  // 被リンクなし(orphan)判定
+  const inDegree = {};
+  allEdges.forEach(e => {
+    const t = typeof e.target === "object" ? e.target.id : e.target;
+    inDegree[t] = (inDegree[t] || 0) + 1;
+  });
+  node.classed("dimmed", d => {
+    if (currentFilter === "article" && d.type !== "article" && d.type !== "main") return true;
+    if (currentFilter === "product" && d.type !== "product" && d.type !== "main") return true;
+    if (currentFilter === "orphan" && (inDegree[d.id] || 0) > 0 && d.type !== "main") return true;
+    if (q && !d.label.toLowerCase().includes(q)) return true;
+    return false;
+  });
+  link.classed("dimmed", d => {
+    const sd = node.filter(n => n.id === (d.source.id || d.source)).classed("dimmed");
+    const td = node.filter(n => n.id === (d.target.id || d.target)).classed("dimmed");
+    return sd || td;
+  });
+}
+
+document.querySelectorAll(".btn[data-filter]").forEach(b => {
+  b.addEventListener("click", () => {
+    document.querySelectorAll(".btn[data-filter]").forEach(x => x.classList.remove("active"));
+    b.classList.add("active");
+    currentFilter = b.dataset.filter;
+    applyFilter();
+  });
+});
+document.getElementById("search-input").addEventListener("input", applyFilter);
+document.getElementById("refresh-btn").addEventListener("click", () => {
+  loadData(true);
+});
+document.getElementById("reset-btn").addEventListener("click", () => {
+  document.getElementById("search-input").value = "";
+  document.querySelectorAll(".btn[data-filter]").forEach(x => x.classList.remove("active"));
+  document.querySelector('.btn[data-filter="all"]').classList.add("active");
+  currentFilter = "all";
+  hiddenKinds.clear();
+  document.querySelectorAll('.legend .link-toggle.off').forEach(el => el.classList.remove('off'));
+  applyFilter();
+  render();
+});
+window.addEventListener("resize", () => render());
+</script>
+</body>
+</html>

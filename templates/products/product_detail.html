@@ -1,129 +1,204 @@
 {% extends "base.html" %}
-{% block title %}{{ product.name }}の口コミ・レビュー | 美顔器レビュー{% endblock %}
-{% block meta_description %}{{ product.name }}の実際に使った方の口コミ・評価を掲載。{{ product.brand }}の美顔器のリアルなレビューが読めます。{% endblock %}
+{% load static article_extras %}
+{% block head_extra %}<link rel="stylesheet" href="{% static 'article-css.css' %}?v=22">{% endblock %}
+{% block title %}{% if product.meta_title %}{{ product.meta_title }}{% else %}{{ product.name }}の口コミ・レビュー | 美容家電TUSHOU{% endif %}{% endblock %}
+{% block meta_description %}{% if product.meta_description %}{{ product.meta_description }}{% else %}{{ product.name }}の実際に使った方の口コミ・評価を掲載。{{ product.brand }}のリアルなレビューが読めます。{% endif %}{% endblock %}
 
 {% block content %}
-<nav aria-label="breadcrumb" style="font-size:0.85rem;margin:16px 0;color:var(--color-muted)">
-  <a href="{% url 'products:list' %}">商品一覧</a> ›
-  <span>{{ product.name }}</span>
-</nav>
-
-<div class="product-detail">
-  <div class="img-wrap">
-    {% if product.display_image %}
-      <img src="{{ product.display_image }}" alt="{{ product.name }}">
-    {% else %}
-      <div style="display:flex;height:100%;align-items:center;justify-content:center;color:#aaa">No Image</div>
-    {% endif %}
-  </div>
-  <div>
-    {% if product.brand %}<div class="brand">{{ product.brand }}</div>{% endif %}
-    <h1>{{ product.name }}</h1>
-
-    <div>
-      <span class="stars stars-lg">
-        {% for _ in "12345"|make_list %}{% if forloop.counter <= stats.average %}★{% else %}☆{% endif %}{% endfor %}
-      </span>
-      {% if stats.count %}
-        <strong>{{ stats.average }}</strong> / 5.0（{{ stats.count }}件の口コミ）
-      {% else %}
-        <span style="color:var(--color-muted)">まだ口コミがありません</span>
-      {% endif %}
-    </div>
-
-    {% if product.price %}<p class="price-big">参考価格: ¥{{ product.price }}</p>{% endif %}
-
-    {% if product.description %}
-      <div class="product-desc">{{ product.description|safe }}</div>
-    {% endif %}
-
-    {% if product.features %}
-      <h2 style="font-size:1.1rem;margin:18px 0 6px">特徴</h2>
-      <ul class="features-list">{{ product.features|safe }}</ul>
-    {% endif %}
-
-    {% if product.official_url or product.affiliate_url or product.rakuten_url or product.amazon_url %}
-      <div style="margin-top:16px;display:flex;gap:8px;flex-wrap:wrap">
-        {% if product.affiliate_url %}<a href="{{ product.affiliate_url }}" class="btn btn-primary" target="_blank" rel="nofollow noopener sponsored">公式サイトで見る</a>{% endif %}
-        {% if product.rakuten_url %}<a href="{{ product.rakuten_url }}" class="btn" target="_blank" rel="nofollow noopener sponsored">楽天で見る</a>{% endif %}
-        {% if product.amazon_url %}<a href="{{ product.amazon_url }}" class="btn" target="_blank" rel="nofollow noopener sponsored">Amazonで見る</a>{% endif %}
-        {% if product.official_url %}<a href="{{ product.official_url }}" class="btn" target="_blank" rel="nofollow noopener">公式サイト</a>{% endif %}
-      </div>
-    {% endif %}
-
-    <div style="margin-top:20px">
-      {% if user.is_authenticated %}
-        {% if user_review %}
-          <a href="{% url 'reviews:create' product.slug %}" class="btn">自分の口コミを編集</a>
-        {% else %}
-          <a href="{% url 'reviews:create' product.slug %}" class="btn btn-primary">この商品の口コミを書く</a>
-        {% endif %}
-      {% else %}
-        <a href="{% url 'accounts:signup' %}" class="btn btn-primary">無料登録して口コミを書く</a>
-      {% endif %}
+{% if product.is_discontinued %}
+<div class="mb-6 rounded-2xl border border-amber-200 bg-amber-50 p-5 sm:p-6">
+  <div class="flex items-start gap-3">
+    <span class="shrink-0 inline-flex w-9 h-9 rounded-full bg-amber-500 text-white items-center justify-center font-bold">!</span>
+    <div class="flex-1">
+      <p class="font-bold text-amber-900 text-base sm:text-lg">この商品は生産終了しています{% if product.discontinued_at %}({{ product.discontinued_at|date:"Y年n月" }}){% endif %}</p>
+      <p class="text-sm text-amber-800 mt-1 leading-relaxed">在庫がある販売店もありますが、新規生産は行われていません。最新のおすすめ機種は<a href="#similar-products" class="underline font-medium">こちら</a>からご確認ください。</p>
     </div>
   </div>
 </div>
+{% endif %}
 
-<section class="section">
-  <h2>口コミ・レビュー</h2>
+<article class="bg-white rounded-2xl shadow-card border border-rose-100 overflow-hidden">
+  <div class="grid grid-cols-1 lg:grid-cols-[1fr_650px] gap-0 min-w-0">
+    <div class="bg-cream-100 aspect-square lg:aspect-auto lg:min-h-[420px] flex justify-center items-center lg:items-start p-2.5 sm:p-10 min-w-0 overflow-hidden">
+      {% load static %}
+      {% if product.display_image %}
+        <img src="{{ product.display_image }}" alt="{{ product.name }}" class="max-w-full max-h-full object-contain">
+      {% else %}
+        <img src="{% static 'no-image.svg' %}" alt="画像はありません" class="max-w-full max-h-full object-contain">
+      {% endif %}
+    </div>
+    <div class="p-2.5 sm:p-10 min-w-0 overflow-hidden">
+      {% if product.brand %}<div class="text-[11px] tracking-[0.2em] uppercase text-mute-500 mb-2">{{ product.brand }}</div>{% endif %}
+      <h1 class="text-2xl sm:text-3xl font-bold text-ink-900 leading-tight">{{ product.name }}</h1>
+
+      {% if stats.count %}
+      <div class="mt-4 flex flex-wrap items-center gap-x-3 gap-y-1">
+        <span class="stars-row text-xl" aria-label="{{ stats.average }}点">
+          {% for _ in "12345"|make_list %}{% if forloop.counter <= stats.average %}★{% else %}<span class="off">★</span>{% endif %}{% endfor %}
+        </span>
+        <span class="text-xl font-bold text-ink-900 tabular-nums">{{ stats.average }}</span>
+        <span class="text-xs text-mute-500">/ 5.0（{{ stats.count }}件の口コミ）</span>
+      </div>
+      {% endif %}
+
+      {% if product.price %}
+        <div class="mt-5 pb-5 border-b border-rose-100">
+          <span class="text-xs text-mute-500">参考価格</span>
+          <div class="text-2xl font-bold text-rose-600">¥{{ product.price }}</div>
+        </div>
+      {% endif %}
+
+      {% if product.description %}
+        <div class="mt-5 prose prose-rose max-w-none text-sm leading-7 text-ink-700">{{ product.description|safe }}</div>
+      {% endif %}
+
+      {% if product.features %}
+        <h2 class="mt-6 text-sm font-bold text-ink-900 flex items-center gap-2"><span class="inline-block w-1 h-4 bg-rose-500 rounded"></span>特徴</h2>
+        <ul class="mt-2 list-disc list-inside text-sm text-ink-700 space-y-1 prose-rose">{{ product.features|safe }}</ul>
+      {% endif %}
+
+      {% if product.official_url or product.affiliate_url or product.rakuten_url or product.amazon_url %}
+        <div class="mt-6">
+          <div class="flex items-center gap-1.5 mb-2">
+            <span class="inline-flex items-center px-1.5 py-0.5 rounded bg-mute-500 text-white text-[10px] font-bold tracking-wide">PR</span>
+            <p class="text-[11px] text-mute-500">楽天/Amazon等のアフィリエイトリンクを含みます</p>
+          </div>
+          <div class="flex flex-col sm:flex-row sm:flex-wrap gap-2">
+            {% if product.affiliate_url %}<a href="{{ product.affiliate_url }}" target="_blank" rel="nofollow noopener sponsored" class="w-full sm:w-auto inline-flex items-center justify-center px-5 py-2.5 rounded-full bg-rose-500 hover:bg-rose-600 text-white text-sm font-medium shadow-sm transition">公式サイトで見る</a>{% endif %}
+            {% if product.rakuten_url %}<a href="{{ product.rakuten_url }}" target="_blank" rel="nofollow noopener sponsored" class="w-full sm:w-auto inline-flex items-center justify-center px-5 py-2.5 rounded-full border border-rose-300 text-rose-600 hover:bg-rose-50 text-sm font-medium transition">楽天で見る</a>{% endif %}
+            {% if product.amazon_url %}<a href="{{ product.amazon_url }}" target="_blank" rel="nofollow noopener sponsored" class="w-full sm:w-auto inline-flex items-center justify-center px-5 py-2.5 rounded-full border border-rose-300 text-rose-600 hover:bg-rose-50 text-sm font-medium transition">Amazonで見る</a>{% endif %}
+            {% if product.official_url %}<a href="{{ product.official_url }}" target="_blank" rel="nofollow noopener" class="w-full sm:w-auto inline-flex items-center justify-center px-5 py-2.5 rounded-full border border-rose-200 text-mute-600 hover:bg-cream-100 text-sm transition">公式サイト</a>{% endif %}
+          </div>
+        </div>
+      {% endif %}
+
+      <div class="mt-6 pt-5 border-t border-rose-100 flex flex-wrap gap-3">
+        {% if user.is_authenticated %}
+          {% if user_review %}
+            <a href="{% url 'reviews:create' product.slug %}" class="inline-flex items-center justify-center px-6 py-3 rounded-full border border-rose-300 text-rose-600 hover:bg-rose-50 font-medium text-sm transition">自分の口コミを編集</a>
+          {% else %}
+            <a href="{% url 'reviews:create' product.slug %}" class="inline-flex items-center justify-center px-6 py-3 rounded-full bg-rose-500 hover:bg-rose-600 text-white font-medium text-sm transition shadow-sm">この商品の口コミを書く</a>
+          {% endif %}
+          <form method="post" action="{% url 'products:bookmark_toggle' product.slug %}" class="inline m-0">
+            {% csrf_token %}
+            <input type="hidden" name="next" value="{{ request.path }}">
+            <button type="submit" class="inline-flex items-center justify-center gap-1.5 px-6 py-3 rounded-full font-medium text-sm transition border-2 {% if is_bookmarked %}bg-rose-500 text-white border-rose-500 hover:bg-rose-600{% else %}bg-white text-rose-600 border-rose-300 hover:bg-rose-50{% endif %}">
+              <span class="text-lg leading-none">{% if is_bookmarked %}♥{% else %}♡{% endif %}</span>
+              <span>{% if is_bookmarked %}気になる登録済み{% else %}気になる{% endif %}</span>
+            </button>
+          </form>
+        {% else %}
+          <a href="{% url 'accounts:signup' %}" class="inline-flex items-center justify-center px-6 py-3 rounded-full bg-rose-500 hover:bg-rose-600 text-white font-medium text-sm transition shadow-sm">無料登録して口コミを書く</a>
+          <a href="{% url 'accounts:login' %}?next={{ request.path }}" class="inline-flex items-center gap-1.5 px-6 py-3 rounded-full bg-white text-rose-600 border-2 border-rose-300 hover:bg-rose-50 font-medium text-sm transition">
+            <span class="text-lg leading-none">♡</span><span>気になる</span>
+          </a>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+</article>
+
+{% if hub_cards %}
+<section class="mt-8 bk-mc-wrap max-w-none">
+  {% for c in hub_cards %}{% include "includes/_article_page_card.html" %}{% endfor %}
+</section>
+{% endif %}
+
+{% include "includes/_adsense.html" %}
+
+<section class="mt-10 sm:mt-14">
+  <div class="flex items-center gap-3 mb-5">
+    <span class="inline-block w-1.5 h-6 bg-gradient-to-b from-rose-500 to-gold-500 rounded"></span>
+    <h2 class="text-xl sm:text-2xl font-bold text-ink-900">口コミ・レビュー</h2>
+  </div>
 
   {% if can_view %}
     {% if reviews %}
-      {% for r in reviews %}
-        {% include "reviews/_review_card.html" with r=r %}
-      {% endfor %}
+      {% for r in reviews %}{% include "reviews/_review_card.html" with r=r %}{% endfor %}
     {% else %}
-      <p>まだこの商品には口コミがありません。最初の口コミを投稿してみませんか？</p>
+      <div class="bg-white rounded-2xl border border-rose-100 p-10 text-center text-mute-500">まだこの商品には口コミがありません。最初の口コミを投稿してみませんか？</div>
     {% endif %}
   {% else %}
     {% if preview_reviews %}
-      {% for r in preview_reviews %}
-        {% include "reviews/_review_card.html" with r=r %}
-      {% endfor %}
+      <div class="space-y-4 mb-6 relative">
+        {% for r in preview_reviews %}{% include "reviews/_review_card.html" with r=r %}{% endfor %}
+        <div class="absolute inset-x-0 -bottom-2 h-16 bg-gradient-to-t from-cream-100 to-transparent pointer-events-none"></div>
+      </div>
     {% endif %}
-
-    <div class="gate">
-      <h3>口コミの全文を読むには、あなたの口コミが必要です</h3>
-      <p>このサイトはユーザー投稿型の口コミサイトです。<br>
-        {% if product.product_type %}「<strong>{{ product.product_type.name }}</strong>」カテゴリの商品に1件でも口コミを書けば、{{ product.product_type.name }}の全商品の口コミを閲覧できます。{% else %}1件でも口コミを投稿すれば、このカテゴリの口コミを閲覧できます。{% endif %}</p>
-      {% if user.is_authenticated %}
-        <a href="{% url 'reviews:create' product.slug %}" class="btn btn-primary">この商品の口コミを書く</a>
-      {% else %}
-        <a href="{% url 'accounts:signup' %}" class="btn btn-primary">無料登録する</a>
-        <a href="{% url 'accounts:login' %}" class="btn">ログイン</a>
-      {% endif %}
+    <div class="bg-white rounded-2xl border-2 border-dashed border-rose-300 p-7 sm:p-10 text-center">
+      <h3 class="text-base sm:text-lg font-bold text-ink-900">口コミの全文を読むには、あなたの口コミが必要です</h3>
+      <p class="mt-2 text-sm text-mute-600 leading-relaxed max-w-xl mx-auto">このサイトはユーザー投稿型の口コミサイトです。{% if product.product_type %}「<strong class="text-rose-600">{{ product.product_type.name }}</strong>」カテゴリの商品に1件でも口コミを書けば、同カテゴリ全商品の口コミを閲覧できます。{% else %}1件でも口コミを投稿すれば、このカテゴリの口コミを閲覧できます。{% endif %}</p>
+      <div class="mt-5 flex flex-wrap gap-2 justify-center">
+        {% if user.is_authenticated %}
+          <a href="{% url 'reviews:create' product.slug %}" class="px-6 py-3 rounded-full bg-rose-500 hover:bg-rose-600 text-white font-medium text-sm transition shadow-sm">この商品の口コミを書く</a>
+        {% else %}
+          <a href="{% url 'accounts:signup' %}" class="px-6 py-3 rounded-full bg-rose-500 hover:bg-rose-600 text-white font-medium text-sm transition shadow-sm">無料登録する</a>
+          <a href="{% url 'accounts:login' %}" class="px-6 py-3 rounded-full border border-rose-300 text-rose-600 hover:bg-rose-50 font-medium text-sm transition">ログイン</a>
+        {% endif %}
+      </div>
     </div>
   {% endif %}
 </section>
 
-{% if product.articles.all %}
-<section class="section">
-  <h2>関連記事</h2>
-  <div class="article-list">
+{% if related_article_cards %}
+<section class="mt-10 sm:mt-14 bk-mc-wrap max-w-none">
+  {% include "includes/_article_related_list.html" with cards=related_article_cards %}
+</section>
+{% elif product.articles.all %}
+<section class="mt-10 sm:mt-14">
+  <div class="flex items-center gap-3 mb-5">
+    <span class="inline-block w-1.5 h-6 bg-gradient-to-b from-rose-500 to-gold-500 rounded"></span>
+    <h2 class="text-xl sm:text-2xl font-bold text-ink-900">関連記事</h2>
+  </div>
+  <div class="grid sm:grid-cols-2 gap-4">
     {% for a in product.articles.all %}
       {% if a.is_published %}
-        <a class="article-card" href="{{ a.get_absolute_url }}"><h3>{{ a.title }}</h3><p>{{ a.excerpt|default:a.content|striptags|truncatechars:120 }}</p></a>
+        <a href="{{ a.get_absolute_url }}" class="block bg-white rounded-2xl border border-rose-100 shadow-card hover:shadow-soft hover:-translate-y-0.5 transition p-5">
+          <h3 class="font-bold text-ink-900 leading-snug">{{ a.title }}</h3>
+          <p class="mt-2 text-xs text-mute-500 line-clamp-2">{{ a.excerpt|default:a.content|striptags|truncatechars:120 }}</p>
+        </a>
       {% endif %}
     {% endfor %}
   </div>
 </section>
 {% endif %}
 
-<script type="application/ld+json">
-{
-  "@context": "https://schema.org",
-  "@type": "Product",
-  "name": "{{ product.name|escapejs }}",
-  "brand": "{{ product.brand|escapejs }}",
-  {% if product.display_image %}"image": "{{ product.display_image }}",{% endif %}
-  "description": "{{ product.description|striptags|truncatechars:200|escapejs }}"
-  {% if stats.count %},
-  "aggregateRating": {
-    "@type": "AggregateRating",
-    "ratingValue": "{{ stats.average }}",
-    "reviewCount": "{{ stats.count }}"
-  }{% endif %}
-}
-</script>
+{% if similar_products %}
+<section id="similar-products" class="mt-12">
+  <div class="flex items-center gap-3 mb-5">
+    <span class="inline-block w-1.5 h-6 bg-gradient-to-b from-rose-500 to-gold-500 rounded"></span>
+    {% if product.is_discontinued %}
+      <h2 class="text-xl font-bold text-ink-900">最新のおすすめ {{ product.product_type.name|default:"類似商品" }}</h2>
+    {% else %}
+      <h2 class="text-xl font-bold text-ink-900">関連の {{ product.product_type.name|default:"商品" }}</h2>
+    {% endif %}
+  </div>
+  <p class="text-sm text-mute-600 mb-5">同じカテゴリで現行販売中の人気モデルを口コミ評価順にご紹介します。</p>
+  <ul class="grid grid-cols-2 lg:grid-cols-3 gap-4">
+    {% for p in similar_products %}
+      <li><a href="{{ p.get_absolute_url }}" class="group block bg-white rounded-2xl border border-rose-100 overflow-hidden hover:shadow-card transition">
+        <div class="aspect-square bg-cream-100">
+          {% if p.display_image %}<img src="{{ p.display_image }}" alt="{{ p.name }}" loading="lazy" class="w-full h-full object-cover group-hover:scale-105 transition duration-500">{% endif %}
+        </div>
+        <div class="p-3">
+          {% if p.brand %}<div class="text-[10px] text-mute-500 uppercase tracking-wider">{{ p.brand }}</div>{% endif %}
+          <h3 class="text-xs font-medium text-ink-900 line-clamp-2 group-hover:text-rose-600">{{ p.name }}</h3>
+          {% if p.avg_rating %}<div class="mt-2 flex items-center gap-1.5"><span class="stars-row text-xs">{% for _ in "12345"|make_list %}{% if forloop.counter <= p.avg_rating %}★{% else %}<span class="off">★</span>{% endif %}{% endfor %}</span><span class="text-[11px] text-ink-700 font-semibold">{{ p.avg_rating|floatformat:1 }}</span></div>{% endif %}
+        </div>
+      </a></li>
+    {% endfor %}
+  </ul>
+</section>
+{% endif %}
+
+{% product_jsonld product stats %}
+{% endblock %}
+
+{% block breadcrumb %}
+<nav class="text-xs text-mute-500 mb-4" aria-label="breadcrumb">
+  <a href="{% url 'products:list' %}" class="hover:text-rose-600">ホーム</a>
+  <span class="mx-1">›</span>
+  {% if product.product_type %}<a href="{% url 'products:type_detail' product.product_type.slug %}" class="hover:text-rose-600">{{ product.product_type.name }}</a><span class="mx-1">›</span>{% endif %}
+  <span class="text-ink-700">{{ product.name }}</span>
+</nav>
 {% endblock %}

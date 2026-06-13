@@ -1,0 +1,34 @@
+{% extends "base.html" %}
+{% block title %}ページが見つかりません | 美容家電TUSHOU{% endblock %}
+{% block content %}
+<div class="max-w-2xl mx-auto text-center py-12 sm:py-20">
+  <div class="relative inline-block mb-8">
+    <div class="font-serif text-[120px] sm:text-[180px] font-bold leading-none bg-gradient-to-br from-rose-400 via-rose-500 to-gold-500 bg-clip-text text-transparent">404</div>
+    <div class="absolute -top-2 -right-4 sm:-right-8 w-20 h-20 sm:w-28 sm:h-28 rounded-full bg-rose-200/40 blur-3xl -z-10"></div>
+    <div class="absolute -bottom-2 -left-4 sm:-left-8 w-20 h-20 sm:w-28 sm:h-28 rounded-full bg-gold-400/30 blur-3xl -z-10"></div>
+  </div>
+  <p class="font-serif text-rose-500 tracking-[0.3em] text-xs uppercase mb-2">Page Not Found</p>
+  <h1 class="text-2xl sm:text-3xl font-bold text-ink-900 mb-4">お探しのページが見つかりません</h1>
+  <p class="text-sm sm:text-base text-mute-600 leading-relaxed mb-10 px-4">
+    URLが変更されたか、削除されている可能性があります。<br class="hidden sm:inline">
+    お手数ですが、以下のリンクからお探しください。
+  </p>
+
+  <div class="flex flex-wrap gap-3 justify-center mb-12">
+    <a href="{% url 'products:list' %}" class="inline-flex items-center px-7 py-3 rounded-full bg-rose-500 hover:bg-rose-600 text-white font-medium text-sm shadow-sm transition">🏠 トップへ戻る</a>
+    <a href="{% url 'products:article_list' %}" class="inline-flex items-center px-7 py-3 rounded-full bg-white text-rose-600 border-2 border-rose-300 hover:bg-rose-50 font-medium text-sm transition">📖 記事を見る</a>
+  </div>
+
+  {% if product_types %}
+  <div class="bg-white rounded-2xl border border-rose-100 shadow-card p-6 sm:p-8 text-left">
+    <p class="font-serif text-rose-500 tracking-[0.3em] text-xs uppercase mb-3 text-center">Categories</p>
+    <h2 class="text-base font-bold text-ink-900 mb-5 text-center">カテゴリから探す</h2>
+    <div class="flex flex-wrap gap-2 justify-center">
+      {% for t in product_types %}
+        <a href="{% url 'products:type_detail' t.slug %}" class="inline-flex items-center px-5 py-2 rounded-full border border-rose-200 text-ink-700 hover:bg-rose-50 hover:border-rose-400 hover:text-rose-600 text-sm transition">{{ t.name }}</a>
+      {% endfor %}
+    </div>
+  </div>
+  {% endif %}
+</div>
+{% endblock %}

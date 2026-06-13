@@ -28,9 +28,13 @@ INSTALLED_APPS = [
     "django.contrib.sessions",
     "django.contrib.messages",
     "django.contrib.staticfiles",
+    "django.contrib.sitemaps",
     "apps.accounts",
     "apps.products",
     "apps.reviews",
+    "apps.analytics",
+    "apps.pages",
+    "apps.aiarticles",
 ]
 
 MIDDLEWARE = [
@@ -41,6 +45,7 @@ MIDDLEWARE = [
     "django.contrib.auth.middleware.AuthenticationMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
+    "apps.analytics.middleware.AccessLogMiddleware",
 ]
 
 ROOT_URLCONF = "config.urls"
@@ -56,6 +61,7 @@ TEMPLATES = [
                 "django.contrib.auth.context_processors.auth",
                 "django.contrib.messages.context_processors.messages",
                 "apps.reviews.context_processors.gate_status",
+                "apps.accounts.context_processors.mission_alerts",
             ],
         },
     },

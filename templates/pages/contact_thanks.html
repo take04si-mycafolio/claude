@@ -1,0 +1,16 @@
+{% extends "base.html" %}
+{% block title %}お問い合わせ送信完了 | 美容家電TUSHOU{% endblock %}
+{% block content %}
+<div class="max-w-2xl mx-auto text-center py-12 sm:py-20">
+  <div class="inline-flex items-center justify-center w-20 h-20 rounded-full bg-gradient-to-br from-rose-100 to-rose-200 mb-6 shadow-soft">
+    <span class="text-4xl">✓</span>
+  </div>
+  <p class="font-serif text-rose-500 tracking-[0.3em] text-xs uppercase">Thank You</p>
+  <h1 class="mt-2 mb-4 text-2xl sm:text-3xl font-bold text-ink-900">お問い合わせを受け付けました</h1>
+  <p class="text-sm text-mute-600 leading-relaxed mb-8">通常2〜3営業日以内に、ご記入いただいたメールアドレスへご返信いたします。<br>しばらくお待ちください。</p>
+  <div class="flex flex-wrap gap-3 justify-center">
+    <a href="{% url 'products:list' %}" class="inline-flex items-center px-7 py-3 rounded-full bg-rose-500 hover:bg-rose-600 text-white font-medium text-sm shadow-sm transition">トップへ戻る</a>
+    <a href="{% url 'products:article_list' %}" class="inline-flex items-center px-7 py-3 rounded-full bg-white text-rose-600 border-2 border-rose-300 hover:bg-rose-50 font-medium text-sm transition">記事を読む</a>
+  </div>
+</div>
+{% endblock %}
