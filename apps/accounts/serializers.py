@@ -109,3 +109,65 @@ class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
         data = super().validate(attrs)  # access / refresh を生成
         data["user"] = UserSerializer(self.user, context=self.context).data
         return data
+
+
+# =============================================================================
+# ミッション/キャンペーン (Phase 5) ※読み取り専用
+#   既存の missions.user_mission_overview(user) が返す dict をそのまま整形する。
+#   ロジックは一切再実装せず、構造化だけを担う。
+# =============================================================================
+class MissionStepSerializer(serializers.Serializer):
+    """evaluate_mission が返す step dict を整形。"""
+
+    label = serializers.CharField()
+    current = serializers.IntegerField()
+    target = serializers.IntegerField()
+    is_done = serializers.BooleanField()
+    percent = serializers.IntegerField()
+
+
+class MissionSerializer(serializers.Serializer):
+    """user_mission_overview(user) の各 dict を整形。
+
+    すべて request.user 視点で計算済みの値であり、他ユーザーの情報は含まない。
+    reward_code は「そのユーザー自身に発行された」コードのみ（達成時のみ非空）。
+    """
+
+    id = serializers.IntegerField(source="mission.id")
+    title = serializers.CharField(source="mission.title")
+    description = serializers.CharField(source="mission.description")
+    reward_label = serializers.CharField(source="mission.reward_label")
+    is_active = serializers.BooleanField(source="mission.is_active")
+    starts_at = serializers.DateTimeField(allow_null=True)
+    ends_at = serializers.DateTimeField(allow_null=True)
+    not_started = serializers.BooleanField()
+    ended = serializers.BooleanField()
+
+    # 参加ランク条件
+    min_review_level = serializers.IntegerField(source="min_level")
+    max_review_level = serializers.IntegerField(source="max_level")
+    level_label = serializers.CharField()
+    is_eligible = serializers.BooleanField(source="eligible")
+    below_level = serializers.BooleanField()
+    above_level = serializers.BooleanField()
+
+    # 進捗・達成
+    progress = serializers.IntegerField(source="percent")
+    steps = MissionStepSerializer(many=True)
+    is_completed = serializers.BooleanField(source="is_complete")
+    completed_at = serializers.SerializerMethodField()
+
+    # 特典（本人分のみ）
+    reward_status = serializers.CharField(source="status", allow_blank=True)
+    reward_code = serializers.CharField(allow_blank=True)
+    code_pending = serializers.BooleanField()
+    missed = serializers.BooleanField()
+
+    # 先着・数量限定
+    limit = serializers.IntegerField(allow_null=True)
+    remaining = serializers.IntegerField(allow_null=True)
+    sold_out = serializers.BooleanField()
+
+    def get_completed_at(self, obj):
+        completion = obj.get("completion")
+        return completion.completed_at if completion is not None else None

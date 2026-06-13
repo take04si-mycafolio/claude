@@ -5,11 +5,12 @@ catch-all（apps.products の <uslug:slug>/）より必ず前に配置するこ�
 """
 from django.urls import include, path
 
-from apps.accounts.api_views import MeView
+from apps.accounts.api_views import MeView, MissionListView
 
 urlpatterns = [
     path("auth/", include("apps.accounts.api_urls")),  # signup / login / refresh
     path("me/", MeView.as_view(), name="api_me"),
+    path("missions/", MissionListView.as_view(), name="api_missions"),
     path("", include("apps.products.api_urls")),  # categories / products / search / detail
     path("", include("apps.reviews.api_urls")),  # reviews(投稿) / reviews/my(履歴)
 ]

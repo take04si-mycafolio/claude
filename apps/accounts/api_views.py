@@ -12,6 +12,7 @@ from rest_framework_simplejwt.views import TokenObtainPairView
 
 from .serializers import (
     CustomTokenObtainPairSerializer,
+    MissionSerializer,
     SignupSerializer,
     UserSerializer,
 )
@@ -58,4 +59,33 @@ class MeView(APIView):
 
     def get(self, request):
         serializer = UserSerializer(request.user, context={"request": request})
+        return Response(serializer.data)
+
+
+class MissionListView(APIView):
+    """GET /api/missions/ — ログインユーザーが参加可能なミッション一覧。
+
+    既存の missions.user_mission_overview(user) をそのまま使用（ロジック流用）。
+    Web のミッションページと同じく request.user 視点で評価し、達成分は確定する。
+    開催中（未終了・開始済み）のミッションを上位に並べる。
+    """
+
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        from .missions import user_mission_overview
+
+        overview = user_mission_overview(request.user)
+        # 開催中を優先: 終了済み→最後、未開始→後ろ、あとは既定の order, id 順を維持。
+        overview.sort(
+            key=lambda d: (
+                d["ended"],
+                d["not_started"],
+                d["mission"].order,
+                d["mission"].id,
+            )
+        )
+        serializer = MissionSerializer(
+            overview, many=True, context={"request": request}
+        )
         return Response(serializer.data)
