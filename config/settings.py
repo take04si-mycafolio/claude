@@ -1,6 +1,7 @@
 """Django settings for bigankiki-review project."""
 
 import os
+from datetime import timedelta
 from pathlib import Path
 
 from dotenv import load_dotenv
@@ -29,6 +30,9 @@ INSTALLED_APPS = [
     "django.contrib.messages",
     "django.contrib.staticfiles",
     "django.contrib.sitemaps",
+    # --- ネイティブアプリ連携API (Phase 1) ---
+    "rest_framework",
+    "corsheaders",
     "apps.accounts",
     "apps.products",
     "apps.reviews",
@@ -39,6 +43,7 @@ INSTALLED_APPS = [
 
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
+    "corsheaders.middleware.CorsMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
@@ -120,3 +125,45 @@ EMAIL_USE_TLS = os.getenv("EMAIL_USE_TLS", "True") == "True"
 DEFAULT_FROM_EMAIL = os.getenv("DEFAULT_FROM_EMAIL", "no-reply@example.com")
 
 SITE_NAME = os.getenv("SITE_NAME", "美容家電TUSHOU")
+
+# =============================================================================
+# ネイティブアプリ連携API (Phase 1: DRF / JWT / CORS の土台のみ)
+#   - 既存のWeb(セッション認証)には影響を与えない設計。
+#   - API認証は JWT のみ。SessionAuthentication はDEFAULTに入れない。
+#   - /api/ ルートやAPIビューはまだ追加しない（後続Phase）。
+# =============================================================================
+REST_FRAMEWORK = {
+    "DEFAULT_AUTHENTICATION_CLASSES": (
+        "rest_framework_simplejwt.authentication.JWTAuthentication",
+    ),
+    "DEFAULT_PERMISSION_CLASSES": (
+        "rest_framework.permissions.IsAuthenticated",
+    ),
+    "DEFAULT_RENDERER_CLASSES": (
+        "rest_framework.renderers.JSONRenderer",
+    ),
+    "DEFAULT_THROTTLE_CLASSES": (
+        "rest_framework.throttling.AnonRateThrottle",
+        "rest_framework.throttling.UserRateThrottle",
+    ),
+    "DEFAULT_THROTTLE_RATES": {"anon": "30/min", "user": "120/min"},
+}
+
+SIMPLE_JWT = {
+    "ACCESS_TOKEN_LIFETIME": timedelta(minutes=60),
+    "REFRESH_TOKEN_LIFETIME": timedelta(days=30),
+    "ROTATE_REFRESH_TOKENS": True,
+    "UPDATE_LAST_LOGIN": False,
+    "USER_ID_FIELD": "id",
+    "USER_ID_CLAIM": "user_id",
+    "AUTH_HEADER_TYPES": ("Bearer",),
+}
+
+# CORS: ネイティブアプリ主体のため最小設定。
+#   - 全開放(CORS_ALLOW_ALL_ORIGINS=True)は使わない。
+#   - 許可オリジンは環境変数 DJANGO_CORS_ALLOWED_ORIGINS（カンマ区切り）から読む。
+#   - 未設定なら空＝どのブラウザオリジンも許可しない（最も安全な既定）。
+CORS_ALLOWED_ORIGINS = [
+    o.strip() for o in os.getenv("DJANGO_CORS_ALLOWED_ORIGINS", "").split(",") if o.strip()
+]
+CORS_ALLOW_CREDENTIALS = False
