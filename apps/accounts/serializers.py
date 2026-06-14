@@ -7,7 +7,7 @@ from django.contrib.auth import password_validation
 from rest_framework import serializers
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 
-from .models import User
+from .models import Device, User
 
 
 class SignupSerializer(serializers.Serializer):
@@ -171,3 +171,49 @@ class MissionSerializer(serializers.Serializer):
     def get_completed_at(self, obj):
         completion = obj.get("completion")
         return completion.completed_at if completion is not None else None
+
+
+# =============================================================================
+# 端末登録 / プッシュ通知トークン (Phase 6)
+#   POST /api/devices/ で Expo Push Token を登録・更新する。
+#   user は request.user を View 側で付与するため入力では受け取らない。
+#   push_token は通知用トークンのため一覧返却はしない（登録レスポンスのみ）。
+# =============================================================================
+PLATFORM_CHOICES = ("ios", "android", "web")
+
+
+class DeviceRegisterSerializer(serializers.ModelSerializer):
+    """端末（通知先）の登録・更新用。
+
+    入力: platform / push_token / app_version(任意) / device_name(任意)
+    出力: 自分の端末レコードの安全な項目のみ。
+    """
+
+    platform = serializers.ChoiceField(choices=PLATFORM_CHOICES)
+
+    class Meta:
+        model = Device
+        fields = [
+            "id",
+            "platform",
+            "push_token",
+            "app_version",
+            "device_name",
+            "is_active",
+            "last_seen_at",
+            "created_at",
+            "updated_at",
+        ]
+        read_only_fields = [
+            "id",
+            "is_active",
+            "last_seen_at",
+            "created_at",
+            "updated_at",
+        ]
+
+    def validate_push_token(self, value):
+        value = value.strip()
+        if not value:
+            raise serializers.ValidationError("push_token は必須です。")
+        return value

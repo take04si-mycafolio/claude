@@ -12,6 +12,7 @@ from rest_framework_simplejwt.views import TokenObtainPairView
 
 from .serializers import (
     CustomTokenObtainPairSerializer,
+    DeviceRegisterSerializer,
     MissionSerializer,
     SignupSerializer,
     UserSerializer,
@@ -89,3 +90,39 @@ class MissionListView(APIView):
             overview, many=True, context={"request": request}
         )
         return Response(serializer.data)
+
+
+class DeviceRegisterView(APIView):
+    """POST /api/devices/ — Expo Push Token 等の通知先端末を登録/更新する。
+
+    同じ (request.user, push_token) が既に存在すれば新規作成せず更新（upsert）。
+    更新項目: platform / app_version / device_name / is_active(True) /
+    last_seen_at・updated_at(auto_now)。
+
+    他ユーザーの端末は参照・操作不可（常に request.user に紐づけて検索する）。
+    新規作成時は 201、既存更新時は 200 を返し、レスポンスに created を含める。
+    """
+
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        serializer = DeviceRegisterSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        data = serializer.validated_data
+
+        device, created = request.user.devices.update_or_create(
+            push_token=data["push_token"],
+            defaults={
+                "platform": data["platform"],
+                "app_version": data.get("app_version", ""),
+                "device_name": data.get("device_name", ""),
+                "is_active": True,
+            },
+        )
+
+        out = DeviceRegisterSerializer(device, context={"request": request}).data
+        out["created"] = created
+        return Response(
+            out,
+            status=status.HTTP_201_CREATED if created else status.HTTP_200_OK,
+        )

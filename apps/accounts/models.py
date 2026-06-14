@@ -372,3 +372,45 @@ class UserMissionCompletion(models.Model):
 
     def __str__(self):
         return f"{self.user} ✓ {self.mission.title}"
+
+
+class Device(models.Model):
+    """ネイティブアプリ等のプッシュ通知送信先（Expo Push Token を保持）。
+
+    将来のキャンペーン通知・口コミ依頼通知・再訪通知の送信先として使う。
+    1ユーザーが複数端末を持てるため (user, push_token) の組で一意とする。
+    push_token は個人に紐づく通知用トークンのため、APIでは一覧返却しない。
+    """
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.CASCADE,
+        related_name="devices", verbose_name="ユーザー",
+    )
+    platform = models.CharField(
+        "プラットフォーム", max_length=20,
+        help_text="ios / android / web",
+    )
+    push_token = models.CharField("プッシュトークン", max_length=255)
+    app_version = models.CharField("アプリバージョン", max_length=50, blank=True)
+    device_name = models.CharField("端末名", max_length=100, blank=True)
+    is_active = models.BooleanField("有効", default=True)
+    last_seen_at = models.DateTimeField("最終アクセス", auto_now=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = "端末(通知先)"
+        verbose_name_plural = "端末(通知先)"
+        ordering = ["-last_seen_at"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["user", "push_token"],
+                name="unique_user_push_token",
+            ),
+        ]
+        indexes = [
+            models.Index(fields=["user", "is_active"]),
+            models.Index(fields=["push_token"]),
+        ]
+
+    def __str__(self):
+        return f"{self.user} / {self.platform}"

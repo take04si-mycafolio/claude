@@ -2,6 +2,7 @@ from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin
 from .models import (
     Bookmark,
+    Device,
     Mission,
     MissionRewardCode,
     MissionStep,
@@ -116,3 +117,15 @@ class UserMissionCompletionAdmin(admin.ModelAdmin):
 
     def has_add_permission(self, request):
         return False
+
+
+@admin.register(Device)
+class DeviceAdmin(admin.ModelAdmin):
+    """通知先端末(API自動登録)の監査用ビュー。"""
+    list_display = ("user", "platform", "is_active", "app_version",
+                    "device_name", "last_seen_at", "created_at")
+    list_filter = ("platform", "is_active", "created_at")
+    search_fields = ("user__email", "user__nickname", "device_name")
+    autocomplete_fields = ("user",)
+    readonly_fields = ("last_seen_at", "created_at", "updated_at")
+    list_per_page = 50
