@@ -66,13 +66,19 @@ class UserSerializer(serializers.ModelSerializer):
     review_level = serializers.IntegerField(read_only=True)
     review_count = serializers.IntegerField(read_only=True)
     helpful_count = serializers.IntegerField(read_only=True)
+    # 表示用に追加（read-only）。display_name は nickname 優先、無ければ email。
+    display_name = serializers.SerializerMethodField()
 
     class Meta:
         model = User
         fields = (
             "id",
+            "username",
             "email",
+            "display_name",
             "nickname",
+            "bio",
+            "gender",
             "age_range",
             "skin_type",
             "review_level",
@@ -81,8 +87,13 @@ class UserSerializer(serializers.ModelSerializer):
             "helpful_count",
             "avatar_url",
             "email_verified",
+            "created_at",
         )
         read_only_fields = fields
+
+    def get_display_name(self, obj):
+        # Web の {{ user.nickname|default:user.email }} と同義の表示名。
+        return obj.nickname or obj.email
 
     def get_avatar_url(self, obj):
         # avatar 未設定なら null。設定済みなら絶対URLで返す（アプリから開けるように）。
@@ -95,6 +106,50 @@ class UserSerializer(serializers.ModelSerializer):
     def get_category_badge(self, obj):
         # 既存 cached_property。該当なしは None を返す仕様なのでそのまま透過。
         return obj.category_badge
+
+
+class ProfileUpdateSerializer(serializers.ModelSerializer):
+    """PATCH /api/me/ 用。アプリのプロフィール編集で更新できる安全項目のみ。
+
+    Web の ProfileEditForm のうち、画像(avatar)や SNS リンクを除いた
+    nickname / bio / age_range / skin_type / gender の5項目だけを許可する。
+    email / password / avatar / review_level / category_badge / email_verified
+    などはフィールドに含めないため、リクエストに混入しても無視される（更新されない）。
+    更新対象は常に View が渡す request.user 自身のみ（他ユーザーは指定不可）。
+
+    choices・空文字可否は既存 User モデル定義（= Web の ProfileEditForm）に合わせる:
+      - 5項目すべて model 側 blank=True のため allow_blank=True（空文字で消去可）。
+      - age_range / skin_type / gender は TextChoices を choices に流用し、
+        範囲外の値は 400 を返す。
+      - nickname(max_length=50) / bio(max_length=300) は超過で 400。
+    PATCH のため required=False（送られた項目だけ部分更新）。
+    """
+
+    nickname = serializers.CharField(
+        max_length=50, required=False, allow_blank=True
+    )
+    bio = serializers.CharField(
+        max_length=300, required=False, allow_blank=True
+    )
+    age_range = serializers.ChoiceField(
+        choices=User._meta.get_field("age_range").choices,
+        required=False,
+        allow_blank=True,
+    )
+    skin_type = serializers.ChoiceField(
+        choices=User._meta.get_field("skin_type").choices,
+        required=False,
+        allow_blank=True,
+    )
+    gender = serializers.ChoiceField(
+        choices=User._meta.get_field("gender").choices,
+        required=False,
+        allow_blank=True,
+    )
+
+    class Meta:
+        model = User
+        fields = ("nickname", "bio", "age_range", "skin_type", "gender")
 
 
 class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
@@ -157,6 +212,13 @@ class MissionSerializer(serializers.Serializer):
     is_completed = serializers.BooleanField(source="is_complete")
     completed_at = serializers.SerializerMethodField()
 
+    # アプリのミッション一覧向け 互換フィールド（read-only, 既存値から導出）
+    #   既存フィールドは一切変更せず、追加のみ。Web版はシリアライザ非経由のため無影響。
+    status = serializers.SerializerMethodField()
+    condition_text = serializers.SerializerMethodField()
+    current = serializers.SerializerMethodField()
+    target = serializers.SerializerMethodField()
+
     # 特典（本人分のみ）
     reward_status = serializers.CharField(source="status", allow_blank=True)
     reward_code = serializers.CharField(allow_blank=True)
@@ -171,6 +233,39 @@ class MissionSerializer(serializers.Serializer):
     def get_completed_at(self, obj):
         completion = obj.get("completion")
         return completion.completed_at if completion is not None else None
+
+    def get_status(self, obj):
+        """進捗状態を単一文字列で返す（既存の真偽フラグから導出）。"""
+        if obj.get("not_started"):
+            return "not_started"
+        if obj.get("ended"):
+            return "ended"
+        if obj.get("is_complete"):
+            return "completed"
+        return "in_progress"
+
+    def get_condition_text(self, obj):
+        """達成条件を steps[].label を「／」で結合した文章として返す。"""
+        steps = obj.get("steps") or []
+        labels = [
+            str(s.get("label")) for s in steps
+            if isinstance(s, dict) and s.get("label")
+        ]
+        return "／".join(labels)
+
+    def get_current(self, obj):
+        """全ステップの現在値の合計（steps 欠落・値欠けでも例外にしない）。"""
+        steps = obj.get("steps") or []
+        return sum(
+            (s.get("current") or 0) for s in steps if isinstance(s, dict)
+        )
+
+    def get_target(self, obj):
+        """全ステップの目標値の合計（steps 欠落・値欠けでも例外にしない）。"""
+        steps = obj.get("steps") or []
+        return sum(
+            (s.get("target") or 0) for s in steps if isinstance(s, dict)
+        )
 
 
 # =============================================================================

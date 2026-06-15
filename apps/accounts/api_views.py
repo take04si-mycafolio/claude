@@ -14,6 +14,7 @@ from .serializers import (
     CustomTokenObtainPairSerializer,
     DeviceRegisterSerializer,
     MissionSerializer,
+    ProfileUpdateSerializer,
     SignupSerializer,
     UserSerializer,
 )
@@ -54,13 +55,34 @@ class CustomTokenObtainPairView(TokenObtainPairView):
 
 
 class MeView(APIView):
-    """GET /api/me/ — ログイン中ユーザーの情報を返す。"""
+    """/api/me/ — ログイン中ユーザー（request.user）自身の情報。
+
+    GET   : プロフィール表示用の項目を返す（従来通り・変更なし）。
+    PATCH : プロフィールの安全な5項目のみ部分更新する。
+            更新対象は常に request.user。他ユーザーは指定できない。
+    """
 
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
         serializer = UserSerializer(request.user, context={"request": request})
         return Response(serializer.data)
+
+    def patch(self, request):
+        # request.user のみを更新対象にする（他人のユーザーは指定不可）。
+        # partial=True で送られた項目だけ部分更新。未許可項目は無視される。
+        serializer = ProfileUpdateSerializer(
+            request.user,
+            data=request.data,
+            partial=True,
+            context={"request": request},
+        )
+        serializer.is_valid(raise_exception=True)  # 不正値は 400
+        serializer.save()
+        # 更新後は GET と同等の最新 UserSerializer を返す。
+        return Response(
+            UserSerializer(request.user, context={"request": request}).data
+        )
 
 
 class MissionListView(APIView):
