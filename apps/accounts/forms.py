@@ -31,7 +31,7 @@ class ProfileEditForm(forms.ModelForm):
         model = User
         fields = (
             "nickname", "avatar", "bio",
-            "age_range", "skin_type", "gender",
+            "age_range", "skin_type", "hair_type", "gender",
             "twitter", "instagram", "tiktok", "youtube_url", "website_url",
         )
         widgets = {

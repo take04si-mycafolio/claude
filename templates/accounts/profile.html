@@ -20,6 +20,7 @@
     <dl class="mt-5 space-y-2 text-xs">
       {% if user.age_range %}<div class="flex justify-between"><dt class="text-mute-500">年代</dt><dd class="text-ink-700">{{ user.get_age_range_display }}</dd></div>{% endif %}
       {% if user.skin_type %}<div class="flex justify-between"><dt class="text-mute-500">肌質</dt><dd class="text-ink-700">{{ user.get_skin_type_display }}</dd></div>{% endif %}
+      {% if user.hair_type %}<div class="flex justify-between"><dt class="text-mute-500">髪質</dt><dd class="text-ink-700">{{ user.get_hair_type_display }}</dd></div>{% endif %}
       {% if user.gender %}<div class="flex justify-between"><dt class="text-mute-500">性別</dt><dd class="text-ink-700">{{ user.get_gender_display }}</dd></div>{% endif %}
     </dl>
 

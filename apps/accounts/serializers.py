@@ -81,6 +81,7 @@ class UserSerializer(serializers.ModelSerializer):
             "gender",
             "age_range",
             "skin_type",
+            "hair_type",
             "review_level",
             "category_badge",
             "review_count",
@@ -112,14 +113,14 @@ class ProfileUpdateSerializer(serializers.ModelSerializer):
     """PATCH /api/me/ 用。アプリのプロフィール編集で更新できる安全項目のみ。
 
     Web の ProfileEditForm のうち、画像(avatar)や SNS リンクを除いた
-    nickname / bio / age_range / skin_type / gender の5項目だけを許可する。
+    nickname / bio / age_range / skin_type / hair_type / gender の6項目だけを許可する。
     email / password / avatar / review_level / category_badge / email_verified
     などはフィールドに含めないため、リクエストに混入しても無視される（更新されない）。
     更新対象は常に View が渡す request.user 自身のみ（他ユーザーは指定不可）。
 
     choices・空文字可否は既存 User モデル定義（= Web の ProfileEditForm）に合わせる:
-      - 5項目すべて model 側 blank=True のため allow_blank=True（空文字で消去可）。
-      - age_range / skin_type / gender は TextChoices を choices に流用し、
+      - 6項目すべて model 側 blank=True のため allow_blank=True（空文字で消去可）。
+      - age_range / skin_type / hair_type / gender は TextChoices を choices に流用し、
         範囲外の値は 400 を返す。
       - nickname(max_length=50) / bio(max_length=300) は超過で 400。
     PATCH のため required=False（送られた項目だけ部分更新）。
@@ -141,6 +142,11 @@ class ProfileUpdateSerializer(serializers.ModelSerializer):
         required=False,
         allow_blank=True,
     )
+    hair_type = serializers.ChoiceField(
+        choices=User._meta.get_field("hair_type").choices,
+        required=False,
+        allow_blank=True,
+    )
     gender = serializers.ChoiceField(
         choices=User._meta.get_field("gender").choices,
         required=False,
@@ -149,7 +155,7 @@ class ProfileUpdateSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = User
-        fields = ("nickname", "bio", "age_range", "skin_type", "gender")
+        fields = ("nickname", "bio", "age_range", "skin_type", "hair_type", "gender")
 
 
 class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):

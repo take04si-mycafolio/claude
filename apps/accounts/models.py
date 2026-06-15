@@ -23,6 +23,17 @@ class SkinType(models.TextChoices):
     NORMAL = "normal", "普通肌"
 
 
+class HairType(models.TextChoices):
+    NORMAL = "normal", "普通"
+    DRY = "dry", "乾燥しやすい"
+    OILY = "oily", "脂っぽい"
+    DAMAGED = "damaged", "ダメージ毛"
+    CURLY = "curly", "くせ毛"
+    FINE = "fine", "細い髪"
+    THICK = "thick", "太い髪"
+    OTHER = "other", "その他"
+
+
 class Gender(models.TextChoices):
     FEMALE = "female", "女性"
     MALE = "male", "男性"
@@ -37,6 +48,9 @@ class User(AbstractUser):
     )
     skin_type = models.CharField(
         "肌質", max_length=16, choices=SkinType.choices, blank=True
+    )
+    hair_type = models.CharField(
+        "髪質", max_length=16, choices=HairType.choices, blank=True
     )
     gender = models.CharField(
         "性別", max_length=8, choices=Gender.choices, blank=True
