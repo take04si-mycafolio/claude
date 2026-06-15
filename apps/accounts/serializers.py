@@ -218,6 +218,8 @@ class MissionSerializer(serializers.Serializer):
     condition_text = serializers.SerializerMethodField()
     current = serializers.SerializerMethodField()
     target = serializers.SerializerMethodField()
+    # プレゼント補足文（PC版 templates/accounts/missions.html の固定表示と同一文言）
+    reward_condition_text = serializers.SerializerMethodField()
 
     # 特典（本人分のみ）
     reward_status = serializers.CharField(source="status", allow_blank=True)
@@ -266,6 +268,14 @@ class MissionSerializer(serializers.Serializer):
         return sum(
             (s.get("target") or 0) for s in steps if isinstance(s, dict)
         )
+
+    def get_reward_condition_text(self, obj):
+        """プレゼントの受け取り条件の補足文。
+
+        モデルには保存されておらず、PC版Web（templates/accounts/missions.html）で
+        固定文として表示されている文言と同一の定数を表示用に返す（read-only）。
+        """
+        return "すべてのアクションを達成すると受け取れます。"
 
 
 # =============================================================================
