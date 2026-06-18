@@ -20,8 +20,8 @@ class ReviewCreateSerializer(serializers.ModelSerializer):
     - 任意: usage_period / effectiveness / skin_type / cospa / control /
             safety / expression / icon
     - user は request.user を自動設定（リクエストからは受け取らない）。
-    - is_approved はリクエストから受け取らず、サーバ側で False(承認待ち)を設定。
-      ※ 既存Webフォーム投稿はモデル既定(True=即承認)のままで挙動不変。
+    - is_approved はリクエストから受け取らず、モデル既定(True=即承認)に任せる。
+      ※ PC版Webフォーム投稿もモデル既定(True)で即承認のため挙動が一致する。
     - product は is_published=True の商品のみ許可（非公開/不存在は 400）。
     """
 
@@ -48,7 +48,7 @@ class ReviewCreateSerializer(serializers.ModelSerializer):
             "icon",
             "is_approved",
         )
-        # is_approved はリクエストから受け取らず、サーバ側で False を設定して返すのみ。
+        # is_approved はリクエストから受け取らず、モデル既定(True)の値を返すのみ。
         read_only_fields = ("id", "is_approved")
 
     def validate(self, attrs):
@@ -67,10 +67,9 @@ class ReviewCreateSerializer(serializers.ModelSerializer):
     def create(self, validated_data):
         request = self.context.get("request")
         validated_data["user"] = request.user  # user は必ずサーバ側で設定
-        # アプリAPI経由の投稿は承認待ちにする（キャンペーン/ランキング連動のため）。
-        # 既存Webフォーム投稿(forms.ReviewForm)はこの経路を通らず、
-        # モデル既定(is_approved=True=即承認)のままで挙動は変わらない。
-        validated_data["is_approved"] = False
+        # is_approved は明示設定せず、モデル既定(True=即承認)に任せる。
+        # これにより PC版Webフォーム投稿(forms.ReviewForm)と同じく即承認となり、
+        # ミッション集計(is_approved=True のみカウント)にも反映され体験が一致する。
         try:
             return Review.objects.create(**validated_data)
         except IntegrityError:
