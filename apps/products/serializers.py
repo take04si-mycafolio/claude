@@ -3,8 +3,10 @@
 既存の Web 用 views.py / models.py には一切手を加えず、API 専用にここで定義する。
 すべて読み取り専用。
 
-重要: MVP ではアフィリエイト系URL（affiliate_url / rakuten_url / amazon_url /
-official_url）は一切レスポンスに含めない。
+アフィリエイト系URL（official_url / affiliate_url / rakuten_url / amazon_url）は
+商品詳細API（ProductDetailSerializer）でのみ返す。一覧/検索（ProductListSerializer）
+には含めない。アプリ側は値があるURLだけボタン表示し、「PR / アフィリエイトリンクを
+含みます」表記を必ず添える想定。Yahoo!ショッピングURLはモデルに存在しないため返さない。
 """
 from rest_framework import serializers
 
@@ -94,9 +96,15 @@ class ProductListSerializer(serializers.ModelSerializer):
 
 
 class ProductDetailSerializer(ProductListSerializer):
-    """商品詳細用。一覧項目に説明・特徴・スペックを追加。
+    """商品詳細用。一覧項目に説明・特徴・スペックと購入/アフィリエイトURLを追加。
 
-    MVP につきアフィリエイト/EC/公式URLは一切含めない。
+    購入系URLはモデル既存フィールド名をそのまま使う（新フィールドは作らない）:
+      - official_url  : 公式サイトURL
+      - affiliate_url : アフィリエイトURL（PC版では主ボタン「公式サイトで見る」）
+      - rakuten_url   : 楽天URL（「楽天で見る」）
+      - amazon_url    : AmazonURL（「Amazonで見る」）
+    値が無い商品では空文字で返る（URLField(blank=True)）。アプリ側は非空のものだけ
+    ボタン表示する。この詳細APIのみに含め、一覧/検索には返さない。
     """
 
     class Meta(ProductListSerializer.Meta):
@@ -104,4 +112,8 @@ class ProductDetailSerializer(ProductListSerializer):
             "description",
             "features",
             "specifications",
+            "official_url",
+            "affiliate_url",
+            "rakuten_url",
+            "amazon_url",
         )
