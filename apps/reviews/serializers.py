@@ -85,6 +85,11 @@ class ReviewListSerializer(serializers.ModelSerializer):
     product_name = serializers.CharField(source="product.name", read_only=True)
     product_image_url = serializers.SerializerMethodField()
     image_count = serializers.SerializerMethodField()
+    # 選択肢系は値に加えて表示ラベルも返す（PC版Webの get_xxx_display と一致）。
+    # blank("") のときは null を返し、アプリ側で非表示にしやすくする。
+    usage_period_display = serializers.SerializerMethodField()
+    effectiveness_display = serializers.SerializerMethodField()
+    skin_type_display = serializers.SerializerMethodField()
 
     class Meta:
         model = Review
@@ -96,6 +101,19 @@ class ReviewListSerializer(serializers.ModelSerializer):
             "rating",
             "title",
             "body",
+            # 詳細評価（1〜5・未入力は null）。アプリ側で星表示する。
+            "cospa",
+            "control",
+            "safety",
+            "expression",
+            # あなたの情報（choice系は値＋表示ラベル、icon は番号）。
+            "usage_period",
+            "usage_period_display",
+            "effectiveness",
+            "effectiveness_display",
+            "skin_type",
+            "skin_type_display",
+            "icon",
             "is_approved",
             "created_at",
             "updated_at",
@@ -105,6 +123,15 @@ class ReviewListSerializer(serializers.ModelSerializer):
     def get_product_image_url(self, obj):
         p = obj.product
         return _abs_media_url(p.image, p.image_url, self.context.get("request"))
+
+    def get_usage_period_display(self, obj):
+        return obj.get_usage_period_display() if obj.usage_period else None
+
+    def get_effectiveness_display(self, obj):
+        return obj.get_effectiveness_display() if obj.effectiveness else None
+
+    def get_skin_type_display(self, obj):
+        return obj.get_skin_type_display() if obj.skin_type else None
 
     def get_image_count(self, obj):
         # ビューで annotate(image_count_annot=...) があればそれを使い、無ければ count()。
