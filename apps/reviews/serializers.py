@@ -137,3 +137,46 @@ class ReviewListSerializer(serializers.ModelSerializer):
         # ビューで annotate(image_count_annot=...) があればそれを使い、無ければ count()。
         annotated = getattr(obj, "image_count_annot", None)
         return annotated if annotated is not None else obj.images.count()
+
+
+class ProductReviewSerializer(ReviewListSerializer):
+    """GET /api/products/{id}/reviews/ 用。商品ページで全ユーザーの口コミを表示する。
+
+    ReviewListSerializer（投稿履歴用）を継承し、口コミ本体・詳細評価・あなたの情報・
+    表示ラベルをそのまま再利用したうえで、PC版Web口コミカードに合わせた投稿者情報を
+    追加する。email は公開しない（表示名は nickname、未設定時は「匿名」）。
+    詳細評価は数値(1〜5)のまま返し、星表示はアプリ側で行う。
+    """
+
+    user_id = serializers.IntegerField(read_only=True)
+    user_nickname = serializers.CharField(source="user.nickname", read_only=True)
+    user_display_name = serializers.SerializerMethodField()
+    user_review_level = serializers.IntegerField(source="user.review_level", read_only=True)
+    user_category_badge = serializers.CharField(
+        source="user.category_badge", read_only=True
+    )
+    # age_range / gender は PC版Webカードでも公開表示している項目（新規の情報公開ではない）。
+    # アプリ表示では必須ではないが互換のため表示ラベルを返す（未設定は null）。
+    user_age_range_display = serializers.SerializerMethodField()
+    user_gender_display = serializers.SerializerMethodField()
+
+    class Meta(ReviewListSerializer.Meta):
+        fields = ReviewListSerializer.Meta.fields + (
+            "user_id",
+            "user_nickname",
+            "user_display_name",
+            "user_review_level",
+            "user_category_badge",
+            "user_age_range_display",
+            "user_gender_display",
+        )
+
+    def get_user_display_name(self, obj):
+        # email は公開しない。nickname 未設定時は PC版Web同様「匿名」。
+        return obj.user.nickname or "匿名"
+
+    def get_user_age_range_display(self, obj):
+        return obj.user.get_age_range_display() if obj.user.age_range else None
+
+    def get_user_gender_display(self, obj):
+        return obj.user.get_gender_display() if obj.user.gender else None

@@ -12,4 +12,11 @@ urlpatterns = [
     # my/ を先に登録（将来の reviews/<pk>/ 追加時の取り違え防止）。
     path("reviews/my/", api_views.MyReviewListView.as_view(), name="api_my_reviews"),
     path("reviews/", api_views.ReviewCreateView.as_view(), name="api_review_create"),
+    # 商品別の口コミ一覧（公開・承認済みのみ・新しい順）。
+    # products/<int:pk>/ 詳細URL とはパスが異なるため衝突しない。
+    path(
+        "products/<int:product_id>/reviews/",
+        api_views.ProductReviewListView.as_view(),
+        name="api_product_reviews",
+    ),
 ]

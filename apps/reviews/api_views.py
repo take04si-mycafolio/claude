@@ -4,12 +4,19 @@
 認証は JWT（IsAuthenticated）。
 """
 from django.db.models import Count
+from django.shortcuts import get_object_or_404
 from rest_framework.generics import CreateAPIView, ListAPIView
 from rest_framework.pagination import PageNumberPagination
-from rest_framework.permissions import IsAuthenticated
+from rest_framework.permissions import AllowAny, IsAuthenticated
+
+from apps.products.models import Product
 
 from .models import Review
-from .serializers import ReviewCreateSerializer, ReviewListSerializer
+from .serializers import (
+    ProductReviewSerializer,
+    ReviewCreateSerializer,
+    ReviewListSerializer,
+)
 
 
 class MyReviewPagination(PageNumberPagination):
@@ -46,6 +53,31 @@ class MyReviewListView(ListAPIView):
         return (
             Review.objects.filter(user=self.request.user)
             .select_related("product")
+            .annotate(image_count_annot=Count("images"))
+            .order_by("-created_at")
+        )
+
+
+class ProductReviewListView(ListAPIView):
+    """GET /api/products/{id}/reviews/ — 指定商品の承認済み口コミを新しい順で返す。
+
+    商品詳細ページの一般表示用途のため、products 系API（AllowAny・読み取り専用）に
+    合わせて公開とする。非公開/不存在の商品は 404（ProductDetailView と同じ挙動）。
+    is_approved=True のみ・新しい順。画像(ReviewImage)は本段階では対象外。
+    """
+
+    permission_classes = [AllowAny]
+    serializer_class = ProductReviewSerializer
+    pagination_class = MyReviewPagination
+
+    def get_queryset(self):
+        # 公開商品のみ。不存在/非公開は 404 にして詳細APIと挙動を揃える。
+        product = get_object_or_404(
+            Product, pk=self.kwargs["product_id"], is_published=True
+        )
+        return (
+            Review.objects.filter(product=product, is_approved=True)
+            .select_related("product", "user")
             .annotate(image_count_annot=Count("images"))
             .order_by("-created_at")
         )
