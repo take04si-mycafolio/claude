@@ -1,8 +1,9 @@
+from django import forms as _forms
 from django.contrib import admin
 from django.utils.html import format_html
 from django.utils.safestring import mark_safe
 import markdown as md_lib
-from .models import ApiCredential, Product, Category, Article, ArticleImage, SeoWeeklyReport
+from .models import ApiCredential, Brand, Product, Category, Article, ArticleImage, SeoWeeklyReport
 
 
 class ArticleImageInline(admin.StackedInline):
@@ -105,13 +106,70 @@ class CategoryAdmin(admin.ModelAdmin):
         return "—"
 
 
+@admin.register(Brand)
+class BrandAdmin(admin.ModelAdmin):
+    list_display = ("thumb", "name", "slug", "product_count", "is_published", "sort_order")
+    list_display_links = ("thumb", "name")
+    list_editable = ("is_published", "sort_order")
+    list_filter = ("is_published",)
+    search_fields = ("name", "slug", "aka", "match_brands")
+    prepopulated_fields = {"slug": ("name",)}
+    ordering = ("sort_order", "name")
+    readonly_fields = ("matched_products", "created_at", "updated_at")
+    fieldsets = (
+        ("基本情報", {"fields": ("name", "slug", "aka", "sort_order", "is_published")}),
+        ("商品の集約設定", {
+            "fields": ("match_brands", "exclude_name_keywords", "matched_products"),
+            "description": "このメーカーページに含める商品を決める設定。"
+                           "「集約する brand 値」に商品の brand 値を1行ずつ書くと、その商品が集まります。",
+        }),
+        ("記事コンテンツ", {
+            "fields": ("lead", "body_html"),
+            "description": "ページの紹介文・紹介記事。商品一覧の上(リード)と下(記事)に表示されます。",
+        }),
+        ("画像", {"fields": ("image", "image_url"), "classes": ("collapse",)}),
+        ("SEO", {"fields": ("meta_title", "meta_description"), "classes": ("collapse",)}),
+        ("メタ", {"fields": ("created_at", "updated_at"), "classes": ("collapse",)}),
+    )
+
+    @admin.display(description="画像")
+    def thumb(self, obj):
+        url = obj.display_image
+        if url:
+            return format_html('<img src="{}" style="width:42px;height:42px;object-fit:cover;border-radius:6px">', url)
+        return "—"
+
+    @admin.display(description="該当商品数")
+    def product_count(self, obj):
+        if not obj.pk:
+            return 0
+        return obj.filter_products(Product.objects.filter(is_published=True)).count()
+
+    @admin.display(description="該当する商品(プレビュー)")
+    def matched_products(self, obj):
+        if not obj.pk:
+            return "保存後に表示されます。"
+        qs = obj.filter_products(Product.objects.filter(is_published=True)).order_by("brand", "name")
+        items = list(qs[:60])
+        if not items:
+            return mark_safe('<span style="color:#c00">該当商品がありません。「集約する brand 値」を確認してください。</span>')
+        rows = "".join(
+            f'<li>[{p.brand}] {p.name}</li>' for p in items
+        )
+        more = "" if qs.count() <= 60 else f'<p>…ほか {qs.count()-60} 件</p>'
+        return mark_safe(
+            f'<p><b>{qs.count()}件</b> が該当します：</p>'
+            f'<ul style="margin:0;padding-left:18px;max-height:260px;overflow:auto;font-size:12px;">{rows}</ul>{more}'
+        )
+
+
 @admin.register(Product)
 class ProductAdmin(admin.ModelAdmin):
-    list_display = ("thumb", "name", "brand", "product_type", "price",
+    list_display = ("thumb", "name", "brand", "series", "product_type", "price",
                     "is_published", "is_discontinued", "sort_order", "updated_at")
     list_display_links = ("thumb", "name")
-    list_filter = ("is_published", "is_discontinued", "product_type", "brand", "categories")
-    search_fields = ("name", "brand", "slug", "description")
+    list_filter = ("is_published", "is_discontinued", "product_type", "brand", "series", "categories")
+    search_fields = ("name", "brand", "series", "slug", "description")
     prepopulated_fields = {"slug": ("name",)}
     list_editable = ("is_published", "is_discontinued", "sort_order", "price")
     filter_horizontal = ("categories",)
@@ -120,8 +178,16 @@ class ProductAdmin(admin.ModelAdmin):
     list_per_page = 50
     save_on_top = True
 
+    def save_model(self, request, obj, form, change):
+        # 商品説明(description)を手動で書き換えた保存だけをリライトとみなす。
+        # 在庫・価格など機械的な編集では last_rewritten_at を動かさない。
+        if "description" in getattr(form, "changed_data", []):
+            from django.utils import timezone
+            obj.last_rewritten_at = timezone.now()
+        super().save_model(request, obj, form, change)
+
     fieldsets = (
-        ("基本情報", {"fields": ("name", "slug", "brand", "product_type",
+        ("基本情報", {"fields": ("name", "slug", "brand", "series", "product_type",
                               "price", "is_published", "sort_order")}),
         ("カテゴリ(機能)", {"fields": ("categories",)}),
         ("画像", {"fields": ("image", "image_url")}),
@@ -146,6 +212,19 @@ class ProductAdmin(admin.ModelAdmin):
 
 @admin.register(Article)
 class ArticleAdmin(admin.ModelAdmin):
+    # 本文エディタに画像アップロード/挿入ツールバーを付ける（article_editor.js）。
+    # textarea の data-article-editor 属性が JS のフック。
+    class Media:
+        css = {"all": ("admin/article_editor.css?v=1",)}
+        js = ("admin/article_editor.js?v=1",)
+
+    def formfield_for_dbfield(self, db_field, request, **kwargs):
+        # 本文(content)の textarea だけをエディタ化する（excerpt 等には付けない）。
+        if db_field.name == "content":
+            kwargs["widget"] = _forms.Textarea(
+                attrs={"data-article-editor": "1", "rows": 30, "style": "width:100%"})
+        return super().formfield_for_dbfield(db_field, request, **kwargs)
+
     list_display = ("title", "slug", "is_published", "index_status",
                     "index_checked_at", "updated_at")
     list_display_links = ("title",)
@@ -162,10 +241,17 @@ class ArticleAdmin(admin.ModelAdmin):
     list_per_page = 30
     save_on_top = True
     inlines = (ArticleImageInline,)
+
+    def save_model(self, request, obj, form, change):
+        # 本文(content)を手動で書き換えた保存だけをリライトとみなす。
+        # 公開状態・カテゴリ・インデックス等の機械的な編集では動かさない。
+        if "content" in getattr(form, "changed_data", []):
+            from django.utils import timezone
+            obj.last_rewritten_at = timezone.now()
+        super().save_model(request, obj, form, change)
+
     actions = (
         "run_compliance_seo_check",
-        "rewrite_anthropic",
-        "rewrite_openai",
         "set_category_bigankiki",
         "set_category_biyou",
         "publish_selected",
@@ -229,31 +315,8 @@ class ArticleAdmin(admin.ModelAdmin):
             art.save(update_fields=["seo_check_result"])
         self.message_user(request, f"{queryset.count()}件のチェック完了")
 
-    @admin.action(description="🔁 Anthropic Claudeで全文AI再生成 (薬機法+SEO準拠)")
-    def rewrite_anthropic(self, request, queryset):
-        from apps.aiarticles import rewriter
-        n_ok, n_ng = 0, 0
-        for art in queryset:
-            kw = art.seo_keyword or art.title[:30]
-            r = rewriter.rewrite_article(art, keyword=kw, ai_provider="anthropic", max_attempts=3)
-            if r["success"]:
-                n_ok += 1
-            else:
-                n_ng += 1
-        self.message_user(request, f"全文再生成: 成功 {n_ok}件 / 失敗 {n_ng}件")
-
-    @admin.action(description="🔁 OpenAI GPTで全文AI再生成 (薬機法+SEO準拠)")
-    def rewrite_openai(self, request, queryset):
-        from apps.aiarticles import rewriter
-        n_ok, n_ng = 0, 0
-        for art in queryset:
-            kw = art.seo_keyword or art.title[:30]
-            r = rewriter.rewrite_article(art, keyword=kw, ai_provider="openai", max_attempts=3)
-            if r["success"]:
-                n_ok += 1
-            else:
-                n_ng += 1
-        self.message_user(request, f"全文再生成: 成功 {n_ok}件 / 失敗 {n_ng}件")
+    # 旧キーワード単位のAI再生成アクションは撤去。リライトは記事(URL)単位の
+    # RewriteDraft フロー（/admin/analytics/rewritedraft/）に一本化した。
 
     @admin.action(description="選択した記事のカテゴリを「美顔器」に設定")
     def set_category_bigankiki(self, request, queryset):

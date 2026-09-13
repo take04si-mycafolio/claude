@@ -39,6 +39,7 @@ INSTALLED_APPS = [
     "apps.analytics",
     "apps.pages",
     "apps.aiarticles",
+    "apps.surveys",
 ]
 
 MIDDLEWARE = [
@@ -122,7 +123,10 @@ EMAIL_PORT = int(os.getenv("EMAIL_PORT", "587"))
 EMAIL_HOST_USER = os.getenv("EMAIL_HOST_USER", "")
 EMAIL_HOST_PASSWORD = os.getenv("EMAIL_HOST_PASSWORD", "")
 EMAIL_USE_TLS = os.getenv("EMAIL_USE_TLS", "True") == "True"
+EMAIL_USE_SSL = os.getenv("EMAIL_USE_SSL", "False") == "True"
 DEFAULT_FROM_EMAIL = os.getenv("DEFAULT_FROM_EMAIL", "no-reply@example.com")
+# お問い合わせ通知の宛先(1件)。未設定/空なら DEFAULT_FROM_EMAIL にフォールバック。
+CONTACT_NOTIFY_TO = os.getenv("CONTACT_NOTIFY_TO") or DEFAULT_FROM_EMAIL
 
 SITE_NAME = os.getenv("SITE_NAME", "美容家電TUSHOU")
 
@@ -167,3 +171,10 @@ CORS_ALLOWED_ORIGINS = [
     o.strip() for o in os.getenv("DJANGO_CORS_ALLOWED_ORIGINS", "").split(",") if o.strip()
 ]
 CORS_ALLOW_CREDENTIALS = False
+
+# ── リライト効果測定（パートC）閾値。順位は小さいほど良い。 ──
+# observation_status とは別時計（applied_at 起点）。
+REWRITE_EVAL_DAYS = int(os.getenv("REWRITE_EVAL_DAYS", "21"))   # 判定保留期間(日)
+REWRITE_IMPROVE_MIN = float(os.getenv("REWRITE_IMPROVE_MIN", "1.0"))   # 改善/悪化とみなす最小順位差
+REWRITE_REACHED_P1_MAX = float(os.getenv("REWRITE_REACHED_P1_MAX", "10.0"))  # 1ページ目到達の順位
+REWRITE_KEEP_DAMAGE_MIN = float(os.getenv("REWRITE_KEEP_DAMAGE_MIN", "3.0"))  # keep毀損とみなす悪化順位差

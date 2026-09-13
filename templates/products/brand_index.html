@@ -1,0 +1,47 @@
+{% extends "base.html" %}
+{% load static %}
+{% block title %}メーカーから探す（{{ total_brands }}社）| 美容家電TUSHOU{% endblock %}
+{% block meta_description %}美容家電TUSHOUに登録されている主要メーカー{{ total_brands }}社の取扱商品を一覧。ヤーマン・パナソニック・ReFa・美ルル・コイズミなど、メーカーごとに美顔器・ドライヤー・ヘアアイロン・脱毛器を口コミ評価とあわせてチェックできます。{% endblock %}
+
+{% block content %}
+<div class="space-y-6">
+  <div>
+    <p class="font-serif text-rose-500 tracking-[0.3em] text-xs uppercase">Brands</p>
+    <h1 class="mt-1 text-2xl sm:text-3xl font-bold text-ink-900">メーカーから探す <span class="text-rose-500 text-base font-normal">（{{ total_brands }}社）</span></h1>
+    <p class="mt-2 text-sm text-mute-600 leading-relaxed">美容家電TUSHOUに登録されている主要メーカーの取扱商品を、カテゴリ・口コミ評価とあわせてご紹介します。</p>
+  </div>
+
+  <ul class="grid grid-cols-1 lg:grid-cols-3 gap-3 sm:gap-5">
+    {% for c in cards %}
+      <li class="group bg-white rounded-2xl border border-rose-100 shadow-card overflow-hidden hover:shadow-soft hover:-translate-y-0.5 transition">
+        <a href="{% url 'products:brand_detail' c.brand.slug %}" class="block">
+          <div class="aspect-square bg-cream-100 overflow-hidden flex items-center justify-center">
+            {% if c.thumb %}<img src="{{ c.thumb }}" alt="{{ c.brand.name }}" loading="lazy" class="w-full h-full object-cover group-hover:scale-105 transition duration-500">{% else %}<img src="{% static 'no-image.svg' %}" alt="画像はありません" loading="lazy" class="w-full h-full object-cover">{% endif %}
+          </div>
+          <div class="p-3 sm:p-4">
+            <h2 class="text-sm sm:text-base font-bold text-ink-900 group-hover:text-rose-600 transition leading-tight">{{ c.brand.name }}</h2>
+            {% if c.brand.aka %}<div class="mt-0.5 text-[10px] text-mute-400 truncate">{{ c.brand.aka }}</div>{% endif %}
+            <div class="mt-2 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[11px] text-mute-600">
+              <span class="font-semibold text-rose-600">{{ c.count }}商品</span>
+              {% if c.reviews %}<span>口コミ{{ c.reviews }}件</span>{% endif %}
+            </div>
+            <div class="mt-1.5 flex flex-wrap gap-1">
+              {% for name, n in c.cats %}
+                <span class="inline-flex items-center px-1.5 py-0.5 rounded bg-cream-100 text-[10px] text-mute-600">{{ name }}{{ n }}</span>
+              {% endfor %}
+            </div>
+          </div>
+        </a>
+      </li>
+    {% endfor %}
+  </ul>
+</div>
+{% endblock %}
+
+{% block breadcrumb %}
+<nav class="text-xs text-mute-500 mb-4" aria-label="breadcrumb">
+  <a href="{% url 'products:list' %}" class="hover:text-rose-600">ホーム</a>
+  <span class="mx-1">›</span>
+  <span class="text-ink-700">メーカーから探す</span>
+</nav>
+{% endblock %}

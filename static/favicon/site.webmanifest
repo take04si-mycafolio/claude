@@ -1,0 +1,11 @@
+{
+  "name": "美容家電TUSHOU",
+  "short_name": "TUSHOU",
+  "icons": [
+    { "src": "/static/favicon/sc-tsusho-favicon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "/static/favicon/sc-tsusho-favicon.png", "sizes": "512x512", "type": "image/png" }
+  ],
+  "theme_color": "#b52159",
+  "background_color": "#ffffff",
+  "display": "standalone"
+}

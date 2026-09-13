@@ -2,7 +2,7 @@ import re
 from .models import AccessLog
 
 
-SKIP_PREFIXES = ("/static/", "/media/", "/favicon.ico", "/robots.txt", "/sitemap")
+SKIP_PREFIXES = ("/static/", "/media/", "/favicon.ico", "/robots.txt", "/sitemap", "/t/oc/")
 SKIP_EXT = (".png", ".jpg", ".jpeg", ".gif", ".css", ".js", ".ico",
             ".svg", ".webp", ".woff", ".woff2", ".ttf", ".map")
 BOT_PATTERNS = re.compile(

@@ -1,0 +1,43 @@
+{# 購入リンク（楽天・Amazon等）のクリック記録（2026-09-14）。リンクは変えず、押された瞬間に記録を送るだけ。 #}
+<script>
+(function () {
+  var TARGET = /(^|\.)(rakuten\.co\.jp|amazon\.co\.jp|amzn\.to|amzn\.asia)$/i;
+  function sectionOf(a) {
+    // 直前の見出し(h2/h3)を文書順でさかのぼって探す
+    var hs = document.querySelectorAll("h2, h3"), last = "";
+    for (var i = 0; i < hs.length; i++) {
+      if (hs[i].compareDocumentPosition(a) & Node.DOCUMENT_POSITION_FOLLOWING) last = hs[i].textContent;
+      else break;
+    }
+    return last.trim().slice(0, 200);
+  }
+  function containerOf(a) {
+    var names = [], el = a;
+    for (var i = 0; i < 5 && el && el !== document.body; i++, el = el.parentElement) {
+      var c = (el.getAttribute("class") || "").split(/\s+/).filter(function (x) {
+        return /^(bk-|card|cta|related|product|buy|rank|compare|table|spec)/i.test(x);
+      });
+      if (el.id) names.push("#" + el.id);
+      if (c.length) names.push(c.slice(0, 2).join("."));
+    }
+    return names.join(" < ").slice(0, 200);
+  }
+  function send(e) {
+    var a = e.target.closest && e.target.closest("a[href]");
+    if (!a || !TARGET.test(a.hostname || "")) return;
+    if (e.type === "auxclick" && e.button !== 1) return;
+    var body = JSON.stringify({
+      href: a.href, page: location.pathname, text: (a.textContent || "").trim().slice(0, 120),
+      section: sectionOf(a), container: containerOf(a),
+      mobile: window.matchMedia("(max-width: 767px)").matches,
+      ref: document.referrer.slice(0, 300)
+    });
+    try {
+      if (navigator.sendBeacon) navigator.sendBeacon("/t/oc/", new Blob([body], {type: "text/plain"}));
+      else fetch("/t/oc/", {method: "POST", body: body, keepalive: true});
+    } catch (err) {}
+  }
+  document.addEventListener("click", send, true);
+  document.addEventListener("auxclick", send, true);
+})();
+</script>

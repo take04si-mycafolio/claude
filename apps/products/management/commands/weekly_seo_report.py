@@ -50,7 +50,8 @@ GSC_SCOPES = ["https://www.googleapis.com/auth/webmasters.readonly"]
 GA_SCOPES = ["https://www.googleapis.com/auth/analytics.readonly"]
 
 # 分析しきい値
-LOSER_MIN_IMPRESSIONS = 20      # 順位低下判定の最低表示回数
+LOSER_TREND_DAYS = 28           # 順位低下は28日ローリングで比較（週次の小サンプルノイズを回避）
+LOSER_MIN_IMPRESSIONS = 100     # 28日合計の最低表示回数（これ未満は統計ノイズとして除外）
 LOSER_MIN_POSITION_DROP = 3.0   # 順位悪化の最低幅
 PUSH_POSITION_MIN = 11.0        # もう一押し候補の順位下限
 PUSH_POSITION_MAX = 20.0        # もう一押し候補の順位上限
@@ -147,12 +148,22 @@ class Command(BaseCommand):
         lw_end = tw_end - timedelta(days=7)          # 前週終了
         lw_start = tw_end - timedelta(days=13)       # 前週: 8-14日前
 
+        # 順位低下判定用の28日ローリング窓（週次比較の小サンプルノイズを避ける）
+        t28_end = tw_end
+        t28_start = tw_end - timedelta(days=LOSER_TREND_DAYS - 1)   # 直近28日
+        p28_end = t28_start - timedelta(days=1)
+        p28_start = p28_end - timedelta(days=LOSER_TREND_DAYS - 1)  # 前28日
+
         self.stdout.write(self.style.SUCCESS("=== 週次SEOレポート生成開始 ==="))
         self.stdout.write(f"今週: {tw_start} 〜 {tw_end}")
         self.stdout.write(f"前週: {lw_start} 〜 {lw_end}")
+        self.stdout.write(f"順位低下判定: 直近28日 {t28_start}〜{t28_end} vs 前28日 {p28_start}〜{p28_end}")
 
         # --- データ取得 -------------------------------------------------------
-        data = self.fetch_data(tw_start, tw_end, lw_start, lw_end)
+        data = self.fetch_data(
+            tw_start, tw_end, lw_start, lw_end,
+            t28_start, t28_end, p28_start, p28_end,
+        )
 
         # --- 分析 -------------------------------------------------------------
         analysis = self.analyze(data)
@@ -192,7 +203,8 @@ class Command(BaseCommand):
     # データ取得（今週・前週を別々に取得）
     # -------------------------------------------------------------------------
     def fetch_data(
-        self, tw_start: date, tw_end: date, lw_start: date, lw_end: date
+        self, tw_start: date, tw_end: date, lw_start: date, lw_end: date,
+        t28_start: date, t28_end: date, p28_start: date, p28_end: date,
     ) -> dict[str, Any]:
         # 認証 & クライアント構築
         try:
@@ -219,6 +231,12 @@ class Command(BaseCommand):
             ga_tw = self._ga_bundle(ga, ga_client, tw_start, tw_end)
             self.stdout.write("取得     : GA4 前週 ...")
             ga_lw = self._ga_bundle(ga, ga_client, lw_start, lw_end)
+
+            # 順位低下判定用の28日ローリング（ページ別のみ、軽量取得）
+            self.stdout.write("取得     : GSC 直近28日（順位低下判定） ...")
+            gsc_t28_pages = gsc.fetch_by_dimension(gsc_service, t28_start, t28_end, "page", 500)
+            self.stdout.write("取得     : GSC 前28日（順位低下判定） ...")
+            gsc_p28_pages = gsc.fetch_by_dimension(gsc_service, p28_start, p28_end, "page", 500)
         except Exception as e:  # noqa: BLE001
             raise CommandError(
                 f"API取得に失敗: {type(e).__name__}: {e}"
@@ -230,6 +248,7 @@ class Command(BaseCommand):
         return {
             "gsc_tw": gsc_tw, "gsc_lw": gsc_lw,
             "ga_tw": ga_tw, "ga_lw": ga_lw,
+            "gsc_t28_pages": gsc_t28_pages, "gsc_p28_pages": gsc_p28_pages,
         }
 
     def _gsc_bundle(self, gsc, service, start: date, end: date) -> dict[str, Any]:
@@ -271,8 +290,12 @@ class Command(BaseCommand):
         gsc_tw_pages = pages_by_path(data["gsc_tw"]["pages"], "url")
         gsc_lw_pages = pages_by_path(data["gsc_lw"]["pages"], "url")
 
+        # 順位低下判定は28日ローリング比較（週次のノイズ回避）
+        gsc_t28_pages = pages_by_path(data["gsc_t28_pages"], "url")
+        gsc_p28_pages = pages_by_path(data["gsc_p28_pages"], "url")
+
         winners = self._calc_winners(gsc_tw_pages, gsc_lw_pages)
-        losers = self._calc_losers(gsc_tw_pages, gsc_lw_pages)
+        losers = self._calc_losers(gsc_t28_pages, gsc_p28_pages)
         rewrite_candidates = self._calc_push_candidates(gsc_tw_pages)
         ctr_underperformers = self._calc_ctr_underperformers(gsc_tw_pages)
 
@@ -349,28 +372,33 @@ class Command(BaseCommand):
         rows.sort(key=lambda x: x["clicks_delta"], reverse=True)
         return rows[:3]
 
-    def _calc_losers(self, tw: dict, lw: dict) -> list[dict[str, Any]]:
-        """今週・前週とも表示>=20かつ順位が3以上悪化したページ。"""
+    def _calc_losers(self, cur: dict, prev: dict) -> list[dict[str, Any]]:
+        """直近28日・前28日とも表示>=100かつ順位が3以上悪化したページ。
+
+        週次(7日)比較は表示回数が少ないページで平均順位が大きく揺れ、
+        実体のない「順位低下」を誤検知する。28日ローリング比較と高めの
+        表示しきい値で統計ノイズを除外する。
+        """
         rows = []
-        for path, p in tw.items():
-            lw_p = lw.get(path)
-            if not lw_p:
+        for path, p in cur.items():
+            prev_p = prev.get(path)
+            if not prev_p:
                 continue
-            tw_impr = p.get("impressions", 0)
-            lw_impr = lw_p.get("impressions", 0)
-            if tw_impr < LOSER_MIN_IMPRESSIONS or lw_impr < LOSER_MIN_IMPRESSIONS:
+            cur_impr = p.get("impressions", 0)
+            prev_impr = prev_p.get("impressions", 0)
+            if cur_impr < LOSER_MIN_IMPRESSIONS or prev_impr < LOSER_MIN_IMPRESSIONS:
                 continue
-            tw_pos = p.get("position", 0.0)
-            lw_pos = lw_p.get("position", 0.0)
-            drop = tw_pos - lw_pos  # 正なら悪化（順位の数字が大きくなった）
+            cur_pos = p.get("position", 0.0)
+            prev_pos = prev_p.get("position", 0.0)
+            drop = cur_pos - prev_pos  # 正なら悪化（順位の数字が大きくなった）
             if drop < LOSER_MIN_POSITION_DROP:
                 continue
             rows.append({
                 "path": path,
-                "position_prev": lw_pos,
-                "position_now": tw_pos,
+                "position_prev": prev_pos,
+                "position_now": cur_pos,
                 "position_drop": round(drop, 2),
-                "clicks_prev": lw_p.get("clicks", 0),
+                "clicks_prev": prev_p.get("clicks", 0),
                 "clicks_now": p.get("clicks", 0),
             })
         rows.sort(key=lambda x: x["position_drop"], reverse=True)
@@ -467,7 +495,7 @@ class Command(BaseCommand):
             actions.append({
                 "type": "順位低下",
                 "path": r["path"],
-                "reason": f"順位 {r['position_prev']}→{r['position_now']}（{r['position_drop']}悪化）",
+                "reason": f"28日トレンドで順位 {r['position_prev']}→{r['position_now']}（{r['position_drop']}悪化）",
                 "instruction": (
                     f"claude '{r['path']} の順位低下要因を調査してリライト案を出して'"
                 ),
@@ -521,18 +549,21 @@ class Command(BaseCommand):
         L.append("")
 
         # --- 順位低下 ---
-        L.append("## 📉 順位を落としたページ")
+        L.append("## 📉 順位を落としたページ（28日トレンド）")
         L.append("")
         if analysis["losers"]:
-            L.append("| ページ | 順位 前週→今週 | 悪化幅 | クリック 前週→今週 |")
-            L.append("|--------|:-------------:|:-----:|:-----------------:|")
+            L.append("| ページ | 順位 前28日→直近28日 | 悪化幅 | クリック 前28日→直近28日 |")
+            L.append("|--------|:-------------------:|:-----:|:-----------------------:|")
             for r in analysis["losers"]:
                 L.append(
                     f"| {r['path']} | {r['position_prev']}→{r['position_now']} | "
                     f"+{r['position_drop']} | {r['clicks_prev']}→{r['clicks_now']} |"
                 )
         else:
-            L.append("_該当ページなし（表示20回以上で3位以上悪化したページなし）_")
+            L.append(
+                f"_該当ページなし（28日表示{LOSER_MIN_IMPRESSIONS}回以上で"
+                f"{LOSER_MIN_POSITION_DROP}位以上悪化したページなし）_"
+            )
         L.append("")
 
         # --- もう一押し ---

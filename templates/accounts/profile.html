@@ -28,7 +28,7 @@
     <div class="mt-5 pt-5 border-t border-rose-100">
       <div class="flex items-center justify-between mb-3">
         <span class="text-[11px] tracking-wider text-mute-500 uppercase">Thank You</span>
-        {% if user.category_badge %}<span class="inline-block text-[10px] px-2 py-0.5 rounded-full bg-gold-50 text-gold-700 border border-gold-200">{{ user.category_badge }}</span>{% endif %}
+        {% for badge in user.category_badges %}<span class="inline-block text-[10px] px-2 py-0.5 rounded-full bg-gold-50 text-gold-700 border border-gold-200">{{ badge }}</span>{% endfor %}
       </div>
       <div class="grid grid-cols-2 gap-2.5">
         <div class="bg-gradient-to-br from-rose-50 to-cream-50 rounded-xl p-3 text-center">
@@ -99,62 +99,102 @@
   </aside>
 
   <div class="min-w-0 space-y-10">
-    {# 気になる商品 #}
+    {# あなたの美容家電体験（口コミ／使用記録の管理が主役） #}
     <section>
-      <div class="flex items-center justify-between mb-4">
-        <div class="flex items-center gap-3">
-          <span class="inline-block w-1.5 h-5 bg-rose-500 rounded"></span>
-          <h2 class="text-lg font-bold text-ink-900">気になる商品 <span class="text-rose-500 text-sm font-normal">({{ bookmarks|length }})</span></h2>
-        </div>
-      </div>
-      {% if bookmarks %}
-        <ul class="grid grid-cols-2 sm:grid-cols-3 gap-4">
-          {% for bm in bookmarks %}
-            <li><a href="{{ bm.product.get_absolute_url }}" class="group block bg-white rounded-2xl border border-rose-100 overflow-hidden hover:shadow-card transition">
-              <div class="aspect-square bg-cream-100 overflow-hidden">
-                {% if bm.product.display_image %}<img src="{{ bm.product.display_image }}" alt="{{ bm.product.name }}" loading="lazy" class="w-full h-full object-cover group-hover:scale-105 transition duration-500">{% endif %}
-              </div>
-              <div class="p-3">
-                {% if bm.product.brand %}<div class="text-[10px] text-mute-500 uppercase tracking-wider truncate">{{ bm.product.brand }}</div>{% endif %}
-                <h3 class="text-xs font-medium text-ink-900 line-clamp-2 group-hover:text-rose-600">{{ bm.product.name }}</h3>
-              </div>
-            </a></li>
-          {% endfor %}
-        </ul>
-      {% else %}
-        <div class="bg-white rounded-2xl border border-rose-100 p-8 text-center text-sm text-mute-500">
-          まだ気になる商品はありません。<br>
-          商品ページで <span class="text-rose-500">♡ 気になる</span> をタップして集めよう。
-        </div>
-      {% endif %}
-    </section>
-
-    {# 参考になった口コミ #}
-    <section>
-      <div class="flex items-center gap-3 mb-4">
-        <span class="inline-block w-1.5 h-5 bg-gold-500 rounded"></span>
-        <h2 class="text-lg font-bold text-ink-900">参考になった口コミ <span class="text-rose-500 text-sm font-normal">({{ helpful_reviews|length }})</span></h2>
-      </div>
-      {% if helpful_reviews %}
-        <div class="space-y-4">{% for r in helpful_reviews %}{% include "reviews/_review_card.html" with r=r show_product=True %}{% endfor %}</div>
-      {% else %}
-        <div class="bg-white rounded-2xl border border-rose-100 p-8 text-center text-sm text-mute-500">
-          まだ「参考になった」をマークした口コミはありません。<br>
-          口コミを読んで <span class="text-rose-500">♡ 参考になった</span> をタップしよう。
-        </div>
-      {% endif %}
-    </section>
-
-    {# 自分の口コミ #}
-    <section>
-      <div class="flex items-center gap-3 mb-4">
+      <div class="flex items-center gap-3 mb-2">
         <span class="inline-block w-1.5 h-5 bg-rose-500 rounded"></span>
-        <h2 class="text-lg font-bold text-ink-900">あなたの口コミ <span class="text-rose-500 text-sm font-normal">({{ reviews|length }})</span></h2>
+        <h2 class="text-lg font-bold text-ink-900">あなたの美容家電体験</h2>
       </div>
-      {% if reviews %}
-        <div class="space-y-4">{% for r in reviews %}{% include "reviews/_review_card.html" with r=r show_product=True %}{% endfor %}</div>
+      <p class="text-sm text-mute-500 mb-5">口コミと使用記録をまとめて、あなたの美容家電体験を管理できます。</p>
+
+      {# 体験サマリー4カード（スマホ2列 / PC4列）。使用記録は集計を分離し平均評価等に混ぜない。 #}
+      <div class="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+        <div class="bg-gradient-to-br from-rose-50 to-cream-50 rounded-2xl border border-rose-100 p-4 text-center">
+          <div class="text-2xl font-serif font-bold text-rose-600 leading-none">{{ experience_summary.review_count }}</div>
+          <div class="text-[11px] text-mute-500 mt-2">投稿した口コミ</div>
+        </div>
+        <div class="bg-gradient-to-br from-cream-50 to-rose-50 rounded-2xl border border-rose-100 p-4 text-center">
+          <div class="text-2xl font-serif font-bold text-rose-600 leading-none">{{ experience_summary.use_log_count }}</div>
+          <div class="text-[11px] text-mute-500 mt-2">使用記録</div>
+        </div>
+        <div class="bg-gradient-to-br from-rose-50 to-cream-50 rounded-2xl border border-rose-100 p-4 text-center">
+          <div class="text-2xl font-serif font-bold text-rose-600 leading-none">{{ experience_summary.logged_product_count }}</div>
+          <div class="text-[11px] text-mute-500 mt-2">記録中の商品</div>
+        </div>
+        <div class="bg-gradient-to-br from-cream-50 to-rose-50 rounded-2xl border border-rose-100 p-4 text-center">
+          <div class="text-2xl font-serif font-bold text-rose-600 leading-none">{{ experience_summary.photo_log_count }}</div>
+          <div class="text-[11px] text-mute-500 mt-2">写真付き記録</div>
+        </div>
+      </div>
+
+      {# タブ: クエリパラメータ式・サーバーサイドでactive判定・JS非依存。タブ増のためモバイルは横スクロールで1行維持。 #}
+      <div class="mt-6 flex items-center gap-1 border-b border-rose-100 overflow-x-auto">
+        <a href="?tab=reviews" class="shrink-0 whitespace-nowrap px-4 py-2.5 text-sm font-medium border-b-2 -mb-px transition {% if active_tab == 'reviews' %}border-rose-500 text-rose-600{% else %}border-transparent text-mute-500 hover:text-rose-600{% endif %}">口コミ <span class="text-xs">({{ experience_summary.review_count }})</span></a>
+        <a href="?tab=use_logs" class="shrink-0 whitespace-nowrap px-4 py-2.5 text-sm font-medium border-b-2 -mb-px transition {% if active_tab == 'use_logs' %}border-rose-500 text-rose-600{% else %}border-transparent text-mute-500 hover:text-rose-600{% endif %}">使用記録 <span class="text-xs">({{ experience_summary.use_log_count }})</span></a>
+        <a href="?tab=bookmarks" class="shrink-0 whitespace-nowrap px-4 py-2.5 text-sm font-medium border-b-2 -mb-px transition {% if active_tab == 'bookmarks' %}border-rose-500 text-rose-600{% else %}border-transparent text-mute-500 hover:text-rose-600{% endif %}">気になる商品 <span class="text-xs">({{ bookmarks|length }})</span></a>
+        <a href="?tab=helpful" class="shrink-0 whitespace-nowrap px-4 py-2.5 text-sm font-medium border-b-2 -mb-px transition {% if active_tab == 'helpful' %}border-rose-500 text-rose-600{% else %}border-transparent text-mute-500 hover:text-rose-600{% endif %}">参考になった口コミ <span class="text-xs">({{ helpful_reviews|length }})</span></a>
+      </div>
+
+      {% if active_tab == 'use_logs' %}
+        {# 使用記録タブ #}
+        <div class="mt-6">
+          {% if use_logs %}
+            <div class="space-y-4">{% for log in use_logs %}{% include "reviews/_use_log_card.html" with log=log product_header=True %}{% endfor %}</div>
+          {% else %}
+            <div class="bg-white rounded-2xl border border-rose-100 p-8 text-center text-sm text-mute-500">
+              まだ使用記録はありません。<br>使ってみた感想や、1週間後・1ヶ月後の変化を記録してみましょう。
+              <a href="{% url 'products:list' %}" class="inline-block mt-3 px-5 py-2 rounded-full bg-rose-500 text-white text-xs hover:bg-rose-600">商品を探して記録する</a>
+            </div>
+          {% endif %}
+        </div>
+      {% elif active_tab == 'bookmarks' %}
+        {# 気になる商品タブ #}
+        <div class="mt-6">
+          {% if bookmarks %}
+            <ul class="grid grid-cols-2 sm:grid-cols-3 gap-4">
+              {% for bm in bookmarks %}
+                <li><a href="{{ bm.product.get_absolute_url }}" class="group block bg-white rounded-2xl border border-rose-100 overflow-hidden hover:shadow-card transition">
+                  <div class="aspect-square bg-cream-100 overflow-hidden">
+                    {% if bm.product.display_image %}<img src="{{ bm.product.display_image }}" alt="{{ bm.product.name }}" loading="lazy" class="w-full h-full object-cover group-hover:scale-105 transition duration-500">{% endif %}
+                  </div>
+                  <div class="p-3">
+                    {% if bm.product.brand %}<div class="text-[10px] text-mute-500 uppercase tracking-wider truncate">{{ bm.product.brand }}</div>{% endif %}
+                    <h3 class="text-xs font-medium text-ink-900 line-clamp-2 group-hover:text-rose-600">{{ bm.product.name }}</h3>
+                  </div>
+                </a></li>
+              {% endfor %}
+            </ul>
+          {% else %}
+            <div class="bg-white rounded-2xl border border-rose-100 p-8 text-center text-sm text-mute-500">
+              まだ気になる商品はありません。<br>
+              商品ページで <span class="text-rose-500">♡ 気になる</span> をタップして集めよう。
+            </div>
+          {% endif %}
+        </div>
+      {% elif active_tab == 'helpful' %}
+        {# 参考になった口コミタブ #}
+        <div class="mt-6">
+          {% if helpful_reviews %}
+            <div class="space-y-4">{% for r in helpful_reviews %}{% include "reviews/_review_card.html" with r=r product_header=True %}{% endfor %}</div>
+          {% else %}
+            <div class="bg-white rounded-2xl border border-rose-100 p-8 text-center text-sm text-mute-500">
+              まだ「参考になった」をマークした口コミはありません。<br>
+              口コミを読んで <span class="text-rose-500">♡ 参考になった</span> をタップしよう。
+            </div>
+          {% endif %}
+        </div>
       {% else %}
-        <div class="bg-white rounded-2xl border border-rose-100 p-8 text-center text-sm text-mute-500">まだ口コミを投稿していません。<br><a href="{% url 'products:list' %}" class="inline-block mt-3 px-5 py-2 rounded-full bg-rose-500 text-white text-xs hover:bg-rose-600">商品を探す</a></div>
+        {# 口コミタブ #}
+        <div class="mt-6">
+          {% if reviews %}
+            <div class="space-y-4">{% for r in reviews %}{% include "reviews/_review_card.html" with r=r product_header=True %}{% endfor %}</div>
+          {% else %}
+            <div class="bg-white rounded-2xl border border-rose-100 p-8 text-center text-sm text-mute-500">
+              まだ口コミはありません。<br>使ったことのある美容家電の感想を投稿してみましょう。
+              <a href="{% url 'products:list' %}" class="inline-block mt-3 px-5 py-2 rounded-full bg-rose-500 text-white text-xs hover:bg-rose-600">商品を探して口コミを書く</a>
+            </div>
+          {% endif %}
+        </div>
       {% endif %}
     </section>
   </div>

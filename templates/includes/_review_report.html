@@ -1,0 +1,84 @@
+{% comment %}
+口コミ通報の確認モーダル。共有カードの「通報」ボタン(data-review-report)で開く。
+ボタンの data-report-url を form.action に、data-report-next を hidden next に流し込み、
+理由(select)+任意コメント(textarea)を付けて POST する(reviews:report)。
+1ページに1つで足りるため base.html で読み込む。
+自動削除・自動非表示はしない＝この送信は「通報受付」レコードを作るだけ。
+{% endcomment %}
+{% if user.is_authenticated %}
+<div id="review-report-modal"
+     class="fixed inset-0 z-[100] hidden items-center justify-center bg-black/50 p-4"
+     role="dialog" aria-modal="true" aria-label="口コミの通報">
+  <form method="post" action="" id="review-report-form" class="bg-white rounded-2xl shadow-xl max-w-md w-full p-6">
+    {% csrf_token %}
+    <input type="hidden" name="next" value="" data-report-next-input>
+    <h3 class="text-base font-bold text-ink-900">口コミを通報する</h3>
+    <p class="mt-2 text-sm text-mute-600 leading-6">この口コミがガイドラインに違反していると思われる場合は、理由を選択して送信してください。通報内容は運営が確認します。</p>
+
+    <label class="block mt-4 text-xs font-semibold text-mute-600">通報理由<span class="text-rose-500">必須</span></label>
+    <select name="reason" required
+            class="mt-1 w-full rounded-xl border border-rose-200 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-rose-200">
+      <option value="" selected disabled>選択してください</option>
+      <option value="inappropriate">不適切な内容</option>
+      <option value="false_info">虚偽・誇張された内容</option>
+      <option value="harassment">誹謗中傷・嫌がらせ</option>
+      <option value="personal_info">個人情報が含まれている</option>
+      <option value="rights_violation">著作権・肖像権などの権利侵害</option>
+      <option value="stealth_marketing">広告・ステマの疑い</option>
+      <option value="unrelated">商品と関係がない</option>
+      <option value="other">その他</option>
+    </select>
+
+    <label class="block mt-4 text-xs font-semibold text-mute-600">詳細コメント（任意）</label>
+    <textarea name="comment" rows="4" maxlength="1000"
+              placeholder="状況を具体的にお書きください（任意）。例: 注文番号が画像に写っています。"
+              class="mt-1 w-full rounded-xl border border-rose-200 bg-white px-3 py-2 text-sm leading-6 focus:outline-none focus:ring-2 focus:ring-rose-200"></textarea>
+
+    <p class="mt-3 text-[11px] text-mute-500/90 leading-5">虚偽の通報や嫌がらせ目的の通報はお控えください。</p>
+
+    <div class="mt-5 flex justify-end gap-3">
+      <button type="button" data-review-report-cancel
+              class="px-4 py-2 rounded-full text-sm font-medium border border-rose-200 text-mute-600 bg-white hover:bg-cream-100 transition">キャンセル</button>
+      <button type="submit"
+              class="px-4 py-2 rounded-full text-sm font-medium bg-rose-500 text-white hover:bg-rose-600 transition">送信する</button>
+    </div>
+  </form>
+</div>
+
+<script>
+(function () {
+  var modal = document.getElementById('review-report-modal');
+  if (!modal) return;
+  var form = document.getElementById('review-report-form');
+  var nextInput = modal.querySelector('[data-report-next-input]');
+  var reasonSel = form.querySelector('select[name="reason"]');
+  var commentTa = form.querySelector('textarea[name="comment"]');
+
+  function open(trigger) {
+    form.action = trigger.getAttribute('data-report-url') || '';
+    nextInput.value = trigger.getAttribute('data-report-next') || '';
+    if (reasonSel) reasonSel.value = '';
+    if (commentTa) commentTa.value = '';
+    modal.classList.remove('hidden');
+    modal.classList.add('flex');
+    document.body.style.overflow = 'hidden';
+  }
+  function close() {
+    modal.classList.add('hidden');
+    modal.classList.remove('flex');
+    document.body.style.overflow = '';
+  }
+
+  document.addEventListener('click', function (e) {
+    var trigger = e.target.closest('[data-review-report]');
+    if (trigger) { e.preventDefault(); open(trigger); return; }
+    if (modal.classList.contains('hidden')) return;
+    if (e.target.closest('[data-review-report-cancel]') || e.target === modal) close();
+  });
+
+  document.addEventListener('keydown', function (e) {
+    if (e.key === 'Escape' && !modal.classList.contains('hidden')) close();
+  });
+})();
+</script>
+{% endif %}

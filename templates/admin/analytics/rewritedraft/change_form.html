@@ -1,0 +1,28 @@
+{% extends "admin/change_form.html" %}
+{% load i18n %}
+{% block submit_buttons_bottom %}
+  <div class="submit-row">
+    <input type="submit" value="{% trans 'Save' %}" class="default" name="_save">
+    {% if original.is_manual %}
+      <input type="submit" value="🔁 指示書を再生成（基準記事を反映）" name="_regen_manual"
+             style="background:#6a1b9a;color:#fff;font-weight:700"
+             title="基準記事の変更などを反映して、この手動下書きの指示書・チェックリストを作り直します"
+             onclick="return confirm('基準記事の内容を反映して指示書を作り直します。よろしいですか？');">
+    {% endif %}
+    {% if original.content_gap %}
+      <input type="submit" value="🔍 Claude Codeに差分分析を依頼" name="_gap_request_analysis"
+             style="background:#6a1b9a;color:#fff;font-weight:700"
+             title="貼った競合URLで、Claude Code が本文取得→差分分析→選択リストに投入します（アプリはLLMを呼びません）">
+      <input type="submit" value="➕ gap反映を指示書へ追記" name="_gap_apply"
+             style="background:#1456a0;color:#fff"
+             onclick="return confirm('reflect=true の gap 項目だけを指示書に追記します。よろしいですか？');">
+    {% endif %}
+    {% if original and original.draft_content %}
+      <input type="submit" value="✅ 承認して実記事へ反映" name="_approve_apply"
+             style="background:#0a6;color:#fff;font-weight:700"
+             onclick="return confirm('この案（編集後の draft_content）を実記事に反映します。よろしいですか？');">
+      <input type="submit" value="🚫 却下" name="_reject" style="background:#c0392b;color:#fff"
+             onclick="return confirm('この Draft を却下します。よろしいですか？');">
+    {% endif %}
+  </div>
+{% endblock %}

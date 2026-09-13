@@ -315,3 +315,14 @@ class SeoKeywordStrategyAdmin(admin.ModelAdmin):
             request,
             f"Article下書き作成: {n_created}件 / スキップ: {n_skipped}件 (既に related_article あり)"
         )
+
+
+# ── 旧「キーワード単位」のAI生成/リライト画面は管理画面から非表示にする ──
+#    リライトは記事(URL)単位の RewriteDraft フロー
+#    （/admin/analytics/rewritedraft/）に一本化した。二重導線を残さないための非表示。
+#    ※DBデータは保持。復元したい場合はこのブロックを削除すれば再登録される。
+for _m in (ProductArticleKeyword, ProductArticle, ArticleGenerationLog, SeoKeywordStrategy):
+    try:
+        admin.site.unregister(_m)
+    except admin.sites.NotRegistered:
+        pass

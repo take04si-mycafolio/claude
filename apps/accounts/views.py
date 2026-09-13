@@ -92,11 +92,32 @@ def profile(request):
         .select_related("product", "user")
         .order_by("-helpfuls__created_at")
     )
+    # 使用記録。既定マネージャ(UseLogManager)が is_deleted=True を除外するため削除済みは出ない。
+    # 平均評価・ランキング・review_count・helpful_count には一切混ぜない（表示専用）。
+    use_logs = (
+        request.user.use_logs
+        .select_related("product", "review")
+        .prefetch_related("images")
+        .order_by("-created_at")
+    )
+    # 体験サマリー集計。集計用クエリは order_by() で並び順を外し、
+    # values().distinct() に created_at が混ざって件数がずれるのを防ぐ。
+    experience_summary = {
+        "review_count": reviews.count(),
+        "use_log_count": use_logs.count(),
+        "logged_product_count": use_logs.order_by().values("product").distinct().count(),
+        "photo_log_count": use_logs.filter(images__isnull=False).order_by().distinct().count(),
+    }
+    tab = request.GET.get("tab")
+    active_tab = tab if tab in {"reviews", "use_logs", "bookmarks", "helpful"} else "reviews"
     from .missions import mission_summary
     return render(request, "accounts/profile.html", {
         "reviews": reviews,
         "bookmarks": bookmarks,
         "helpful_reviews": helpful_reviews,
+        "use_logs": use_logs,
+        "experience_summary": experience_summary,
+        "active_tab": active_tab,
         "mission_summary": mission_summary(request.user),
     })
 

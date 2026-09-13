@@ -1,0 +1,100 @@
+{% comment %}
+口コミ写真の拡大モーダル（ライトボックス）。共有口コミカードの画像クリックで開く。
+data-lightbox="review" を付けたリンク（href=原寸URL）をJSが拾い、別URL遷移せずモーダル表示する。
+1ページに1つだけ存在すればよいため base.html で読み込む。複数枚は前後ボタンで送れる。
+{% endcomment %}
+<div id="img-lightbox"
+     class="fixed inset-0 z-[100] hidden items-center justify-center bg-black/80 p-4 select-none"
+     role="dialog" aria-modal="true" aria-label="口コミ写真の拡大表示">
+  {# 閉じる #}
+  <button type="button" data-lightbox-close aria-label="閉じる"
+          class="absolute top-4 right-4 w-11 h-11 rounded-full bg-white/90 text-ink-900 flex items-center justify-center shadow hover:bg-white transition z-10">
+    <svg viewBox="0 0 24 24" class="w-6 h-6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg>
+  </button>
+
+  {# 前へ（複数枚のときのみ表示） #}
+  <button type="button" data-lightbox-prev aria-label="前の写真"
+          class="hidden absolute left-3 sm:left-6 top-1/2 -translate-y-1/2 w-11 h-11 rounded-full bg-white/90 text-ink-900 items-center justify-center shadow hover:bg-white transition z-10">
+    <svg viewBox="0 0 24 24" class="w-6 h-6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg>
+  </button>
+
+  <img data-lightbox-img src="" alt="口コミ写真（拡大）"
+       class="max-w-full max-h-[88vh] object-contain rounded-lg shadow-2xl">
+
+  {# 次へ（複数枚のときのみ表示） #}
+  <button type="button" data-lightbox-next aria-label="次の写真"
+          class="hidden absolute right-3 sm:right-6 top-1/2 -translate-y-1/2 w-11 h-11 rounded-full bg-white/90 text-ink-900 items-center justify-center shadow hover:bg-white transition z-10">
+    <svg viewBox="0 0 24 24" class="w-6 h-6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg>
+  </button>
+
+  {# 枚数インジケータ（例: 2 / 4） #}
+  <div data-lightbox-counter
+       class="hidden absolute bottom-4 left-1/2 -translate-x-1/2 text-white/90 text-xs font-medium bg-black/40 rounded-full px-3 py-1 tabular-nums"></div>
+</div>
+
+<script>
+(function () {
+  var box = document.getElementById('img-lightbox');
+  if (!box) return;
+  var imgEl   = box.querySelector('[data-lightbox-img]');
+  var prevBtn = box.querySelector('[data-lightbox-prev]');
+  var nextBtn = box.querySelector('[data-lightbox-next]');
+  var counter = box.querySelector('[data-lightbox-counter]');
+  var group = [];   // 同じ口コミ内の画像URL一覧
+  var idx = 0;
+
+  function render() {
+    if (!group.length) return;
+    imgEl.src = group[idx];
+    var multi = group.length > 1;
+    [prevBtn, nextBtn, counter].forEach(function (el) {
+      el.classList.toggle('hidden', !multi);
+      el.classList.toggle('flex', multi && el !== counter);
+    });
+    if (multi) counter.textContent = (idx + 1) + ' / ' + group.length;
+  }
+
+  function open(trigger) {
+    // 同一カード(article)内の review 画像をまとめてグループ化し、その中での位置を開く。
+    var card = trigger.closest('article') || document;
+    var links = Array.prototype.slice.call(card.querySelectorAll('a[data-lightbox="review"]'));
+    group = links.map(function (a) { return a.getAttribute('href'); });
+    idx = Math.max(0, links.indexOf(trigger));
+    render();
+    box.classList.remove('hidden');
+    box.classList.add('flex');
+    document.body.style.overflow = 'hidden';
+  }
+
+  function close() {
+    box.classList.add('hidden');
+    box.classList.remove('flex');
+    imgEl.src = '';
+    group = [];
+    document.body.style.overflow = '';
+  }
+
+  function step(d) {
+    if (group.length < 2) return;
+    idx = (idx + d + group.length) % group.length;
+    render();
+  }
+
+  document.addEventListener('click', function (e) {
+    var trigger = e.target.closest('a[data-lightbox="review"]');
+    if (trigger) { e.preventDefault(); open(trigger); return; }
+    if (box.classList.contains('hidden')) return;
+    if (e.target.closest('[data-lightbox-close]')) { close(); return; }
+    if (e.target.closest('[data-lightbox-prev]'))  { step(-1); return; }
+    if (e.target.closest('[data-lightbox-next]'))  { step(1);  return; }
+    if (e.target === box) { close(); }  // 背景クリックで閉じる（画像自体は閉じない）
+  });
+
+  document.addEventListener('keydown', function (e) {
+    if (box.classList.contains('hidden')) return;
+    if (e.key === 'Escape') close();
+    else if (e.key === 'ArrowLeft') step(-1);
+    else if (e.key === 'ArrowRight') step(1);
+  });
+})();
+</script>

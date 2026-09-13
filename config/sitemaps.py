@@ -1,7 +1,7 @@
 from django.contrib.sitemaps import Sitemap
 from django.urls import reverse
 
-from apps.products.models import Article, Category, Product
+from apps.products.models import Article, Brand, Category, Product
 
 
 class HomeSitemap(Sitemap):
@@ -67,7 +67,7 @@ class ArticleSitemap(Sitemap):
     changefreq = "weekly"
 
     def items(self):
-        return Article.objects.filter(is_published=True).order_by("-updated_at")
+        return Article.objects.filter(is_published=True, noindex=False).order_by("-updated_at")
 
     def lastmod(self, obj):
         return obj.updated_at
@@ -92,10 +92,29 @@ class ProductSitemap(Sitemap):
         return obj.get_absolute_url()
 
 
+class BrandSitemap(Sitemap):
+    """メーカー一覧 + 各メーカーページ (/brands/ , /brands/<slug>/)"""
+    protocol = "https"
+    priority = 0.7
+    changefreq = "weekly"
+
+    def items(self):
+        slugs = list(
+            Brand.objects.filter(is_published=True).values_list("slug", flat=True)
+        )
+        return ["__index__"] + slugs
+
+    def location(self, item):
+        if item == "__index__":
+            return reverse("products:brand_index")
+        return reverse("products:brand_detail", kwargs={"brand_slug": item})
+
+
 sitemaps = {
     "home": HomeSitemap,
     "static": StaticViewSitemap,
     "categories": CategorySitemap,
+    "brands": BrandSitemap,
     "articles": ArticleSitemap,
     "products": ProductSitemap,
 }

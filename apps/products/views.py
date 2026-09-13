@@ -1,12 +1,14 @@
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.db.models import Avg, Count, Q
-from django.http import Http404, HttpResponseRedirect
+from django.http import Http404, HttpResponseRedirect, HttpResponsePermanentRedirect
 from django.shortcuts import get_object_or_404, render
+from django.views.decorators.csrf import ensure_csrf_cookie
 from django.views.decorators.http import require_POST
 
 from apps.accounts.models import Bookmark
-from .models import Article, Category, Product
+from .article_redirects import ARTICLE_MERGES, ARTICLE_REDIRECTS
+from .models import Article, Brand, Category, Product
 
 
 def _product_types():
@@ -263,8 +265,10 @@ def _user_has_review_in_category(user, ptype):
     if not user.is_authenticated:
         return False
     from apps.reviews.models import Review
+    # 承認前でも投稿した時点で特権(ランキング全件閲覧)は解放する。公開表示の
+    # ゲート(is_approved)と会員特権は別物で、詳細ページの can_view とも揃える。
     return Review.objects.filter(
-        user=user, product__product_type=ptype, is_approved=True,
+        user=user, product__product_type=ptype,
     ).exists()
 
 
@@ -313,6 +317,8 @@ def type_ranking(request, type_slug):
 HUB_ARTICLES = {
     "bigankiki": {"compare": "osusume-hikaku", "select": "bigankiki"},
     "dryer": {"compare": "dryer-osusume-hikaku", "select": "dryer"},
+    "hair-iron": {"compare": "hair-iron-osusume-hikaku", "select": "hair-iron"},
+    "datsumouki": {"compare": "datsumouki-osusume-hikaku", "select": "datsumouki"},
 }
 
 
@@ -330,6 +336,7 @@ def _category_hub_articles(product):
         out.append({
             "url": comp.get_absolute_url(), "title": comp.title,
             "kind": "おすすめ比較", "desc": comp.meta_description or comp.excerpt or "",
+            "img": comp.display_thumbnail,
         })
     sel_slug = conf["select"]
     cat = Category.objects.filter(parent__isnull=True, slug=sel_slug).first()
@@ -337,6 +344,7 @@ def _category_hub_articles(product):
         out.append({
             "url": f"/{cat.slug}/", "title": cat.name,
             "kind": "選び方", "desc": cat.meta_description or cat.description or "",
+            "img": "",
         })
     else:
         sel = Article.objects.filter(slug=sel_slug, is_published=True).first()
@@ -344,8 +352,49 @@ def _category_hub_articles(product):
             out.append({
                 "url": sel.get_absolute_url(), "title": sel.title,
                 "kind": "選び方", "desc": sel.meta_description or sel.excerpt or "",
+                "img": sel.display_thumbnail,
             })
     return out
+
+
+def _desc_linked_cards(product):
+    """商品記事本文(description)からサイト内リンクを抽出しカードdict化する。
+    v2記事で紹介した記事・比較した商品を「関連記事」欄へ再掲するため。"""
+    import re as _re
+
+    from .templatetags.article_extras import _resolve_internal
+    cards = []
+    desc = product.description or ""
+    # 記事・カテゴリハブ(単一セグメント)。アイキャッチ付きでカード化
+    for s in dict.fromkeys(_re.findall(r'href="/([a-z0-9\-_]+)/"', desc)):
+        a = Article.objects.filter(slug=s, is_published=True).first()
+        if a:
+            cards.append({
+                "url": a.get_absolute_url(), "title": a.title,
+                "kind": _article_role_of(a),
+                "desc": a.meta_description or a.excerpt or "",
+                "img": a.display_thumbnail,
+            })
+            continue
+        info = _resolve_internal(s)
+        if info:
+            cards.append(info)
+    # 比較で紹介した商品ページ(/カテゴリ/products/slug/)
+    for s in dict.fromkeys(_re.findall(r'href="/[a-z0-9\-_]+/products/([a-z0-9\-_]+)/"', desc)):
+        p = Product.objects.filter(slug=s, is_published=True).first()
+        if p and p.pk != product.pk:
+            cards.append({
+                "url": p.get_absolute_url(), "title": p.name,
+                "kind": "比較した商品",
+                "desc": f"参考価格 ¥{p.price}" if p.price else "",
+                "img": p.display_image,
+            })
+    return cards
+
+
+def _article_role_of(article):
+    from .templatetags.article_extras import _article_role
+    return _article_role(article)
 
 
 def _related_article_cards(product):
@@ -357,38 +406,92 @@ def _related_article_cards(product):
         cards.append({
             "url": a.get_absolute_url(), "title": a.title,
             "kind": _article_role(a), "desc": a.meta_description or a.excerpt or "",
+            "img": a.display_thumbnail,
         })
     return cards[:4]
 
 
+def _brand_page_for(product):
+    """商品の brand 値に一致する公開メーカーページ(Brand)を返す。無ければ None。
+
+    Brand.match_brands の正規化グルーピング（brand_detail と同じ規則）を
+    商品→ブランドの逆引きに使う。exclude_name_keywords も同様に尊重する。
+    """
+    if not product.brand:
+        return None
+    for b in Brand.objects.filter(is_published=True):
+        if product.brand in b.match_list():
+            name = product.name or ""
+            if any(kw in name for kw in b.exclude_list()):
+                continue
+            return b
+    return None
+
+
 def detail(request, type_slug, slug):
     """商品詳細 - URL: /<type_slug>/products/<slug>/"""
-    product = get_object_or_404(
+    product = (
         Product.objects.prefetch_related(
             "categories", "articles", "related_articles"
-        ).select_related("product_type"),
-        slug=slug, is_published=True, product_type__slug=type_slug,
+        ).select_related("product_type")
+        .filter(slug=slug, is_published=True, product_type__slug=type_slug)
+        .first()
     )
+    if product is None:
+        # カテゴリ変更などで type_slug が変わった旧URLは、正規URLへ 301 で送る
+        # (slug は全体で一意なので type を跨いでも1件に定まる)
+        moved = Product.objects.filter(slug=slug, is_published=True).first()
+        if moved is not None:
+            return HttpResponsePermanentRedirect(moved.get_absolute_url())
+        raise Http404("商品が見つかりません")
     stats = product.review_stats()
     reviews = product.reviews.filter(is_approved=True).select_related("user").order_by("-created_at")
     user_review = None
-    can_view = False
+    # メディアサイト方針(2026-09-06): 口コミは誰でも全件閲覧可。
+    # 「1件投稿でカテゴリ解放」のゲートは口コミサイト昇格時に戻せるよう can_view の
+    # 仕組み自体は残し、常時 True にする。
+    can_view = True
     is_bookmarked = False
     if request.user.is_authenticated:
-        user_review = reviews.filter(user=request.user).first()
-        if product.product_type_id:
-            can_view = request.user.reviews.filter(
-                product__product_type_id=product.product_type_id
-            ).exists()
+        # 承認待ちも含めて本人の口コミを拾う(承認制)。承認待ちはテンプレート側で
+        # 「確認中」の案内を出し、公開一覧(reviews)には承認済みのみが載る。
+        user_review = product.reviews.filter(user=request.user).first()
         is_bookmarked = Bookmark.objects.filter(user=request.user, product=product).exists()
     preview_reviews = reviews[:2] if not can_view else None
     full_reviews = reviews if can_view else None
+    # 使用記録（ProductUseLog）。既定マネージャが論理削除を除外、新しい順。
+    # 既存の口コミ表示方針に合わせ、can_view なら全件・それ以外は2件プレビュー。
+    # 承認制: 一般には承認済みのみ。本人の承認待ちは本人にだけ見せる
+    # （カード側で「承認待ち」バッジを表示）。
+    # 平均評価/ランキング/review_count とは別リレーション(use_logs)なので集計に混ざらない。
+    use_log_visible = Q(is_approved=True)
+    if request.user.is_authenticated:
+        use_log_visible |= Q(user=request.user)
+    use_logs = (
+        product.use_logs.filter(use_log_visible)
+        .select_related("user", "review")
+        .prefetch_related("images")
+        .order_by("-created_at")
+    )
+    use_logs_full = use_logs if can_view else None
+    use_logs_preview = None if can_view else use_logs[:2]
     # SEO内部リンク用の関連商品 6 件(通常商品でも表示)。生産終了は「最新のおすすめ」として強調。
     similar_products = _similar_products_for(product, limit=6)
     # 商品ページから比較記事・選び方記事へ評価を返すページカード(2本)
     hub_cards = _category_hub_articles(product)
     # 手動キュレーションの関連記事(機構hub/悩みhub/比較/選び方)最大4本
     related_article_cards = _related_article_cards(product)
+    # 関連記事を1箇所に統合(2026-09-07 ユーザー指示):
+    # 記事本文で紹介した記事 + 手動キュレーション + カテゴリハブ をURL重複なしでまとめ、
+    # 口コミ投稿フォームの下に「関連記事」として表示する。
+    related_links = []
+    _seen_urls = set()
+    for card in _desc_linked_cards(product) + related_article_cards + hub_cards:
+        if card["url"] in _seen_urls:
+            continue
+        _seen_urls.add(card["url"])
+        related_links.append(card)
+    related_links = related_links[:6]
 
     return render(request, "products/product_detail.html", {
         "similar_products": similar_products,
@@ -396,10 +499,25 @@ def detail(request, type_slug, slug):
         "related_article_cards": related_article_cards,
         "product": product, "stats": stats,
         "reviews": full_reviews, "preview_reviews": preview_reviews,
+        "use_logs_full": use_logs_full, "use_logs_preview": use_logs_preview,
         "user_review": user_review, "can_view": can_view,
         "is_bookmarked": is_bookmarked,
+        "brand_page": _brand_page_for(product),
         "product_types": _product_types(),
+        "guest_review_form": _guest_review_form(),
+        "guest_form_token": _guest_form_token(product.slug),
+        "related_links": related_links,
     })
+
+
+def _guest_review_form():
+    from apps.reviews.forms import GuestReviewForm
+    return GuestReviewForm()
+
+
+def _guest_form_token(slug):
+    from apps.reviews.views import guest_form_token
+    return guest_form_token(slug)
 
 
 def article_list(request):
@@ -409,15 +527,131 @@ def article_list(request):
     })
 
 
+COLUMN_SLUGS = ("biyou", "colam-ipan")
+
+# コラム記事を内容テーマでクラスタ化し、記事下の「あわせて読みたい」を関連性の高い
+# 記事で埋めるためのマップ。コラムは商品カテゴリのような構造を持たないため、
+# ここで同テーマ同士を明示的につなぐ(関係の薄い記事へリンクしない=SEO/UX方針)。
+# 新規コラムを追加したら該当クラスタに slug を足す(未登録でも新着順フォールバックで6本は出る)。
+#   各クラスタは「同テーマで関連性が高い順」に並べる(先頭ほど優先表示)。
+#   クラスタ内は最大6本まで先頭から表示→残りは他の物販クラスタで補完するため、
+#   そのカテゴリの“ハブ的・汎用的に関連する記事”を前に置くと回遊が最適化される。
+#   ※ クーポンは必ず最後のクラスタにまとめる(is_coupon 判定が末尾前提)。物販⇄クーポンは混ぜない。
+COLUMN_RELATED_CLUSTERS = (
+    # 映像・テレビ・レコーダー・プロジェクター
+    ("4ktv", "40tv", "32tv", "burei", "dvd", "mobai_pro"),
+    # オーディオ・カメラ・楽器・趣味ガジェット
+    ("itiganrefu", "miraresu_itigan", "toy-camera", "action_camera",
+     "bluetooth_speaker", "minicop", "ai-supika", "densipiano", "3kyaku", "3d_print"),
+    # PC・スマホ・デジタル周辺・ウェアラブル
+    ("notepc", "kakuyasu_sumaho", "usb", "wi_fi_ru", "mobile", "mobile_bateri", "smartwatch", "katuroukei", "pen-tab"),
+    # 暮らし・健康・癒し・季節家電
+    ("taijyu", "denndouhaburasi", "massage_chair", "nyuyokuzai", "aroma_diffuser", "mattress",
+     "reifu", "air-cleaner", "kedamatori", "codoles_soujiki"),
+    # キッチン家電・調理
+    ("mixer", "suihanki", "flyer", "ih-furaipan", "furaipan-sozai", "hotpreto", "open_tosuta", "tousuta",
+     "gurirunabe", "denkikeruto", "kogata-reizouko"),
+    # ドリンク・カフェ・テーブル雑貨
+    ("coffe_mir", "koutya", "wine_cellar", "wine_cooler", "suitou-10", "peppermill"),
+    # 文房具・ラベル
+    ("ballpen", "yusei-ballpen", "syapen", "tepura"),
+    # 車・カー用品
+    ("car-soujiki", "drive_recorder", "reda-tntiki"),
+    # ファッション・旅行・おでかけ
+    ("sneakers", "suitcase"),
+    # 運動・ボディケア・健康管理（ヨガ/運動まわりで回遊）
+    ("yogamato", "taijyu", "massage_chair", "smartwatch", "mixer"),
+    # 美容・入浴・身だしなみ
+    ("milk_furo", "bath_salt", "nyuyokuzai", "aroma_diffuser", "kogaokea", "dresser",
+     "hair_color", "denndouhaburasi"),
+    # 脱毛（脇脱毛コラム → 家庭用脱毛器の実用記事へ回遊させる）
+    ("datumou_waki", "datsumouki-osusume-hikaku", "datsumouki-salon", "datsumouki-itami",
+     "datsumouki-vio", "datsumouki-zenshin", "datsumouki-kaisu"),
+    # クーポン・割引情報(必ず末尾)
+    ("adidas-coupon", "dell-coupon", "dominos-coupon", "mcdonalds-coupon",
+     "misterdonut-coupon", "nissen-copon", "pizzahut-coupon", "sushiro",
+     "uniqlo-coupon", "zoff-coupon"),
+)
+# クーポン以外(物販レビュー系)は相互に補い合ってよい。クーポン⇄物販はテーマが離れるため分離。
+# 末尾=クーポンクラスタを除く全クラスタを物販プールとする。各クラスタから1本ずつ
+# ラウンドロビンで拾い、薄いクラスタ(車/文房具/美容等)の補完が1テーマに偏らないようにする。
+def _roundrobin_fill(clusters):
+    from itertools import zip_longest
+    out = []
+    for col in zip_longest(*clusters):
+        for s in col:
+            if s is not None:
+                out.append(s)
+    return tuple(out)
+
+
+# 脱毛器クラスタ(datumou_waki 起点)は専用回遊のため、他コラムの埋め草プールには混ぜない。
+_COLUMN_SHOPPING_FILL = _roundrobin_fill(
+    tuple(c for c in COLUMN_RELATED_CLUSTERS[:-1] if "datumou_waki" not in c)
+)
+
+
+def _column_related_articles(article, limit=6):
+    """コラム記事の関連コラムを最大 limit 本、関連性順で返す。
+    1) 同テーマクラスタ → 2) (クーポン以外は)他の物販系コラム → 3) 全コラム新着順 で補完。"""
+    slug = article.slug
+    cluster = next((c for c in COLUMN_RELATED_CLUSTERS if slug in c), None)
+    is_coupon = cluster is COLUMN_RELATED_CLUSTERS[-1]
+
+    ordered = []  # 重複を避けつつ優先順位どおりに slug を積む
+    def _add(slugs):
+        for s in slugs:
+            if s != slug and s not in ordered:
+                ordered.append(s)
+
+    # 専用クラスタが十分な本数(4本以上)を提供できる記事は、無関係な物販の埋め草をせず
+    # 同テーマだけで出す（例: 運動クラスタのヨガマットに4Kテレビ等を混ぜない）。
+    cluster_related = len([s for s in cluster if s != slug]) if cluster else 0
+    if cluster:
+        _add(cluster)
+    if not is_coupon and cluster_related < 4:
+        _add(_COLUMN_SHOPPING_FILL)
+
+    found = {
+        a.slug: a for a in Article.objects.filter(
+            slug__in=ordered, is_published=True
+        ).select_related("product_type")
+    }
+    result = [found[s] for s in ordered if s in found][:limit]
+
+    # クラスタ未登録 or 候補不足のコラムは全コラム新着順で 6 本まで補う。
+    if len(result) < limit and cluster_related < 4:
+        have = {a.pk for a in result} | {article.pk}
+        extra = (
+            Article.objects.filter(
+                product_type__slug__in=COLUMN_SLUGS, is_published=True
+            )
+            .exclude(pk__in=have)
+            .select_related("product_type")
+            .order_by("-published_at", "-id")[: limit - len(result)]
+        )
+        result += list(extra)
+    return result
+
+
+@ensure_csrf_cookie
 def article_detail(request, slug):
-    """記事詳細 - URL: /<slug>/  (ドメイン直下の安定URL)"""
-    article = get_object_or_404(
-        Article.objects.select_related("product_type"),
-        slug=slug, is_published=True,
+    """記事詳細 - URL: /<slug>/  (ドメイン直下の安定URL)
+
+    アンケート([survey])のAJAX送信でCSRFトークンを使うため csrftoken cookie を保証する。
+    """
+    article = (
+        Article.objects.select_related("product_type")
+        .filter(slug=slug, is_published=True)
+        .first()
     )
-    return render(request, "products/article_detail.html", {
-        "article": article, "product_types": _product_types(),
-    })
+    if article is None:
+        raise Http404("記事が見つかりません")
+    ctx = {"article": article, "product_types": _product_types()}
+    # コラム記事(美容・コラム一般)は記事下にアイキャッチ付きの関連コラム6本を出して回遊させる。
+    if article.product_type and article.product_type.slug in COLUMN_SLUGS:
+        ctx["column_related"] = _column_related_articles(article)
+    return render(request, "products/article_detail.html", ctx)
 
 
 @login_required
@@ -440,6 +674,33 @@ def bookmark_toggle(request, slug):
 #   カテゴリ別の文言・リンクは TRUST_LANDING で差し替え。数値は実データのみ。
 # =============================================================================
 TRUST_LANDING = {
+    "cleansing-brush": {
+        "eyebrow": "美容家電TUSHOU · 電動洗顔ブラシ",
+        "h1": "電動洗顔ブラシを、本音の口コミで選ぶ。",
+        "lede": "紹介料に左右されない中立評価と、実際に使った人の声。あなたに合う電動洗顔ブラシを、納得して選べる拠点です。",
+        "hub_slug": "cleansing-brush-osusume-hikaku",
+        "hub_title": "電動洗顔ブラシのおすすめ比較ガイド",
+        "hub_text": "回転式・シリコン音波式・イオン・EMSの違いから、肌質・価格帯ごとの選び方まで。一本で全体像がつかめます。",
+        "criteria": ["洗い上がり", "肌へのやさしさ", "防水・お手入れ", "価格", "口コミ傾向"],
+        "find_groups": [
+            {"label": "価格で選ぶ", "items": [
+                {"t": "〜1万円", "u": "/products/?type=cleansing-brush&pmax=9999&sort=price_asc"},
+                {"t": "1〜2万円", "u": "/products/?type=cleansing-brush&pmin=10000&pmax=19999&sort=price_asc"},
+                {"t": "2万円〜", "u": "/products/?type=cleansing-brush&pmin=20000&sort=price_desc"}]},
+            {"label": "ブランドで選ぶ", "items": [
+                {"t": "FOREO", "u": "/products/?type=cleansing-brush&brand=FOREO"},
+                {"t": "フィリップス", "u": "/products/?type=cleansing-brush&brand=フィリップス"},
+                {"t": "ヤーマン", "u": "/products/?type=cleansing-brush&brand=ヤーマン"},
+                {"t": "SALONIA", "u": "/products/?type=cleansing-brush&brand=SALONIA"},
+                {"t": "DISM", "u": "/products/?type=cleansing-brush&brand=DISM"}]},
+            {"label": "並びで選ぶ", "items": [
+                {"t": "口コミ評価順", "u": "/products/?type=cleansing-brush&sort=rating"},
+                {"t": "新着順", "u": "/products/?type=cleansing-brush&sort=newest"},
+                {"t": "価格が安い順", "u": "/products/?type=cleansing-brush&sort=price_asc"}]},
+        ],
+        "theme_groups": [],
+        "price_bands": [(0, 9999), (10000, 19999), (20000, 10 ** 12)],
+    },
     "datsumouki": {
         "eyebrow": "美容家電TUSHOU · 脱毛器",
         "h1": "脱毛器を、本音の口コミで選ぶ。",
@@ -605,6 +866,133 @@ TRUST_LANDING = {
         ],
         "price_bands": [(0, 9999), (10000, 29999), (30000, 10 ** 12)],
     },
+    "steamer": {
+        "eyebrow": "美容家電TUSHOU · 美顔スチーマー",
+        "h1": "美顔スチーマーを、本音の口コミで選ぶ。",
+        "lede": "紹介料に左右されない中立評価と、実際に使った人の声。あなたに合う美顔スチーマーを、納得して選べる拠点です。",
+        "hub_slug": "steamer-osusume-hikaku",
+        "hub_title": "美顔スチーマーのおすすめ比較ガイド",
+        "hub_text": "据置き・ハンディ、温スチーム・ナノミストの違いから、価格帯・使う人ごとの選び方まで。一本で全体像がつかめます。",
+        "criteria": ["ミストの細かさ", "立ち上がりの速さ", "手入れのしやすさ", "価格", "口コミ傾向"],
+        "find_groups": [
+            {"label": "価格で選ぶ", "items": [
+                {"t": "〜1万円", "u": "/products/?type=steamer&pmax=9999&sort=price_asc"},
+                {"t": "1〜3万円", "u": "/products/?type=steamer&pmin=10000&pmax=29999&sort=price_asc"},
+                {"t": "3万円〜", "u": "/products/?type=steamer&pmin=30000&sort=price_desc"}]},
+            {"label": "ブランドで選ぶ", "items": [
+                {"t": "パナソニック", "u": "/products/?type=steamer&brand=パナソニック"},
+                {"t": "ヤーマン", "u": "/products/?type=steamer&brand=ヤーマン"},
+                {"t": "美ルル", "u": "/products/?type=steamer&brand=美ルル"},
+                {"t": "FESTINO", "u": "/products/?type=steamer&brand=FESTINO"}]},
+            {"label": "並びで選ぶ", "items": [
+                {"t": "口コミ評価順", "u": "/products/?type=steamer&sort=rating"},
+                {"t": "新着順", "u": "/products/?type=steamer&sort=newest"},
+                {"t": "価格が安い順", "u": "/products/?type=steamer&sort=price_asc"}]},
+        ],
+        "theme_groups": [],
+        "price_bands": [(0, 9999), (10000, 29999), (30000, 10 ** 12)],
+    },
+    "massage": {
+        "eyebrow": "美容家電TUSHOU · マッサージ機",
+        "h1": "マッサージ機を、本音の口コミで選ぶ。",
+        "lede": "紹介料に左右されない中立評価と、実際に使った人の声。あなたに合うマッサージ機・ヘッドスパを、納得して選べる拠点です。",
+        "hub_slug": "massage-osusume-hikaku",
+        "hub_title": "マッサージ機のおすすめ比較ガイド",
+        "hub_text": "ヘッドスパ・かっさ・EMSブラシの違いから、部位・価格帯ごとの選び方まで。一本で全体像がつかめます。",
+        "criteria": ["ほぐし心地", "使いやすさ", "防水・お手入れ", "価格", "口コミ傾向"],
+        "find_groups": [
+            {"label": "価格で選ぶ", "items": [
+                {"t": "〜1万円", "u": "/products/?type=massage&pmax=9999&sort=price_asc"},
+                {"t": "1〜3万円", "u": "/products/?type=massage&pmin=10000&pmax=29999&sort=price_asc"},
+                {"t": "3万円〜", "u": "/products/?type=massage&pmin=30000&sort=price_desc"}]},
+            {"label": "ブランドで選ぶ", "items": [
+                {"t": "ReFa", "u": "/products/?type=massage&brand=ReFa"},
+                {"t": "ヤーマン", "u": "/products/?type=massage&brand=ヤーマン"},
+                {"t": "Brighte", "u": "/products/?type=massage&brand=Brighte"},
+                {"t": "SALONIA", "u": "/products/?type=massage&brand=SALONIA"}]},
+            {"label": "並びで選ぶ", "items": [
+                {"t": "口コミ評価順", "u": "/products/?type=massage&sort=rating"},
+                {"t": "新着順", "u": "/products/?type=massage&sort=newest"},
+                {"t": "価格が安い順", "u": "/products/?type=massage&sort=price_asc"}]},
+        ],
+        "theme_groups": [],
+        "price_bands": [(0, 9999), (10000, 29999), (30000, 10 ** 12)],
+    },
+    "toothbrush": {
+        "eyebrow": "美容家電TUSHOU · 電動歯ブラシ",
+        "h1": "電動歯ブラシを、本音の口コミで選ぶ。",
+        "lede": "紹介料に左右されない中立評価と、実際に使った人の声。あなたに合う電動歯ブラシを、納得して選べる拠点です。",
+        "hub_slug": "toothbrush-osusume-hikaku",
+        "hub_title": "電動歯ブラシのおすすめ比較ガイド",
+        "hub_text": "音波・回転式の違いから、替えブラシのコスト・価格帯ごとの選び方まで。一本で全体像がつかめます。",
+        "criteria": ["磨き上がり", "静音・振動", "替えブラシのコスト", "価格", "口コミ傾向"],
+        "find_groups": [
+            {"label": "価格で選ぶ", "items": [
+                {"t": "〜5,000円", "u": "/products/?type=toothbrush&pmax=4999&sort=price_asc"},
+                {"t": "5,000〜2万円", "u": "/products/?type=toothbrush&pmin=5000&pmax=19999&sort=price_asc"},
+                {"t": "2万円〜", "u": "/products/?type=toothbrush&pmin=20000&sort=price_desc"}]},
+            {"label": "ブランドで選ぶ", "items": [
+                {"t": "ブラウン", "u": "/products/?type=toothbrush&brand=ブラウン"},
+                {"t": "Panasonic", "u": "/products/?type=toothbrush&brand=Panasonic"},
+                {"t": "フィリップス", "u": "/products/?type=toothbrush&brand=フィリップス"}]},
+            {"label": "並びで選ぶ", "items": [
+                {"t": "口コミ評価順", "u": "/products/?type=toothbrush&sort=rating"},
+                {"t": "新着順", "u": "/products/?type=toothbrush&sort=newest"},
+                {"t": "価格が安い順", "u": "/products/?type=toothbrush&sort=price_asc"}]},
+        ],
+        "theme_groups": [],
+        "price_bands": [(0, 4999), (5000, 19999), (20000, 10 ** 12)],
+    },
+    "shaver": {
+        "eyebrow": "美容家電TUSHOU · シェーバー",
+        "h1": "シェーバーを、本音の口コミで選ぶ。",
+        "lede": "紹介料に左右されない中立評価と、実際に使った人の声。あなたに合うシェーバーを、納得して選べる拠点です。",
+        "hub_slug": "shaver-osusume-hikaku",
+        "hub_title": "シェーバーのおすすめ比較ガイド",
+        "hub_text": "往復式・回転式やレディース・メンズの違いから、価格帯ごとの選び方まで。一本で全体像がつかめます。",
+        "criteria": ["剃り心地", "肌へのやさしさ", "手入れ・防水", "価格", "口コミ傾向"],
+        "find_groups": [
+            {"label": "価格で選ぶ", "items": [
+                {"t": "〜3,000円", "u": "/products/?type=shaver&pmax=2999&sort=price_asc"},
+                {"t": "3,000〜5,000円", "u": "/products/?type=shaver&pmin=3000&pmax=4999&sort=price_asc"},
+                {"t": "5,000円〜", "u": "/products/?type=shaver&pmin=5000&sort=price_desc"}]},
+            {"label": "ブランドで選ぶ", "items": [
+                {"t": "Panasonic", "u": "/products/?type=shaver&brand=Panasonic"},
+                {"t": "ReFa", "u": "/products/?type=shaver&brand=ReFa"},
+                {"t": "フィリップス", "u": "/products/?type=shaver&brand=フィリップス"}]},
+            {"label": "並びで選ぶ", "items": [
+                {"t": "口コミ評価順", "u": "/products/?type=shaver&sort=rating"},
+                {"t": "新着順", "u": "/products/?type=shaver&sort=newest"},
+                {"t": "価格が安い順", "u": "/products/?type=shaver&sort=price_asc"}]},
+        ],
+        "theme_groups": [],
+        "price_bands": [(0, 2999), (3000, 4999), (5000, 10 ** 12)],
+    },
+    "shower-head": {
+        "eyebrow": "美容家電TUSHOU · シャワーヘッド",
+        "h1": "シャワーヘッドを、本音の口コミで選ぶ。",
+        "lede": "紹介料に左右されない中立評価と、実際に使った人の声。あなたに合うシャワーヘッドを、納得して選べる拠点です。",
+        "hub_slug": "shower-head-osusume-hikaku",
+        "hub_title": "シャワーヘッドのおすすめ比較ガイド",
+        "hub_text": "ファインバブル・節水・水圧アップの違いから、価格帯ごとの選び方まで。一本で全体像がつかめます。",
+        "criteria": ["節水性", "水当たり・ミスト", "取り付けやすさ", "価格", "口コミ傾向"],
+        "find_groups": [
+            {"label": "価格で選ぶ", "items": [
+                {"t": "〜1万円", "u": "/products/?type=shower-head&pmax=9999&sort=price_asc"},
+                {"t": "1〜3万円", "u": "/products/?type=shower-head&pmin=10000&pmax=29999&sort=price_asc"},
+                {"t": "3万円〜", "u": "/products/?type=shower-head&pmin=30000&sort=price_desc"}]},
+            {"label": "ブランドで選ぶ", "items": [
+                {"t": "ReFa", "u": "/products/?type=shower-head&brand=ReFa"},
+                {"t": "田中金属製作所", "u": "/products/?type=shower-head&brand=田中金属製作所"},
+                {"t": "サイエンス", "u": "/products/?type=shower-head&brand=サイエンス"}]},
+            {"label": "並びで選ぶ", "items": [
+                {"t": "口コミ評価順", "u": "/products/?type=shower-head&sort=rating"},
+                {"t": "新着順", "u": "/products/?type=shower-head&sort=newest"},
+                {"t": "価格が安い順", "u": "/products/?type=shower-head&sort=price_asc"}]},
+        ],
+        "theme_groups": [],
+        "price_bands": [(0, 9999), (10000, 29999), (30000, 10 ** 12)],
+    },
 }
 
 
@@ -636,10 +1024,16 @@ def _trust_landing(request, ptype):
                      "image": a.display_thumbnail})
     feed = sorted(feed, key=lambda x: x["date"], reverse=True)[:40]
 
+    # 比較ガイド(hub)記事が存在するカテゴリだけ hub カードを出す(未整備カテゴリはリンク切れ回避)
+    hub_exists = Article.objects.filter(
+        slug=cfg["hub_slug"], is_published=True
+    ).exists()
+
     return render(request, "products/type_landing_trust.html", {
         "ptype": ptype, "active_type": ptype, "cfg": cfg,
         "product_count": product_count, "kuchikomi_count": kuchikomi_count,
         "last_updated": last_updated, "popular": popular, "feed": feed,
+        "hub_exists": hub_exists,
         "product_types": _product_types(),
     })
 
@@ -680,7 +1074,7 @@ def type_landing(request, type_slug):
         is_published=True, product_type=ptype
     ).order_by("-published_at", "-created_at")
     if ptype.slug in ("biyou", "colam-ipan"):
-        _article_paginator = Paginator(article_qs, 30)
+        _article_paginator = Paginator(article_qs, 80)
         articles = _article_paginator.get_page(request.GET.get("article_page"))
     else:
         articles = article_qs[:6]
@@ -711,6 +1105,19 @@ def slug_dispatch(request, slug):
     article = Article.objects.filter(slug=slug, is_published=True).first()
     if article:
         return article_detail(request, slug=slug)
+    # 商品ページへ統合した記事の旧URLは、対応する商品ページへ 301 で送る
+    # (2026-09-01 の統合。対応表は apps/products/article_redirects.py)
+    target = ARTICLE_REDIRECTS.get(slug)
+    if target:
+        moved = Product.objects.filter(slug=target, is_published=True).first()
+        if moved is not None:
+            return HttpResponsePermanentRedirect(moved.get_absolute_url())
+    # 記事どうしを統合した旧URLは、統合先の記事へ 301 で送る(2026-09-07 の統合)
+    merged = ARTICLE_MERGES.get(slug)
+    if merged:
+        dest = Article.objects.filter(slug=merged, is_published=True).first()
+        if dest is not None:
+            return HttpResponsePermanentRedirect(dest.get_absolute_url())
     raise Http404(f"slug={slug} に該当するページがありません")
 
 
@@ -750,7 +1157,7 @@ def all_products(request):
         qs = qs.order_by("-avg_rating", "-review_count", "-id")
         sort = "rating"
 
-    paginator = Paginator(qs.distinct(), 24)
+    paginator = Paginator(qs.distinct(), 48)
     page = paginator.get_page(request.GET.get("page", 1))
 
     # ページャ用 query string (page を除く)
@@ -766,7 +1173,12 @@ def all_products(request):
         .order_by("brand")
     )
 
-    types = Category.objects.filter(parent__isnull=True, show_in_header=True).order_by("sort_order", "name")
+    # コラム系（記事カテゴリ）は商品の絞込対象にならないため、カテゴリ選択から除外する
+    types = (
+        Category.objects.filter(parent__isnull=True, show_in_header=True)
+        .exclude(slug__in=["colam-ipan", "biyou"])
+        .order_by("sort_order", "name")
+    )
 
     return render(request, "products/all_products.html", {
         "page": page,
@@ -779,4 +1191,143 @@ def all_products(request):
         "total": paginator.count,
         "product_types": _product_types(),
         "query_string": query_params.urlencode(),
+    })
+
+
+def brand_index(request):
+    """メーカー(ブランド)一覧。登録商品3点以上の主要メーカーをカード表示。"""
+    cards = []
+    for bdef in Brand.objects.filter(is_published=True):
+        qs = _annotate(
+            bdef.filter_products(
+                Product.objects.filter(is_published=True)
+            ).prefetch_related("categories")
+        )
+        prods = list(qs)
+        if not prods:
+            continue
+        # カテゴリ内訳 + 代表画像 + 口コミ集計
+        cats = {}
+        reviews = 0
+        thumb = ""
+        for p in prods:
+            if p.product_type:
+                cats[p.product_type.name] = cats.get(p.product_type.name, 0) + 1
+            reviews += p.review_count or 0
+            if not thumb and p.display_image:
+                thumb = p.display_image
+        cards.append({
+            "brand": bdef,
+            "count": len(prods),
+            "reviews": reviews,
+            "cats": sorted(cats.items(), key=lambda kv: -kv[1]),
+            "thumb": thumb,
+        })
+    cards.sort(key=lambda c: (-c["count"], -c["reviews"]))
+
+    return render(request, "products/brand_index.html", {
+        "cards": cards,
+        "total_brands": len(cards),
+        "product_types": _product_types(),
+        "active_brand": True,
+    })
+
+
+def _brand_spec_compare(ptype, prods, max_cols=6):
+    """ブランド×カテゴリの機種横断スペック比較表データを組む。
+
+    行 = spec_schema 順の仕様項目のうち2機種以上で値が入っているもの（最大10行）、
+    列 = 商品（並びは呼び出し元の口コミ評価順のまま、先頭 max_cols 機種）。
+    比較として成立しない場合（対象2機種未満・行2つ未満・スキーマ未定義）は None。
+    """
+    from apps.products import spec_schema as S
+    if not ptype or len(prods) < 2:
+        return None
+    schema = S.get_schema(ptype.slug)
+    if not schema:
+        return None
+    cols = prods[:max_cols]
+    rows = []
+    for f in schema:
+        if f["key"] == "official_url":
+            continue
+        cells = []
+        for p in cols:
+            specs = p.specifications if isinstance(p.specifications, dict) else {}
+            v = specs.get(f["key"])
+            cells.append(("" if v is None else str(v)).strip())
+        if sum(1 for c in cells if c) >= 2:
+            rows.append({"label": f["label"], "cells": cells})
+        if len(rows) >= 10:
+            break
+    if len(rows) < 2:
+        return None
+    return {"products": cols, "rows": rows, "omitted": max(0, len(prods) - len(cols))}
+
+
+def brand_detail(request, brand_slug):
+    """メーカー個別ページ。該当商品をカテゴリ別・口コミ評価順に表示。"""
+    bdef = Brand.objects.filter(slug=brand_slug, is_published=True).first()
+    if not bdef:
+        raise Http404("メーカーが見つかりません")
+
+    qs = _annotate(
+        bdef.filter_products(
+            Product.objects.filter(is_published=True)
+        ).select_related("product_type").prefetch_related("categories")
+    ).order_by("-avg_rating", "-review_count", "-id")
+    prods = list(qs)
+    if not prods:
+        raise Http404("登録商品がありません")
+
+    # カテゴリ(製品タイプ)別にグルーピング。並びはヘッダーのカテゴリ順に寄せる。
+    type_order = {t.slug: i for i, t in enumerate(_product_types())}
+    groups = {}
+    for p in prods:
+        key = p.product_type if p.product_type else None
+        groups.setdefault(key, []).append(p)
+    grouped = sorted(
+        groups.items(),
+        key=lambda kv: type_order.get(kv[0].slug, 999) if kv[0] else 1000,
+    )
+
+    # カテゴリ内をさらにシリーズ別に細分化。
+    #  - 2件以上のシリーズは小見出し付きセクションに
+    #  - 単発シリーズ / シリーズ未設定は末尾の「個別モデル」へ集約(小見出しの乱立を防ぐ)
+    #  各カテゴリを {"series": [(series名, [商品...]), ...], "singles": [商品...]} に変換。
+    grouped_series = []
+    for ptype, plist in grouped:
+        by_series = {}
+        for p in plist:
+            by_series.setdefault((p.series or "").strip(), []).append(p)
+        named = [(s, items) for s, items in by_series.items() if s and len(items) >= 2]
+        named.sort(key=lambda si: (-len(si[1]), si[0]))
+        singles = [p for s, items in by_series.items()
+                   if not (s and len(items) >= 2) for p in items]
+        grouped_series.append({
+            "ptype": ptype,
+            "series": named,
+            "singles": singles,
+            "count": len(plist),
+            "spec_compare": _brand_spec_compare(ptype, plist),
+        })
+    has_series = any(g["series"] for g in grouped_series)
+
+    ratings = [p.avg_rating for p in prods if p.avg_rating]
+    total_reviews = sum(p.review_count or 0 for p in prods)
+    stats = {
+        "count": len(prods),
+        "categories": len(groups),
+        "reviews": total_reviews,
+        "avg": round(sum(ratings) / len(ratings), 1) if ratings else 0,
+    }
+
+    return render(request, "products/brand_detail.html", {
+        "bdef": bdef,
+        "grouped": grouped,
+        "grouped_series": grouped_series,
+        "has_series": has_series,
+        "stats": stats,
+        "product_types": _product_types(),
+        "active_brand": True,
     })

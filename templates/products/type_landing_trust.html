@@ -2,7 +2,7 @@
 {% load static %}
 
 {% block head_extra %}
-<link rel="stylesheet" href="{% static 'article-css.css' %}?v=16">
+<link rel="stylesheet" href="{% static 'article-css.css' %}?v=57">
 {% endblock %}
 {% block title %}{{ ptype.meta_title|default:ptype.name }}{% endblock %}
 {% block meta_description %}{{ ptype.meta_description|default:cfg.lede|truncatechars:140 }}{% endblock %}
@@ -54,7 +54,8 @@
   </div>
 </section>
 
-{# ===== [5] 比較ガイド(柱)カード ===== #}
+{# ===== [5] 比較ガイド(柱)カード (hub記事があるカテゴリのみ) ===== #}
+{% if hub_exists %}
 <section class="mb-12">
   <a href="/{{ cfg.hub_slug }}/" class="group block rounded-2xl border-2 border-rose-300 bg-gradient-to-br from-rose-50 to-white p-6 sm:p-8 shadow-card hover:shadow-soft transition">
     <div class="flex items-center gap-2 mb-2">
@@ -65,6 +66,7 @@
     <span class="mt-4 inline-flex items-center gap-1 text-sm text-rose-600 font-medium">比較ガイドを読む →</span>
   </a>
 </section>
+{% endif %}
 
 {# ===== [6] 脱毛器一覧 (標準の並び・最大20件) ===== #}
 <section id="popular" class="mb-12 scroll-mt-20">
@@ -76,7 +78,7 @@
     <a href="{% url 'products:all_products' %}?type={{ ptype.slug }}" class="hidden sm:inline-flex items-center gap-1 text-sm text-rose-600 hover:underline">{{ ptype.name }}の一覧 →</a>
   </div>
   {% if popular %}
-    <ul class="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-5">
+    <ul class="grid grid-cols-1 lg:grid-cols-4 gap-3 sm:gap-5">
       {% for p in popular %}
         <li class="group bg-white rounded-2xl border border-rose-100 shadow-card overflow-hidden hover:shadow-soft hover:-translate-y-0.5 transition flex flex-col">
           <a href="{{ p.get_absolute_url }}" class="block">
@@ -119,7 +121,7 @@
 <section class="mb-12">
   <p class="font-serif text-rose-500 tracking-[0.25em] text-xs uppercase">Find Your Way</p>
   <h2 class="mt-1 text-xl sm:text-2xl font-bold text-ink-900 mb-5">目的から探す</h2>
-  <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
+  <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
     {% for g in cfg.find_groups %}
       <div class="bg-white rounded-2xl border border-rose-100 shadow-card p-5">
         <h3 class="text-sm font-bold text-ink-900 mb-3 pb-2 border-b border-rose-50">{{ g.label }}</h3>
@@ -133,7 +135,8 @@
   </div>
 </section>
 
-{# ===== [8] テーマ別に読む ===== #}
+{# ===== [8] テーマ別に読む (テーマ群があるカテゴリのみ) ===== #}
+{% if cfg.theme_groups %}
 <section class="mb-12">
   <p class="font-serif text-rose-500 tracking-[0.25em] text-xs uppercase">By Theme</p>
   <h2 class="mt-1 text-xl sm:text-2xl font-bold text-ink-900 mb-5">テーマ別に読む</h2>
@@ -150,6 +153,7 @@
     {% endfor %}
   </div>
 </section>
+{% endif %}
 
 {% include "includes/_adsense.html" %}
 
@@ -158,7 +162,7 @@
 <section class="mt-12 mb-12">
   <p class="font-serif text-rose-500 tracking-[0.25em] text-xs uppercase">Updates</p>
   <h2 class="mt-1 text-xl sm:text-2xl font-bold text-ink-900 mb-5">新着・更新</h2>
-  <ul class="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+  <ul class="grid grid-cols-1 lg:grid-cols-4 gap-3 sm:gap-4">
     {% for f in feed %}
       <li>
         <a href="{{ f.url }}" class="group block h-full bg-white rounded-2xl border border-rose-100 overflow-hidden hover:shadow-card transition">

@@ -35,6 +35,56 @@ DRAFTS_DIR = Path("/opt/claude-ops/drafts")
 BACKUPS_DIR = Path("/opt/claude-ops/backups")
 
 
+def apply_article_content(article, *, content=None, title=None, meta_title=None, meta=None,
+                          publish=False, backup_dir=BACKUPS_DIR, source=""):
+    """Article に本文/タイトル/meta を反映する共有ロジック。
+
+    ★ last_rewritten_at の記録はこの関数の1箇所のみ（apply_draftコマンドと管理画面の
+      承認反映の両方がここを通す＝二重実装しない）。本文(content)を変更したときだけ更新する。
+    反映前に JSON バックアップを取得（rollback_draft.py 互換のキー）。
+    戻り値: {"backup": path, "fields": [...]}。
+    """
+    from django.utils import timezone
+    backup_dir = Path(backup_dir)
+    backup_dir.mkdir(parents=True, exist_ok=True)
+    applied_fields = [f for f, on in [("content", content is not None),
+                                      ("meta_description", meta is not None),
+                                      ("title", title is not None)] if on]
+    ts = datetime.now().strftime("%Y%m%d_%H%M%S")
+    backup_path = backup_dir / f"{article.slug}_{ts}.json"
+    backup_path.write_text(json.dumps({
+        "slug": article.slug, "id": article.id, "title": article.title,
+        "content": article.content, "meta_description": article.meta_description,
+        "updated_at": article.updated_at.isoformat() if article.updated_at else None,
+        "backed_up_at": datetime.now().isoformat(),
+        "applied_fields": applied_fields, "source": source,
+    }, ensure_ascii=False, indent=2), encoding="utf-8")
+
+    update_fields = []
+    if content is not None:
+        article.content = content
+        update_fields.append("content")
+        article.last_rewritten_at = timezone.now()   # 本文リライトの基準日（唯一の記録点）
+        update_fields.append("last_rewritten_at")
+    if title is not None:
+        article.title = title
+        update_fields.append("title")
+    if meta_title is not None:
+        # <title>タグ用。100字上限に丸める（タイトル一致レバーは検索<title>に効く）
+        article.meta_title = meta_title[:100]
+        update_fields.append("meta_title")
+    if meta is not None:
+        article.meta_description = meta
+        update_fields.append("meta_description")
+    if publish:
+        article.is_published = True
+        update_fields.append("is_published")
+    if update_fields:
+        update_fields.append("updated_at")
+        article.save(update_fields=update_fields)
+    return {"backup": str(backup_path), "fields": update_fields}
+
+
 class Command(BaseCommand):
     help = "下書きファイルからArticleの本文/metaを本番DBへ反映（自動バックアップあり）"
 
@@ -215,40 +265,14 @@ class Command(BaseCommand):
             self.stdout.write("  → [dry-run] DB書き込みはスキップ")
             return "previewed", url, ""
 
-        # 反映前バックアップ
-        BACKUPS_DIR.mkdir(parents=True, exist_ok=True)
-        ts = datetime.now().strftime("%Y%m%d_%H%M%S")
-        backup_path = BACKUPS_DIR / f"{slug}_{ts}.json"
-        backup_data = {
-            "slug": article.slug,
-            "id": article.id,
-            "title": article.title,
-            "content": article.content,
-            "meta_description": article.meta_description,
-            "updated_at": article.updated_at.isoformat() if article.updated_at else None,
-            "backed_up_at": datetime.now().isoformat(),
-            "applied_fields": [
-                f for f, on in [("content", apply_content), ("meta_description", apply_meta)] if on
-            ],
-        }
-        backup_path.write_text(
-            json.dumps(backup_data, ensure_ascii=False, indent=2), encoding="utf-8"
+        # 反映（バックアップ＋本文/meta反映＋last_rewritten_at更新は共有関数に委譲）
+        res = apply_article_content(
+            article,
+            content=(new_content if apply_content else None),
+            meta=(new_meta if apply_meta else None),
+            publish=publish, backup_dir=BACKUPS_DIR, source="apply_draft",
         )
-        self.stdout.write(f"💾 バックアップ: {backup_path}")
-
-        # 反映
-        update_fields = []
-        if apply_content:
-            article.content = new_content
-            update_fields.append("content")
-        if apply_meta:
-            article.meta_description = new_meta
-            update_fields.append("meta_description")
-        if publish:
-            article.is_published = True
-            update_fields.append("is_published")
-        update_fields.append("updated_at")
-        article.save(update_fields=update_fields)
+        self.stdout.write(f"💾 バックアップ: {res['backup']}")
         article.refresh_from_db()
 
         self.stdout.write(self.style.SUCCESS(f"✅ DB反映完了: {slug}（ロールバック: rollback_draft.py --slug={slug}）"))

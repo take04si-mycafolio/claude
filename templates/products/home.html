@@ -3,8 +3,16 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>美容家電のおすすめ口コミ・比較サイト｜美顔器・ドライヤー・脱毛器の本音レビュー【2026年最新】</title>
+<title>美容家電の口コミ・比較サイトTUSHOU｜美顔器・ドライヤー・脱毛器の本音レビュー</title>
 <meta name="description" content="美容家電のリアルな口コミ{{ stats.reviews }}件以上を掲載。美顔器・ドライヤー・脱毛器・電動歯ブラシなどカテゴリ別の専門レビューと2026年最新ランキング、選び方ガイド、悩み別おすすめを紹介。">
+
+<!-- Favicon -->
+<link rel="icon" href="{% static 'favicon/favicon.ico' %}" sizes="any">
+<link rel="icon" type="image/png" sizes="32x32" href="{% static 'favicon/sc-tsusho-favicon-32.png' %}">
+<link rel="icon" type="image/png" sizes="16x16" href="{% static 'favicon/sc-tsusho-favicon-16.png' %}">
+<link rel="apple-touch-icon" sizes="180x180" href="{% static 'favicon/sc-tsusho-apple-touch-icon.png' %}">
+<link rel="manifest" href="{% static 'favicon/site.webmanifest' %}">
+<meta name="theme-color" content="#b52159">
 
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -50,7 +58,7 @@
   .tushou-lp-foot__brand{font-family:'Cormorant Garamond',serif;font-size:22px;color:#C99A3D}
   .tushou-lp-foot__brand small{display:block;font-family:'Noto Sans JP',sans-serif;font-size:12px;color:#7A6E73}
   .tushou-lp-foot__links{display:flex;flex-wrap:wrap;gap:8px 22px}
-  .tushou-lp-foot__links a{color:#7A6E73;text-decoration:none}
+  .tushou-lp-foot__links a{color:#7A6E73;text-decoration:none;font-size:10px}
   .tushou-lp-foot__links a:hover{color:#E86F86}
   .tushou-lp-foot__copy{margin:22px 0 0;font-size:11px;color:rgba(90,82,86,.7)}
 </style>
@@ -279,6 +287,7 @@
         <div class="tushou-lp-foot__links">
           <a href="{% url 'pages:terms' %}">利用規約</a>
           <a href="{% url 'pages:privacy' %}">プライバシーポリシー</a>
+          <a href="{% url 'pages:community_guidelines' %}">コミュニティガイドライン</a>
           <a href="{% url 'pages:contact' %}">お問い合わせ</a>
         </div>
       </div>
@@ -287,5 +296,6 @@
   </footer>
 </main>
 
+{% include "includes/_outbound_click.html" %}
 </body>
 </html>

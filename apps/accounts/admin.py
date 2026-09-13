@@ -1,7 +1,8 @@
-from django.contrib import admin
+from django.contrib import admin, messages
 from django.contrib.auth.admin import UserAdmin
 from .models import (
     Bookmark,
+    CompletionStatus,
     Device,
     Mission,
     MissionRewardCode,
@@ -50,7 +51,7 @@ class MissionStepInline(admin.StackedInline):
     """ミッションの達成ステップをミッション編集画面から直接管理。"""
     model = MissionStep
     extra = 1
-    fields = ("action_type", "target_count", "label", "order")
+    fields = ("action_type", "target_count", "min_body_length", "label", "order")
 
 
 class MissionRewardCodeInline(admin.TabularInline):
@@ -106,17 +107,62 @@ class MissionAdmin(admin.ModelAdmin):
 
 @admin.register(UserMissionCompletion)
 class UserMissionCompletionAdmin(admin.ModelAdmin):
-    """達成記録(自動生成)の監査用ビュー。"""
-    list_display = ("user", "mission", "status", "assigned_code", "completed_at")
+    """達成記録の確認・承認ビュー。
+
+    達成は「承認待ち」で自動記録され、ここで運営が承認するとコードが発行され、
+    会員へメールで案内される。承認は選択→アクション「承認してコードを発行・
+    メール送信」で行う。個別コードのプールが空だと「準備中」で承認され、
+    コード補充後に同じアクションを再実行すると発行・送信される。
+    """
+    list_display = ("user", "mission", "status", "assigned_code",
+                    "completed_at", "approved_at", "code_sent_at")
     list_filter = ("status", "mission", "completed_at")
     search_fields = ("user__email", "user__nickname", "assigned_code")
     autocomplete_fields = ("user", "mission")
     readonly_fields = ("user", "mission", "status", "assigned_code",
-                       "completed_at", "seen_at")
+                       "completed_at", "approved_at", "code_sent_at", "seen_at")
     list_per_page = 50
+    actions = ("approve_and_send",)
 
     def has_add_permission(self, request):
         return False
+
+    @admin.action(description="承認してコードを発行・メール送信")
+    def approve_and_send(self, request, queryset):
+        from .missions import approve_completion, send_reward_code_email
+        approved = sent = no_code = skipped = failed = 0
+        for completion in queryset.select_related("user", "mission"):
+            before = completion.status
+            if before not in (
+                CompletionStatus.WAITING, CompletionStatus.PENDING,
+            ):
+                skipped += 1
+                continue
+            completion = approve_completion(completion)
+            approved += 1
+            if completion.status == CompletionStatus.PENDING:
+                # プール切れ/共通コード未設定。補充後に再実行で発行される。
+                no_code += 1
+                continue
+            try:
+                if send_reward_code_email(completion, request=request):
+                    sent += 1
+            except Exception:
+                # コード発行は確定済み。メールだけ失敗（後述の件数で気づける）。
+                failed += 1
+        parts = [f"{approved}件を承認しました"]
+        if sent:
+            parts.append(f"コード案内メール {sent}件送信")
+        if no_code:
+            parts.append(
+                f"{no_code}件はコード不足のため準備中（補充後に再実行してください）"
+            )
+        if failed:
+            parts.append(f"{failed}件はメール送信に失敗（コードは発行済み）")
+        if skipped:
+            parts.append(f"{skipped}件は承認済み/対象外のためスキップ")
+        level = messages.WARNING if (failed or no_code) else messages.SUCCESS
+        self.message_user(request, "。".join(parts) + "。", level=level)
 
 
 @admin.register(Device)

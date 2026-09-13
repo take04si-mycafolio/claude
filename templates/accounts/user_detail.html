@@ -43,7 +43,7 @@
         <div class="flex items-center flex-wrap gap-x-2 gap-y-1">
           <h1 class="text-xl font-bold text-ink-900 break-words">{{ profile_user.nickname|default:"匿名ユーザー" }}</h1>
           <span class="inline-flex items-center text-[11px] font-semibold text-rose-700 bg-rose-50 border border-rose-200 rounded-full px-2 py-0.5 leading-none">Lv.{{ profile_user.review_level }}</span>
-          {% if profile_user.category_badge %}<span class="inline-flex items-center text-[11px] text-gold-700 bg-gold-50 border border-gold-200 rounded-full px-2 py-0.5 leading-none">{{ profile_user.category_badge }}</span>{% endif %}
+          {% for badge in profile_user.category_badges %}<span class="inline-flex items-center text-[11px] text-gold-700 bg-gold-50 border border-gold-200 rounded-full px-2 py-0.5 leading-none">{{ badge }}</span>{% endfor %}
         </div>
         {% if profile_user.twitter %}<div class="text-sm text-mute-500 mt-0.5">@{{ profile_user.twitter }}</div>{% endif %}
       </div>
@@ -99,7 +99,7 @@
   {# 口コミタブ #}
   <div data-panel="reviews" class="mt-5">
     {% if reviews %}
-      <div class="space-y-4">{% for r in reviews %}{% include "reviews/_review_card.html" with r=r show_product=True %}{% endfor %}</div>
+      <div class="space-y-4">{% for r in reviews %}{% include "reviews/_review_card.html" with r=r product_header=True %}{% endfor %}</div>
     {% else %}
       <div class="bg-white rounded-2xl border border-rose-100 p-10 text-center text-sm text-mute-500">まだ口コミの投稿はありません。</div>
     {% endif %}

@@ -1,0 +1,51 @@
+{% extends "admin/base_site.html" %}
+{% load i18n %}
+
+{% block extrahead %}{{ block.super }}
+  {{ form.media }}
+{% endblock %}
+
+{% block breadcrumbs %}
+<div class="breadcrumbs">
+  <a href="{% url 'admin:index' %}">{% trans 'Home' %}</a>
+  &rsaquo; <a href="{% url 'admin:app_list' app_label=opts.app_label %}">{{ opts.app_config.verbose_name }}</a>
+  &rsaquo; <a href="{% url 'admin:analytics_rewritedraft_changelist' %}">{{ opts.verbose_name_plural }}</a>
+  &rsaquo; 記事を手動で追加
+</div>
+{% endblock %}
+
+{% block content %}
+<div style="max-width:760px">
+  <p style="background:#eef6ff;border:1px solid #cfe2ff;border-radius:8px;padding:10px 14px;font-size:13px">
+    GSCトリアージに関係なく、任意の記事をリライト作業台に入れます。<br>
+    <b>基準記事（お手本）</b>を選ぶと、その見出し構成・情報粒度・トーンを基準にした指示書を自動生成します
+    （空でも可）。追加後は通常どおりレビュー画面で指示書を確認し、Claude Code が本文案を投入します。
+  </p>
+
+  <form method="post" action="">
+    {% csrf_token %}
+    {% if form.non_field_errors %}
+      <p style="color:#c0392b">{{ form.non_field_errors }}</p>
+    {% endif %}
+    <table style="border-collapse:collapse">
+      {% for field in form %}
+        <tr>
+          <th style="text-align:left;padding:10px 14px 10px 0;vertical-align:top">
+            <label for="{{ field.id_for_label }}">{{ field.label }}</label>
+          </th>
+          <td style="padding:8px 0">
+            {{ field }}
+            {% if field.help_text %}<div class="help" style="margin-top:2px">{{ field.help_text }}</div>{% endif %}
+            {% if field.errors %}<div style="color:#c0392b">{{ field.errors }}</div>{% endif %}
+          </td>
+        </tr>
+      {% endfor %}
+    </table>
+    <div class="submit-row" style="margin-top:16px">
+      <input type="submit" value="作業台に追加" class="default">
+      <a href="{% url 'admin:analytics_rewritedraft_changelist' %}" class="button cancel-link"
+         style="margin-left:8px">キャンセル</a>
+    </div>
+  </form>
+</div>
+{% endblock %}

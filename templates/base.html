@@ -6,6 +6,14 @@
 <title>{% block title %}美容家電TUSHOU{% endblock %}</title>
 <meta name="description" content="{% block meta_description %}美容家電の本音の口コミ・レビューが集まるサイト。美顔器・ドライヤー・脱毛器・マッサージ機などユーザー投稿型のレビューが読めます。{% endblock %}">
 
+<!-- Favicon -->
+<link rel="icon" href="{% static 'favicon/favicon.ico' %}" sizes="any">
+<link rel="icon" type="image/png" sizes="32x32" href="{% static 'favicon/sc-tsusho-favicon-32.png' %}">
+<link rel="icon" type="image/png" sizes="16x16" href="{% static 'favicon/sc-tsusho-favicon-16.png' %}">
+<link rel="apple-touch-icon" sizes="180x180" href="{% static 'favicon/sc-tsusho-apple-touch-icon.png' %}">
+<link rel="manifest" href="{% static 'favicon/site.webmanifest' %}">
+<meta name="theme-color" content="#b52159">
+
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700&family=Cormorant+Garamond:wght@500;700&display=swap" rel="stylesheet">
@@ -65,7 +73,7 @@
 
 {% block head_extra %}{% endblock %}
 </head>
-<body class="bg-cream-100 text-ink-700 font-sans antialiased min-h-screen flex flex-col">
+<body class="bg-white text-ink-700 font-sans antialiased min-h-screen flex flex-col">
 
 <header class="bg-white/95 backdrop-blur sticky top-0 z-30 border-b border-rose-200">
   <div class="max-w-[920px] mx-auto px-5">
@@ -86,6 +94,7 @@
             <div class="absolute right-0 top-full mt-2 w-56 bg-white border border-rose-200 rounded-2xl shadow-soft overflow-hidden z-40">
               <a href="{% url 'products:list' %}" class="block px-5 py-3 hover:bg-rose-50 border-b border-rose-100">ホーム</a>
               <a href="{% url 'products:article_list' %}" class="block px-5 py-3 hover:bg-rose-50 border-b border-rose-100">記事</a>
+              <a href="{% url 'products:brand_index' %}" class="block px-5 py-3 hover:bg-rose-50 border-b border-rose-100">メーカーから探す</a>
               <a href="{% url 'reviews:list' %}" class="block px-5 py-3 hover:bg-rose-50">口コミ</a>
               <div class="bg-cream-50/60 border-t-4 border-rose-100">
                 <div class="px-5 pt-2 pb-1 text-[10px] tracking-widest text-mute-500 uppercase">Account</div>
@@ -111,10 +120,19 @@
            class="whitespace-nowrap py-3 px-4 text-sm border-b-2 transition
              {% if active_type and active_type.slug == t.slug %}border-rose-500 text-rose-600 font-medium{% else %}border-transparent text-ink-700 hover:text-rose-600 hover:border-rose-200{% endif %}">{{ t.name }}</a>
       {% endfor %}
+      <a href="{% url 'products:brand_index' %}"
+         class="whitespace-nowrap py-3 px-4 text-sm border-b-2 transition {% if active_brand %}border-rose-500 text-rose-600 font-medium{% else %}border-transparent text-ink-700 hover:text-rose-600 hover:border-rose-200{% endif %}">メーカー</a>
     </nav>
     {% endif %}
   </div>
 </header>
+
+{% comment %}
+  地色(cream)はこのラッパーが持つ。body は白のまま。
+  Googleのアンカー広告が body に padding を差し込むと、その領域が body の地色で
+  塗られ、フッター下に色違いの帯として見えてしまうため(2026-09-09)。
+{% endcomment %}
+<div class="flex-1 w-full bg-cream-100">
 
 {% if messages %}
   <div class="max-w-[920px] mx-auto px-5 mt-4 space-y-2">
@@ -128,7 +146,7 @@
   </div>
 {% endif %}
 
-<main class="flex-1 max-w-[920px] w-full mx-auto px-2.5 sm:px-5 py-6 sm:py-10">
+<main class="max-w-[920px] w-full mx-auto px-2.5 sm:px-5 py-6 sm:py-10">
   {% block content %}{% endblock %}
 </main>
 
@@ -136,11 +154,13 @@
 <div class="max-w-[920px] w-full mx-auto px-5 py-4">
   {% block breadcrumb %}{% endblock %}
 </div>
+</div>
 <footer class="mt-4 bg-white border-t border-rose-200">
   <div class="max-w-[920px] mx-auto px-5 py-10 text-sm text-mute-500">
       <p class="text-xs text-mute-500/80 mb-4 leading-relaxed">
+        Amazonのアソシエイトとして、当サイトは適格販売により収入を得ています。
         当サイトは Amazon.co.jp アソシエイト・楽天アフィリエイトをはじめ各種アフィリエイトプログラムに参加しており、
-        商品リンクから購入が発生した場合、当サイトに紹介料が支払われることがあります。掲載評価は実際の口コミに基づいており、紹介料の有無で評価は変わりません。
+        商品リンクから購入が発生した場合、当サイトに紹介料が支払われることがあります。掲載商品は、公式の商品情報、価格、操作方法、重さ、電源方式、保証・サポート情報などを参考に編集部が選定しています。紹介料の有無だけで掲載内容や順番を決定することはありません。
       </p>
 
     <div class="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4">
@@ -148,9 +168,10 @@
         <div class="font-serif text-xl text-rose-600 mb-1">TUSHOU</div>
         <p class="text-mute-500">美容家電の本音の口コミが集まるサイト</p>
       </div>
-      <div class="flex flex-wrap gap-x-5 gap-y-1">
+      <div class="flex flex-wrap gap-x-5 gap-y-1 text-[11px]">
         <a href="{% url 'pages:terms' %}" class="hover:text-rose-600">利用規約</a>
         <a href="{% url 'pages:privacy' %}" class="hover:text-rose-600">プライバシーポリシー</a>
+        <a href="{% url 'pages:community_guidelines' %}" class="hover:text-rose-600">コミュニティガイドライン</a>
         <a href="{% url 'pages:contact' %}" class="hover:text-rose-600">お問い合わせ</a>
       </div>
     </div>
@@ -194,5 +215,9 @@ document.addEventListener('click', e => {
 })();
 </script>
 {% include "includes/mission_celebration.html" %}
+{% include "includes/_image_lightbox.html" %}
+{% include "includes/_review_delete.html" %}
+{% include "includes/_review_report.html" %}
+{% include "includes/_outbound_click.html" %}
 </body>
 </html>

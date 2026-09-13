@@ -1,0 +1,361 @@
+{% load static %}<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<title>レビュー: {{ t.title }} | 承認センター</title>
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<link rel="stylesheet" href="{% static 'article-css.css' %}?v=57">
+<style>
+:root{
+  --bg:#0f1626; --bg2:#161e33; --panel:#1c2540; --border:#2a345a;
+  --text:#e3e9ff; --muted:#8893b8; --accent:#c97b84; --good:#4ade80; --warn:#fbbf24; --bad:#f87171;
+}
+*{box-sizing:border-box;}
+html,body{margin:0;background:var(--bg);color:var(--text);
+  font-family:'Noto Sans JP',system-ui,sans-serif;font-size:13px;}
+a{color:inherit;}
+header{padding:12px 20px;background:var(--bg2);border-bottom:1px solid var(--border);
+  display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;
+  position:sticky;top:0;z-index:30;}
+header .logo{font-weight:700;}
+header nav a{margin-left:16px;color:var(--muted);text-decoration:none;}
+header nav a:hover{color:var(--text);}
+main{display:flex;gap:18px;align-items:flex-start;padding:16px 20px 60px;max-width:1500px;margin:0 auto;}
+.doccol{flex:1 1 640px;min-width:0;}
+.sidecol{flex:0 0 380px;position:sticky;top:60px;max-height:calc(100vh - 76px);overflow-y:auto;}
+@media(max-width:1100px){main{flex-direction:column;}.sidecol{position:static;flex:1 1 auto;width:100%;max-height:none;}}
+.msgs{list-style:none;padding:0;margin:0 0 12px;}
+.msgs li{padding:9px 14px;border-radius:8px;margin-bottom:6px;background:var(--panel);border:1px solid var(--border);}
+.msgs li.success{border-color:var(--good);} .msgs li.warning{border-color:var(--warn);} .msgs li.error{border-color:var(--bad);}
+.card{background:var(--panel);border:1px solid var(--border);border-radius:12px;padding:14px 16px;margin-bottom:14px;}
+.card h2{font-size:.95rem;margin:0 0 8px;}
+.statebar{font-weight:700;line-height:1.7;border-left:5px solid var(--muted);}
+.statebar.working,.statebar.queued{border-left-color:var(--accent);}
+.statebar.research{border-left-color:#60a5fa;}
+.statebar.qa{border-left-color:var(--warn);}
+.statebar.done{border-left-color:var(--good);}
+.statebar.draft{border-left-color:var(--warn);}
+.hint{color:var(--muted);font-size:12px;line-height:1.7;margin:0 0 10px;}
+.badge{display:inline-block;border:1px solid var(--border);border-radius:6px;padding:0 6px;font-size:11px;color:var(--muted);margin-left:6px;}
+.badge.ok{border-color:var(--good);color:var(--good);}
+.badge.ng{border-color:var(--bad);color:var(--bad);}
+.badge.wt{border-color:var(--warn);color:var(--warn);}
+.docmeta{color:var(--muted);font-size:12px;margin-bottom:8px;}
+.doc{background:#fff;color:#222;border-radius:12px;padding:26px 30px;line-height:1.9;}
+@media(max-width:820px){.doc{padding:22px 18px;}}
+.doc h1{font-size:1.5rem;margin:0 0 14px;}
+.doc .sc-badge{display:inline-block;background:#eef2ff;color:#3b4a8a;border:1px dashed #a9b6e8;
+  border-radius:6px;padding:1px 8px;font-size:12px;font-family:ui-monospace,monospace;}
+.doc mark.hl{background:#ffe9a8;border-bottom:2px solid #e0a800;padding:1px 0;cursor:pointer;}
+.doc img{max-width:100%;height:auto;}
+#selbtn{position:fixed;display:none;z-index:60;background:var(--accent);color:#fff;border:0;
+  border-radius:8px;padding:8px 14px;font-size:13px;font-weight:700;cursor:pointer;
+  box-shadow:0 6px 20px rgba(0,0,0,.45);}
+.pickbar{display:flex;gap:6px;margin-top:6px;}
+.pickbar button{flex:1;font-size:11.5px;padding:5px 8px;}
+label.f{display:block;color:var(--muted);font-size:11.5px;margin:8px 0 3px;}
+textarea,select,input[type=text]{width:100%;background:var(--bg);color:var(--text);
+  border:1px solid var(--border);border-radius:8px;padding:8px 10px;font-size:13px;
+  font-family:inherit;line-height:1.7;resize:vertical;}
+textarea:focus,select:focus{outline:1px solid var(--accent);}
+button.btn{border:1px solid var(--border);border-radius:8px;padding:8px 14px;cursor:pointer;
+  font-size:13px;background:var(--bg2);color:var(--text);}
+button.primary{background:#14532d;border-color:var(--good);width:100%;margin-top:10px;font-weight:700;}
+button.primary:hover{background:#166534;}
+button.danger{background:#450a0a;border-color:var(--bad);width:100%;margin-top:10px;font-weight:700;}
+button.danger:hover{background:#7f1d1d;}
+button.small{padding:3px 9px;font-size:11.5px;}
+.note{border-top:1px solid var(--border);padding:10px 2px;}
+.note:first-of-type{border-top:0;}
+.note .q{color:var(--muted);font-size:11.5px;border-left:3px solid var(--accent);
+  padding-left:8px;margin-bottom:5px;white-space:pre-line;max-height:4.6em;overflow:hidden;cursor:pointer;}
+.note .c{line-height:1.7;white-space:pre-line;}
+.note .m{color:var(--muted);font-size:11px;margin-top:5px;display:flex;gap:8px;align-items:center;flex-wrap:wrap;}
+.note.done{opacity:.6;}
+.note .res{margin-top:6px;font-size:12px;color:var(--good);white-space:pre-line;}
+.note .les{margin-top:4px;font-size:12px;color:var(--warn);white-space:pre-line;}
+.empty{color:var(--muted);padding:6px 2px;}
+.wlog{border-top:1px solid var(--border);padding:9px 2px;}
+.wlog:first-of-type{border-top:0;}
+.wl-head{display:flex;gap:7px;align-items:center;flex-wrap:wrap;margin-bottom:3px;}
+.wl-when{color:var(--muted);font-size:11px;}
+.wl-who{font-weight:700;font-size:12px;}
+.wl-qa{color:#b39ddb;} .wl-human{color:var(--accent);} .wl-followup{color:#7cc47f;}
+.wl-writer{color:#e8927c;} .wl-product_writer{color:#d4a017;} .wl-researcher{color:#7fb3e8;}
+.wl-sum{font-size:12.5px;line-height:1.7;}
+.wl-detail{color:var(--muted);font-size:11.5px;line-height:1.7;white-space:pre-line;margin-top:3px;}
+.scorerow{display:flex;gap:10px;margin-bottom:10px;}
+.score{flex:1;border:1px solid var(--border);border-radius:10px;padding:9px 11px;text-align:center;}
+.score.ok{border-color:var(--good);} .score.ng{border-color:var(--bad);}
+.sc-label{color:var(--muted);font-size:11px;}
+.sc-val{font-size:26px;font-weight:800;line-height:1.2;}
+.sc-val span{font-size:12px;color:var(--muted);font-weight:400;}
+.score.ok .sc-val{color:var(--good);} .score.ng .sc-val{color:var(--bad);}
+.sc-before{color:var(--muted);font-size:11px;}
+.sctable{width:100%;border-collapse:collapse;font-size:11.5px;}
+.sctable td{padding:4px 5px;border-top:1px solid var(--border);vertical-align:top;}
+.sctable td.k{color:var(--muted);white-space:nowrap;}
+.sctable td.p{white-space:nowrap;font-weight:700;}
+.sctable td.p.down{color:var(--warn);}
+.sctable td.n{color:var(--muted);line-height:1.6;}
+.miss{border:1px solid var(--warn);color:var(--warn);border-radius:8px;padding:7px 10px;
+  font-size:12px;line-height:1.7;margin-bottom:8px;}
+form.inline{display:inline;margin:0;}
+</style>
+</head>
+<body>
+<header>
+  <div class="logo">✏️ 記事レビュー</div>
+  <nav>
+    <a href="/admin/approvals/">← 承認センター</a>
+    {% if t.detail_url %}<a href="{{ t.detail_url }}" target="_blank">編集画面/プレビュー</a>{% endif %}
+    <a href="{{ t.live_url }}" target="_blank">現行ページ</a>
+    <a href="/admin/analytics/editornote/" target="_blank">修正指示の一覧</a>
+  </nav>
+</header>
+<button id="selbtn" type="button">✏️ ここに修正指示</button>
+<main>
+  <div class="doccol">
+    {% if messages %}<ul class="msgs">{% for m in messages %}<li class="{{ m.tags }}">{{ m }}</li>{% endfor %}</ul>{% endif %}
+    {% if state_msg %}
+    <div class="card statebar {{ state }}">{{ state_msg }}</div>
+    {% endif %}
+    <div class="card">
+      <h2>{{ t.title }}</h2>
+      <div class="docmeta">/{{ t.slug }}/ ・ {{ chars }}字 ・ {{ t.sub }}
+        {% if t.qa.verdict == "passed" %}<span class="badge ok">✅ 検品合格</span>
+        {% elif t.qa.verdict == "fixed" %}<span class="badge ok">✅ 検品済(調整あり)</span>
+        {% elif t.qa.verdict == "failed" %}<span class="badge ng">🛑 検品差戻し</span>
+        {% else %}<span class="badge wt">⏳ 未検品</span>{% endif %}
+        {% if open_notes %}<span class="badge wt">✏️ 修正指示 {{ open_notes|length }}件</span>{% endif %}
+      </div>
+      {% if t.meta %}<div class="hint">meta: {{ t.meta }}</div>{% endif %}
+      <p class="hint">直してほしい箇所を<strong>マウスで選択</strong>すると、その文がそのまま右の「該当箇所」に入ります（浮き出る「✏️ ここに修正指示」を押しても入ります）。あとは修正内容を書いて追加してください。指摘を書き終えたら右下の<strong>「{{ assignee_label }}に差し戻す」</strong>で担当AIへ渡ります。</p>
+    </div>
+    <div class="doc" id="doc">
+      <h1>{{ t.title }}</h1>
+      {{ body_html|safe }}
+    </div>
+  </div>
+
+  <div class="sidecol">
+    <div class="card">
+      <h2>✏️ 修正指示を追加</h2>
+      <form method="post" id="noteform">{% csrf_token %}
+        <input type="hidden" name="action" value="note_add">
+        <label class="f">該当箇所（本文を選択すると自動で入ります・空＝記事全体への指摘）</label>
+        <textarea name="quote" id="quote" rows="3" placeholder="（本文の該当箇所）"></textarea>
+        <div class="pickbar">
+          <button class="btn" type="button" id="usesel">選択した部分を入れる</button>
+          <button class="btn" type="button" id="clearsel">クリア</button>
+        </div>
+        <div id="selnote" style="color:var(--good);font-size:11.5px;min-height:1.4em;margin-top:4px"></div>
+        <label class="f">どう直してほしいか</label>
+        <textarea name="comment" id="comment" rows="5" required placeholder="例: この段落は一般論だけなので、○○の条件で選び方が変わることを具体的に書いてください"></textarea>
+        <label class="f">指摘の種類（学習の集計軸になります）</label>
+        <select name="category">
+          {% for v, label in categories %}<option value="{{ v }}">{{ label }}</option>{% endfor %}
+        </select>
+        <button class="btn primary" type="submit">この指摘を追加</button>
+      </form>
+    </div>
+
+    <div class="card">
+      <h2>📋 この記事の修正指示 <span class="badge">{{ notes|length }}件</span></h2>
+      {% for n in notes %}
+      <div class="note {% if n.status != 'open' %}done{% endif %}" id="note-{{ n.id }}">
+        {% if n.quote %}<div class="q" data-quote="{{ n.quote }}">{{ n.quote|truncatechars:160 }}</div>{% endif %}
+        <div class="c">{{ n.comment }}</div>
+        <div class="m">
+          <span class="badge">{{ n.get_category_display }}</span>
+          {% if n.status == "open" %}<span class="badge wt">対応待ち</span>
+          {% elif n.status == "fixed" %}<span class="badge ok">修正済</span>
+          {% else %}<span class="badge">対応不要</span>{% endif %}
+          <span>{{ n.created_at|date:"n/j H:i" }}</span>
+          {% if n.sent_back_at %}<span class="badge">差戻済</span>{% endif %}
+          {% if n.status == "open" %}
+          <form method="post" class="inline">{% csrf_token %}
+            <input type="hidden" name="action" value="note_delete">
+            <input type="hidden" name="note_id" value="{{ n.id }}">
+            <button class="btn small" type="submit" onclick="return confirm('この指摘を削除しますか？')">削除</button>
+          </form>
+          {% endif %}
+        </div>
+        {% if n.resolution %}<div class="res">↩ 担当の対応: {{ n.resolution }}</div>{% endif %}
+        {% if n.lesson %}<div class="les">💡 学び: {{ n.lesson }}</div>{% endif %}
+      </div>
+      {% empty %}<div class="empty">まだ修正指示はありません</div>{% endfor %}
+
+      {% if open_notes %}
+      <form method="post">{% csrf_token %}
+        <input type="hidden" name="action" value="send_back">
+        <button class="btn danger" type="submit" onclick="return confirm('{{ open_notes|length }}件の修正指示を{{ assignee_label }}に差し戻します。承認キューからは一旦外れ、修正→再検品後に戻ります。よろしいですか？')">↩ {{ assignee_label }}に差し戻す（{{ open_notes|length }}件）</button>
+      </form>
+      <p class="hint" style="margin-top:8px">差し戻すと検品記録がリセットされ、担当AIの修正 → 検品担当（リン様）の再検品 → 承認センターに再掲、の順で戻ってきます。指摘と対応内容は学習ダイジェストに集計され、次の執筆の指示書に反映されます。</p>
+      {% endif %}
+    </div>
+
+    {% if scores %}
+    <div class="card">
+      <h2>📊 検品の採点</h2>
+      <div class="scorerow">
+        <div class="score {% if scores.seo >= 80 %}ok{% else %}ng{% endif %}">
+          <div class="sc-label">SEO評価</div><div class="sc-val">{{ scores.seo }}<span>/100</span></div>
+          {% if scores.before.seo %}<div class="sc-before">修正前 {{ scores.before.seo }}</div>{% endif %}
+        </div>
+        <div class="score {% if scores.content >= 80 %}ok{% else %}ng{% endif %}">
+          <div class="sc-label">コンテンツ評価</div><div class="sc-val">{{ scores.content }}<span>/100</span></div>
+          {% if scores.before.content %}<div class="sc-before">修正前 {{ scores.before.content }}</div>{% endif %}
+        </div>
+      </div>
+      {% if scores.seo_detail or scores.content_detail %}
+      <table class="sctable">
+        {% for d in scores.seo_detail %}<tr><td class="k">SEO</td><td>{{ d.item }}</td>
+          <td class="p {% if d.point < d.max %}down{% endif %}">{{ d.point }}/{{ d.max }}</td>
+          <td class="n">{{ d.note }}</td></tr>{% endfor %}
+        {% for d in scores.content_detail %}<tr><td class="k">内容</td><td>{{ d.item }}</td>
+          <td class="p {% if d.point < d.max %}down{% endif %}">{{ d.point }}/{{ d.max }}</td>
+          <td class="n">{{ d.note }}</td></tr>{% endfor %}
+      </table>
+      {% endif %}
+    </div>
+    {% endif %}
+    <div class="card">
+      <h2>🧾 この記事の作業履歴 <span class="badge">{{ worklogs|length }}件</span></h2>
+      <p class="hint">承認センターに上がるまでに、どの社員が何をしたかの記録です。記録が無い工程は「まだ通っていない」という意味です。</p>
+      {% if missing_steps %}
+      <div class="miss">⚠ {% for m in missing_steps %}{{ m }}{% if not forloop.last %} ／ {% endif %}{% endfor %}</div>
+      {% endif %}
+      {% for w in worklogs %}
+      <div class="wlog">
+        <div class="wl-head"><span class="wl-when">{{ w.created_at|date:"n/j H:i" }}</span>
+          <span class="wl-who wl-{{ w.agent }}">{{ w.get_agent_display }}</span>
+          <span class="badge">{{ w.get_action_display }}</span></div>
+        <div class="wl-sum">{{ w.summary }}</div>
+        {% if w.detail %}<div class="wl-detail">{{ w.detail }}</div>{% endif %}
+      </div>
+      {% empty %}<div class="empty">まだ作業履歴がありません（工程が記録されていません）</div>{% endfor %}
+    </div>
+  </div>
+</main>
+<script>
+// ── 引用のセット（段落ボタン・テキスト選択の2経路）───────────────────
+const doc = document.getElementById("doc");
+const btn = document.getElementById("selbtn");
+const quote = document.getElementById("quote");
+const comment = document.getElementById("comment");
+
+function setQuote(text) {
+  quote.value = (text || "").replace(/\s+/g, " ").trim().slice(0, 2000);
+  btn.style.display = "none";
+  comment.focus();
+  quote.scrollIntoView({behavior: "smooth", block: "center"});
+}
+
+// テキスト選択 → 引用欄へ自動反映
+//    ブラウザによってはフローティングボタンが出ない/押しにくいので、
+//    「選択した時点で引用欄に入れる」ことを主動作にする（ボタンは補助）。
+let pending = "";
+let lastAuto = "";
+
+function selectedText() {
+  const sel = window.getSelection();
+  if (!sel || !sel.rangeCount) return {text: "", rect: null};
+  const text = (sel.toString() || "").replace(/\s+/g, " ").trim();
+  if (!text) return {text: "", rect: null};
+  // 本文の中の選択かどうか（Safari は anchorNode が要素ノードのこともあるので範囲でも見る）
+  const inDoc = doc.contains(sel.anchorNode) || doc.contains(sel.focusNode)
+                || doc.contains(sel.getRangeAt(0).commonAncestorContainer);
+  if (!inDoc) return {text: "", rect: null};
+  let rect = null;
+  try { rect = sel.getRangeAt(0).getBoundingClientRect(); } catch (e) { rect = null; }
+  return {text: text, rect: rect};
+}
+
+function flashQuote() {
+  quote.style.transition = "background .2s";
+  quote.style.background = "#3a3a1a";
+  setTimeout(() => { quote.style.background = ""; }, 700);
+  const t = document.getElementById("selnote");
+  t.textContent = "✅ 選択した部分を該当箇所に入れました";
+  clearTimeout(window.__selNoteTimer);
+  window.__selNoteTimer = setTimeout(() => { t.textContent = ""; }, 4000);
+}
+
+function onSelection() {
+  const s = selectedText();
+  if (!s.text || s.text.length < 2) { btn.style.display = "none"; return; }
+  pending = s.text;
+  // 主動作: そのまま引用欄へ入れる（同じ選択で何度も上書きしない）
+  if (s.text !== lastAuto) {
+    lastAuto = s.text;
+    quote.value = s.text.slice(0, 2000);
+    flashQuote();
+  }
+  // 補助: 選択のそばにボタンも出す（位置が取れないときは画面下部に固定で出す）
+  const r = s.rect;
+  if (r && (r.width || r.height)) {
+    const top = r.top > 110 ? r.top - 46 : r.bottom + 10;
+    btn.style.top = Math.max(56, Math.min(top, window.innerHeight - 60)) + "px";
+    btn.style.left = Math.max(8, Math.min(r.left, window.innerWidth - 210)) + "px";
+  } else {
+    btn.style.top = (window.innerHeight - 70) + "px";
+    btn.style.left = "20px";
+  }
+  btn.style.display = "block";
+}
+
+["mouseup", "touchend", "keyup", "dblclick"].forEach(ev =>
+  document.addEventListener(ev, e => {
+    if (e.target === btn) return;
+    setTimeout(onSelection, 10);
+  }));
+let selTimer = null;
+document.addEventListener("selectionchange", () => {
+  clearTimeout(selTimer);
+  selTimer = setTimeout(onSelection, 220);
+});
+btn.addEventListener("click", () => setQuote(pending));
+document.getElementById("usesel").addEventListener("click", () => {
+  const s = selectedText();
+  if (s.text) { setQuote(s.text); flashQuote(); }
+  else { alert("本文の直したい部分を選択してから押してください"); }
+});
+document.getElementById("clearsel").addEventListener("click", () => {
+  quote.value = "";
+});
+
+// ── 既存の指摘箇所を本文中でハイライト ───────────────────────────
+function markQuote(quote, id) {
+  const needle = quote.replace(/\s+/g, " ").trim().slice(0, 40);
+  if (needle.length < 4) return;
+  const walker = document.createTreeWalker(doc, NodeFilter.SHOW_TEXT);
+  let node;
+  while ((node = walker.nextNode())) {
+    const i = node.nodeValue.indexOf(needle);
+    if (i === -1) continue;
+    const range = document.createRange();
+    range.setStart(node, i);
+    range.setEnd(node, Math.min(i + needle.length, node.nodeValue.length));
+    const mark = document.createElement("mark");
+    mark.className = "hl";
+    mark.dataset.note = id;
+    try { range.surroundContents(mark); } catch (err) { return; }
+    mark.addEventListener("click", () => {
+      const el = document.getElementById("note-" + id);
+      if (el) el.scrollIntoView({behavior: "smooth", block: "center"});
+    });
+    return;
+  }
+}
+document.querySelectorAll(".note .q").forEach(q => {
+  const id = q.closest(".note").id.replace("note-", "");
+  markQuote(q.dataset.quote || "", id);
+  q.addEventListener("click", () => {
+    const m = doc.querySelector('mark.hl[data-note="' + id + '"]');
+    if (m) m.scrollIntoView({behavior: "smooth", block: "center"});
+  });
+});
+</script>
+</body>
+</html>

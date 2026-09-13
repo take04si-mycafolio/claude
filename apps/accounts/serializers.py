@@ -63,6 +63,8 @@ class UserSerializer(serializers.ModelSerializer):
 
     avatar_url = serializers.SerializerMethodField()
     category_badge = serializers.SerializerMethodField()
+    # 複数カテゴリでバッジを獲得できるため一覧も返す（category_badge は代表1つ）。
+    category_badges = serializers.SerializerMethodField()
     review_level = serializers.IntegerField(read_only=True)
     review_count = serializers.IntegerField(read_only=True)
     helpful_count = serializers.IntegerField(read_only=True)
@@ -84,6 +86,7 @@ class UserSerializer(serializers.ModelSerializer):
             "hair_type",
             "review_level",
             "category_badge",
+            "category_badges",
             "review_count",
             "helpful_count",
             "avatar_url",
@@ -107,6 +110,166 @@ class UserSerializer(serializers.ModelSerializer):
     def get_category_badge(self, obj):
         # 既存 cached_property。該当なしは None を返す仕様なのでそのまま透過。
         return obj.category_badge
+
+    def get_category_badges(self, obj):
+        return obj.category_badges
+
+
+class PublicUserSerializer(serializers.ModelSerializer):
+    """GET /api/users/<id>/ 用。他ユーザーから見える公開プロフィール。
+
+    PC版の公開ユーザーページ(accounts.views.user_detail / user_detail.html)で表示している
+    項目の公開サブセットを返す。email / username(=email) / email_verified などの非公開・
+    機微情報は一切含めない。review_level / category_badge / review_count / helpful_count は
+    既存 User の cached_property をそのまま読む。
+    """
+
+    display_name = serializers.SerializerMethodField()
+    avatar_url = serializers.SerializerMethodField()
+    icon_url = serializers.SerializerMethodField()
+    review_level = serializers.IntegerField(read_only=True)
+    review_count = serializers.IntegerField(read_only=True)
+    helpful_count = serializers.IntegerField(read_only=True)
+    category_badge = serializers.SerializerMethodField()
+    category_badges = serializers.SerializerMethodField()
+    photo_count = serializers.SerializerMethodField()
+    bookmark_count = serializers.SerializerMethodField()
+    # choice 系は値＋表示ラベル（PC版の get_xxx_display と一致。未設定は null）。
+    gender_display = serializers.SerializerMethodField()
+    age_range_display = serializers.SerializerMethodField()
+    skin_type_display = serializers.SerializerMethodField()
+    hair_type_display = serializers.SerializerMethodField()
+
+    class Meta:
+        model = User
+        fields = (
+            "id",
+            "display_name",
+            "nickname",
+            "bio",
+            "avatar_url",
+            "icon_number",
+            "icon_url",
+            "gender",
+            "gender_display",
+            "age_range",
+            "age_range_display",
+            "skin_type",
+            "skin_type_display",
+            "hair_type",
+            "hair_type_display",
+            "twitter",
+            "instagram",
+            "tiktok",
+            "youtube_url",
+            "website_url",
+            "review_level",
+            "category_badge",
+            "category_badges",
+            "review_count",
+            "helpful_count",
+            "photo_count",
+            "bookmark_count",
+            "created_at",
+        )
+        read_only_fields = fields
+
+    def get_display_name(self, obj):
+        # 公開ページでは email を出さないため、nickname 未設定時は「匿名ユーザー」。
+        return obj.nickname or "匿名ユーザー"
+
+    def _abs(self, url):
+        request = self.context.get("request")
+        if url and url.startswith("/") and request is not None:
+            return request.build_absolute_uri(url)
+        return url
+
+    def get_avatar_url(self, obj):
+        if not obj.avatar:
+            return None
+        return self._abs(obj.avatar.url)
+
+    def get_icon_url(self, obj):
+        # PC版のフォールバックアイコン(static/icons/iconN.png)を絶対URLで返す（未設定は null）。
+        if not obj.icon_number:
+            return None
+        from django.templatetags.static import static
+        return self._abs(static(f"icons/icon{obj.icon_number}.png"))
+
+    def get_category_badge(self, obj):
+        return obj.category_badge
+
+    def get_category_badges(self, obj):
+        return obj.category_badges
+
+    def get_photo_count(self, obj):
+        from apps.reviews.models import ReviewImage
+        return ReviewImage.objects.filter(
+            review__user=obj, review__is_approved=True
+        ).count()
+
+    def get_bookmark_count(self, obj):
+        return obj.bookmarks.count()
+
+    def get_gender_display(self, obj):
+        return obj.get_gender_display() if obj.gender else None
+
+    def get_age_range_display(self, obj):
+        return obj.get_age_range_display() if obj.age_range else None
+
+    def get_skin_type_display(self, obj):
+        return obj.get_skin_type_display() if obj.skin_type else None
+
+    def get_hair_type_display(self, obj):
+        return obj.get_hair_type_display() if obj.hair_type else None
+
+
+class PublicUserPhotoSerializer(serializers.ModelSerializer):
+    """GET /api/users/<id>/photos/ 用。公開ユーザーページの「写真」タブ相当。
+
+    その人の承認済み口コミに付いた投稿写真(ReviewImage)を1枚ずつ返す。タップで
+    商品ページに飛べるよう商品情報も添える。
+    """
+
+    image_url = serializers.SerializerMethodField()
+    review_id = serializers.IntegerField(read_only=True)
+    product_id = serializers.IntegerField(source="review.product_id", read_only=True)
+    product_name = serializers.CharField(source="review.product.name", read_only=True)
+    product_slug = serializers.CharField(source="review.product.slug", read_only=True)
+
+    class Meta:
+        from apps.reviews.models import ReviewImage as _RI
+        model = _RI
+        fields = ("id", "image_url", "review_id", "product_id", "product_name", "product_slug")
+
+    def get_image_url(self, obj):
+        from apps.products.serializers import _abs_media_url
+        return _abs_media_url(obj.image, None, self.context.get("request"))
+
+
+class PublicBookmarkSerializer(serializers.ModelSerializer):
+    """GET /api/users/<id>/bookmarks/ 用。公開ユーザーページの「気になる」タブ相当。"""
+
+    product_id = serializers.IntegerField(read_only=True)
+    name = serializers.CharField(source="product.name", read_only=True)
+    brand = serializers.CharField(source="product.brand", read_only=True)
+    slug = serializers.CharField(source="product.slug", read_only=True)
+    image_url = serializers.SerializerMethodField()
+    category = serializers.SerializerMethodField()
+
+    class Meta:
+        from .models import Bookmark as _BM
+        model = _BM
+        fields = ("product_id", "name", "brand", "slug", "image_url", "category", "created_at")
+
+    def get_image_url(self, obj):
+        from apps.products.serializers import _abs_media_url
+        p = obj.product
+        return _abs_media_url(p.image, p.image_url, self.context.get("request"))
+
+    def get_category(self, obj):
+        pt = obj.product.product_type
+        return pt.name if pt else None
 
 
 class ProfileUpdateSerializer(serializers.ModelSerializer):
@@ -228,8 +391,10 @@ class MissionSerializer(serializers.Serializer):
     reward_condition_text = serializers.SerializerMethodField()
 
     # 特典（本人分のみ）
+    # reward_status: "waiting"(承認待ち) / "awarded" / "pending" / "sold_out" / ""
     reward_status = serializers.CharField(source="status", allow_blank=True)
     reward_code = serializers.CharField(allow_blank=True)
+    waiting_approval = serializers.BooleanField()
     code_pending = serializers.BooleanField()
     missed = serializers.BooleanField()
 

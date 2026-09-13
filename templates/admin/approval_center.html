@@ -1,0 +1,500 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<title>承認センター | TUSHOU管理</title>
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<style>
+:root{
+  --bg:#0f1626; --bg2:#161e33; --panel:#1c2540; --border:#2a345a;
+  --text:#e3e9ff; --muted:#8893b8; --accent:#c97b84; --good:#4ade80; --warn:#fbbf24; --bad:#f87171;
+}
+*{box-sizing:border-box;}
+html,body{margin:0;background:var(--bg);color:var(--text);
+  font-family:'Noto Sans JP',system-ui,sans-serif;font-size:13px;}
+a{color:inherit;}
+header{padding:14px 22px;background:var(--bg2);border-bottom:1px solid var(--border);
+  display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:10;flex-wrap:wrap;gap:8px;}
+header .logo{font-weight:700;}
+nav.topnav a{margin-left:18px;color:var(--muted);text-decoration:none;font-size:13px;}
+nav.topnav a:hover{color:var(--text);}
+main{max-width:1100px;margin:0 auto;padding:20px 22px 60px;}
+.msgs{list-style:none;padding:0;margin:0 0 14px;}
+.msgs li{padding:9px 14px;border-radius:8px;margin-bottom:6px;background:var(--panel);border:1px solid var(--border);}
+.msgs li.success{border-color:var(--good);}
+.msgs li.warning{border-color:var(--warn);}
+.msgs li.error{border-color:var(--bad);}
+h1{font-size:1.25rem;margin:6px 0 2px;}
+p.lead{color:var(--muted);margin:0 0 18px;}
+section{background:var(--panel);border:1px solid var(--border);border-radius:12px;
+  padding:16px 18px;margin-bottom:18px;}
+section h2{font-size:1rem;margin:0 0 4px;display:flex;align-items:center;gap:8px;}
+section h2 .count{background:var(--accent);color:#fff;border-radius:999px;
+  padding:1px 9px;font-size:12px;font-weight:700;}
+section h2 .count.zero{background:var(--border);color:var(--muted);}
+section p.hint{color:var(--muted);margin:0 0 12px;font-size:12px;}
+.empty{color:var(--muted);padding:8px 2px;}
+.item{border-top:1px solid var(--border);padding:12px 2px;display:flex;
+  gap:14px;align-items:flex-start;flex-wrap:wrap;}
+.item .body{flex:1 1 380px;min-width:0;}
+.item .ttl{font-weight:600;margin-bottom:3px;}
+.item .sub{color:var(--muted);font-size:12px;margin-bottom:5px;}
+.lastwork{color:var(--muted);font-size:11.5px;margin-top:5px;line-height:1.6;}
+.item .excerpt{color:var(--text);font-size:12px;line-height:1.7;max-height:5.2em;
+  overflow:hidden;white-space:pre-line;}
+.item .acts{display:flex;gap:8px;align-items:center;flex-wrap:wrap;}
+.item form{margin:0;display:inline;}
+button.btn{border:1px solid var(--border);border-radius:8px;padding:7px 14px;
+  cursor:pointer;font-size:13px;background:var(--bg2);color:var(--text);}
+button.approve{background:#14532d;border-color:var(--good);}
+button.approve:hover{background:#166534;}
+button.reject{background:#450a0a;border-color:var(--bad);}
+button.reject:hover{background:#7f1d1d;}
+button.btn[disabled]{background:var(--bg);border-color:var(--border);color:var(--muted);
+  cursor:not-allowed;opacity:.75;}
+a.detail{color:var(--muted);font-size:12px;text-decoration:underline;}
+.stars{color:var(--warn);}
+.badge{display:inline-block;border:1px solid var(--border);border-radius:6px;
+  padding:0 6px;font-size:11px;color:var(--muted);margin-left:6px;}
+.promptbox{width:100%;margin-top:8px;background:var(--bg);color:var(--text);
+  border:1px solid var(--border);border-radius:8px;padding:8px 10px;font-size:12px;
+  line-height:1.6;resize:vertical;}
+.dropzone{border:2px dashed var(--border);border-radius:10px;padding:16px 10px;
+  text-align:center;color:var(--muted);font-size:12px;line-height:1.6;cursor:pointer;
+  transition:.15s;}
+.dropzone.over{border-color:var(--good);color:var(--good);background:#14532d33;}
+.dropzone.busy{opacity:.5;pointer-events:none;}
+.copybtn.done{border-color:var(--good);color:var(--good);}
+table.agents{width:100%;border-collapse:collapse;font-size:12px;}
+table.agents th{color:var(--muted);text-align:left;font-weight:600;padding:6px 10px;
+  border-bottom:1px solid var(--border);white-space:nowrap;}
+table.agents td{padding:8px 10px;border-bottom:1px solid var(--border);vertical-align:top;}
+table.agents td.nm{font-weight:700;white-space:nowrap;}
+.muted{color:var(--muted);}
+a.rep{display:inline-flex;align-items:center;gap:7px;text-decoration:none;flex-wrap:wrap;}
+a.rep:hover strong{text-decoration:underline;}
+a.rep .dot{width:9px;height:9px;border-radius:50%;background:var(--muted);flex:none;}
+a.rep.success .dot{background:var(--good);}
+a.rep.info .dot{background:#60a5fa;}
+a.rep.warning .dot{background:var(--warn);}
+a.rep.error .dot{background:var(--bad);}
+.repline{padding:6px 2px;border-top:1px solid var(--border);}
+.repline:first-of-type{border-top:0;}
+.decision .bg{margin:6px 0;}
+.decision .bg summary{cursor:pointer;color:var(--muted);font-size:12px;}
+.decision .bgbody{font-size:12px;line-height:1.7;background:var(--bg);border:1px solid var(--border);
+  border-radius:8px;padding:6px 12px;margin-top:6px;overflow-x:auto;}
+.decision .bgbody table{border-collapse:collapse;}
+.decision .bgbody th,.decision .bgbody td{border:1px solid var(--border);padding:3px 8px;}
+.recbox{margin:6px 0 8px;padding:7px 11px;border-left:3px solid var(--good);background:#14532d33;
+  border-radius:0 8px 8px 0;font-size:12.5px;line-height:1.6;}
+label.opt{display:flex;gap:9px;align-items:flex-start;padding:7px 10px;margin:4px 0;
+  border:1px solid var(--border);border-radius:8px;cursor:pointer;line-height:1.6;}
+label.opt:hover{border-color:var(--accent);}
+label.opt:has(input:checked){border-color:var(--good);background:#14532d33;}
+label.opt input{margin-top:4px;flex:none;}
+label.opt .badge{margin-left:4px;}
+.decdone{margin-top:12px;border-top:1px dashed var(--border);padding-top:6px;}
+/* マウスオンで画面中央に大きく表示(2026-09-07 ユーザー指示) */
+.avatarbox .hvpop{position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);
+  display:none;z-index:999;pointer-events:none;flex-direction:column;align-items:center;gap:12px;}
+.avatarbox:hover .hvpop{display:flex;}
+.hvpop img{max-height:80vh;max-width:min(70vw,760px);border-radius:18px;background:#fff;
+  border:3px solid var(--accent);box-shadow:0 30px 90px rgba(0,0,0,.6);}
+.hvpop .nm2{background:rgba(15,22,38,.9);color:#fff;padding:5px 20px;border-radius:999px;
+  font-weight:800;font-size:14px;box-shadow:0 6px 20px rgba(0,0,0,.4);}
+.avlabel{position:absolute;left:0;right:0;bottom:0;background:rgba(15,22,38,.62);
+  backdrop-filter:blur(2px);color:#fff;text-align:center;font-size:12.5px;font-weight:800;
+  padding:3px 2px;letter-spacing:.04em;text-shadow:0 1px 2px rgba(0,0,0,.6);z-index:2;}
+</style>
+</head>
+<body>
+<header>
+  <div class="logo">✅ 承認センター</div>
+  <nav class="topnav">
+    <a href="/admin/">管理画面トップ</a>
+    <a href="/admin/seo/cockpit/">SEOコックピット</a>
+    <a href="/admin/analytics/workreport/">作業報告</a>
+  </nav>
+</header>
+<main>
+{% if messages %}
+<ul class="msgs">
+  {% for m in messages %}<li class="{{ m.tags }}">{{ m }}</li>{% endfor %}
+</ul>
+{% endif %}
+
+<h1>承認待ち {{ total }}件</h1>
+<p class="lead">サイト運用の承認作業はこのページで完結します。承認は既存の反映経路（自動バックアップ・達成判定・コード発行）をそのまま通ります。</p>
+
+<section>
+  <h2>👥 AI社員の稼働状況</h2>
+  <p class="hint">各担当のスケジュール・前回実行・前回の報告。詳細な報告全文は<a class="detail" href="/admin/analytics/workreport/" target="_blank">作業報告</a>へ。</p>
+  <div style="overflow-x:auto">
+  <table class="agents">
+    <thead><tr><th>担当</th><th>役割</th><th>予定</th><th>次回</th><th>前回実行</th><th>前回の報告</th></tr></thead>
+    <tbody>
+    {% for s in agent_statuses %}
+      <tr>
+        <td class="nm">
+          <div class="muted" style="font-size:10px;font-weight:600;margin-bottom:4px">{{ s.name }}{% if s.running %} <span class="badge" style="border-color:var(--warn);color:var(--warn)">実行中</span>{% endif %}</div>
+          {% if s.avatar %}
+          <form method="post" enctype="multipart/form-data" class="dropform" style="margin:0">{% csrf_token %}
+            <input type="hidden" name="action" value="avatar_upload">
+            <input type="hidden" name="agent_key" value="{{ s.key }}">
+            <input type="hidden" name="kind" value="hover">
+            <input type="file" name="image" accept="image/*" hidden>
+            <div class="dropzone avatarbox" style="position:relative;width:120px;height:120px;border-radius:12px;overflow:hidden;border:2px solid {{ s.char_color }};flex:none;padding:0;cursor:pointer">
+              <img src="{{ s.avatar }}" alt="{{ s.char_nick|default:s.name }}" style="width:100%;height:100%;object-fit:cover;object-position:top;display:block">
+              <span class="avlabel">{{ s.char_nick|default:s.char_name }}</span>
+              {% if s.popup_src %}
+              <span class="hvpop"><img src="{{ s.popup_src }}" alt="{{ s.char_nick }}" style="border-color:{{ s.char_color }}"><span class="nm2" style="border:1.5px solid {{ s.char_color }}">{{ s.char_nick|default:s.char_name }}（{{ s.char_name }}・{{ s.char_profile|truncatechars:24 }}）</span></span>
+              {% endif %}
+            </div>
+          </form>
+          {% elif s.char_nick %}
+          <form method="post" enctype="multipart/form-data" class="dropform" style="margin:0;flex:none">{% csrf_token %}
+            <input type="hidden" name="action" value="avatar_upload">
+            <input type="hidden" name="agent_key" value="{{ s.key }}">
+            <input type="file" name="image" accept="image/*" hidden>
+            <span class="dropzone" style="width:120px;height:120px;border-radius:12px;background:{{ s.char_color }};color:#fff;display:inline-flex;flex-direction:column;align-items:center;justify-content:center;font-weight:800;font-size:24px;padding:0;border:2px dashed #ffffff88;line-height:1.4" title="クリックorドロップでイラスト画像を設定">{{ s.char_nick|slice:":1" }}<span style="font-size:10px;font-weight:600;opacity:.85">画像ドロップ</span></span>
+          </form>
+          {% else %}<span style="width:120px;height:120px;border-radius:12px;background:var(--bg2);border:1px dashed var(--border);color:var(--muted);display:inline-flex;align-items:center;justify-content:center;font-size:24px;flex:none" title="キャラクター未登録">?</span>{% endif %}
+        </td>
+        <td class="muted">{{ s.duty }}</td>
+        <td>{{ s.sched }}</td>
+        <td>{% if s.next_run %}{{ s.next_run|date:"n/j(D) H:i" }}{% else %}<span class="muted">差し戻し時</span>{% endif %}</td>
+        <td>{% if s.last_start %}{{ s.last_start|slice:"5:16" }}{% else %}<span class="muted">未実行</span>{% endif %}</td>
+        <td>
+          {% if s.report %}
+            <a class="rep {{ s.report.status }}" href="/admin/analytics/workreport/{{ s.report.id }}/change/" target="_blank">
+              <span class="dot"></span>{{ s.report.created_at|date:"n/j H:i" }} {{ s.report.summary|default:s.report.title|truncatechars:46 }}</a>
+          {% else %}<span class="muted">報告なし</span>{% endif %}
+        </td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  </div>
+</section>
+
+<section id="decisions">
+  <h2>🧭 編集長からの判断待ち <span class="count{% if not decisions %} zero{% endif %}">{{ decisions|length }}</span></h2>
+  <p class="hint">週次ダイジェストの「要対応（人）」です。選択肢を選んで「回答する」を押すと、5分以内に編集長（レイカさん）がリライト計画などに反映します。<b>⚡</b>が付いた選択肢は、回答した時点でその処理（生産終了フラグの変更など）を実行します。選択肢に当てはまらないときは「その他」を選んで、コメントで指示してください。</p>
+  {% for d in decisions %}
+  <div class="item decision">
+    <div class="body">
+      <div class="ttl">判断#{{ d.id }} {{ d.title }}</div>
+      <div class="sub"><span class="badge" style="margin-left:0">{{ d.get_category_display }}</span>
+        {% if d.times_raised > 1 %}<span class="badge" style="border-color:var(--warn);color:var(--warn)">{{ d.times_raised }}回目の提起・{{ d.days_open }}日回答待ち</span>
+        {% else %}<span class="badge">{{ d.first_raised_at|date:"n/j" }} 提起</span>{% endif %}
+        {% if d.source_report %}<a class="detail" style="margin-left:6px" href="/admin/analytics/workreport/{{ d.source_report.id }}/change/" target="_blank">出典の報告 #{{ d.source_report.id }}</a>{% endif %}
+      </div>
+      {% if d.background_html %}<details class="bg"><summary>背景・根拠を見る</summary><div class="bgbody">{{ d.background_html }}</div></details>{% endif %}
+      {% if d.recommendation %}<div class="recbox">💡 編集長の推奨: {{ d.recommendation }}</div>{% endif %}
+      <form method="post" class="decform">{% csrf_token %}
+        <input type="hidden" name="action" value="decision_answer"><input type="hidden" name="id" value="{{ d.id }}">
+        {% for op in d.options %}
+        <label class="opt">
+          <input type="radio" name="choice" value="{{ op.key }}" {% if op.action %}data-action="{{ op.action.type }}:{{ op.action.products|join:', ' }}"{% endif %}>
+          <span><b>{{ op.label }}</b>
+            {% if op.recommended %}<span class="badge" style="border-color:var(--good);color:var(--good)">★ 推奨</span>{% endif %}
+            {% if op.action %}<span class="badge" style="border-color:var(--accent);color:var(--accent)">⚡ 回答時に実行: {% if op.action.type == "set_discontinued" %}生産終了にする{% else %}現行に戻す{% endif %}（{{ op.action.products|join:", " }}）</span>{% endif %}
+            {% if op.needs_dev %}<span class="badge">🔧 コード変更あり（開発作業待ちに回ります）</span>{% endif %}
+            {% if op.detail %}<br><span class="muted">{{ op.detail }}</span>{% endif %}
+          </span>
+        </label>
+        {% endfor %}
+        <label class="opt"><input type="radio" name="choice" value="other"><span><b>その他（コメントで指示）</b></span></label>
+        <textarea name="comment" class="promptbox" rows="2" placeholder="補足・条件があれば（任意。「その他」のときは必須）"></textarea>
+        <div style="margin-top:8px"><button class="btn approve" type="submit">回答する</button></div>
+      </form>
+    </div>
+  </div>
+  {% empty %}<div class="empty">判断待ちはありません</div>{% endfor %}
+
+  {% if decisions_in_flight or decisions_recent_done %}
+  <div class="decdone">
+    {% for d in decisions_in_flight %}
+    <div class="repline"><span class="badge" style="margin-left:0;{% if d.status == 'dev_pending' %}border-color:var(--warn);color:var(--warn){% else %}border-color:var(--accent);color:var(--accent){% endif %}">{{ d.get_status_display }}</span>
+      判断#{{ d.id }} {{ d.title|truncatechars:48 }} → <b>{{ d.choice_label }}</b>
+      <span class="muted">{{ d.answered_at|date:"n/j H:i" }}{% if d.handled_note %}・{{ d.handled_note|truncatechars:80 }}{% endif %}</span></div>
+    {% endfor %}
+    {% for d in decisions_recent_done %}
+    <div class="repline"><span class="badge" style="margin-left:0;border-color:var(--good);color:var(--good)">{{ d.get_status_display }}</span>
+      <span class="muted">判断#{{ d.id }} {{ d.title|truncatechars:48 }}{% if d.choice_label %} → {{ d.choice_label }}{% endif %}・{{ d.handled_note|truncatechars:80 }}</span></div>
+    {% endfor %}
+  </div>
+  {% endif %}
+</section>
+
+<section>
+  <h2>🔍 検品中（承認センターにはまだ出しません） <span class="count{% if not qa_pending %} zero{% endif %}">{{ qa_pending|length }}</span></h2>
+  <p class="hint">検品担当（リン様）が検品→修正を終えるまで、記事は上の承認キューに並びません。ここは「作業が進行中であること」を見るための一覧で、操作はできません。検品は記事が検品待ちに回ると5分以内に自動起動します（毎朝7:30の掃き出しもあり）。<br>
+  <b>🛑 検品差戻し</b>＝リン様が要差戻しと判定したもの。担当AI（なお姉）のキューに載っていれば「担当AIが対応中」と出ます。日数が伸びているものは止まっているので、レビュー画面から状況を確認してください。</p>
+  {% for it in qa_pending %}
+  <div class="item">
+    <div class="body">
+      <div class="ttl">{{ it.title }}</div>
+      <div class="sub"><span class="badge">{{ it.kind }}</span>{{ it.sub }}
+        {% if it.verdict == "failed" %}<span class="badge" style="border-color:var(--bad);color:var(--bad)">🛑 検品差戻し{% if it.days %}・{{ it.days }}日経過{% endif %}</span>
+          {% if it.sendback_open %}<span class="badge" style="border-color:var(--accent);color:var(--accent)">担当AIが対応中（{{ it.sendback_open }}件）</span>
+          {% else %}<span class="badge" style="border-color:var(--bad);color:var(--bad)">⚠️ 担当未アサイン（qa_sendback 未実行）</span>{% endif %}
+          <div class="sub" style="margin-top:4px">{{ it.notes|truncatechars:140 }}</div>
+        {% elif it.notes_open %}<span class="badge" style="border-color:var(--accent);color:var(--accent)">✏️ 修正指示{{ it.notes_open }}件・担当が修正中</span>
+        {% else %}<span class="badge" style="border-color:var(--warn);color:var(--warn)">⏳ 検品待ち</span>{% endif %}
+      </div>
+    </div>
+    <div class="acts">
+      {% if it.review_url %}<a class="btn" href="{{ it.review_url }}" style="text-decoration:none">✏️ レビュー</a>{% endif %}
+      {% if it.url %}<a class="detail" href="{{ it.url }}" target="_blank">中身を見る</a>{% endif %}
+    </div>
+  </div>
+  {% empty %}<div class="empty">検品中の記事はありません</div>{% endfor %}
+</section>
+
+<section>
+  <h2>📋 直近の作業報告</h2>
+  {% for r in recent_reports %}
+    <div class="repline">
+      <a class="rep {{ r.status }}" href="/admin/analytics/workreport/{{ r.id }}/change/" target="_blank">
+        <span class="dot"></span><span class="muted">{{ r.created_at|date:"n/j H:i" }}</span>
+        <strong>{{ r.title|truncatechars:42 }}</strong>
+        <span class="muted">{{ r.summary|truncatechars:70 }}</span></a>
+    </div>
+  {% empty %}<div class="empty">作業報告はまだありません</div>{% endfor %}
+</section>
+
+<section>
+  <h2>📝 記事リライトの承認 <span class="count{% if not rewrites %} zero{% endif %}">{{ rewrites|length }}</span></h2>
+  <p class="hint">承認すると本番記事に反映されます（反映前バックアップ自動取得・meta下書きがあれば同時反映）。本文の確認は「差分を見る」、直してほしい箇所の指摘は「✏️ レビュー」から（選択して修正指示→担当AIへ差し戻し）。<strong>ここに並ぶのは検品担当(リン様)の検品と修正が終わったものだけです。</strong></p>
+  {% for d in rewrites %}
+  <div class="item">
+    <div class="body">
+      <div class="ttl">#{{ d.id }} /{{ d.article.slug }}/ — {{ d.draft_title|default:d.article.title }}</div>
+      <div class="sub">
+        {{ d.draft_content|length }}字
+        {% if d.target_grow %}<span class="badge">grow: {{ d.target_grow.0.query }}</span>{% endif %}
+        {% if d.reviewed_at %}<span class="badge">投入 {{ d.reviewed_at|date:"n/j H:i" }}</span>{% endif %}
+        {% if d.qa_result.verdict == "fixed" %}<span class="badge" style="border-color:var(--good);color:var(--good)">✅ 検品済(リン様が調整)</span>
+        {% else %}<span class="badge" style="border-color:var(--good);color:var(--good)">✅ 検品合格(無修正)</span>{% endif %}
+        {% if d.qa_result.scores %}<span class="badge" style="border-color:var(--good);color:var(--good)">📊 SEO {{ d.qa_result.scores.seo }} / 内容 {{ d.qa_result.scores.content }}</span>
+        {% else %}<span class="badge" style="border-color:var(--warn);color:var(--warn)">📊 採点なし</span>{% endif %}
+      </div>
+      <div class="excerpt">{{ d.diff_summary|truncatechars:220 }}</div>
+      {% if d.last_work %}<div class="lastwork">🧾 最後の作業: {{ d.last_work.created_at|date:"n/j H:i" }} {{ d.last_work.get_agent_display }} — {{ d.last_work.get_action_display }}（{{ d.last_work.summary|truncatechars:60 }}）</div>{% endif %}
+    </div>
+    <div class="acts">
+      <a class="btn" href="/admin/approvals/review/rewrite/{{ d.id }}/" style="text-decoration:none">✏️ レビュー{% if d.open_notes %}（指示{{ d.open_notes }}）{% endif %}</a>
+      <a class="detail" href="/admin/analytics/rewritedraft/{{ d.id }}/change/" target="_blank">差分を見る</a>
+      <form method="post">{% csrf_token %}
+        <input type="hidden" name="action" value="rw_apply"><input type="hidden" name="id" value="{{ d.id }}">
+        <button class="btn approve" onclick="return confirm('#{{ d.id }} を /{{ d.article.slug }}/ に反映します。よろしいですか？')">承認して反映</button>
+      </form>
+      <form method="post">{% csrf_token %}
+        <input type="hidden" name="action" value="rw_reject"><input type="hidden" name="id" value="{{ d.id }}">
+        <button class="btn reject" onclick="return confirm('#{{ d.id }} を却下しますか？')">却下</button>
+      </form>
+    </div>
+  </div>
+  {% empty %}<div class="empty">承認待ちのリライトはありません</div>{% endfor %}
+</section>
+
+<section>
+  <h2>🛍 商品記事v2の承認 <span class="count{% if not product_v2 %} zero{% endif %}">{{ product_v2|length }}</span></h2>
+  <p class="hint">量産トラック（火木土執筆・新規記事計画とは別）。プレビューで確認→承認すると商品ページ本文＋メタが反映されます（自動バックアップ・IndexNow通知）。<strong>直してほしいところがあるときは「✏️ レビュー・差し戻し」</strong>から本文を選択して指示を書いてください（担当AIが数分以内に着手します）。<strong>ここに並ぶのは検品担当(リン様)の検品と修正が終わったものだけです。</strong></p>
+  {% for it in product_v2 %}
+  <div class="item">
+    <div class="body">
+      <div class="ttl">{{ it.title }}</div>
+      <div class="sub">/{{ it.slug }}/ ・ {{ it.chars }}字
+        <span class="badge">執筆 {{ it.created }}</span>
+        {% if it.qa.verdict == "fixed" %}<span class="badge" style="border-color:var(--good);color:var(--good)">✅ 検品済(リン様が調整)</span>
+        {% else %}<span class="badge" style="border-color:var(--good);color:var(--good)">✅ 検品合格(無修正)</span>{% endif %}
+        {% if it.qa.scores %}<span class="badge" style="border-color:var(--good);color:var(--good)">📊 SEO {{ it.qa.scores.seo }} / 内容 {{ it.qa.scores.content }}</span>
+        {% else %}<span class="badge" style="border-color:var(--warn);color:var(--warn)">📊 採点なし</span>{% endif %}
+      </div>
+      <div class="excerpt">{{ it.meta_description }}</div>
+      {% if it.last_work %}<div class="lastwork">🧾 最後の作業: {{ it.last_work.created_at|date:"n/j H:i" }} {{ it.last_work.get_agent_display }} — {{ it.last_work.get_action_display }}（{{ it.last_work.summary|truncatechars:60 }}）</div>{% endif %}
+    </div>
+    <div class="acts">
+      <a class="btn reject" href="/admin/approvals/review/product_v2/{{ it.product.pk }}/" style="text-decoration:none">✏️ レビュー・差し戻し{% if it.open_notes %}（指示{{ it.open_notes }}）{% endif %}</a>
+      {% if it.preview_url %}<a class="detail" href="{{ it.preview_url }}" target="_blank">プレビュー</a>{% endif %}
+      <a class="detail" href="{{ it.product.get_absolute_url }}" target="_blank">現行ページ</a>
+      <form method="post">{% csrf_token %}
+        <input type="hidden" name="action" value="pv2_apply"><input type="hidden" name="id" value="{{ it.product.pk }}">
+        <button class="btn approve" onclick="return confirm('/{{ it.slug }}/ の本文とメタを差し替えます。よろしいですか？')">承認して反映</button>
+      </form>
+
+    </div>
+  </div>
+  {% empty %}<div class="empty">承認待ちの商品記事v2はありません（次回執筆: 火・木・土 4:30）</div>{% endfor %}
+</section>
+
+<section>
+  <h2>🖼 画像生成待ち <span class="count{% if not image_queue %} zero{% endif %}">{{ image_queue|length }}</span></h2>
+  <p class="hint">①［プロンプトをコピー］→ ②ChatGPT(Proプラン)に貼って画像生成 → ③できた画像を点線の枠に<strong>ドラッグ&ドロップ</strong>。アイキャッチは記事サムネイルに自動設定、解説図は指定見出しの直後に自動挿入されます。</p>
+  {% for it in image_queue %}
+  <div class="item">
+    <div class="body">
+      <div class="ttl">{{ it.label }} — {{ it.article.title|truncatechars:40 }}</div>
+      <div class="sub">/{{ it.slug }}/{% if it.note %} <span class="badge">{{ it.note }}</span>{% endif %}</div>
+      <textarea class="promptbox" readonly rows="3">{{ it.prompt }}</textarea>
+    </div>
+    <div class="acts" style="flex-direction:column;align-items:stretch;min-width:210px">
+      <button type="button" class="btn copybtn" data-copy>📋 プロンプトをコピー</button>
+      <form method="post" enctype="multipart/form-data" class="dropform">{% csrf_token %}
+        <input type="hidden" name="action" value="img_upload">
+        <input type="hidden" name="slug" value="{{ it.slug }}">
+        <input type="hidden" name="kind" value="{{ it.kind }}">
+        <input type="hidden" name="fig_id" value="{{ it.fig_id }}">
+        <input type="file" name="image" accept="image/*" hidden>
+        <div class="dropzone">画像をここに<br>ドロップ / クリックで選択</div>
+      </form>
+    </div>
+  </div>
+  {% empty %}<div class="empty">生成待ちの画像はありません</div>{% endfor %}
+</section>
+
+<section>
+  <h2>📰 新規記事の公開承認 <span class="count{% if not new_articles %} zero{% endif %}">{{ new_articles|length }}</span></h2>
+  <p class="hint">AI執筆担当が作成した新規記事（6ゲート検査済み・非公開）。承認すると公開されIndexNow通知されます。本文確認は「編集画面」から。<strong>ここに並ぶのは検品担当(リン様)の検品と修正が終わったものだけです。</strong></p>
+  {% for a in new_articles %}
+  <div class="item">
+    <div class="body">
+      <div class="ttl">{{ a.title }}</div>
+      <div class="sub">/{{ a.slug }}/ ・ {{ a.content|length }}字
+        {% if a.product_type %}<span class="badge">{{ a.product_type.name }}</span>{% endif %}
+        <span class="badge">作成 {{ a.created_at|date:"n/j H:i" }}</span>
+        {% if a.seo_check_result.track == "revival" %}<span class="badge">復活・検品合格後に自動公開</span>{% endif %}
+        {% if a.seo_check_result.qa.verdict == "fixed" %}<span class="badge" style="border-color:var(--good);color:var(--good)">✅ 検品済(リン様が調整)</span>
+        {% else %}<span class="badge" style="border-color:var(--good);color:var(--good)">✅ 検品合格(無修正)</span>{% endif %}
+        {% if a.seo_check_result.qa.scores %}<span class="badge" style="border-color:var(--good);color:var(--good)">📊 SEO {{ a.seo_check_result.qa.scores.seo }} / 内容 {{ a.seo_check_result.qa.scores.content }}</span>
+        {% else %}<span class="badge" style="border-color:var(--warn);color:var(--warn)">📊 採点なし</span>{% endif %}
+      </div>
+      <div class="excerpt">{{ a.meta_description|default:a.excerpt|truncatechars:200 }}</div>
+      {% if a.last_work %}<div class="lastwork">🧾 最後の作業: {{ a.last_work.created_at|date:"n/j H:i" }} {{ a.last_work.get_agent_display }} — {{ a.last_work.get_action_display }}（{{ a.last_work.summary|truncatechars:60 }}）</div>{% endif %}
+    </div>
+    <div class="acts">
+      <a class="btn" href="/admin/approvals/review/article/{{ a.id }}/" style="text-decoration:none">✏️ レビュー{% if a.open_notes %}（指示{{ a.open_notes }}）{% endif %}</a>
+      <a class="detail" href="/admin/products/article/{{ a.id }}/change/" target="_blank">編集画面</a>
+      <form method="post">{% csrf_token %}
+        <input type="hidden" name="action" value="article_publish"><input type="hidden" name="id" value="{{ a.id }}">
+        <button class="btn approve" onclick="return confirm('/{{ a.slug }}/ を公開します。よろしいですか？')">承認して公開</button>
+      </form>
+    </div>
+  </div>
+  {% empty %}<div class="empty">公開承認待ちの新規記事はありません</div>{% endfor %}
+</section>
+
+<section>
+  <h2>💬 口コミの承認 <span class="count{% if not reviews %} zero{% endif %}">{{ reviews|length }}</span></h2>
+  <p class="hint">投稿時に薬機法ゲートを通過済み。承認するとサイトに掲載され、ミッション達成判定が走ります。削除・編集は<a class="detail" href="/admin/reviews/review/?is_approved__exact=0" target="_blank">口コミ管理</a>から。</p>
+  {% for r in reviews %}
+  <div class="item">
+    <div class="body">
+      <div class="ttl">{{ r.product }} <span class="stars">★{{ r.rating }}</span></div>
+      <div class="sub">{% if r.user %}{{ r.user }}{% else %}ゲスト: {{ r.display_name }}{% endif %} ・ {{ r.created_at|date:"Y/n/j H:i" }} ・ {{ r.title }}</div>
+      <div class="excerpt">{{ r.body|truncatechars:300 }}</div>
+    </div>
+    <div class="acts">
+      <a class="detail" href="/admin/reviews/review/{{ r.id }}/change/" target="_blank">詳細</a>
+      <form method="post">{% csrf_token %}
+        <input type="hidden" name="action" value="review_approve"><input type="hidden" name="id" value="{{ r.id }}">
+        <button class="btn approve">承認して掲載</button>
+      </form>
+      <form method="post">{% csrf_token %}
+        <input type="hidden" name="action" value="review_reject"><input type="hidden" name="id" value="{{ r.id }}">
+        <button class="btn reject" onclick="return confirm('口コミ #{{ r.id }} を非承認（掲載しない）にします。よろしいですか？')">非承認</button>
+      </form>
+    </div>
+  </div>
+  {% empty %}<div class="empty">承認待ちの口コミはありません</div>{% endfor %}
+</section>
+
+<section>
+  <h2>🎁 ミッション特典の承認 <span class="count{% if not missions %} zero{% endif %}">{{ missions|length }}</span></h2>
+  <p class="hint">承認するとコードが発行され、会員へ案内メールが送信されます。「準備中」はコード補充後にもう一度承認してください。</p>
+  {% for c in missions %}
+  <div class="item">
+    <div class="body">
+      <div class="ttl">{{ c.mission }} — {{ c.user }}</div>
+      <div class="sub">達成 {{ c.completed_at|date:"Y/n/j H:i" }} ・ 状態: {{ c.get_status_display }}</div>
+    </div>
+    <div class="acts">
+      <a class="detail" href="/admin/accounts/usermissioncompletion/{{ c.id }}/change/" target="_blank">詳細</a>
+      <form method="post">{% csrf_token %}
+        <input type="hidden" name="action" value="mission_approve"><input type="hidden" name="id" value="{{ c.id }}">
+        <button class="btn approve" onclick="return confirm('承認してコード発行・メール送信します。よろしいですか？')">承認してコード発行</button>
+      </form>
+    </div>
+  </div>
+  {% empty %}<div class="empty">承認待ちのミッション達成はありません</div>{% endfor %}
+</section>
+
+<section>
+  <h2>📊 アンケートコメントの公開 <span class="count{% if not surveys %} zero{% endif %}">{{ surveys|length }}</span></h2>
+  <p class="hint">自由記述コメントを結果ページに公開してよいか判断します（未承認でも集計には含まれます）。</p>
+  {% for s in surveys %}
+  <div class="item">
+    <div class="body">
+      <div class="ttl">{{ s.survey_slug }}</div>
+      <div class="sub">{{ s.created_at|date:"Y/n/j H:i" }}</div>
+      <div class="excerpt">{{ s.reason|truncatechars:300 }}</div>
+    </div>
+    <div class="acts">
+      <a class="detail" href="/admin/surveys/surveyresponse/{{ s.id }}/change/" target="_blank">詳細</a>
+      <form method="post">{% csrf_token %}
+        <input type="hidden" name="action" value="survey_approve"><input type="hidden" name="id" value="{{ s.id }}">
+        <button class="btn approve">コメントを公開</button>
+      </form>
+    </div>
+  </div>
+  {% empty %}<div class="empty">公開待ちのアンケートコメントはありません</div>{% endfor %}
+</section>
+
+</main>
+<script>
+// 判断待ち: ⚡(回答時に実行)付きの選択肢は確認を挟む。未選択は送らない
+document.querySelectorAll(".decform").forEach(form => {
+  form.addEventListener("submit", e => {
+    const sel = form.querySelector('input[name="choice"]:checked');
+    if (!sel) { e.preventDefault(); alert("選択肢を選んでください"); return; }
+    if (sel.value === "other" && !form.querySelector('textarea[name="comment"]').value.trim()) {
+      e.preventDefault(); alert("「その他」を選んだときはコメントで指示を書いてください"); return;
+    }
+    if (sel.dataset.action && !confirm("この回答で次の処理を実行します: " + sel.dataset.action + "\nよろしいですか？")) {
+      e.preventDefault();
+    }
+  });
+});
+// プロンプトコピー
+document.querySelectorAll("[data-copy]").forEach(btn => {
+  btn.addEventListener("click", () => {
+    const ta = btn.closest(".item").querySelector(".promptbox");
+    navigator.clipboard.writeText(ta.value).then(() => {
+      btn.textContent = "✅ コピーしました"; btn.classList.add("done");
+      setTimeout(() => { btn.textContent = "📋 プロンプトをコピー"; btn.classList.remove("done"); }, 2000);
+    });
+  });
+});
+// ドラッグ&ドロップ / クリック選択 → 即アップロード
+document.querySelectorAll(".dropform").forEach(form => {
+  const zone = form.querySelector(".dropzone");
+  const input = form.querySelector('input[type="file"]');
+  const submit = () => { zone.classList.add("busy"); zone.textContent = "アップロード中…"; form.submit(); };
+  zone.addEventListener("click", () => input.click());
+  input.addEventListener("change", () => { if (input.files.length) submit(); });
+  ["dragover", "dragenter"].forEach(ev => zone.addEventListener(ev, e => {
+    e.preventDefault(); zone.classList.add("over");
+  }));
+  ["dragleave", "drop"].forEach(ev => zone.addEventListener(ev, e => {
+    e.preventDefault(); zone.classList.remove("over");
+  }));
+  zone.addEventListener("drop", e => {
+    if (e.dataTransfer.files.length) { input.files = e.dataTransfer.files; submit(); }
+  });
+});
+</script>
+</body>
+</html>

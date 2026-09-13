@@ -180,9 +180,12 @@ def rewrite_article(article, keyword=None, ai_provider="anthropic", ai_model=Non
         ai_provider=ai_provider, ai_model=ai_model, max_attempts=max_attempts,
     )
     if result["success"]:
+        from django.utils import timezone
         article.content = result["rewritten_content"]
         if hasattr(article, "seo_check_result"):
             article.seo_check_result = result["seo_check"]
+        # 本文リライト＝観察ステータスの基準日を更新
+        article.last_rewritten_at = timezone.now()
         article.save()
     return result
 

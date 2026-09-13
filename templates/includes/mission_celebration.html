@@ -10,7 +10,7 @@ context_processor mission_alerts が未読の UserMissionCompletion を渡す。
     <div class="bg-gradient-to-br from-rose-400 via-rose-500 to-gold-400 px-6 pt-7 pb-6 text-center text-white">
       <div class="text-4xl mb-1">🎉</div>
       <div class="text-lg font-bold tracking-wide">ミッション達成！</div>
-      <p class="text-xs text-white/85 mt-1">プレゼントを獲得しました</p>
+      <p class="text-xs text-white/85 mt-1">おめでとうございます</p>
     </div>
 
     <div class="px-6 py-5 space-y-4 max-h-[55vh] overflow-y-auto"
@@ -24,6 +24,8 @@ context_processor mission_alerts が未読の UserMissionCompletion を渡す。
               <span class="text-[10px] text-gold-700 shrink-0">CODE</span>
               <code class="font-mono text-sm font-bold text-gold-800 tracking-wider break-all select-all">{{ c.assigned_code }}</code>
             </div>
+          {% elif c.status == "waiting" %}
+            <p class="mt-2 text-xs text-amber-700">🕐 運営が内容を確認しています（承認待ち）。承認されるとコードが発行され、メールでもお知らせします。</p>
           {% elif c.status == "sold_out" %}
             <p class="mt-2 text-xs text-mute-500">惜しくも定員に達したため、今回はプレゼント対象外となりました。またの挑戦をお待ちしています。</p>
           {% else %}

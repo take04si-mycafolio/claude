@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 {% load static article_extras %}
-{% block head_extra %}<link rel="stylesheet" href="{% static 'article-css.css' %}?v=22">{% if article.structured_data %}<script type="application/ld+json">{{ article.structured_data|safe }}</script>{% endif %}{% endblock %}
-{% block title %}{{ article.meta_title|default:article.title }} | 美容家電TUSHOU{% endblock %}
+{% block head_extra %}{% if article.noindex %}<meta name="robots" content="noindex">{% endif %}<link rel="stylesheet" href="{% static 'article-css.css' %}?v=57">{% if article.structured_data %}<script type="application/ld+json">{{ article.structured_data|safe }}</script>{% endif %}{% endblock %}
+{% block title %}{{ article.meta_title|default:article.title }}{% endblock %}
 {% block meta_description %}{{ article.meta_description|default:article.excerpt|default:article.content|striptags|truncatechars:140 }}{% endblock %}
 {% block content %}
 <article class="bg-white rounded-2xl border border-rose-100 shadow-card overflow-hidden">
@@ -13,20 +13,56 @@
       {% endif %}
     </p>
     <h1 class="text-2xl sm:text-4xl font-bold text-ink-900 leading-tight">{{ article.title }}</h1>
+      {% render_article article.content article.slug as a %}
+      {% if a.has_products %}
+        <p class="mt-3 text-xs text-mute-500">【広告／PR】本記事にはアフィリエイトリンクを含みます。</p>
+      {% endif %}
 
       {% if article.display_thumbnail %}
         <div class="mt-6 mb-5 bg-cream-100 rounded-xl overflow-hidden">
           <img src="{{ article.display_thumbnail }}" alt="{{ article.title }}" class="block w-full h-auto">
         </div>
       {% endif %}
-
-      {% render_article article.content as a %}
     <div class="mt-8 prose prose-rose bk-mc-wrap max-w-none text-[0.95rem] leading-8 text-ink-700 prose-img:rounded-xl prose-a:text-rose-600 prose-strong:text-rose-700 prose-headings:scroll-mt-20">
       {{ a.html }}
+      {% if a.has_products and not a.review_note_inlined %}
+      <div class="bk-mc-notes bk-mc-notes-append">
+        <details class="bk-mc-disclosure">
+          <summary>口コミ評価について</summary>
+          <div class="bk-mc-disclosure-body">
+            <p>TUSHOUに投稿された個人の感想の星評価を単純平均しています。件数・評価は集計日時点の数値です。記事内では個別の口コミ本文は掲載していません。</p>
+            <p>購入確認を行っていない口コミを含む場合があります。メーカーや販売事業者から商品の提供を受けた投稿、投稿特典を付与した口コミが含まれる場合は、各口コミ内でその旨を表示します。</p>
+            <p>評価の高低を理由に口コミを選別することはありません。<a href="/community-guidelines/">コミュニティガイドライン</a>に違反する投稿や、同一人物による不自然な連続投稿を確認した場合に限り、非掲載または削除の対象とします。</p>
+          </div>
+        </details>
+      </div>
+      {% endif %}
     </div>
   </div>
 </article>
 {% include "includes/_adsense.html" %}
+
+{% if column_related %}
+<section class="mt-10" aria-label="関連記事">
+  <div class="flex items-center gap-3 mb-5">
+    <span class="inline-block w-1.5 h-6 bg-gradient-to-b from-rose-500 to-gold-500 rounded"></span>
+    <h2 class="text-xl font-bold text-ink-900">あわせて読みたい</h2>
+  </div>
+  {# スマホは1カラム（サムネ左の横型カード）・lg以上は3カラムの縦型カード #}
+  <ul class="grid grid-cols-1 lg:grid-cols-3 gap-3 lg:gap-4">
+    {% for r in column_related %}
+      <li><a href="{{ r.get_absolute_url }}" class="group block bg-white rounded-2xl border border-rose-100 overflow-hidden hover:shadow-card transition">
+        <div class="aspect-[16/9] bg-cream-100">
+          {% if r.display_thumbnail %}<img src="{{ r.display_thumbnail }}" alt="{{ r.title }}" loading="lazy" class="w-full h-full object-cover group-hover:scale-105 transition duration-500">{% endif %}
+        </div>
+        <div class="p-3">
+          <h3 class="text-sm lg:text-xs font-medium text-ink-900 line-clamp-2 group-hover:text-rose-600">{{ r.title }}</h3>
+        </div>
+      </a></li>
+    {% endfor %}
+  </ul>
+</section>
+{% endif %}
 
 {% if article.related_products.all %}
 <section class="mt-10">
@@ -34,21 +70,23 @@
     <span class="inline-block w-1.5 h-6 bg-gradient-to-b from-rose-500 to-gold-500 rounded"></span>
     <h2 class="text-xl font-bold text-ink-900">この記事で取り上げた商品</h2>
   </div>
-  <ul class="grid grid-cols-2 lg:grid-cols-4 gap-4">
-    {% for p in article.related_products.all %}
+  {# スマホは2カラム（2026-09-09 ユーザー指示）・lg以上は4カラム #}
+  <ul class="grid grid-cols-2 lg:grid-cols-4 gap-3 lg:gap-4">
+    {% for p in article|related_in_body_order %}
       <li><a href="{{ p.get_absolute_url }}" class="group block bg-white rounded-2xl border border-rose-100 overflow-hidden hover:shadow-card transition">
         <div class="aspect-square bg-cream-100">
           {% if p.display_image %}<img src="{{ p.display_image }}" alt="{{ p.name }}" loading="lazy" class="w-full h-full object-cover group-hover:scale-105 transition duration-500">{% endif %}
         </div>
         <div class="p-3">
           {% if p.brand %}<div class="text-[10px] text-mute-500 uppercase tracking-wider">{{ p.brand }}</div>{% endif %}
-          <h3 class="text-xs font-medium text-ink-900 line-clamp-2 group-hover:text-rose-600">{{ p.name }}</h3>
+          <h3 class="text-sm lg:text-xs font-medium text-ink-900 line-clamp-2 group-hover:text-rose-600">{{ p.name }}</h3>
         </div>
       </a></li>
     {% endfor %}
   </ul>
 </section>
 {% endif %}
+
 {% endblock %}
 
 {% block breadcrumb %}

@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 {% load static article_extras %}
-{% block head_extra %}<link rel="stylesheet" href="{% static 'article-css.css' %}?v=22">{% endblock %}
+{% block head_extra %}<link rel="stylesheet" href="{% static 'article-css.css' %}?v=57">{% endblock %}
 {% block title %}{% if product.meta_title %}{{ product.meta_title }}{% else %}{{ product.name }}の口コミ・レビュー | 美容家電TUSHOU{% endif %}{% endblock %}
 {% block meta_description %}{% if product.meta_description %}{{ product.meta_description }}{% else %}{{ product.name }}の実際に使った方の口コミ・評価を掲載。{{ product.brand }}のリアルなレビューが読めます。{% endif %}{% endblock %}
 
@@ -19,7 +19,8 @@
 
 <article class="bg-white rounded-2xl shadow-card border border-rose-100 overflow-hidden">
   <div class="grid grid-cols-1 lg:grid-cols-[1fr_650px] gap-0 min-w-0">
-    <div class="bg-cream-100 aspect-square lg:aspect-auto lg:min-h-[420px] flex justify-center items-center lg:items-start p-2.5 sm:p-10 min-w-0 overflow-hidden">
+    <div class="relative bg-cream-100 aspect-square lg:aspect-auto lg:min-h-[420px] flex justify-center items-center lg:items-start p-2.5 sm:p-10 min-w-0 overflow-hidden">
+      <span class="absolute top-2 left-2 z-10 text-[10px] font-bold tracking-wider text-mute-500 bg-white/80 rounded px-1.5 py-0.5 leading-none">PR</span>
       {% load static %}
       {% if product.display_image %}
         <img src="{{ product.display_image }}" alt="{{ product.name }}" class="max-w-full max-h-full object-contain">
@@ -28,8 +29,10 @@
       {% endif %}
     </div>
     <div class="p-2.5 sm:p-10 min-w-0 overflow-hidden">
-      {% if product.brand %}<div class="text-[11px] tracking-[0.2em] uppercase text-mute-500 mb-2">{{ product.brand }}</div>{% endif %}
-      <h1 class="text-2xl sm:text-3xl font-bold text-ink-900 leading-tight">{{ product.name }}</h1>
+      {% if product.brand %}<div class="text-[11px] tracking-[0.2em] uppercase text-mute-500 mb-2">{% if brand_page %}<a href="{{ brand_page.get_absolute_url }}" class="hover:text-rose-600 hover:underline underline-offset-2" title="{{ brand_page.name }}の商品一覧・スペック比較">{{ product.brand }}</a>{% else %}{{ product.brand }}{% endif %}</div>{% endif %}
+      {# H1は記事タイトル(meta_title)。検索結果のタイトルとページ見出しを一致させる(2026-09-08) #}
+      <h1 class="text-2xl sm:text-3xl font-bold text-ink-900 leading-tight">{{ product.display_title }}</h1>
+      {% if product.display_title != product.name %}<div class="mt-1.5 text-[13px] text-mute-500 leading-snug">{{ product.name }}</div>{% endif %}
 
       {% if stats.count %}
       <div class="mt-4 flex flex-wrap items-center gap-x-3 gap-y-1">
@@ -48,10 +51,7 @@
         </div>
       {% endif %}
 
-      {% if product.description %}
-        <div class="mt-5 prose prose-rose max-w-none text-sm leading-7 text-ink-700">{{ product.description|safe }}</div>
-      {% endif %}
-
+      {# 記事(description)はメディアサイト方針(2026-09-06)によりヘッダー下の1カラム全幅セクションへ移動 #}
       {% if product.features %}
         <h2 class="mt-6 text-sm font-bold text-ink-900 flex items-center gap-2"><span class="inline-block w-1 h-4 bg-rose-500 rounded"></span>特徴</h2>
         <ul class="mt-2 list-disc list-inside text-sm text-ink-700 space-y-1 prose-rose">{{ product.features|safe }}</ul>
@@ -69,38 +69,167 @@
             {% if product.amazon_url %}<a href="{{ product.amazon_url }}" target="_blank" rel="nofollow noopener sponsored" class="w-full sm:w-auto inline-flex items-center justify-center px-5 py-2.5 rounded-full border border-rose-300 text-rose-600 hover:bg-rose-50 text-sm font-medium transition">Amazonで見る</a>{% endif %}
             {% if product.official_url %}<a href="{{ product.official_url }}" target="_blank" rel="nofollow noopener" class="w-full sm:w-auto inline-flex items-center justify-center px-5 py-2.5 rounded-full border border-rose-200 text-mute-600 hover:bg-cream-100 text-sm transition">公式サイト</a>{% endif %}
           </div>
+          {% if brand_page %}<p class="mt-3 text-xs"><a href="{{ brand_page.get_absolute_url }}" class="text-rose-600 hover:text-rose-700 hover:underline underline-offset-2">{{ brand_page.name }}の商品一覧・スペック比較を見る ›</a></p>{% endif %}
         </div>
       {% endif %}
 
-      <div class="mt-6 pt-5 border-t border-rose-100 flex flex-wrap gap-3">
+      {# 口コミ募集はメディアサイト方針(2026-09-06)で縮小: 記事下の「評価を追加」へ小さく誘導 #}
+      <div class="mt-6 pt-5 border-t border-rose-100 flex flex-wrap items-center gap-3">
+        <a href="#add-review" class="inline-flex items-center gap-1.5 px-4 py-2 rounded-full border border-rose-200 text-rose-600 hover:bg-rose-50 text-xs font-medium transition">✏️ この商品の評価を追加する</a>
         {% if user.is_authenticated %}
-          {% if user_review %}
-            <a href="{% url 'reviews:create' product.slug %}" class="inline-flex items-center justify-center px-6 py-3 rounded-full border border-rose-300 text-rose-600 hover:bg-rose-50 font-medium text-sm transition">自分の口コミを編集</a>
-          {% else %}
-            <a href="{% url 'reviews:create' product.slug %}" class="inline-flex items-center justify-center px-6 py-3 rounded-full bg-rose-500 hover:bg-rose-600 text-white font-medium text-sm transition shadow-sm">この商品の口コミを書く</a>
+          {% if user_review and not user_review.is_approved %}
+            <span class="inline-flex items-center gap-1.5 px-3 py-2 rounded-full bg-amber-50 border border-amber-200 text-amber-700 text-xs font-medium">
+              <span aria-hidden="true">🕐</span>あなたの口コミは確認中です
+            </span>
           {% endif %}
           <form method="post" action="{% url 'products:bookmark_toggle' product.slug %}" class="inline m-0">
             {% csrf_token %}
             <input type="hidden" name="next" value="{{ request.path }}">
-            <button type="submit" class="inline-flex items-center justify-center gap-1.5 px-6 py-3 rounded-full font-medium text-sm transition border-2 {% if is_bookmarked %}bg-rose-500 text-white border-rose-500 hover:bg-rose-600{% else %}bg-white text-rose-600 border-rose-300 hover:bg-rose-50{% endif %}">
-              <span class="text-lg leading-none">{% if is_bookmarked %}♥{% else %}♡{% endif %}</span>
+            <button type="submit" class="inline-flex items-center justify-center gap-1.5 px-4 py-2 rounded-full text-xs font-medium transition border {% if is_bookmarked %}bg-rose-500 text-white border-rose-500 hover:bg-rose-600{% else %}bg-white text-rose-600 border-rose-300 hover:bg-rose-50{% endif %}">
+              <span class="leading-none">{% if is_bookmarked %}♥{% else %}♡{% endif %}</span>
               <span>{% if is_bookmarked %}気になる登録済み{% else %}気になる{% endif %}</span>
             </button>
           </form>
-        {% else %}
-          <a href="{% url 'accounts:signup' %}" class="inline-flex items-center justify-center px-6 py-3 rounded-full bg-rose-500 hover:bg-rose-600 text-white font-medium text-sm transition shadow-sm">無料登録して口コミを書く</a>
-          <a href="{% url 'accounts:login' %}?next={{ request.path }}" class="inline-flex items-center gap-1.5 px-6 py-3 rounded-full bg-white text-rose-600 border-2 border-rose-300 hover:bg-rose-50 font-medium text-sm transition">
-            <span class="text-lg leading-none">♡</span><span>気になる</span>
-          </a>
         {% endif %}
       </div>
     </div>
   </div>
 </article>
 
-{% if hub_cards %}
-<section class="mt-8 bk-mc-wrap max-w-none">
-  {% for c in hub_cards %}{% include "includes/_article_page_card.html" %}{% endfor %}
+{# ===== 商品記事(1カラム・記事ページと同じ読み幅)。メディアサイト方針 2026-09-06 ===== #}
+{% if product.description %}
+<article class="mt-8 bg-white rounded-2xl shadow-card border border-rose-100 overflow-hidden">
+  <div class="p-3 sm:p-12 max-w-3xl mx-auto">
+    {# v2順序: 本文 → 購入ボタン → 注記(この記事の情報について)。注記はフィルタで末尾へ回す #}
+    {% with dparts=product.description|split_desc_notes %}
+    <div class="prose prose-rose bk-mc-wrap max-w-none text-[0.95rem] leading-8 text-ink-700 prose-img:rounded-xl prose-a:text-rose-600 prose-strong:text-rose-700 prose-headings:scroll-mt-20">{{ dparts.main|safe }}</div>
+    {# まとめ直下の購入CTA(商品記事v2)。bk-mc-wrapのリンク色上書きに勝つよう !important 指定 #}
+    {% if product.affiliate_url or product.rakuten_url or product.amazon_url %}
+    <div class="mt-10 pt-8 border-t border-rose-100 not-prose text-center">
+      {% if product.price %}
+      <p class="mb-1"><span class="text-xs text-mute-500 mr-2">参考価格</span><span class="text-3xl font-bold !text-rose-600 tabular-nums">¥{{ product.price }}</span></p>
+      {% endif %}
+      <p class="text-[11px] text-mute-400 mb-5">PR・アフィリエイトリンクを含みます。最新の価格はリンク先でご確認ください</p>
+      <div class="flex flex-col sm:flex-row sm:justify-center gap-3">
+        {% if product.rakuten_url %}<a href="{{ product.rakuten_url }}" target="_blank" rel="nofollow noopener sponsored" class="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-10 py-4 rounded-full bg-gradient-to-r from-rose-500 to-rose-400 hover:from-rose-600 hover:to-rose-500 !text-white !no-underline text-base font-bold shadow-lg shadow-rose-200 transition">楽天で見る</a>{% endif %}
+        {% if product.amazon_url %}<a href="{{ product.amazon_url }}" target="_blank" rel="nofollow noopener sponsored" class="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-10 py-4 rounded-full bg-white border-2 border-rose-300 !text-rose-600 !no-underline text-base font-bold hover:bg-rose-50 transition">Amazonで見る</a>{% endif %}
+        {% if product.affiliate_url and not product.rakuten_url %}<a href="{{ product.affiliate_url }}" target="_blank" rel="nofollow noopener sponsored" class="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-10 py-4 rounded-full bg-gradient-to-r from-rose-500 to-rose-400 hover:from-rose-600 hover:to-rose-500 !text-white !no-underline text-base font-bold shadow-lg shadow-rose-200 transition">公式サイトで見る</a>{% endif %}
+      </div>
+    </div>
+    {% endif %}
+    {# 注記「この記事の情報について」は購入ボタンの下に表示(2026-09-07 ユーザー指示) #}
+    {% if dparts.notes %}
+    <div class="mt-6 prose prose-rose bk-mc-wrap max-w-none text-[0.95rem] leading-8 text-ink-700">{{ dparts.notes|safe }}</div>
+    {% endif %}
+    {% endwith %}
+  </div>
+</article>
+{% endif %}
+
+{# ===== この商品の評価を追加する(記事下・会員登録なしで投稿可・承認制) ===== #}
+<section id="add-review" class="mt-8 bg-white rounded-2xl shadow-card border border-rose-100 overflow-hidden">
+  <div class="p-5 sm:p-10 max-w-3xl mx-auto">
+    <div class="flex items-center gap-3 mb-2">
+      <span class="inline-block w-1.5 h-6 bg-gradient-to-b from-rose-500 to-gold-500 rounded"></span>
+      <h2 class="text-lg sm:text-xl font-bold text-ink-900">この商品の評価を追加する</h2>
+    </div>
+    <p class="text-sm text-mute-600 mb-5">実際に使った感想をお寄せください。会員登録は不要です。内容を確認のうえ掲載します（<a href="/community-guidelines/" class="text-rose-600 underline underline-offset-2">ガイドライン</a>）。</p>
+    {% if user.is_authenticated %}
+      <div class="flex flex-wrap gap-3">
+        {% if user_review %}
+          <a href="{% url 'reviews:create' product.slug %}" class="inline-flex items-center justify-center px-6 py-3 rounded-full border border-rose-300 text-rose-600 hover:bg-rose-50 font-medium text-sm transition">自分の口コミを編集する</a>
+        {% else %}
+          <a href="{% url 'reviews:create' product.slug %}" class="inline-flex items-center justify-center px-6 py-3 rounded-full bg-rose-500 hover:bg-rose-600 text-white font-medium text-sm transition shadow-sm">口コミを書く（写真・詳細評価つき）</a>
+        {% endif %}
+      </div>
+    {% else %}
+      <form method="post" action="{% url 'reviews:guest_create' product.slug %}" class="space-y-4">
+        {% csrf_token %}
+        <input type="hidden" name="form_token" value="{{ guest_form_token }}">
+        <div class="hidden" aria-hidden="true">{{ guest_review_form.website }}</div>
+        <div>
+          <label class="block text-sm font-medium text-ink-900 mb-1.5">総合評価 <span class="text-rose-500">*</span></label>
+          <div class="flex flex-wrap gap-2">
+            {% for radio in guest_review_form.rating %}
+              <label class="inline-flex items-center gap-1 px-3.5 py-2 rounded-full border border-rose-200 text-sm cursor-pointer hover:bg-rose-50 has-[:checked]:bg-rose-500 has-[:checked]:text-white has-[:checked]:border-rose-500 transition">
+                {{ radio.tag }}<span>{{ radio.choice_label }}</span>
+              </label>
+            {% endfor %}
+          </div>
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-ink-900 mb-1.5" for="{{ guest_review_form.title.id_for_label }}">タイトル <span class="text-rose-500">*</span></label>
+          {{ guest_review_form.title }}
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-ink-900 mb-1.5" for="{{ guest_review_form.body.id_for_label }}">本文 <span class="text-rose-500">*</span></label>
+          {{ guest_review_form.body }}
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-ink-900 mb-1.5" for="{{ guest_review_form.guest_name.id_for_label }}">ニックネーム</label>
+          {{ guest_review_form.guest_name }}
+        </div>
+        <div class="flex flex-wrap items-center gap-3">
+          <button type="submit" class="inline-flex items-center justify-center px-6 py-3 rounded-full bg-rose-500 hover:bg-rose-600 text-white font-medium text-sm transition shadow-sm">評価を投稿する</button>
+          <a href="{% url 'accounts:signup' %}" class="text-xs text-mute-500 hover:text-rose-600 underline underline-offset-2">会員登録すると写真付きの詳細レビューが書けます</a>
+        </div>
+      </form>
+      <style>#add-review input[type="radio"]{position:absolute;opacity:0;pointer-events:none}#add-review input[type="text"],#add-review textarea{width:100%;border:1px solid #fecdd3;border-radius:0.75rem;padding:0.625rem 0.875rem;font-size:0.875rem;line-height:1.6}#add-review input[type="text"]:focus,#add-review textarea:focus{outline:2px solid #f43f5e33;border-color:#fb7185}</style>
+    {% endif %}
+  </div>
+</section>
+
+{% spec_table product as spec_groups %}
+{# v2記事は本文に「スペック（公式値）」表を含むため、テンプレ側の製品仕様は二重表示回避で非表示 #}
+{% if spec_groups and "スペック（公式値）" not in product.description %}
+<section class="mt-8 bg-white rounded-2xl shadow-card border border-rose-100 overflow-hidden">
+  <div class="px-5 sm:px-8 pt-6 pb-3 flex items-center gap-3">
+    <span class="inline-block w-1.5 h-6 bg-gradient-to-b from-rose-500 to-gold-500 rounded"></span>
+    <h2 class="text-lg sm:text-xl font-bold text-ink-900">製品仕様</h2>
+  </div>
+  <div class="px-5 sm:px-8 pb-6">
+    {% for grp in spec_groups %}
+      <h3 class="mt-4 mb-2 text-xs font-bold tracking-wide text-rose-600">{{ grp.group }}</h3>
+      <table class="w-full text-sm border-collapse">
+        <tbody>
+          {% for row in grp.rows %}
+          <tr class="border-b border-rose-50 last:border-0">
+            <th scope="row" class="py-2.5 pr-4 text-left align-top font-medium text-mute-600 whitespace-nowrap w-[40%] sm:w-[34%]">{{ row.label }}</th>
+            <td class="py-2.5 align-top text-ink-800 leading-relaxed break-words">
+              {% if row.is_url %}<a href="{{ row.value }}" target="_blank" rel="nofollow noopener" class="text-rose-600 underline break-all">公式ページ</a>{% else %}{{ row.value }}{% if row.unit %} <span class="text-mute-500">{{ row.unit }}</span>{% endif %}{% endif %}
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    {% endfor %}
+    {% if product.last_verified_at %}<p class="mt-4 text-[11px] text-mute-500">※ 仕様はメーカー公表値に基づきます（最終確認: {{ product.last_verified_at|date:"Y年n月" }}）。</p>{% endif %}
+  </div>
+</section>
+{% endif %}
+
+{# 関連記事: 本文で紹介した記事+キュレーション+カテゴリハブを1箇所に統合(2026-09-07) #}
+{% if related_links %}
+<section class="mt-8">
+  <div class="flex items-center gap-3 mb-4">
+    <span class="inline-block w-1.5 h-6 bg-gradient-to-b from-rose-500 to-gold-500 rounded"></span>
+    <h2 class="text-xl font-bold text-ink-900">関連記事</h2>
+  </div>
+  <ul class="bg-white rounded-2xl border border-rose-100 shadow-card divide-y divide-rose-50">
+    {% for c in related_links %}
+    <li><a href="{{ c.url }}" class="flex items-center gap-4 p-4 hover:bg-rose-50/60 transition group">
+      <span class="shrink-0 w-16 h-16 rounded-xl overflow-hidden bg-cream-100 border border-rose-100 flex items-center justify-center">
+        {% if c.img %}<img src="{{ c.img }}" alt="{{ c.title }}" loading="lazy" class="w-full h-full object-cover group-hover:scale-105 transition duration-300">
+        {% else %}<img src="{% static 'no-image.svg' %}" alt="画像なし" loading="lazy" class="w-full h-full object-contain p-1.5 opacity-70">{% endif %}
+      </span>
+      <span class="min-w-0 flex-1">
+        <span class="inline-flex items-center px-2 py-0.5 rounded-full bg-rose-50 border border-rose-200 text-rose-600 text-[11px] font-bold whitespace-nowrap">{{ c.kind }}</span>
+        <span class="block mt-1 text-sm font-medium text-ink-900 group-hover:text-rose-600">{{ c.title }}</span>
+        {% if c.desc %}<span class="block mt-0.5 text-xs text-mute-500 line-clamp-1">{{ c.desc }}</span>{% endif %}
+      </span>
+    </a></li>
+    {% endfor %}
+  </ul>
 </section>
 {% endif %}
 
@@ -140,11 +269,98 @@
   {% endif %}
 </section>
 
-{% if related_article_cards %}
-<section class="mt-10 sm:mt-14 bk-mc-wrap max-w-none">
-  {% include "includes/_article_related_list.html" with cards=related_article_cards %}
+{# ===== 使用記録（ProductUseLog）。星評価なし・平均評価/ランキング非反映。 ===== #}
+<section id="use-logs" class="mt-10 sm:mt-14">
+  <div class="flex items-center gap-3 mb-2">
+    <span class="inline-block w-1.5 h-6 bg-gradient-to-b from-gold-500 to-rose-400 rounded"></span>
+    <h2 class="text-xl sm:text-2xl font-bold text-ink-900">使用記録</h2>
+  </div>
+  <p class="text-sm text-mute-600 mb-5">使ってみた感想や、1週間後・1ヶ月後の変化を記録できます。</p>
+
+  {% comment %}投稿フォーム: ログインユーザーのみ。星評価なし・本文必須・画像任意(最大4枚)。
+  画像付き投稿を促すため、写真の追加エリアを先頭に大きく配置する。{% endcomment %}
+  {% if user.is_authenticated %}
+    <form method="post" action="{% url 'reviews:use_log_create' product.slug %}"
+          enctype="multipart/form-data" id="uselog-form"
+          class="bg-white rounded-2xl border border-rose-100 p-5 sm:p-6 mb-6">
+      {% csrf_token %}
+      <input type="hidden" name="next" value="{{ request.get_full_path }}">
+      {% if user_review %}<input type="hidden" name="review_id" value="{{ user_review.id }}">{% endif %}
+      <span class="block text-sm font-semibold text-ink-800 mb-3">使用記録を書く</span>
+
+      {# ① 写真を先頭に。クリックでファイル選択、選択後はサムネイルを表示。 #}
+      <label for="uselog-images"
+             class="group flex flex-col items-center justify-center gap-2 w-full rounded-2xl border-2 border-dashed border-rose-300 bg-rose-50/40 hover:bg-rose-50 cursor-pointer px-4 py-7 text-center transition">
+        <svg viewBox="0 0 24 24" class="w-9 h-9 text-rose-400 group-hover:text-rose-500" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg>
+        <span class="text-sm font-medium text-rose-600">写真を追加する</span>
+        <span class="text-xs text-mute-500">使ってみた様子の写真があると、ほかの方の参考になります（任意・最大4枚）</span>
+        <input type="file" id="uselog-images" name="images" accept="image/*" multiple class="hidden">
+      </label>
+      <div id="uselog-thumbs" class="hidden mt-3 grid grid-cols-4 sm:grid-cols-6 gap-2.5"></div>
+
+      {# ② タイトル（任意） #}
+      <input type="text" name="title" maxlength="120"
+             placeholder="タイトル（任意・例: 2週間使ってみて）"
+             class="mt-4 w-full rounded-xl border border-rose-200 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-rose-200">
+
+      {# ③ 本文 #}
+      <textarea name="body" required maxlength="5000" rows="4"
+                placeholder="使ってみた感想、変化、気づいたことを記録してください。"
+                class="mt-4 w-full rounded-xl border border-rose-200 bg-white px-3 py-2 text-sm leading-7 focus:outline-none focus:ring-2 focus:ring-rose-200"></textarea>
+
+      {# ④ 送信 #}
+      <div class="mt-3 flex justify-end">
+        <button type="submit"
+                class="inline-flex items-center justify-center px-6 py-2.5 rounded-full bg-rose-500 hover:bg-rose-600 text-white font-medium text-sm transition shadow-sm">使用記録を投稿する</button>
+      </div>
+    </form>
+    <script>
+    (function () {
+      var input = document.getElementById('uselog-images');
+      var thumbs = document.getElementById('uselog-thumbs');
+      if (!input || !thumbs) return;
+      var MAX = 4;
+      input.addEventListener('change', function () {
+        thumbs.innerHTML = '';
+        var files = Array.prototype.slice.call(input.files || []).slice(0, MAX);
+        if (!files.length) { thumbs.classList.add('hidden'); return; }
+        thumbs.classList.remove('hidden');
+        files.forEach(function (f) {
+          if (!f.type || f.type.indexOf('image/') !== 0) return;
+          var url = URL.createObjectURL(f);
+          var wrap = document.createElement('div');
+          wrap.className = 'relative aspect-square rounded-xl overflow-hidden border border-rose-100 bg-cream-100';
+          var img = document.createElement('img');
+          img.src = url;
+          img.className = 'w-full h-full object-cover';
+          img.onload = function () { URL.revokeObjectURL(url); };
+          wrap.appendChild(img);
+          thumbs.appendChild(wrap);
+        });
+      });
+    })();
+    </script>
+  {% else %}
+    <div class="bg-white rounded-2xl border border-rose-100 p-5 text-center text-sm text-mute-600 mb-6">
+      使用記録を書くには<a href="{% url 'accounts:login' %}?next={{ request.get_full_path }}" class="text-rose-600 hover:underline font-medium">ログイン</a>が必要です。
+    </div>
+  {% endif %}
+
+  {# 一覧: 既存の口コミ表示方針に合わせ can_view なら全件、それ以外は2件プレビュー。 #}
+  {% with logs=use_logs_full|default:use_logs_preview %}
+    {% if logs %}
+      {% for log in logs %}{% include "reviews/_use_log_card.html" with log=log %}{% endfor %}
+      {% if use_logs_preview and not can_view %}
+        <p class="text-center text-xs text-mute-500 mt-2">続きを読むには、この商品の口コミ投稿が必要です。</p>
+      {% endif %}
+    {% else %}
+      <div class="bg-white rounded-2xl border border-rose-100 p-10 text-center text-mute-500">まだ使用記録はありません。</div>
+    {% endif %}
+  {% endwith %}
 </section>
-{% elif product.articles.all %}
+
+{# related_article_cards は上部「関連記事」セクションに統合済み(2026-09-07) #}
+{% if product.articles.all %}
 <section class="mt-10 sm:mt-14">
   <div class="flex items-center gap-3 mb-5">
     <span class="inline-block w-1.5 h-6 bg-gradient-to-b from-rose-500 to-gold-500 rounded"></span>
@@ -174,7 +390,8 @@
     {% endif %}
   </div>
   <p class="text-sm text-mute-600 mb-5">同じカテゴリで現行販売中の人気モデルを口コミ評価順にご紹介します。</p>
-  <ul class="grid grid-cols-2 lg:grid-cols-3 gap-4">
+  {# スマホは1カラム（サムネ左の横型カード）・lg以上は3カラムの縦型カード #}
+  <ul class="grid grid-cols-1 lg:grid-cols-3 gap-3 lg:gap-4">
     {% for p in similar_products %}
       <li><a href="{{ p.get_absolute_url }}" class="group block bg-white rounded-2xl border border-rose-100 overflow-hidden hover:shadow-card transition">
         <div class="aspect-square bg-cream-100">
@@ -182,7 +399,7 @@
         </div>
         <div class="p-3">
           {% if p.brand %}<div class="text-[10px] text-mute-500 uppercase tracking-wider">{{ p.brand }}</div>{% endif %}
-          <h3 class="text-xs font-medium text-ink-900 line-clamp-2 group-hover:text-rose-600">{{ p.name }}</h3>
+          <h3 class="text-sm lg:text-xs font-medium text-ink-900 line-clamp-2 group-hover:text-rose-600">{{ p.name }}</h3>
           {% if p.avg_rating %}<div class="mt-2 flex items-center gap-1.5"><span class="stars-row text-xs">{% for _ in "12345"|make_list %}{% if forloop.counter <= p.avg_rating %}★{% else %}<span class="off">★</span>{% endif %}{% endfor %}</span><span class="text-[11px] text-ink-700 font-semibold">{{ p.avg_rating|floatformat:1 }}</span></div>{% endif %}
         </div>
       </a></li>

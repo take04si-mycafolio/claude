@@ -1,0 +1,59 @@
+{% comment %}
+口コミ削除の確認モーダル。共有カードの「削除」ボタン(data-review-delete)で開き、
+「削除する」で該当フォーム(data-review-delete-form / POST reviews:delete)を送信する。
+1ページに1つで足りるため base.html で読み込む。
+{% endcomment %}
+<div id="review-delete-modal"
+     class="fixed inset-0 z-[100] hidden items-center justify-center bg-black/50 p-4"
+     role="dialog" aria-modal="true" aria-label="口コミ削除の確認">
+  <div class="bg-white rounded-2xl shadow-xl max-w-sm w-full p-6">
+    <h3 class="text-base font-bold text-ink-900">口コミを削除しますか？</h3>
+    <p class="mt-2 text-sm text-mute-600 leading-6">この操作は取り消せません。投稿した写真も一緒に削除されます。</p>
+    <div class="mt-6 flex justify-end gap-3">
+      <button type="button" data-review-delete-cancel
+              class="px-4 py-2 rounded-full text-sm font-medium border border-rose-200 text-mute-600 bg-white hover:bg-cream-100 transition">キャンセル</button>
+      <button type="button" data-review-delete-confirm
+              class="px-4 py-2 rounded-full text-sm font-medium bg-rose-500 text-white hover:bg-rose-600 transition">削除する</button>
+    </div>
+  </div>
+</div>
+
+<script>
+(function () {
+  var modal = document.getElementById('review-delete-modal');
+  if (!modal) return;
+  var pending = null;  // 送信待ちの削除フォーム
+
+  function open(form) {
+    pending = form;
+    modal.classList.remove('hidden');
+    modal.classList.add('flex');
+    document.body.style.overflow = 'hidden';
+  }
+  function close() {
+    pending = null;
+    modal.classList.add('hidden');
+    modal.classList.remove('flex');
+    document.body.style.overflow = '';
+  }
+
+  document.addEventListener('click', function (e) {
+    var trigger = e.target.closest('[data-review-delete]');
+    if (trigger) {
+      var form = trigger.closest('form[data-review-delete-form]');
+      if (form) { e.preventDefault(); open(form); }
+      return;
+    }
+    if (modal.classList.contains('hidden')) return;
+    if (e.target.closest('[data-review-delete-confirm]')) {
+      if (pending) { var f = pending; close(); f.submit(); }
+      return;
+    }
+    if (e.target.closest('[data-review-delete-cancel]') || e.target === modal) close();
+  });
+
+  document.addEventListener('keydown', function (e) {
+    if (e.key === 'Escape' && !modal.classList.contains('hidden')) close();
+  });
+})();
+</script>

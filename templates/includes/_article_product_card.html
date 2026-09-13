@@ -11,11 +11,25 @@
       <div class="bk-mc-pc-name">
         <a href="{{ product.get_absolute_url }}">{{ product.name }}</a>
       </div>
-      {% if product.price %}
+      {% comment %}
+        price_hidden: 価格の出所（確認した販売先）を記録できていない商品は、
+        出所不明のまま価格を掲示しないため価格行ごと出さない。
+        販売先が確定したら price_hidden を外し price_note に確認先と日付を入れる。
+      {% endcomment %}
+      {% if not product.specifications.price_hidden and product.specifications.price_display or not product.specifications.price_hidden and product.price %}
         <div class="bk-mc-pc-price-row">
-          <span class="bk-mc-pc-price-label">参考価格</span>
-          <span class="bk-mc-pc-price">{{ product.price|yenformat }}</span>
+          <span class="bk-mc-pc-price-label">{{ product.specifications.price_label|default:"参考価格" }}</span>
+          <span class="bk-mc-pc-price">{% if product.specifications.price_display %}{{ product.specifications.price_display }}{% else %}{{ product.price|yenformat }}{% endif %}</span>
         </div>
+        {% comment %}
+          価格の出所を明示する注記（メーカー公式の税込価格を表示している商品は
+          price_label=公式価格 と price_note=確認日 を specifications に持たせる）。
+        {% endcomment %}
+        {% comment %}
+          price_note のカード内表示は 2026-07-29 に廃止（価格の確認日・条件の
+          注意書きは記事末尾の注釈1箇所に集約するルールのため）。データは
+          specifications.price_note に残置。
+        {% endcomment %}
       {% endif %}
     </div>
   </div>
@@ -47,32 +61,27 @@
     </div>
   {% endif %}
 
-  {% if reviews_ctx %}
+  {% comment %}
+    評価欄は 口コミ1件以上 かつ 平均値を取得できた場合のみ表示する
+    （0件・平均未取得で「0.0／5.0」や星ゼロを出さない）。
+    ラベルは rating_source に追従させ、外部評価を導入する際は
+    テンプレート側を変えずに評価元を切り替えられるようにしている。
+  {% endcomment %}
+  {% if review_count and review_avg %}
     <div class="bk-mc-pc-reviews">
       <div class="bk-mc-pc-reviews-head">
+        {% if rating_source == "tushou" %}
+        <span class="bk-mc-pc-review-source">TUSHOU投稿者評価</span>
+        {% endif %}
         <span class="bk-mc-pc-stars">{{ review_avg_stars }}</span>
-        <span class="bk-mc-pc-rating-num">{{ review_avg|floatformat:1 }}</span>
-        <span class="bk-mc-pc-review-count">({{ review_count }}件の口コミ)</span>
+        <span class="bk-mc-pc-rating-num">{{ review_avg|floatformat:1 }}／{{ rating_best|floatformat:1 }}</span>
+        <span class="bk-mc-pc-review-count">口コミ件数：{{ review_count }}件</span>
       </div>
-      <div class="bk-mc-pc-reviews-track">
-        {% for r in reviews_ctx %}
-          <div class="bk-mc-pc-review-card">
-            <div class="bk-mc-pc-review-stars">{{ r.stars }}</div>
-            {% if r.title %}<div class="bk-mc-pc-review-title">{{ r.title }}</div>{% endif %}
-            <p class="bk-mc-pc-review-body">{{ r.body|truncatechars:90 }}</p>
-            <div class="bk-mc-pc-review-meta">
-              {% if r.skin_type %}<span class="bk-mc-pc-review-tag">{{ r.skin_type }}</span>{% endif %}
-              {% if r.usage_period %}<span class="bk-mc-pc-review-tag">{{ r.usage_period }}</span>{% endif %}
-              {% if r.helpful_count %}<span class="bk-mc-pc-review-helpful">👍 {{ r.helpful_count }}</span>{% endif %}
-              <span class="bk-mc-pc-review-date">{{ r.created_at|date:"Y/n/j" }}</span>
-            </div>
-          </div>
-        {% endfor %}
-      </div>
+      <p class="bk-mc-pc-review-note">集計日：{% now "Y年n月j日" %}</p>
     </div>
   {% endif %}
 
   <div class="bk-mc-pc-detail">
-    <a href="{{ product.get_absolute_url }}">この商品の詳細・口コミを見る<span class="bk-mc-pc-arrow">→</span></a>
+    <a href="{{ product.get_absolute_url }}">口コミ・詳しい仕様を見る<span class="bk-mc-pc-arrow">→</span></a>
   </div>
 </div>

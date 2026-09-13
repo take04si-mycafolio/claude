@@ -15,20 +15,39 @@ from django.db.models import Count
 from django.shortcuts import get_object_or_404
 from rest_framework import status
 from rest_framework.exceptions import ValidationError
-from rest_framework.generics import CreateAPIView, ListAPIView
+from rest_framework.generics import (
+    CreateAPIView,
+    DestroyAPIView,
+    ListAPIView,
+    ListCreateAPIView,
+)
 from rest_framework.pagination import PageNumberPagination
 from rest_framework.parsers import FormParser, JSONParser, MultiPartParser
-from rest_framework.permissions import AllowAny, IsAuthenticated
+from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
 from apps.products.models import Product
 
+from django.db import IntegrityError
+
+from . import compliance
 from .imaging import MAX_UPLOAD_BYTES
-from .models import Review, ReviewImage
+from .models import (
+    ProductUseLog,
+    ProductUseLogImage,
+    ProductUseLogReport,
+    Review,
+    ReviewImage,
+    ReviewReport,
+)
 from .serializers import (
     ProductReviewSerializer,
+    ProductUseLogCreateSerializer,
+    ProductUseLogReportSerializer,
+    ProductUseLogSerializer,
     ReviewCreateSerializer,
     ReviewListSerializer,
+    ReviewReportSerializer,
 )
 
 
@@ -38,6 +57,25 @@ class MyReviewPagination(PageNumberPagination):
     page_size = 20
     page_size_query_param = "page_size"
     max_page_size = 100
+
+
+def _compliance_gate_response(request):
+    """タイトル・本文の薬機法・景表法ゲート。違反があれば 400 Response を返す。
+
+    レスポンス形式は docs/review_compliance_gate_api.md 参照。DRF の
+    ValidationError はネストした値をすべて文字列化してしまい、suggested_* の
+    null や start/end の数値が壊れるため、素の Response で返す。
+    """
+    data = request.data
+    title = str(data.get("title") or "") if hasattr(data, "get") else ""
+    body = str(data.get("body") or "") if hasattr(data, "get") else ""
+    findings = compliance.check_fields(title=title, body=body)
+    if findings:
+        return Response(
+            compliance.api_error_payload(title, body, findings),
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+    return None
 
 
 class ReviewCreateView(CreateAPIView):
@@ -94,6 +132,13 @@ class ReviewCreateView(CreateAPIView):
         return images
 
     def create(self, request, *args, **kwargs):
+        # 薬機法・景表法ゲート。違反があれば構造化ペイロード(compliance)付き 400。
+        # serializer の ValidationError はネスト値を文字列化してしまうため、
+        # ここで素の Response として返す。
+        gate = _compliance_gate_response(request)
+        if gate is not None:
+            return gate
+
         # 画像は本体保存より前に基本検証（枚数/サイズ/形式）を済ませて 400 を返す。
         images = self._collect_images()
 
@@ -135,20 +180,93 @@ class MyReviewListView(ListAPIView):
         return (
             Review.objects.filter(user=self.request.user)
             .select_related("product")
+            .prefetch_related("images")  # image_urls の N+1 回避
             .annotate(image_count_annot=Count("images"))
             .order_by("-created_at")
+        )
+
+
+class ReviewDestroyView(DestroyAPIView):
+    """DELETE /api/reviews/{id}/ — ログインユーザーが自分の口コミを削除する。
+
+    get_queryset を request.user の口コミに限定するため、他人/不存在の id は 404 になり
+    他人の口コミは削除できない。削除は論理削除（運営のみ閲覧可）で行う。
+    キャンペーン算入済みの口コミは削除不可（409）。成功時 204（本文なし）。
+    """
+
+    permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        # 自分の口コミのみ。これにより他人の id を指定しても 404 で弾かれる。
+        return Review.objects.filter(user=self.request.user)
+
+    def perform_destroy(self, instance):
+        if instance.is_campaign_consumed:
+            raise ValidationError(
+                {"detail": "この口コミはキャンペーンの対象になっているため削除できません。"}
+            )
+        instance.soft_delete()
+
+
+class ReviewReportCreateView(CreateAPIView):
+    """POST /api/reviews/{id}/report/ — ログインユーザーが口コミを通報する。
+
+    重要: 通報されても口コミの自動削除・非表示は行わない。ReviewReport を作成して
+    運営が管理画面で確認できるようにするだけ。
+
+    仕様:
+      - IsAuthenticated（匿名は 401）。
+      - 不存在の口コミ → 404。
+      - 自分の口コミ → 400（{"detail": "..."}）。
+      - すでに通報済み → 400。
+      - reason 不正・comment 超過 → 400（serializer 検証）。
+      - 成功 → 201 {"id","review","reason","status","created_at"}。
+    token や個人情報、画像内容はレスポンス／ログに出さない（固定文言のみ）。
+    """
+
+    permission_classes = [IsAuthenticated]
+    serializer_class = ReviewReportSerializer
+
+    def create(self, request, *args, **kwargs):
+        review = get_object_or_404(Review, pk=self.kwargs["pk"])
+
+        if review.user_id == request.user.id:
+            return Response(
+                {"detail": "自分の口コミは通報できません。"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        if ReviewReport.objects.filter(review=review, reporter=request.user).exists():
+            return Response(
+                {"detail": "この口コミはすでに通報済みです。"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        try:
+            serializer.save(review=review, reporter=request.user)
+        except IntegrityError:
+            # 同時押下などで UniqueConstraint に触れた場合も重複として返す。
+            return Response(
+                {"detail": "この口コミはすでに通報済みです。"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        headers = self.get_success_headers(serializer.data)
+        return Response(
+            serializer.data, status=status.HTTP_201_CREATED, headers=headers
         )
 
 
 class ProductReviewListView(ListAPIView):
     """GET /api/products/{id}/reviews/ — 指定商品の承認済み口コミを新しい順で返す。
 
-    商品詳細ページの一般表示用途のため、products 系API（AllowAny・読み取り専用）に
-    合わせて公開とする。非公開/不存在の商品は 404（ProductDetailView と同じ挙動）。
+    口コミ本文・画像URL・投稿者情報は会員限定のため IsAuthenticated（匿名は 401）。
+    商品一覧/詳細/カテゴリ API（AllowAny）は従来どおり公開のまま維持する。
+    非公開/不存在の商品は 404（ProductDetailView と同じ挙動）。
     is_approved=True のみ・新しい順。画像(ReviewImage)は本段階では対象外。
     """
 
-    permission_classes = [AllowAny]
+    permission_classes = [IsAuthenticated]
     serializer_class = ProductReviewSerializer
     pagination_class = MyReviewPagination
 
@@ -160,6 +278,172 @@ class ProductReviewListView(ListAPIView):
         return (
             Review.objects.filter(product=product, is_approved=True)
             .select_related("product", "user")
+            .prefetch_related("images")  # image_urls の N+1 回避
             .annotate(image_count_annot=Count("images"))
             .order_by("-created_at")
+        )
+
+
+# ======================================================================
+# 使用記録（ProductUseLog）API。既存の口コミ API には手を加えず独立に定義する。
+# すべて IsAuthenticated（一覧・投稿・削除・通報すべてログイン必須）。
+# ======================================================================
+def _collect_use_log_images(request):
+    """multipart の使用記録投稿から images を取り出して基本検証する。
+
+    枚数/サイズ/形式は既存口コミ画像と同一基準（MAX_PER_LOG=4 / 15MB / image/*）。
+    JSON 投稿では request.FILES は空なので [] を返す。
+    """
+    images = request.FILES.getlist("images")
+    if not images:
+        return []
+    if len(images) > ProductUseLogImage.MAX_PER_LOG:
+        raise ValidationError(
+            {"images": [f"画像は最大{ProductUseLogImage.MAX_PER_LOG}枚までです。"]}
+        )
+    mb = MAX_UPLOAD_BYTES // (1024 * 1024)
+    for f in images:
+        if f.size > MAX_UPLOAD_BYTES:
+            raise ValidationError(
+                {"images": [f"画像1枚あたり{mb}MBまでです。「{f.name}」が大きすぎます。"]}
+            )
+        content_type = getattr(f, "content_type", "") or ""
+        if not content_type.startswith("image/"):
+            raise ValidationError(
+                {"images": [f"画像ファイルのみアップロードできます。「{f.name}」は画像ではありません。"]}
+            )
+    return images
+
+
+class ProductUseLogListCreateView(ListCreateAPIView):
+    """GET/POST /api/products/{product_id}/use-logs/
+
+    GET … 指定商品の使用記録を新しい順で返す（IsAuthenticated・匿名 401）。
+    POST … 使用記録を投稿（IsAuthenticated）。1商品に複数件OK・星評価なし・任意で写真付き。
+    非公開/不存在の商品は 404。
+    """
+
+    permission_classes = [IsAuthenticated]
+    pagination_class = MyReviewPagination
+    parser_classes = [JSONParser, MultiPartParser, FormParser]
+
+    def get_serializer_class(self):
+        if self.request.method == "POST":
+            return ProductUseLogCreateSerializer
+        return ProductUseLogSerializer
+
+    def _get_product(self):
+        # 公開商品のみ。不存在/非公開は 404 にして詳細APIと挙動を揃える。
+        return get_object_or_404(
+            Product, pk=self.kwargs["product_id"], is_published=True
+        )
+
+    def get_serializer_context(self):
+        ctx = super().get_serializer_context()
+        ctx["product"] = self._get_product()
+        return ctx
+
+    def get_queryset(self):
+        from django.db.models import Q
+
+        product = self._get_product()
+        # 承認制: 他人の投稿は承認済みのみ。自分の承認待ちは自分にだけ返す
+        # （is_approved フィールドでアプリ側が「承認待ち」表示する）。
+        return (
+            ProductUseLog.objects.filter(product=product)
+            .filter(Q(is_approved=True) | Q(user=self.request.user))
+            .select_related("product", "user", "review")
+            .prefetch_related("images")
+            .order_by("-created_at")
+        )
+
+    def create(self, request, *args, **kwargs):
+        # 薬機法・景表法ゲート（通常口コミと同一ルール・同一レスポンス形式）。
+        gate = _compliance_gate_response(request)
+        if gate is not None:
+            return gate
+
+        # 画像は本体保存より前に基本検証（枚数/サイズ/形式）を済ませて 400 を返す。
+        images = _collect_use_log_images(request)
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        with transaction.atomic():
+            use_log = serializer.save()
+            try:
+                for i, f in enumerate(images):
+                    ProductUseLogImage.objects.create(
+                        use_log=use_log, image=f, order=i
+                    )
+            except ValidationError:
+                raise
+            except Exception:
+                # image/* を詐称した非画像など PIL が開けないファイルは 400。
+                # 例外メッセージにファイル内容を混ぜず固定文言のみ返す。
+                raise ValidationError(
+                    {"images": ["画像を処理できませんでした。画像ファイルか確認してください。"]}
+                )
+        # 作成結果は表示用シリアライザで返す（user/image_urls/can_* を含む）。
+        out = ProductUseLogSerializer(use_log, context=self.get_serializer_context())
+        headers = self.get_success_headers(serializer.data)
+        return Response(out.data, status=status.HTTP_201_CREATED, headers=headers)
+
+
+class ProductUseLogDestroyView(DestroyAPIView):
+    """DELETE /api/use-logs/{id}/ — 投稿者本人が自分の使用記録を削除する。
+
+    get_queryset を request.user に限定するため、他人/不存在の id は 404。
+    削除は既存口コミに合わせて論理削除（運営のみ閲覧可）。成功時 204。
+    """
+
+    permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        return ProductUseLog.objects.filter(user=self.request.user)
+
+    def perform_destroy(self, instance):
+        instance.soft_delete()
+
+
+class ProductUseLogReportCreateView(CreateAPIView):
+    """POST /api/use-logs/{id}/report/ — 使用記録を運営へ通報する。
+
+    通報されても自動削除・非表示はしない（受付レコードのみ）。
+    - IsAuthenticated（匿名は 401）。
+    - 不存在の使用記録 → 404。
+    - 自分の使用記録 → 400。
+    - すでに通報済み → 400。
+    token や個人情報、通報本文はレスポンス/ログに出さない（固定文言のみ）。
+    """
+
+    permission_classes = [IsAuthenticated]
+    serializer_class = ProductUseLogReportSerializer
+
+    def create(self, request, *args, **kwargs):
+        use_log = get_object_or_404(ProductUseLog, pk=self.kwargs["pk"])
+
+        if use_log.user_id == request.user.id:
+            return Response(
+                {"detail": "自分の使用記録は通報できません。"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        if ProductUseLogReport.objects.filter(
+            use_log=use_log, reporter=request.user
+        ).exists():
+            return Response(
+                {"detail": "この使用記録はすでに通報済みです。"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        try:
+            serializer.save(use_log=use_log, reporter=request.user)
+        except IntegrityError:
+            return Response(
+                {"detail": "この使用記録はすでに通報済みです。"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        headers = self.get_success_headers(serializer.data)
+        return Response(
+            serializer.data, status=status.HTTP_201_CREATED, headers=headers
         )

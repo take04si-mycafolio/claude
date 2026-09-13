@@ -64,6 +64,11 @@ class Product(models.Model):
     name = models.CharField("商品名", max_length=500)
     slug = models.SlugField("スラッグ", max_length=500, unique=True, allow_unicode=True)
     brand = models.CharField("メーカー", max_length=500, blank=True)
+    series = models.CharField(
+        "シリーズ", max_length=200, blank=True, db_index=True,
+        help_text="同一メーカー内の製品シリーズ名(例: フォトプラス / Bloom / ミーゼ)。"
+                  "メーカーページでシリーズ別にまとめて表示されます。空欄可。",
+    )
     product_type = models.ForeignKey(
         Category,
         on_delete=models.PROTECT,
@@ -107,8 +112,10 @@ class Product(models.Model):
         help_text="使用時の注意点・禁忌事項。AI記事生成時に必ず含める内容"
     )
     meta_title = models.CharField(
-        "SEOタイトル(<title>)", max_length=100, blank=True,
-        help_text="検索結果のタイトル(全角30文字程度推奨)。空欄なら商品名が使われます。"
+        "記事タイトル(<title>とページのH1)", max_length=100, blank=True,
+        help_text="検索結果のタイトルであり、ページの見出し(H1)にもそのまま使われます"
+                  "(全角30文字程度推奨)。商品名＋サジェストで選定したキーワードで作ること。"
+                  "空欄なら商品名がタイトルにもH1にも使われます。"
     )
     meta_description = models.CharField(
         "SEOディスクリプション", max_length=200, blank=True,
@@ -132,6 +139,11 @@ class Product(models.Model):
     )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+    last_rewritten_at = models.DateTimeField(
+        "最終リライト日時", null=True, blank=True,
+        help_text="商品説明をリライト(全文書き換え)したときだけ明示的に更新する。"
+                  "在庫・価格などの機械的更新では動かさない（観察ステータス判定の基準）。",
+    )
 
     class Meta:
         verbose_name = "美顔器"
@@ -153,6 +165,17 @@ class Product(models.Model):
                 "slug": self.slug,
             })
         return "/"
+
+    @property
+    def display_title(self):
+        """ページの見出し(H1)。記事タイトル(meta_title)があればそれを使う。
+
+        タイトルとH1は同じものを見せる（2026-09-08 ユーザー指示）。
+        記事タイトルは「商品名＋一緒に検索されているキーワード」で確定させるので、
+        H1もそれに揃えないと、読者が検索結果で見た言葉とページの見出しがずれる。
+        未設定の商品は従来どおり商品名。
+        """
+        return (self.meta_title or "").strip() or self.name
 
     @property
     def display_image(self):
@@ -221,6 +244,8 @@ class Article(models.Model):
     wp_author = models.CharField("WP投稿者", max_length=500, blank=True)
     published_at = models.DateTimeField("公開日", null=True, blank=True)
     is_published = models.BooleanField("公開", default=True)
+    noindex = models.BooleanField("検索エンジンに載せない(noindex)", default=False,
+        help_text="ONにすると meta robots noindex を出力し、サイトマップから除外します")
     INDEX_STATUS_CHOICES = [
         ('', '未チェック'),
         ('indexed', '✅ Indexed'),
@@ -244,6 +269,11 @@ class Article(models.Model):
     )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+    last_rewritten_at = models.DateTimeField(
+        "最終リライト日時", null=True, blank=True,
+        help_text="本文をリライト(全文書き換え)したときだけ明示的に更新する。"
+                  "公開状態・カテゴリ・インデックス等の機械的更新では動かさない（観察ステータス判定の基準）。",
+    )
 
     class Meta:
         verbose_name = "記事"
@@ -392,4 +422,87 @@ class SeoWeeklyReport(models.Model):
 
     def __str__(self):
         return f"SEOレポート {self.period_start} 〜 {self.period_end}"
+
+
+class Brand(models.Model):
+    """メーカー(ブランド)ページ /brands/<slug>/ の定義とコンテンツ。
+
+    Product.brand は自由入力で表記ゆれ・親会社/ブランド混在があるため、
+    match_brands に集約対象の brand 値を列挙して正規化グルーピングする。
+    紹介記事(lead/body_html)やSEOは管理画面から編集できる。
+    """
+
+    slug = models.SlugField("スラッグ(URL)", max_length=100, unique=True,
+                            help_text="/brands/<スラッグ>/ になります。半角英数とハイフン。")
+    name = models.CharField("メーカー名(表示)", max_length=200)
+    aka = models.CharField(
+        "別名・読み", max_length=300, blank=True,
+        help_text="英語表記/読み/旧称など。説明文・検索補助に使用(例: リファ／MTG)。",
+    )
+    match_brands = models.TextField(
+        "集約する brand 値", blank=True,
+        help_text="このメーカーに含める商品の brand 値を1行に1つ列挙。"
+                  "表記ゆれや親会社名もここに入れると集約されます(例: ヤーマン / YA-MAN)。",
+    )
+    exclude_name_keywords = models.TextField(
+        "除外キーワード(商品名)", blank=True,
+        help_text="商品名にこの語を含むものを除外。1行に1つ。別ブランドOEMの切り分け用(例: PAO)。",
+    )
+    # ---- 編集可能な記事コンテンツ ----
+    lead = models.TextField(
+        "リード文", blank=True,
+        help_text="ページ見出し下に表示する紹介文(プレーンテキスト/短め)。",
+    )
+    body_html = models.TextField(
+        "紹介記事(HTML)", blank=True,
+        help_text="商品一覧の下に表示するメーカー紹介記事。HTML可。空なら非表示。",
+    )
+    image = models.ImageField("ロゴ/アイキャッチ", upload_to="brands/", blank=True, null=True)
+    image_url = models.URLField("画像URL(外部)", max_length=1000, blank=True)
+    meta_title = models.CharField("SEOタイトル", max_length=200, blank=True)
+    meta_description = models.CharField("SEOディスクリプション", max_length=300, blank=True)
+    sort_order = models.IntegerField("表示順", default=100, db_index=True)
+    is_published = models.BooleanField("公開", default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = "メーカー(ブランド)"
+        verbose_name_plural = "メーカー(ブランド)"
+        ordering = ["sort_order", "name"]
+
+    def __str__(self):
+        return self.name
+
+    def get_absolute_url(self):
+        return reverse("products:brand_detail", kwargs={"brand_slug": self.slug})
+
+    @staticmethod
+    def _lines(text):
+        return [ln.strip() for ln in (text or "").splitlines() if ln.strip()]
+
+    def match_list(self):
+        return self._lines(self.match_brands)
+
+    def exclude_list(self):
+        return self._lines(self.exclude_name_keywords)
+
+    def filter_products(self, qs):
+        """このメーカーに該当する商品へ qs を絞り込む。"""
+        matches = self.match_list()
+        if not matches:
+            return qs.none()
+        qs = qs.filter(brand__in=matches)
+        for kw in self.exclude_list():
+            qs = qs.exclude(name__icontains=kw)
+        return qs
+
+    @property
+    def display_image(self):
+        if self.image:
+            try:
+                return self.image.url
+            except ValueError:
+                pass
+        return self.image_url or ""
 

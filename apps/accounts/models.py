@@ -106,19 +106,52 @@ class User(AbstractUser):
                 return lv
         return 1
 
+    # カテゴリバッジ(「◯◯マスター」)の付与条件。カテゴリごとに判定する。
+    CATEGORY_BADGE_MIN_PHOTO_REVIEWS = 10   # 写真付き口コミ 10商品以上
+    CATEGORY_BADGE_MIN_AVG_HELPFUL = 50     # 「参考になった」が口コミ1件あたり平均50以上
+
+    @cached_property
+    def category_badges(self):
+        """獲得済みカテゴリバッジ(「◯◯マスター」)の一覧。
+
+        条件(カテゴリごと・承認済み口コミのみ):
+        - 写真付き口コミを10商品以上投稿している
+          (口コミは1ユーザー1商品なので、写真付き口コミ10件=10商品)
+        - そのカテゴリの口コミ1件あたり「参考になった」が平均50以上
+        複数カテゴリで条件を満たせば複数保持できる。写真付き件数の多い順。
+        """
+        from django.db.models import Count, Q
+        rows = (
+            self.reviews.filter(
+                is_approved=True, product__product_type__isnull=False,
+            )
+            .values("product__product_type__name")
+            .annotate(
+                # images/helpfuls の2つのJOINで行が増えるため distinct 必須
+                photo_reviews=Count(
+                    "id", filter=Q(images__isnull=False), distinct=True,
+                ),
+                review_total=Count("id", distinct=True),
+                helpful_total=Count("helpfuls", distinct=True),
+            )
+            .order_by("-photo_reviews", "-helpful_total")
+        )
+        badges = []
+        for row in rows:
+            if row["photo_reviews"] < self.CATEGORY_BADGE_MIN_PHOTO_REVIEWS:
+                continue
+            # 平均を浮動小数にせず整数比較で判定(helpful合計 >= 50 × 口コミ数)
+            if (row["helpful_total"]
+                    < self.CATEGORY_BADGE_MIN_AVG_HELPFUL * row["review_total"]):
+                continue
+            badges.append(f"{row['product__product_type__name']}マスター")
+        return badges
+
     @cached_property
     def category_badge(self):
-        from django.db.models import Count
-        top = (
-            self.reviews.filter(is_approved=True)
-            .values("product__product_type__name")
-            .annotate(c=Count("id"))
-            .order_by("-c")
-            .first()
-        )
-        if top and top["c"] >= 3 and top["product__product_type__name"]:
-            return f"{top['product__product_type__name']}マスター"
-        return None
+        """代表バッジ1つ(既存の表示・API互換用)。未獲得なら None。"""
+        badges = self.category_badges
+        return badges[0] if badges else None
 
     def __str__(self):
         return self.nickname or self.email
@@ -174,6 +207,7 @@ class CodeMode(models.TextChoices):
 
 
 class CompletionStatus(models.TextChoices):
+    WAITING = "waiting", "承認待ち(運営確認中)"
     AWARDED = "awarded", "プレゼント獲得"
     PENDING = "pending", "コード準備中"
     SOLD_OUT = "sold_out", "定員終了(対象外)"
@@ -307,6 +341,12 @@ class MissionStep(models.Model):
         validators=[MinValueValidator(1)],
         help_text="この回数だけ達成すると、このステップはクリア",
     )
+    min_body_length = models.PositiveSmallIntegerField(
+        "最低文字数", default=0,
+        help_text="口コミ本文がこの文字数以上の投稿だけをカウントします。0で制限なし。"
+                  "アクションが「口コミを投稿する」「写真付きで口コミを投稿する」の"
+                  "ときのみ有効です。",
+    )
     label = models.CharField(
         "表示ラベル", max_length=80, blank=True,
         help_text="未入力ならアクションの既定文言を使用",
@@ -322,8 +362,15 @@ class MissionStep(models.Model):
         if self.label:
             return self.label
         base = self.get_action_type_display()
+        conditions = []
+        if self.min_body_length and self.action_type in (
+            ActionType.REVIEW, ActionType.REVIEW_WITH_PHOTO,
+        ):
+            conditions.append(f"{self.min_body_length}文字以上")
         if self.target_count > 1:
-            return f"{base}（{self.target_count}回）"
+            conditions.append(f"{self.target_count}回")
+        if conditions:
+            return f"{base}（{'・'.join(conditions)}）"
         return base
 
     def __str__(self):
@@ -373,6 +420,14 @@ class UserMissionCompletion(models.Model):
         default=CompletionStatus.AWARDED,
     )
     completed_at = models.DateTimeField(auto_now_add=True)
+    approved_at = models.DateTimeField(
+        "運営承認日時", null=True, blank=True,
+        help_text="運営がプレゼント配布を承認した日時。空なら承認待ち",
+    )
+    code_sent_at = models.DateTimeField(
+        "コードメール送信日時", null=True, blank=True,
+        help_text="承認後にコード案内メールを送信した日時。空なら未送信",
+    )
     seen_at = models.DateTimeField(
         "お祝い表示済み日時", null=True, blank=True,
         help_text="達成ポップアップを会員に表示済みならその日時。空なら次回表示",

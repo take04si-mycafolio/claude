@@ -1,0 +1,9 @@
+/* 作業報告 一覧の読みやすさ調整(2026-09-07) */
+#changelist table td, #changelist table th { vertical-align: top; }
+#changelist .field-title_col a { text-decoration: none; display: block; }
+#changelist .field-title_col .wr-ttl { font-weight: 700; line-height: 1.4; font-size: 13.5px; }
+#changelist .field-title_col .wr-sum { font-size: 12px; line-height: 1.55; white-space: normal; opacity: .85; margin-top: 3px; font-weight: 400; color: var(--body-fg); }
+#changelist .field-created_at_jst { white-space: nowrap; font-variant-numeric: tabular-nums; }
+#changelist .field-agent_col { white-space: nowrap; }
+#changelist .field-status_badge { white-space: nowrap; }
+#changelist .field-status_badge span { white-space: nowrap; }

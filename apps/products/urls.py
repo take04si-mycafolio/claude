@@ -12,6 +12,10 @@ urlpatterns = [
     # 全商品一覧
     path("products/", views.all_products, name="all_products"),
 
+    # メーカー(ブランド)ページ … ルート直下 catch-all より前に登録すること
+    path("brands/", views.brand_index, name="brand_index"),
+    path("brands/<slug:brand_slug>/", views.brand_detail, name="brand_detail"),
+
     # ブックマーク (POST)
     path("products/<uslug:slug>/bookmark/", views.bookmark_toggle, name="bookmark_toggle"),
 

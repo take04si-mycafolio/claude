@@ -5,6 +5,7 @@
 永続化し、配布コードを確定（ロック）する。
 """
 from django.db import transaction
+from django.db.models.functions import Length
 from django.utils import timezone
 
 from .models import (
@@ -30,27 +31,57 @@ def _window(qs, since, until):
     return qs
 
 
-def action_current_count(user, action_type: str, since=None, until=None) -> int:
+def _min_body(qs, min_body_length: int):
+    """口コミ本文が最低文字数以上のものに絞る（0なら制限なし）。"""
+    if min_body_length:
+        qs = qs.annotate(_body_len=Length("body")).filter(
+            _body_len__gte=min_body_length
+        )
+    return qs
+
+
+def action_current_count(
+    user, action_type: str, since=None, until=None, min_body_length: int = 0,
+) -> int:
     """指定アクションの達成回数を算出する。
 
     カウント系（口コミ・参考になった・気になる）は実イベントを created_at で
     期間（since〜until）に絞って数える。状態系（メール認証・プロフィール完成・
     SNS連携）は「現在その状態か」を真偽で返す（期間の概念なし）。
+    min_body_length は口コミ系（REVIEW / REVIEW_WITH_PHOTO）のみ有効で、
+    本文がその文字数以上の口コミだけを数える。
     """
     if action_type == ActionType.REVIEW:
-        return _window(
-            user.reviews.filter(is_approved=True), since, until
+        # campaign_consumed_at__isnull=True: 既に別キャンペーンへ算入済みの口コミは
+        # 次回以降カウントしない（user.reviews は削除済みを自動除外）。
+        return _min_body(
+            _window(
+                user.reviews.filter(
+                    is_approved=True, campaign_consumed_at__isnull=True
+                ),
+                since, until,
+            ),
+            min_body_length,
         ).count()
     if action_type == ActionType.REVIEW_WITH_PHOTO:
-        return _window(
-            user.reviews.filter(is_approved=True, images__isnull=False),
-            since, until,
+        return _min_body(
+            _window(
+                user.reviews.filter(
+                    is_approved=True, images__isnull=False,
+                    campaign_consumed_at__isnull=True,
+                ),
+                since, until,
+            ),
+            min_body_length,
         ).distinct().count()
     if action_type == ActionType.HELPFUL:
         from apps.reviews.models import ReviewHelpful
+        # JOIN先の Review には既定マネージャの絞り込みが効かないため明示的に
+        # is_deleted=False を付ける（削除済み口コミの「参考になった」は数えない）。
         return _window(
             ReviewHelpful.objects.filter(
-                review__user=user, review__is_approved=True
+                review__user=user, review__is_approved=True,
+                review__is_deleted=False,
             ),
             since, until,
         ).count()
@@ -71,20 +102,50 @@ def action_current_count(user, action_type: str, since=None, until=None) -> int:
     return 0
 
 
+def _consume_reviews_for_mission(user, mission) -> None:
+    """達成確定したミッションが算入した口コミを「キャンペーン算入済み」にする。
+
+    対象＝そのミッションの口コミ系ステップ(REVIEW / REVIEW_WITH_PHOTO)がカウントする、
+    期間内・承認済み・未削除・未算入の口コミ。以後は別キャンペーンの集計対象から外れ、
+    会員からの削除も不可になる（当選後に消して賞品だけ残す不正の防止）。
+    """
+    review_actions = {ActionType.REVIEW, ActionType.REVIEW_WITH_PHOTO}
+    if not any(s.action_type in review_actions for s in mission.steps.all()):
+        return
+    qs = _window(
+        user.reviews.filter(
+            is_approved=True, campaign_consumed_at__isnull=True
+        ),
+        mission.starts_at, mission.ends_at,
+    )
+    qs.update(campaign_consumed_at=timezone.now())
+
+
 def evaluate_mission(user, mission) -> dict:
-    """1ミッションの進捗を評価して、テンプレ用の構造化データを返す。"""
+    """1ミッションの進捗を評価して、テンプレ用の構造化データを返す。
+
+    既に達成記録(UserMissionCompletion)があるミッションは、算入済み口コミが集計から
+    外れて現在値が目標を下回っても「達成済み」として表示する（獲得済みの当選を
+    消さない）。
+    """
+    completion = (
+        UserMissionCompletion.objects.filter(user=user, mission=mission).first()
+    )
+    already_done = completion is not None
     steps = []
     done_steps = 0
     since, until = mission.starts_at, mission.ends_at
     for step in mission.steps.all():
-        current = action_current_count(user, step.action_type, since, until)
+        current = action_current_count(
+            user, step.action_type, since, until, step.min_body_length
+        )
         target = step.target_count
-        is_done = current >= target
+        is_done = already_done or current >= target
         if is_done:
             done_steps += 1
         steps.append({
             "label": step.display_label(),
-            "current": min(current, target),
+            "current": target if already_done else min(current, target),
             "target": target,
             "is_done": is_done,
             "percent": 100 if is_done else (
@@ -92,7 +153,7 @@ def evaluate_mission(user, mission) -> dict:
             ),
         })
     total = len(steps)
-    is_complete = total > 0 and done_steps == total
+    is_complete = already_done or (total > 0 and done_steps == total)
     return {
         "mission": mission,
         "steps": steps,
@@ -105,10 +166,12 @@ def evaluate_mission(user, mission) -> dict:
 
 @transaction.atomic
 def claim_if_complete(user, mission) -> UserMissionCompletion | None:
-    """全ステップ達成済みなら達成記録を作成しコードを確定する（冪等）。
+    """全ステップ達成済みなら達成記録を「承認待ち」で作成する（冪等）。
 
+    プレゼント(コード)はこの時点では発行しない。運営が管理画面で承認した時点で
+    approve_completion() がコードを確定し、会員へメールで案内する。
     先着・数量限定に対応するため、ミッション行をロックして配布枠を数えてから
-    確定する。上限に達していれば status=SOLD_OUT で記録（プレゼント対象外）。
+    記録する。上限に達していれば status=SOLD_OUT で記録（プレゼント対象外）。
     既に記録があればそれを返す。
     """
     # 参加ランク条件（下限〜上限）外なら確定しない
@@ -137,11 +200,43 @@ def claim_if_complete(user, mission) -> UserMissionCompletion | None:
             assigned_code="", status=CompletionStatus.SOLD_OUT,
         )
 
-    # 枠あり → コードを割り当て
+    # 枠あり → 承認待ちで記録（コードは運営承認時に発行する）。
+    # この時点で算入した口コミを消費済みにする。これにより同じ口コミは次回
+    # キャンペーンでカウントされず、削除もできなくなる。
+    _consume_reviews_for_mission(user, mission)
+
+    return UserMissionCompletion.objects.create(
+        user=user, mission=mission,
+        assigned_code="", status=CompletionStatus.WAITING,
+    )
+
+
+@transaction.atomic
+def approve_completion(completion) -> UserMissionCompletion:
+    """運営承認: 承認待ち/コード準備中の達成記録にコードを発行する。
+
+    - 共通コード → そのまま割り当てて「獲得」（コード未設定なら「準備中」）。
+    - 個別コード → プールから1件割り当て。プールが空なら「準備中」のまま承認
+      （補充後に同じ承認アクションを再実行すると発行される）。
+    - 発行できたら seen_at をリセットし、次回アクセス時にお祝いポップアップで
+      コードを見せる。メール送信は send_reward_code_email() で行う（admin側）。
+    - 承認待ち/準備中以外（獲得済み・定員終了）は何もしない（冪等）。
+    """
+    mission = Mission.objects.select_for_update().get(pk=completion.mission_id)
+    completion = (
+        UserMissionCompletion.objects.select_for_update().get(pk=completion.pk)
+    )
+    if completion.status not in (
+        CompletionStatus.WAITING, CompletionStatus.PENDING,
+    ):
+        return completion
+
     assigned_code = ""
-    status = CompletionStatus.AWARDED
+    status = CompletionStatus.PENDING
     if mission.code_mode == CodeMode.SHARED:
-        assigned_code = mission.shared_code
+        if mission.shared_code:
+            assigned_code = mission.shared_code
+            status = CompletionStatus.AWARDED
     else:
         pooled = (
             MissionRewardCode.objects
@@ -151,18 +246,64 @@ def claim_if_complete(user, mission) -> UserMissionCompletion | None:
             .first()
         )
         if pooled is not None:
-            pooled.assigned_to = user
+            pooled.assigned_to = completion.user
             pooled.assigned_at = timezone.now()
             pooled.save(update_fields=["assigned_to", "assigned_at"])
             assigned_code = pooled.code
-        else:
-            # 枠はあるがコードプールが空 → 準備中（管理者の補充待ち）
-            status = CompletionStatus.PENDING
+            status = CompletionStatus.AWARDED
 
-    return UserMissionCompletion.objects.create(
-        user=user, mission=mission,
-        assigned_code=assigned_code, status=status,
+    completion.assigned_code = assigned_code
+    completion.status = status
+    if completion.approved_at is None:
+        completion.approved_at = timezone.now()
+    update_fields = ["assigned_code", "status", "approved_at"]
+    if status == CompletionStatus.AWARDED:
+        # コード発行時はお祝いポップアップを再表示してサイト上でも届ける
+        completion.seen_at = None
+        update_fields.append("seen_at")
+    completion.save(update_fields=update_fields)
+    return completion
+
+
+def send_reward_code_email(completion, request=None) -> bool:
+    """承認済み(コード発行済み)の達成記録をメールで会員に案内する。
+
+    送信できたら code_sent_at を記録して True。コード未発行・宛先なし・送信済みは
+    False（admin 側で件数を出し分ける）。送信失敗は例外を呼び出し元へ伝える。
+    """
+    from django.conf import settings
+    from django.core.mail import send_mail
+    from django.template.loader import render_to_string
+    from django.urls import reverse
+
+    if (
+        completion.status != CompletionStatus.AWARDED
+        or not completion.assigned_code
+        or completion.code_sent_at is not None
+        or not completion.user.email
+    ):
+        return False
+    missions_path = reverse("accounts:missions")
+    missions_url = (
+        request.build_absolute_uri(missions_path) if request else missions_path
     )
+    body = render_to_string("accounts/emails/mission_reward.txt", {
+        "user": completion.user,
+        "mission": completion.mission,
+        "code": completion.assigned_code,
+        "missions_url": missions_url,
+        "site_name": settings.SITE_NAME,
+    })
+    send_mail(
+        subject=f"[{settings.SITE_NAME}] ミッション達成プレゼントのご案内",
+        message=body,
+        from_email=settings.DEFAULT_FROM_EMAIL,
+        recipient_list=[completion.user.email],
+        fail_silently=False,
+    )
+    completion.code_sent_at = timezone.now()
+    completion.save(update_fields=["code_sent_at"])
+    return True
 
 
 def user_mission_overview(user) -> list[dict]:
@@ -187,6 +328,9 @@ def user_mission_overview(user) -> list[dict]:
             data["completion"] = completion
             data["status"] = completion.status if completion else ""
             data["reward_code"] = completion.assigned_code if completion else ""
+            data["waiting_approval"] = bool(
+                completion and completion.status == CompletionStatus.WAITING
+            )
             data["code_pending"] = bool(
                 completion and completion.status == CompletionStatus.PENDING
             )
@@ -197,6 +341,7 @@ def user_mission_overview(user) -> list[dict]:
             data["completion"] = None
             data["status"] = ""
             data["reward_code"] = ""
+            data["waiting_approval"] = False
             data["code_pending"] = False
             data["missed"] = False
         # 先着・数量限定の残数（無制限なら None）

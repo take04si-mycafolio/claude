@@ -1,8 +1,68 @@
+from django import forms
 from django.contrib import admin
+from django.db import models
 from django.utils import timezone
 from django.utils.html import format_html
 from django.utils.safestring import mark_safe
-from .models import ContactMessage
+from .models import ContactMessage, LegalDocument
+
+
+@admin.register(LegalDocument)
+class LegalDocumentAdmin(admin.ModelAdmin):
+    """規約・ポリシーの一元管理。ここで編集した内容がWEB・アプリ双方に即時反映される。"""
+
+    list_display = ("title", "doc_type_badge", "is_published", "revised_on", "updated_at")
+    list_editable = ("is_published",)
+    list_filter = ("is_published", "doc_type")
+    readonly_fields = ("updated_at", "web_preview_link")
+    formfield_overrides = {
+        models.TextField: {"widget": forms.Textarea(attrs={
+            "rows": 32,
+            "style": "width:100%;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;"
+                     "font-size:13px;line-height:1.7;",
+        })},
+    }
+    fieldsets = (
+        ("基本情報", {
+            "fields": ("doc_type", "title", "eyebrow", "is_published", "web_preview_link"),
+        }),
+        ("本文", {
+            "fields": ("body",),
+            "description": "セマンティックHTMLで記述します。"
+                           "見出し=&lt;h2&gt;、小見出し=&lt;h3&gt;、段落=&lt;p&gt;、"
+                           "箇条書き=&lt;ul&gt;&lt;li&gt;、番号付き=&lt;ol&gt;&lt;li&gt;、"
+                           "リンク=&lt;a href=\"...\"&gt;。class属性は不要(デザインは自動)。"
+                           "<br>※ ここを保存すると<strong>WEBページとアプリの両方に同じ内容が反映</strong>されます。",
+        }),
+        ("日付・メタ", {
+            "fields": ("enacted_on", "revised_on", "updated_at"),
+        }),
+    )
+
+    WEB_PATHS = {
+        "terms": "/terms/",
+        "privacy": "/privacy/",
+        "community": "/community-guidelines/",
+    }
+
+    @admin.display(description="種別")
+    def doc_type_badge(self, obj):
+        return format_html(
+            '<span style="background:#FBF1F3;color:#9d4751;padding:3px 10px;'
+            'border-radius:8px;font-size:11px;font-weight:700">{}</span>',
+            obj.get_doc_type_display(),
+        )
+
+    @admin.display(description="WEB表示")
+    def web_preview_link(self, obj):
+        path = self.WEB_PATHS.get(obj.doc_type)
+        if not path or not obj.pk:
+            return "—"
+        return format_html(
+            '<a href="{}" target="_blank" rel="noopener" '
+            'style="color:#C97B84;font-weight:700">🔗 WEBページを開く（{}）</a>',
+            path, path,
+        )
 
 
 @admin.register(ContactMessage)

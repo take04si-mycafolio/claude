@@ -1,0 +1,147 @@
+{% extends "admin/change_form.html" %}
+{% load i18n admin_urls %}
+{# 作業報告の閲覧ページ(2026-09-07 読み手向けに全面刷新)。報告は記録なので編集フォームは出さない。 #}
+
+{% block extrastyle %}{{ block.super }}
+<style>
+  #content { max-width: 960px; }
+  .wr-wrap { font-size: 14px; line-height: 1.75; color: var(--body-fg); }
+  .wr-nav { display:flex; justify-content:space-between; gap:12px; margin: 0 0 14px; font-size:12px; }
+  .wr-nav a { color: var(--link-fg); text-decoration:none; padding:4px 10px; border:1px solid var(--border-color); border-radius:14px; background: var(--body-bg); }
+  .wr-nav a:hover { background: var(--darkened-bg); }
+  .wr-head { display:flex; align-items:center; gap:14px; flex-wrap:wrap; padding: 16px 18px; border:1px solid var(--border-color); border-radius:12px; background: var(--darkened-bg); }
+  .wr-avatar { width:60px; height:60px; border-radius:50%; object-fit:cover; border:3px solid #ccc; background:#fff; flex:none; }
+  .wr-avatar-ph { width:60px; height:60px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:26px; background:#e8e8e8; border:3px solid #ccc; flex:none; }
+  .wr-who { min-width: 180px; }
+  .wr-nick { font-size:18px; font-weight:800; line-height:1.2; }
+  .wr-role { font-size:12px; opacity:.75; margin-top:2px; }
+  .wr-meta { margin-left:auto; text-align:right; font-size:12px; opacity:.85; display:flex; flex-direction:column; gap:6px; align-items:flex-end; }
+  .wr-badge { display:inline-block; padding:3px 12px; border-radius:10px; font-size:12px; font-weight:800; letter-spacing:.02em; }
+  .wr-title { font-size:22px; font-weight:800; line-height:1.35; margin: 18px 0 10px; }
+  .wr-lead { border-left: 5px solid var(--primary); background: var(--darkened-bg); padding: 12px 16px; border-radius: 0 10px 10px 0; margin: 0 0 18px; }
+  .wr-lead .wr-lead-h { font-size:11px; font-weight:800; letter-spacing:.08em; opacity:.7; margin-bottom:6px; }
+  .wr-lead ul { margin:0; padding-left:18px; }
+  .wr-lead li { margin: 2px 0; }
+  .wr-lead li.note { list-style:none; margin-left:-18px; font-size:12.5px; opacity:.85; }
+  .wr-toc { display:flex; flex-wrap:wrap; gap:6px; margin: 0 0 18px; }
+  .wr-toc a { font-size:12px; padding:4px 10px; border-radius:14px; background: var(--darkened-bg); border:1px solid var(--border-color); color: var(--body-fg); text-decoration:none; }
+  .wr-toc a:hover { border-color: var(--primary); color: var(--primary); }
+  .wr-body h1 { font-size:18px; margin: 22px 0 8px; }
+  .wr-body h2 { font-size:17px; font-weight:800; margin: 28px 0 10px; padding: 6px 0 6px 12px; border-left: 5px solid var(--primary); background: linear-gradient(90deg, var(--darkened-bg), transparent); border-radius: 0 6px 6px 0; }
+  .wr-body h3 { font-size:15px; font-weight:800; margin: 18px 0 6px; }
+  .wr-body h4 { font-size:14px; margin: 14px 0 4px; }
+  .wr-body p { margin: 6px 0 10px; }
+  .wr-body ul, .wr-body ol { margin: 6px 0 12px; padding-left: 22px; }
+  .wr-body li { margin: 3px 0; }
+  .wr-body li > ul, .wr-body li > ol { margin: 2px 0 4px; }
+  .wr-body strong { background: rgba(255, 212, 0, .22); padding: 0 2px; border-radius: 3px; }
+  .wr-body code { font-size: 12.5px; background: var(--darkened-bg); border:1px solid var(--border-color); border-radius:4px; padding: 0 4px; }
+  .wr-body pre { background: var(--darkened-bg); border:1px solid var(--border-color); border-radius:8px; padding: 10px 12px; overflow-x:auto; font-size:12.5px; line-height:1.55; }
+  .wr-body pre code { border:0; background:none; padding:0; }
+  .wr-body blockquote { margin: 8px 0 12px; padding: 6px 14px; border-left: 4px solid var(--border-color); opacity:.9; }
+  .wr-body hr { border:0; border-top:1px solid var(--border-color); margin: 20px 0; }
+  .wr-tbl { overflow-x:auto; margin: 8px 0 16px; border:1px solid var(--border-color); border-radius:8px; }
+  .wr-tbl table { border-collapse: collapse; width:100%; font-size:13px; min-width: 420px; }
+  .wr-tbl th { background: var(--darkened-bg); text-align:left; font-weight:800; padding: 7px 10px; border-bottom: 2px solid var(--border-color); white-space:nowrap; }
+  .wr-tbl td { padding: 6px 10px; border-bottom: 1px solid var(--border-color); vertical-align: top; }
+  .wr-tbl tr:nth-child(even) td { background: color-mix(in srgb, var(--darkened-bg) 55%, transparent); }
+  .wr-tbl tr:last-child td { border-bottom:0; }
+  .wr-body a { color: var(--link-fg); }
+  .wr-body img { max-width:100%; }
+  details.wr-more { margin: 18px 0 0; border:1px solid var(--border-color); border-radius:10px; padding: 8px 14px; background: var(--body-bg); }
+  details.wr-more summary { cursor:pointer; font-weight:800; font-size:13px; }
+  details.wr-more ul { margin: 8px 0 4px; padding-left:18px; }
+  details.wr-more li { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size:12px; padding:1px 0; }
+  details.wr-more pre { white-space: pre-wrap; word-break: break-all; font-size:12px; line-height:1.5; background: var(--darkened-bg); padding:10px 12px; border-radius:8px; }
+  .wr-copy { float:right; font-size:11px; padding:2px 10px; border-radius:10px; border:1px solid var(--border-color); background: var(--darkened-bg); cursor:pointer; color: var(--body-fg); }
+  .wr-empty { opacity:.6; }
+  @media (max-width: 640px) {
+    .wr-head { padding: 12px; }
+    .wr-meta { margin-left:0; align-items:flex-start; text-align:left; }
+    .wr-title { font-size:19px; }
+    .wr-body h2 { font-size:16px; }
+  }
+</style>
+{% endblock %}
+
+{% block object-tools %}{% endblock %}
+{% block content_subtitle %}{% endblock %}
+
+{% block content %}
+<div class="wr-wrap" id="content-main">
+
+  <div class="wr-nav">
+    <span>{% if wr_newer %}<a href="{% url opts|admin_urlname:'change' wr_newer.pk %}">← 新しい報告: {{ wr_newer.title|truncatechars:28 }}</a>{% endif %}</span>
+    <span>{% if wr_older %}<a href="{% url opts|admin_urlname:'change' wr_older.pk %}">古い報告: {{ wr_older.title|truncatechars:28 }} →</a>{% endif %}</span>
+  </div>
+
+  <div class="wr-head">
+    {% if wr_agent.avatar %}
+      <img class="wr-avatar" src="{{ wr_agent.avatar }}" alt="" style="border-color: {{ wr_agent.color }}">
+    {% else %}
+      <div class="wr-avatar-ph" style="border-color: {{ wr_agent.color }}">🛠</div>
+    {% endif %}
+    <div class="wr-who">
+      <div class="wr-nick" style="color: {{ wr_agent.color }}">{{ wr_agent.nick }}</div>
+      <div class="wr-role">{{ wr_agent.name }}{% if wr_agent.duty %} ｜ {{ wr_agent.duty }}{% endif %}</div>
+    </div>
+    <div class="wr-meta">
+      <span class="wr-badge" style="background: {{ wr_status_bg }}; color: {{ wr_status_fg }}">{{ wr_status_label }}</span>
+      <span>{{ wr_created }}</span>
+      <span>報告 #{{ original.pk }}</span>
+    </div>
+  </div>
+
+  <h1 class="wr-title">{{ original.title }}</h1>
+
+  {% if wr_summary_items %}
+  <div class="wr-lead">
+    <div class="wr-lead-h">要点</div>
+    <ul>
+      {% for it in wr_summary_items %}
+        <li{% if it|slice:":1" == "※" %} class="note"{% endif %}>{{ it }}</li>
+      {% endfor %}
+    </ul>
+  </div>
+  {% endif %}
+
+  {% if wr_toc|length >= 3 %}
+  <nav class="wr-toc">
+    {% for t in wr_toc %}<a href="#{{ t.id }}">{{ t.name }}</a>{% endfor %}
+  </nav>
+  {% endif %}
+
+  {% if wr_body_html %}
+    <div class="wr-body">{{ wr_body_html }}</div>
+  {% else %}
+    <p class="wr-empty">本文なし</p>
+  {% endif %}
+
+  {% if wr_files %}
+  <details class="wr-more">
+    <summary>変更ファイル({{ wr_files|length }})</summary>
+    <ul>{% for f in wr_files %}<li>{{ f }}</li>{% endfor %}</ul>
+  </details>
+  {% endif %}
+
+  {% if original.body %}
+  <details class="wr-more">
+    <summary>元のMarkdown <button type="button" class="wr-copy" onclick="wrCopy(event)">コピー</button></summary>
+    <pre id="wr-raw">{{ original.body }}</pre>
+  </details>
+  {% endif %}
+
+  <div class="wr-nav" style="margin-top:18px">
+    <span>{% if wr_newer %}<a href="{% url opts|admin_urlname:'change' wr_newer.pk %}">← 新しい報告</a>{% endif %}</span>
+    <span><a href="{% url opts|admin_urlname:'changelist' %}">一覧へ</a></span>
+    <span>{% if wr_older %}<a href="{% url opts|admin_urlname:'change' wr_older.pk %}">古い報告 →</a>{% endif %}</span>
+  </div>
+</div>
+<script>
+function wrCopy(ev){
+  ev.preventDefault(); ev.stopPropagation();
+  var t = document.getElementById('wr-raw').textContent;
+  navigator.clipboard.writeText(t).then(function(){ ev.target.textContent = 'コピー済み'; setTimeout(function(){ ev.target.textContent = 'コピー'; }, 1500); });
+}
+</script>
+{% endblock %}

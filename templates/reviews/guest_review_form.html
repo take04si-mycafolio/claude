@@ -1,0 +1,58 @@
+{% extends "base.html" %}
+{% block title %}{{ product.name }}の評価を投稿 | 美容家電TUSHOU{% endblock %}
+{% block content %}
+<div class="max-w-2xl mx-auto">
+  <nav class="text-xs text-mute-500 mb-4">
+    <a href="{{ product.get_absolute_url }}" class="hover:text-rose-600">‹ {{ product.name }} に戻る</a>
+  </nav>
+  <div class="bg-white rounded-2xl shadow-card border border-rose-100 p-5 sm:p-10">
+    <h1 class="text-lg sm:text-xl font-bold text-ink-900 mb-2">{{ product.name }} の評価を追加する</h1>
+    <p class="text-sm text-mute-600 mb-5">入力内容に確認が必要な箇所があります。修正のうえ、もう一度投稿してください。</p>
+
+    {% if form.compliance_findings %}
+      <div class="mb-5 rounded-xl border border-amber-200 bg-amber-50 p-4">
+        <p class="text-sm font-bold text-amber-900 mb-2">掲載できない表現があります</p>
+        <ul class="text-xs text-amber-800 space-y-1 list-disc list-inside">
+          {% for f in form.compliance_findings %}<li>{% if f.field == "title" %}[タイトル]{% else %}[本文]{% endif %} 「{{ f.match }}」— {{ f.reason }}{% if f.example %}（言い換え例: {{ f.example }}）{% endif %}</li>{% endfor %}
+        </ul>
+        {% if form.compliance_hint %}<p class="mt-2 text-xs text-amber-700">{{ form.compliance_hint }}</p>{% endif %}
+        {% if form.suggested_title %}<p class="mt-2 text-xs text-amber-800">タイトル案: {{ form.suggested_title }}</p>{% endif %}
+        {% if form.suggested_body %}<p class="mt-1 text-xs text-amber-800">本文案: {{ form.suggested_body }}</p>{% endif %}
+      </div>
+    {% endif %}
+
+    <form method="post" action="{% url 'reviews:guest_create' product.slug %}" class="space-y-4">
+      {% csrf_token %}
+      <input type="hidden" name="form_token" value="{{ form_token }}">
+      <div class="hidden" aria-hidden="true">{{ form.website }}</div>
+      <div>
+        <label class="block text-sm font-medium text-ink-900 mb-1.5">総合評価 <span class="text-rose-500">*</span></label>
+        {% if form.rating.errors %}<p class="text-xs text-rose-600 mb-1">{{ form.rating.errors.0 }}</p>{% endif %}
+        <div class="flex flex-wrap gap-2">
+          {% for radio in form.rating %}
+            <label class="inline-flex items-center gap-1 px-3.5 py-2 rounded-full border border-rose-200 text-sm cursor-pointer hover:bg-rose-50 has-[:checked]:bg-rose-500 has-[:checked]:text-white has-[:checked]:border-rose-500 transition">
+              {{ radio.tag }}<span>{{ radio.choice_label }}</span>
+            </label>
+          {% endfor %}
+        </div>
+      </div>
+      <div>
+        <label class="block text-sm font-medium text-ink-900 mb-1.5">タイトル <span class="text-rose-500">*</span></label>
+        {% if form.title.errors %}<p class="text-xs text-rose-600 mb-1">{{ form.title.errors.0 }}</p>{% endif %}
+        {{ form.title }}
+      </div>
+      <div>
+        <label class="block text-sm font-medium text-ink-900 mb-1.5">本文 <span class="text-rose-500">*</span></label>
+        {% if form.body.errors %}<p class="text-xs text-rose-600 mb-1">{{ form.body.errors.0 }}</p>{% endif %}
+        {{ form.body }}
+      </div>
+      <div>
+        <label class="block text-sm font-medium text-ink-900 mb-1.5">ニックネーム</label>
+        {{ form.guest_name }}
+      </div>
+      <button type="submit" class="inline-flex items-center justify-center px-6 py-3 rounded-full bg-rose-500 hover:bg-rose-600 text-white font-medium text-sm transition shadow-sm">評価を投稿する</button>
+    </form>
+  </div>
+</div>
+<style>#content input[type="radio"]{position:absolute;opacity:0;pointer-events:none}form input[type="text"],form textarea{width:100%;border:1px solid #fecdd3;border-radius:0.75rem;padding:0.625rem 0.875rem;font-size:0.875rem;line-height:1.6}</style>
+{% endblock %}

@@ -1,0 +1,73 @@
+/* 記事本文エディタの画像挿入ツールバー（管理画面） */
+.ae-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin: 0 0 6px;
+  padding: 8px 10px;
+  background: #fbf6f4;
+  border: 1px solid #e6d7d9;
+  border-radius: 8px;
+}
+.ae-btn {
+  padding: 6px 12px;
+  border: 1px solid #c97b84;
+  background: #fff;
+  color: #a0606a;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1.4;
+}
+.ae-btn:hover { background: #c97b84; color: #fff; }
+.ae-hint { color: #8a7f82; font-size: 11.5px; }
+.ae-status { margin-left: auto; font-size: 12px; font-weight: 700; color: #6b6b6b; }
+.ae-status.ae-ok { color: #1e7a40; }
+.ae-status.ae-err { color: #c0392b; }
+
+textarea[data-article-editor] { font-family: ui-monospace, Menlo, Consolas, monospace; }
+textarea[data-article-editor].ae-dragover {
+  outline: 3px dashed #c97b84;
+  outline-offset: -3px;
+  background: #fdf6f7;
+}
+
+.ae-library-panel {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin: 8px 0 0;
+  padding: 10px;
+  background: #fafafa;
+  border: 1px solid #e3e3e3;
+  border-radius: 8px;
+}
+.ae-library-panel .ae-empty { color: #888; font-size: 12px; margin: 4px; }
+.ae-card {
+  width: 190px;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  padding: 8px;
+  background: #fff;
+  border: 1px solid #e3e3e3;
+  border-radius: 8px;
+}
+.ae-card img {
+  width: 100%;
+  height: 110px;
+  object-fit: contain;
+  background: #f4f4f4;
+  border-radius: 4px;
+}
+.ae-card input[type="text"] {
+  width: 100%;
+  padding: 4px 6px;
+  font-size: 11.5px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  box-sizing: border-box;
+}
+.ae-card .ae-insert { width: 100%; }

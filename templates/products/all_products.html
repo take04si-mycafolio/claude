@@ -42,7 +42,7 @@
   {# 商品グリッド #}
   {% if page.object_list %}
     <p class="text-xs text-mute-500">{{ page.start_index }}〜{{ page.end_index }} / {{ total }}件</p>
-    <ul class="grid grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-5">
+    <ul class="grid grid-cols-1 lg:grid-cols-3 gap-3 sm:gap-5">
       {% for p in page.object_list %}
         <li class="group bg-white rounded-2xl border border-rose-100 shadow-card overflow-hidden hover:shadow-soft hover:-translate-y-0.5 transition relative">
           {% if p.is_discontinued %}

@@ -1,0 +1,253 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<title>記事SEOコックピット | TUSHOU管理</title>
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<style>
+:root{
+  --bg:#0f1626; --bg2:#161e33; --panel:#1c2540; --border:#2a345a;
+  --text:#e3e9ff; --muted:#8893b8; --accent:#c97b84; --good:#4ade80; --warn:#fbbf24; --bad:#f87171;
+}
+*{box-sizing:border-box;}
+html,body{margin:0;background:var(--bg);color:var(--text);
+  font-family:'Noto Sans JP',system-ui,sans-serif;font-size:13px;}
+a{color:inherit;}
+header{padding:14px 22px;background:var(--bg2);border-bottom:1px solid var(--border);
+  display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:10;flex-wrap:wrap;gap:8px;}
+header .logo{font-weight:700;}
+header .logo span.bear{font-size:1.2rem;margin-right:6px;}
+nav.topnav a{margin-left:18px;color:var(--muted);text-decoration:none;font-size:13px;}
+nav.topnav a.active{color:var(--accent);font-weight:600;}
+nav.topnav a:hover{color:var(--text);}
+.cards{display:flex;gap:10px;flex-wrap:wrap;padding:16px 22px 8px;}
+.card{background:var(--panel);border:1px solid var(--border);border-radius:10px;
+  padding:12px 16px;min-width:110px;cursor:pointer;}
+.card.active{border-color:var(--accent);}
+.card .label{color:var(--muted);font-size:11px;}
+.card .value{font-size:22px;font-weight:700;margin-top:2px;}
+.card.alert .value{color:var(--bad);}
+.meta{padding:2px 22px 6px;color:var(--muted);font-size:12px;}
+.meta b{color:var(--accent);}
+.controls{padding:4px 22px 12px;display:flex;gap:8px;flex-wrap:wrap;align-items:center;}
+input[type=search]{padding:7px 12px;border-radius:7px;background:var(--panel);
+  color:var(--text);border:1px solid var(--border);width:240px;font-size:13px;}
+.btn{padding:6px 13px;border:1px solid var(--border);background:var(--panel);
+  color:var(--text);border-radius:7px;cursor:pointer;font-size:12px;}
+.btn.active{background:var(--accent);border-color:var(--accent);color:#fff;}
+.btn:hover{border-color:var(--accent);}
+.wrap{padding:0 22px 60px;overflow-x:auto;}
+table{width:100%;border-collapse:collapse;font-size:12.5px;}
+thead th{position:sticky;top:0;background:var(--bg2);text-align:right;padding:9px 10px;
+  border-bottom:1px solid var(--border);color:var(--muted);font-weight:600;cursor:pointer;
+  white-space:nowrap;user-select:none;z-index:5;}
+thead th.l{text-align:left;}
+thead th:hover{color:var(--text);}
+thead th.sorted::after{content:" \25BE";color:var(--accent);}
+thead th.sorted.asc::after{content:" \25B4";}
+tbody td{padding:9px 10px;border-bottom:1px solid #222c4a;text-align:right;white-space:nowrap;}
+tbody td.l{text-align:left;}
+tbody tr{cursor:pointer;}
+tbody tr:hover{background:#1a2238;}
+.title-cell{max-width:400px;}
+.title-cell .tt{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;display:block;}
+.title-cell .path{color:var(--muted);font-size:11px;}
+.tag{font-size:10px;padding:1px 7px;border-radius:6px;font-weight:700;display:inline-block;}
+.tag.quick_win{background:#3d1e2a;color:#fda4af;}
+.tag.needs_work{background:#3a2a16;color:#fbbf24;}
+.tag.performing{background:#16332a;color:#6ee7b7;}
+.tag.dead{background:#26304d;color:var(--muted);}
+.tag.none{background:transparent;color:var(--muted);}
+.act{font-size:11px;padding:2px 8px;border-radius:6px;font-weight:700;display:inline-block;}
+.act.hot{background:#c97b84;color:#fff;}
+.act.warn{background:#3a2a16;color:#fbbf24;}
+.act.work{background:#16314d;color:#7dd3fc;}
+.act.observe{background:#2a1640;color:#c084fc;}
+.act.good{background:#16332a;color:#6ee7b7;}
+.act.bad{background:#4a1622;color:#f87171;}
+.act.muted{background:#26304d;color:var(--muted);}
+.up{color:var(--good);} .down{color:var(--bad);}
+.q{color:var(--muted);font-size:11px;max-width:220px;overflow:hidden;text-overflow:ellipsis;display:block;}
+.muted{color:var(--muted);}
+.empty{padding:60px 22px;text-align:center;color:var(--muted);}
+.wb-btn{font-size:11px;padding:3px 10px;border-radius:6px;border:1px solid var(--border);
+  background:var(--panel);color:var(--text);cursor:pointer;text-decoration:none;display:inline-block;}
+.wb-btn:hover{border-color:var(--accent);color:var(--accent);}
+.wb-btn.open{border-color:#16332a;background:#16332a;color:#6ee7b7;}
+</style>
+</head>
+<body>
+<header>
+  <div class="logo"><span class="bear">🐻</span>記事SEOコックピット</div>
+  <nav class="topnav">
+    <a href="/admin/seo/cockpit/" class="active">コックピット</a>
+    <a href="/admin/seo/article-performance/">記事パフォーマンス</a>
+    <a href="/admin/seo/link-map/">内部リンクマップ</a>
+    <a href="/admin/analytics/rewritedraft/">リライト作業台</a>
+    <a href="/admin/analytics/rewritetactic/">学習ボード</a>
+    <a href="/admin/">管理画面トップ</a>
+  </nav>
+</header>
+
+{% if not run %}
+  <div class="empty"><p>トリアージ実行データがまだありません。<code>run_gsc_triage</code> 実行後に表示されます。</p></div>
+{% else %}
+  <div class="cards">
+    <div class="card active" data-f="all"><div class="label">公開中の記事</div><div class="value">{{ counts.total }}</div></div>
+    <div class="card" data-f="quick_win"><div class="label">あと一歩（最優先）</div><div class="value">{{ counts.quick_win }}</div></div>
+    <div class="card" data-f="needs_work"><div class="label">意図ズレ</div><div class="value">{{ counts.needs_work }}</div></div>
+    <div class="card" data-f="performing"><div class="label">上位安定</div><div class="value">{{ counts.performing }}</div></div>
+    <div class="card" data-f="dead"><div class="label">圏外</div><div class="value">{{ counts.dead }}</div></div>
+    <div class="card" data-f="work"><div class="label">作業中</div><div class="value">{{ counts.working }}</div></div>
+    <div class="card" data-f="observe"><div class="label">効果観測中</div><div class="value">{{ counts.observing }}</div></div>
+    <div class="card {% if counts.alerts %}alert{% endif %}" data-f="bad"><div class="label">要確認（毀損/悪化）</div><div class="value">{{ counts.alerts }}</div></div>
+  </div>
+
+  <div class="meta">
+    GSC集計期間: <b>{{ run.period_start|date:"Y-m-d" }}</b> 〜 <b>{{ run.period_end|date:"Y-m-d" }}</b>
+    ／ トリアージ取得: {{ run.fetched_at|date:"Y-m-d H:i" }}
+    <span class="muted">（行クリックで記事別の詳細・順位トレンドへ）</span>
+  </div>
+
+  <div class="controls">
+    <input type="search" id="q" placeholder="タイトル・slug・クエリで絞り込み">
+    <button class="btn" id="show-hidden">非公開/noindexも表示</button>
+    <span class="muted" id="count" style="margin-left:auto;"></span>
+  </div>
+
+  <div class="wrap">
+    <table id="t">
+      <thead>
+        <tr>
+          <th class="l" data-k="title">記事</th>
+          <th class="l" data-k="action">次のアクション</th>
+          <th class="l" data-k="bucket">判定</th>
+          <th data-k="position">順位</th>
+          <th data-k="delta">前回比</th>
+          <th data-k="impressions" >表示</th>
+          <th data-k="clicks">クリック</th>
+          <th data-k="ctr">CTR%</th>
+          <th class="l" data-k="best_query">最上位クエリ</th>
+          <th class="l" data-k="draft_status">リライト</th>
+          <th class="l">作業台</th>
+        </tr>
+      </thead>
+      <tbody>
+      {% for r in rows %}
+        <tr data-id="{{ r.id }}"
+            data-bucket="{{ r.bucket }}" data-kind="{{ r.action_kind }}"
+            data-hidden="{% if not r.published or r.noindex %}1{% else %}0{% endif %}"
+            data-s="{{ r.title|lower }} {{ r.slug }} {{ r.best_query }}"
+            data-title="{{ r.title }}" data-action="{{ r.action }}"
+            data-position="{{ r.position|default_if_none:'999' }}"
+            data-delta="{{ r.delta|default_if_none:'-999' }}"
+            data-impressions="{{ r.impressions }}" data-clicks="{{ r.clicks }}"
+            data-ctr="{{ r.ctr }}" data-best_query="{{ r.best_query }}"
+            data-draft_status="{{ r.draft_status }}">
+          <td class="l title-cell">
+            <span class="tt">{{ r.title }}</span>
+            <span class="path">/{{ r.slug }}/ {% if r.category %}｜{{ r.category }}{% endif %}
+              {% if not r.published %}｜<b style="color:var(--bad)">非公開</b>{% endif %}
+              {% if r.noindex %}｜noindex{% endif %}</span>
+          </td>
+          <td class="l"><span class="act {{ r.action_kind }}">{{ r.action }}</span></td>
+          <td class="l"><span class="tag {{ r.bucket|default:'none' }}">{{ r.bucket_label }}</span></td>
+          <td>{% if r.position != None %}{{ r.position }}{% else %}<span class="muted">—</span>{% endif %}</td>
+          <td>{% if r.delta != None %}{% if r.delta > 0 %}<span class="up">▲{{ r.delta }}</span>{% elif r.delta < 0 %}<span class="down">▼{{ r.delta }}</span>{% else %}<span class="muted">±0</span>{% endif %}{% else %}<span class="muted">—</span>{% endif %}</td>
+          <td>{{ r.impressions }}</td>
+          <td>{{ r.clicks }}</td>
+          <td>{{ r.ctr }}</td>
+          <td class="l"><span class="q">{{ r.best_query|default:"—" }}{% if r.num_queries %}（{{ r.num_queries }}語）{% endif %}</span></td>
+          <td class="l">
+            {% if r.draft_status %}{{ r.draft_status }}{% if r.eval_status %}<span class="muted"> / {{ r.eval_status }}</span>{% endif %}
+            {% else %}<span class="muted">—</span>{% endif %}
+          </td>
+          <td class="l">
+            {% if r.working %}
+              <a class="wb-btn open" href="/admin/analytics/rewritedraft/{{ r.draft_id }}/change/"
+                 onclick="event.stopPropagation();">開く ▶</a>
+            {% else %}
+              <button type="button" class="wb-btn" data-a="/admin/seo/cockpit/{{ r.id }}/to-workbench/">作業台へ ＋</button>
+            {% endif %}
+          </td>
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+{% endif %}
+
+<form id="wb-form" method="post" style="display:none">{% csrf_token %}</form>
+
+<script>
+(function(){
+  document.querySelectorAll(".wb-btn[data-a]").forEach(b => b.addEventListener("click", e => {
+    e.stopPropagation();
+    const f = document.getElementById("wb-form");
+    f.action = b.dataset.a;
+    b.textContent = "追加中…"; b.disabled = true;
+    f.submit();
+  }));
+  const rows = Array.from(document.querySelectorAll("#t tbody tr"));
+  const q = document.getElementById("q");
+  const count = document.getElementById("count");
+  const hiddenBtn = document.getElementById("show-hidden");
+  let filter = "all", showHidden = false;
+
+  rows.forEach(tr => tr.addEventListener("click", () => {
+    location.href = "/admin/seo/cockpit/" + tr.dataset.id + "/";
+  }));
+
+  function apply(){
+    const term = (q.value || "").toLowerCase();
+    let n = 0;
+    rows.forEach(tr => {
+      let ok = true;
+      if (!showHidden && tr.dataset.hidden === "1") ok = false;
+      if (ok && filter !== "all"){
+        if (["work","observe","bad"].includes(filter)) ok = tr.dataset.kind === filter;
+        else ok = tr.dataset.bucket === filter && tr.dataset.hidden === "0";
+      }
+      if (ok && term) ok = tr.dataset.s.includes(term);
+      tr.style.display = ok ? "" : "none";
+      if (ok) n++;
+    });
+    count.textContent = n + " 件表示";
+  }
+  q && q.addEventListener("input", apply);
+  hiddenBtn && hiddenBtn.addEventListener("click", () => {
+    showHidden = !showHidden;
+    hiddenBtn.classList.toggle("active", showHidden);
+    apply();
+  });
+  document.querySelectorAll(".card").forEach(c => c.addEventListener("click", () => {
+    document.querySelectorAll(".card").forEach(x => x.classList.remove("active"));
+    c.classList.add("active");
+    filter = c.dataset.f;
+    if (["work","observe","bad"].includes(filter) && !showHidden){
+      // 作業中などは非公開含め全対象
+    }
+    apply();
+  }));
+
+  // ソート
+  let sortKey = null, asc = false;
+  document.querySelectorAll("thead th").forEach(th => th.addEventListener("click", () => {
+    const k = th.dataset.k;
+    if (sortKey === k) asc = !asc; else { sortKey = k; asc = false; }
+    document.querySelectorAll("thead th").forEach(x => x.classList.remove("sorted","asc"));
+    th.classList.add("sorted"); if (asc) th.classList.add("asc");
+    const numeric = ["position","delta","impressions","clicks","ctr"].includes(k);
+    const tbody = document.querySelector("#t tbody");
+    rows.sort((a,b) => {
+      let va = a.dataset[k] || "", vb = b.dataset[k] || "";
+      if (numeric){ va = parseFloat(va); vb = parseFloat(vb); return asc ? va-vb : vb-va; }
+      return asc ? va.localeCompare(vb,"ja") : vb.localeCompare(va,"ja");
+    }).forEach(tr => tbody.appendChild(tr));
+  }));
+
+  apply();
+})();
+</script>
+</body>
+</html>

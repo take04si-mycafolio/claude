@@ -10,6 +10,7 @@
 """
 from rest_framework import serializers
 
+from . import spec_schema
 from .models import Category, Product
 
 
@@ -60,7 +61,12 @@ class CategorySerializer(serializers.ModelSerializer):
 
 
 class ProductListSerializer(serializers.ModelSerializer):
-    """商品一覧・検索用。アフィリエイトURLは含めない。"""
+    """商品一覧・検索用。アフィリエイトURLは含めない。
+
+    is_discontinued:
+      生産終了フラグ(Webの「生産終了」バッジと同一ソース)。アプリ側は true の
+      商品にバッジ表示する想定。生産終了でも公開中(is_published=True)なら返る。
+    """
 
     image_url = serializers.SerializerMethodField()
     average_rating = serializers.SerializerMethodField()
@@ -81,6 +87,7 @@ class ProductListSerializer(serializers.ModelSerializer):
             "review_count",
             "product_type",
             "categories",
+            "is_discontinued",
         )
 
     def get_image_url(self, obj):
@@ -105,15 +112,42 @@ class ProductDetailSerializer(ProductListSerializer):
       - amazon_url    : AmazonURL（「Amazonで見る」）
     値が無い商品では空文字で返る（URLField(blank=True)）。アプリ側は非空のものだけ
     ボタン表示する。この詳細APIのみに含め、一覧/検索には返さない。
+
+    spec_table:
+      製品タイプ別スキーマ(spec_schema)で整形済みの仕様表。アプリはこれをそのまま
+      セクション表示できる。形式:
+        [{"group":"基本情報",
+          "rows":[{"key","label","value","unit","is_url"}, ...]}, ...]
+      - label は日本語表示名、value は表示用文字列、unit は補足単位(値に内包済みなら空)
+      - is_url=true の行(メーカー公式)はリンクとして描画する想定
+      - 値のある項目だけが入る。未対応カテゴリや未収集商品では空配列。
+    specifications:
+      正規化キーの生スペック(内部メモ _internal は除外)。独自表示したいアプリ向け。
+    discontinued_at:
+      生産終了日(YYYY-MM-DD)。未設定なら null。is_discontinued=true でも日付
+      未入力の商品はあるため、表示は is_discontinued を主・日付を補足にする。
     """
+
+    specifications = serializers.SerializerMethodField()
+    spec_table = serializers.SerializerMethodField()
 
     class Meta(ProductListSerializer.Meta):
         fields = ProductListSerializer.Meta.fields + (
             "description",
             "features",
             "specifications",
+            "spec_table",
             "official_url",
             "affiliate_url",
             "rakuten_url",
             "amazon_url",
+            "discontinued_at",
         )
+
+    def get_specifications(self, obj):
+        return spec_schema.public_specifications(obj.specifications)
+
+    def get_spec_table(self, obj):
+        slug = obj.product_type.slug if obj.product_type_id else None
+        specs = obj.specifications if isinstance(obj.specifications, dict) else {}
+        return spec_schema.spec_table_data(slug, specs)

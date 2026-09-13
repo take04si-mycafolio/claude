@@ -1,0 +1,214 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<title>{{ article.title }} | 記事SEOコックピット</title>
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<style>
+:root{
+  --bg:#0f1626; --bg2:#161e33; --panel:#1c2540; --border:#2a345a;
+  --text:#e3e9ff; --muted:#8893b8; --accent:#c97b84; --good:#4ade80; --warn:#fbbf24; --bad:#f87171;
+}
+*{box-sizing:border-box;}
+html,body{margin:0;background:var(--bg);color:var(--text);
+  font-family:'Noto Sans JP',system-ui,sans-serif;font-size:13px;}
+a{color:inherit;}
+header{padding:14px 22px;background:var(--bg2);border-bottom:1px solid var(--border);
+  display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:10;flex-wrap:wrap;gap:8px;}
+header .logo{font-weight:700;}
+nav.topnav a{margin-left:18px;color:var(--muted);text-decoration:none;font-size:13px;}
+nav.topnav a:hover{color:var(--text);}
+.head{padding:18px 22px 4px;}
+.head h1{font-size:17px;margin:0 0 6px;}
+.head .sub{color:var(--muted);font-size:12px;}
+.links{padding:8px 22px 4px;display:flex;gap:8px;flex-wrap:wrap;}
+.links a{padding:6px 13px;border:1px solid var(--border);background:var(--panel);
+  border-radius:7px;text-decoration:none;font-size:12px;}
+.links a:hover{border-color:var(--accent);}
+.cards{display:flex;gap:10px;flex-wrap:wrap;padding:14px 22px 4px;}
+.card{background:var(--panel);border:1px solid var(--border);border-radius:10px;padding:12px 16px;min-width:110px;}
+.card .label{color:var(--muted);font-size:11px;}
+.card .value{font-size:20px;font-weight:700;margin-top:2px;}
+.card .value span{font-size:11px;color:var(--muted);font-weight:400;margin-left:3px;}
+section{padding:14px 22px;}
+section h2{font-size:13px;color:var(--muted);margin:0 0 10px;font-weight:600;
+  border-bottom:1px solid var(--border);padding-bottom:6px;}
+table{width:100%;border-collapse:collapse;font-size:12.5px;}
+th{color:var(--muted);text-align:right;padding:7px 10px;border-bottom:1px solid var(--border);
+  font-weight:600;white-space:nowrap;}
+th.l{text-align:left;}
+td{padding:7px 10px;border-bottom:1px solid #222c4a;text-align:right;white-space:nowrap;}
+td.l{text-align:left;white-space:normal;}
+.tag{font-size:10px;padding:1px 7px;border-radius:6px;font-weight:700;}
+.tag.quick_win{background:#3d1e2a;color:#fda4af;}
+.tag.needs_work{background:#3a2a16;color:#fbbf24;}
+.tag.performing{background:#16332a;color:#6ee7b7;}
+.tag.dead{background:#26304d;color:var(--muted);}
+.muted{color:var(--muted);}
+.good{color:var(--good);} .bad{color:var(--bad);}
+.chartbox{background:var(--panel);border:1px solid var(--border);border-radius:10px;padding:14px;overflow-x:auto;}
+.chartbox .cap{color:var(--muted);font-size:11px;margin-bottom:6px;}
+.tablebox{overflow-x:auto;}
+.status-pill{font-size:11px;padding:2px 9px;border-radius:6px;font-weight:700;background:#16314d;color:#7dd3fc;}
+.status-pill.applied{background:#16332a;color:#6ee7b7;}
+.status-pill.rejected{background:#26304d;color:var(--muted);}
+.empty{color:var(--muted);padding:8px 0;}
+</style>
+</head>
+<body>
+<header>
+  <div class="logo">🐻 記事SEOコックピット</div>
+  <nav class="topnav">
+    <a href="/admin/seo/cockpit/">← 一覧に戻る</a>
+    <a href="/admin/">管理画面トップ</a>
+  </nav>
+</header>
+
+<div class="head">
+  <h1>{{ article.title }}</h1>
+  <div class="sub">/{{ article.slug }}/
+    {% if article.product_type %}｜{{ article.product_type.name }}{% endif %}
+    ｜最終更新 {{ article.updated_at|date:"Y-m-d H:i" }}
+    {% if article.last_rewritten_at %}｜最終リライト {{ article.last_rewritten_at|date:"Y-m-d" }}{% endif %}
+    {% if not article.is_published %}｜<b class="bad">非公開</b>{% endif %}
+    {% if article.noindex %}｜<b class="muted">noindex</b>{% endif %}
+  </div>
+</div>
+
+<div class="links">
+  {% if working_draft %}
+    <a href="/admin/analytics/rewritedraft/{{ working_draft.pk }}/change/"
+       style="border-color:#16332a;background:#16332a;color:#6ee7b7;font-weight:700;">▶ 作業台で開く（{{ working_draft.get_status_display }}）</a>
+  {% else %}
+    <form method="post" action="/admin/seo/cockpit/{{ article.pk }}/to-workbench/" style="display:inline;">
+      {% csrf_token %}
+      <button type="submit" class="wb-submit"
+        style="padding:6px 13px;border:1px solid var(--accent);background:var(--accent);color:#fff;border-radius:7px;cursor:pointer;font-size:12px;font-weight:700;">＋ 作業台に乗せる（指示書を自動生成）</button>
+    </form>
+  {% endif %}
+  <a href="{{ article.get_absolute_url }}" target="_blank">公開ページを見る ↗</a>
+  <a href="/admin/products/article/{{ article.pk }}/change/">記事を編集</a>
+  {% if draft_rows %}<a href="/admin/analytics/rewritedraft/{{ draft_rows.0.d.pk }}/change/">最新のリライト下書き</a>{% endif %}
+  <a href="/admin/seo/article-performance/">記事パフォーマンス</a>
+</div>
+
+{% if latest %}
+<div class="cards">
+  <div class="card"><div class="label">判定（最新トリアージ）</div>
+    <div class="value"><span class="tag {{ latest.bucket }}">{{ latest.get_bucket_display }}</span></div></div>
+  <div class="card"><div class="label">最上位クエリ順位</div>
+    <div class="value">{% if latest.best_query_position %}{{ latest.best_query_position|floatformat:1 }}{% else %}—{% endif %}</div></div>
+  <div class="card"><div class="label">表示回数</div>
+    <div class="value">{{ latest.impressions }}<span>28日</span></div></div>
+  <div class="card"><div class="label">クリック</div>
+    <div class="value">{{ latest.clicks }}<span>CTR {{ latest.ctr|floatformat:1 }}%</span></div></div>
+  <div class="card"><div class="label">獲得クエリ数</div>
+    <div class="value">{{ latest.num_queries }}</div></div>
+</div>
+{% endif %}
+
+<section>
+  <h2>順位トレンド（最上位クエリ順位・小さいほど上位）</h2>
+  {% if chart %}
+  <div class="chartbox">
+    <div class="cap">縦軸: 順位 {{ chart.lo }}位（上）〜 {{ chart.hi }}位（下）</div>
+    <svg width="{{ chart.w }}" height="{{ chart.h }}" viewBox="0 0 {{ chart.w }} {{ chart.h }}">
+      <polyline points="{{ chart.path }}" fill="none" stroke="#c97b84" stroke-width="2"/>
+      {% for c in chart.coords %}
+      <circle cx="{{ c.x }}" cy="{{ c.y }}" r="3.5" fill="#c97b84"><title>{{ c.label }}: {{ c.pos }}位</title></circle>
+      <text x="{{ c.x }}" y="{{ c.ly }}" fill="#e3e9ff" font-size="10" text-anchor="middle">{{ c.pos }}</text>
+      {% endfor %}
+    </svg>
+  </div>
+  {% else %}
+  <p class="empty">トレンドを描くには2回以上のトリアージデータが必要です。</p>
+  {% endif %}
+
+  <div class="tablebox" style="margin-top:12px;">
+    <table>
+      <thead><tr>
+        <th class="l">期間</th><th class="l">判定</th><th>最上位クエリ順位</th><th>平均順位</th>
+        <th>表示</th><th>クリック</th><th>CTR%</th><th>クエリ数</th><th class="l">最上位クエリ</th>
+      </tr></thead>
+      <tbody>
+      {% for t in trend reversed %}
+        <tr>
+          <td class="l">{{ t.period }}</td>
+          <td class="l"><span class="tag {{ t.bucket }}">{{ t.bucket_label }}</span></td>
+          <td>{{ t.position|default_if_none:"—" }}</td>
+          <td>{{ t.avg_position|default_if_none:"—" }}</td>
+          <td>{{ t.impressions }}</td>
+          <td>{{ t.clicks }}</td>
+          <td>{{ t.ctr }}</td>
+          <td>{{ t.num_queries }}</td>
+          <td class="l muted">{{ t.best_query }}</td>
+        </tr>
+      {% empty %}
+        <tr><td class="l muted" colspan="9">トリアージデータなし（次回 run_gsc_triage で反映）</td></tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<section>
+  <h2>獲得クエリ（最新トリアージ・順位が近いものから）</h2>
+  <div class="tablebox">
+    <table style="max-width:760px;">
+      <thead><tr><th class="l">クエリ</th><th>順位</th><th>表示</th><th>クリック</th></tr></thead>
+      <tbody>
+      {% for q in queries %}
+        <tr>
+          <td class="l">{{ q.query }}</td>
+          <td>{% if q.position %}{{ q.position|floatformat:1 }}{% else %}—{% endif %}</td>
+          <td>{{ q.impressions }}</td>
+          <td>{{ q.clicks }}</td>
+        </tr>
+      {% empty %}
+        <tr><td class="l muted" colspan="4">クエリデータなし</td></tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<section>
+  <h2>リライト履歴と効果測定（反映後{{ observation_days }}日は観測期間）</h2>
+  <div class="tablebox">
+    <table>
+      <thead><tr>
+        <th class="l">状態</th><th class="l">対象クエリ</th><th>着手時順位</th>
+        <th>反映日</th><th>経過日数</th><th class="l">効果判定</th>
+        <th>keep/grow</th><th class="l">ギャップ分析</th><th class="l"></th>
+      </tr></thead>
+      <tbody>
+      {% for row in draft_rows %}
+        <tr>
+          <td class="l"><span class="status-pill {{ row.d.status }}">{{ row.d.get_status_display }}</span></td>
+          <td class="l">{{ row.d.target_query|default:"—" }}</td>
+          <td>{% if row.d.src_best_position %}{{ row.d.src_best_position|floatformat:1 }}{% else %}—{% endif %}</td>
+          <td>{% if row.d.applied_at %}{{ row.d.applied_at|date:"Y-m-d" }}{% else %}—{% endif %}</td>
+          <td>{{ row.d.days_since_applied|default_if_none:"—" }}</td>
+          <td class="l">
+            {% if row.d.status == "applied" %}
+              {{ row.d.get_eval_status_display }}
+              {% if row.d.grow_before and row.d.grow_after %}
+                <span class="muted">（{{ row.d.grow_before|floatformat:1 }} → {{ row.d.grow_after|floatformat:1 }}）</span>
+              {% endif %}
+              {% if row.d.keep_damaged %}<b class="bad">／keep毀損</b>{% endif %}
+            {% else %}—{% endif %}
+          </td>
+          <td>{{ row.keep_count }}/{{ row.grow_count }}</td>
+          <td class="l muted">{{ row.gap_status|default:"—" }}</td>
+          <td class="l"><a href="/admin/analytics/rewritedraft/{{ row.d.pk }}/change/" style="color:var(--accent);">開く</a></td>
+        </tr>
+      {% empty %}
+        <tr><td class="l muted" colspan="9">リライト履歴なし</td></tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+
+</body>
+</html>

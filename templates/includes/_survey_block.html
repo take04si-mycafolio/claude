@@ -1,0 +1,113 @@
+{% load static %}
+<div class="bk-mc-survey" id="survey-{{ slug }}" data-survey-slug="{{ slug }}">
+  <div class="bk-mc-survey-head">
+    <span class="bk-mc-survey-badge">利用者アンケート</span>
+    <h3 class="bk-mc-survey-title">{{ survey.title }}</h3>
+  </div>
+  <p class="bk-mc-survey-intro">{{ survey.intro }}</p>
+
+  {% if published %}
+    <div class="bk-mc-survey-result">
+      <p class="bk-mc-survey-result-lead">現在の集計結果（有効回答 {{ total }}件・回答は随時反映）</p>
+      {% for key, stat in stats.items %}
+        <div class="bk-mc-survey-stat">
+          <p class="bk-mc-survey-stat-q">{{ stat.label }}<small>（回答{{ stat.answered }}件）</small></p>
+          {% for row in stat.rows %}
+            <div class="bk-mc-survey-bar-row">
+              <span class="bk-mc-survey-bar-label">{{ row.label }}</span>
+              <span class="bk-mc-survey-bar-track">
+                <span class="bk-mc-survey-bar-fill" style="width:{{ row.pct }}%"></span>
+              </span>
+              <span class="bk-mc-survey-bar-val">{{ row.pct }}%<small>（{{ row.count }}件）</small></span>
+            </div>
+          {% endfor %}
+        </div>
+      {% endfor %}
+      {% if reasons %}
+        <div class="bk-mc-survey-voices">
+          <p class="bk-mc-survey-stat-q">回答者の声（抜粋・投稿者個人の感想です）</p>
+          <ul>
+            {% for r in reasons %}<li>{{ r }}</li>{% endfor %}
+          </ul>
+        </div>
+      {% endif %}
+      <p class="bk-mc-survey-note">※本アンケートはTUSHOU利用者の任意回答の集計であり、公的な統計ではありません。割合は各設問の回答者数に対する構成比です。</p>
+    </div>
+  {% else %}
+    <p class="bk-mc-survey-collecting">
+      {% if total %}現在{{ total }}件の有効回答が集まっています。結果公開まであと{{ remaining }}件です。{% else %}30件以上の有効回答が集まり次第、このページで集計結果を公開します。{% endif %}
+      ぜひご協力ください。
+    </p>
+  {% endif %}
+
+  <form class="bk-mc-survey-form" data-submit-url="{% url 'surveys:submit' slug %}">
+    {% for key, q in questions.items %}
+      <fieldset class="bk-mc-survey-fieldset"{% if q.required %} data-required="1"{% endif %}>
+        <legend>{{ q.label }}{% if not q.required %}<span class="bk-mc-survey-optional">（任意）</span>{% endif %}</legend>
+        {% for value, label in q.choices %}
+          <label class="bk-mc-survey-choice">
+            <input type="radio" name="{{ key }}" value="{{ value }}">{{ label }}
+          </label>
+        {% endfor %}
+      </fieldset>
+    {% endfor %}
+    <label class="bk-mc-survey-reason">
+      <span>{{ survey.reason_label }}</span>
+      <textarea name="reason" maxlength="300" rows="3" placeholder="例：置き場所に困らず毎日使えて助かった／多機能すぎて使いこなせなかった など"></textarea>
+    </label>
+    <p class="bk-mc-survey-moderation">自由記述は、個人情報・誹謗中傷・商品効果を断定する表現などが含まれていないかを確認します。掲載時に、意味を変えない範囲で表記を整える場合や、掲載を見送る場合があります。すべての回答が掲載されるわけではありません。</p>
+    <input type="text" name="website" class="bk-mc-survey-hp" tabindex="-1" autocomplete="off" aria-hidden="true">
+    <div class="bk-mc-survey-actions">
+      <button type="submit" class="bk-mc-survey-submit">回答を送信する</button>
+      <span class="bk-mc-survey-msg" role="status" aria-live="polite"></span>
+    </div>
+    <p class="bk-mc-survey-privacy">回答フォームでは、氏名・メールアドレスなどの入力を求めません。回答内容は集計結果の作成に利用し、自由記述は内容を確認したうえで、個人が特定されない形で掲載する場合があります。詳しくは<a href="/privacy/">プライバシーポリシー</a>をご確認ください。</p>
+  </form>
+</div>
+
+<script>
+(function () {
+  var root = document.getElementById("survey-{{ slug }}");
+  if (!root) return;
+  var form = root.querySelector(".bk-mc-survey-form");
+  var msg = root.querySelector(".bk-mc-survey-msg");
+  function cookie(name) {
+    return document.cookie.split("; ").reduce(function (acc, c) {
+      var p = c.split("=");
+      return p[0] === name ? decodeURIComponent(p[1]) : acc;
+    }, "");
+  }
+  form.addEventListener("submit", function (e) {
+    e.preventDefault();
+    var missing = false;
+    root.querySelectorAll('.bk-mc-survey-fieldset[data-required="1"]').forEach(function (fs) {
+      if (!fs.querySelector('input[type=radio]:checked')) missing = true;
+    });
+    if (missing) {
+      msg.textContent = "必須の質問（「ある／ない」）にお答えください。";
+      return;
+    }
+    var btn = form.querySelector(".bk-mc-survey-submit");
+    btn.disabled = true;
+    msg.textContent = "送信中…";
+    fetch(form.getAttribute("data-submit-url"), {
+      method: "POST",
+      headers: { "X-CSRFToken": cookie("csrftoken"), "X-Requested-With": "XMLHttpRequest" },
+      body: new FormData(form),
+    })
+      .then(function (r) { return r.json(); })
+      .then(function (d) {
+        if (d && d.ok) {
+          form.innerHTML = '<p class="bk-mc-survey-thanks">ご協力ありがとうございました。集計に反映されます。</p>';
+        } else {
+          btn.disabled = false;
+          msg.textContent = "送信に失敗しました。時間をおいて再度お試しください。";
+        }
+      })
+      .catch(function () {
+        btn.disabled = false;
+        msg.textContent = "送信に失敗しました。通信環境をご確認ください。";
+      });
+  });
+})();
+</script>

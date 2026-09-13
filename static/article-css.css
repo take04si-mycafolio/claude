@@ -504,10 +504,61 @@
 }
 .bk-mc-wrap .bk-mc-faq-a .bk-faq-atext { flex: 1; font-size: .92rem; color: #3A2E33; line-height: 1.85; }
 .bk-mc-wrap .bk-mc-faq-a .bk-faq-atext p { margin: 0 0 10px; }
+
+/* FAQ回答内に表を置いたとき、flexアイテムの min-width:auto が効いて
+   table の min-width を下回れず、スクロール枠(.bk-mc-table-scroll)から
+   はみ出していた。min-width:0 で縮小を許可し、枠内スクロールに戻す。 */
+.bk-mc-wrap .bk-mc-faq-a .bk-faq-atext { min-width: 0; }
+.bk-mc-wrap .bk-mc-faq-a .bk-mc-table-scroll {
+  max-width: 100%;
+  margin: 12px 0 4px;
+  border-radius: 12px;
+}
+.bk-mc-wrap .bk-mc-faq-a .bk-mc-table-scroll table { min-width: 360px; font-size: .84rem; }
+.bk-mc-wrap .bk-mc-faq-a .bk-mc-table-scroll th,
+.bk-mc-wrap .bk-mc-faq-a .bk-mc-table-scroll td { padding: 8px 10px; white-space: normal; }
 .bk-mc-wrap .bk-mc-faq-a .bk-faq-atext p:last-child { margin-bottom: 0; }
 .bk-mc-wrap .bk-mc-faq-a .bk-faq-atext ul { margin: 8px 0 12px; padding-left: 20px; }
 .bk-mc-wrap .bk-mc-faq-a .bk-faq-atext li { margin-bottom: 6px; line-height: 1.7; }
 .bk-mc-wrap .bk-mc-faq-a .bk-faq-atext strong { color: #A0606A; }
+
+/* ========= 折りたたみ開示ボックス（選定基準・データについて 等） ========= */
+.bk-mc-wrap .bk-mc-disclosure {
+  margin: 18px 0;
+  border: 1px solid #EADCE2;
+  border-radius: 10px;
+  background: #FCF8FA;
+  overflow: hidden;
+}
+.bk-mc-wrap .bk-mc-disclosure > summary {
+  cursor: pointer;
+  list-style: none;
+  padding: 12px 40px 12px 14px;
+  position: relative;
+  font-size: .9rem;
+  font-weight: 700;
+  color: #6B4A57;
+}
+.bk-mc-wrap .bk-mc-disclosure > summary::-webkit-details-marker { display: none; }
+.bk-mc-wrap .bk-mc-disclosure > summary::after {
+  content: "＋";
+  position: absolute;
+  right: 14px;
+  top: 50%;
+  transform: translateY(-50%);
+  font-weight: 700;
+  color: #B07C90;
+}
+.bk-mc-wrap .bk-mc-disclosure[open] > summary::after { content: "−"; }
+.bk-mc-wrap .bk-mc-disclosure[open] > summary { border-bottom: 1px solid #EADCE2; }
+.bk-mc-wrap .bk-mc-disclosure > summary:hover { background: #F6EDF1; }
+.bk-mc-wrap .bk-mc-disclosure-body { padding: 12px 14px 14px; }
+.bk-mc-wrap .bk-mc-disclosure-body p {
+  margin: 0;
+  font-size: .84rem;
+  line-height: 1.85;
+  color: #5A4A50;
+}
 
 /* ========= まとめボックス ========= */
 .bk-mc-wrap .bk-mc-summary-box {
@@ -628,13 +679,18 @@
   color: #A0606A;
 }
 
-/* H2: 番号付き */
+/* H2: 番号付き。番号は absolute で左に置き、折り返し行が番号の下に
+   潜り込まない「ぶら下げインデント」にする（2026-07-27 スマホの改行崩れ対応） */
 .article-toc-l2 { counter-increment: toc-counter; }
+.article-toc-l2 > a {
+  position: relative;
+  padding-left: 38px;
+}
 .article-toc-l2 > a::before {
   content: counter(toc-counter, decimal-leading-zero);
-  display: inline-block;
-  width: 28px;
-  margin-right: 10px;
+  position: absolute;
+  left: 4px;
+  top: 6px;
   color: #C97B84;
   font-weight: 700;
   font-size: 0.85rem;
@@ -642,28 +698,70 @@
   letter-spacing: .04em;
 }
 
-/* H3: 字下げ */
+/* H3: 字下げ（記号も absolute でぶら下げインデント） */
 .article-toc-l3 {
-  padding-left: 32px;
-  position: relative;
+  padding-left: 14px;
   font-size: 0.88rem;
 }
 .article-toc-l3 > a {
+  position: relative;
+  padding-left: 24px;
   color: #5C5256;
   font-size: 0.88rem;
 }
 .article-toc-l3 > a::before {
   content: "└";
-  margin-right: 8px;
+  position: absolute;
+  left: 4px;
+  top: 5px;
   color: #D49AA1;
 }
+
+/* 目次の「つづきを見る」トグル（JSなし・checkbox+label）。
+   PCは全項目を出すので、チェックボックスもラベルも使わない。 */
+.article-toc-more-cb {
+  position: absolute;
+  width: 1px; height: 1px;
+  margin: 0; padding: 0;
+  opacity: 0;
+  pointer-events: none;
+}
+.article-toc-more { display: none; }
 
 /* スマホ */
 @media (max-width: 640px) {
   .article-toc { padding: 14px 16px; margin-bottom: 24px; }
   .article-toc summary { font-size: 0.95rem; }
-  .article-toc-list a { font-size: 0.88rem; padding: 5px 4px; }
-  .article-toc-l3 { padding-left: 22px; }
+  .article-toc-list a { font-size: 0.88rem; padding: 5px 4px; line-height: 1.6; }
+  .article-toc-l2 > a { padding-left: 34px; }
+  .article-toc-l2 > a::before { left: 2px; top: 6px; }
+  .article-toc-l3 { padding-left: 8px; }
+  .article-toc-l3 > a { padding-left: 22px; }
+
+  /* 大見出し4本目より下は畳む（2026-09-09 ユーザー指示） */
+  .article-toc-more-cb:not(:checked) ~ .article-toc-list > .article-toc-fold {
+    display: none;
+  }
+  .article-toc-more {
+    display: block;
+    width: fit-content;
+    margin: 10px auto 0;
+    padding: 7px 18px;
+    border: 1px solid #F2DEE0;
+    border-radius: 999px;
+    background: #fff;
+    color: #A0606A;
+    font-size: .8rem; font-weight: 700; letter-spacing: .02em;
+    cursor: pointer;
+    -webkit-user-select: none; user-select: none;
+    transition: background .2s, color .2s, box-shadow .2s;
+  }
+  .article-toc-more:active { background: #FBF6F4; }
+  .article-toc-more-cb:focus-visible ~ .article-toc-more {
+    outline: 2px solid #C97B84; outline-offset: 2px;
+  }
+  .article-toc-more-cb:checked ~ .article-toc-more .article-toc-more-open { display: none; }
+  .article-toc-more-cb:not(:checked) ~ .article-toc-more .article-toc-more-close { display: none; }
 }
 
 /* スムーススクロール + 固定ヘッダー逃げ */
@@ -1349,6 +1447,7 @@ html, body { overflow-x: clip !important; max-width: 100vw !important; }
 }
 .bk-mc-pc-price-label { font-size: 11px; color: #7A6E73; }
 .bk-mc-pc-price { font-size: 1.5rem; font-weight: 700; color: #b52159; }
+.bk-mc-wrap .bk-mc-pc-price-note { margin: 2px 0 0; font-size: 0.7rem; line-height: 1.5; color: #7A6A70; }
 
 /* 紹介文: 枠なし、HTMLそのまま反映 */
 .bk-mc-pc-intro {
@@ -1477,6 +1576,7 @@ html, body { overflow-x: clip !important; max-width: 100vw !important; }
 .bk-mc-pc-stars { color: #D4A574; font-size: 1.05rem; letter-spacing: 0.08em; line-height: 1; }
 .bk-mc-pc-rating-num { font-size: 1rem; font-weight: 700; color: #1F1418; }
 .bk-mc-pc-review-count { font-size: 12px; color: #7A6E73; }
+.bk-mc-pc-review-source { font-size: 12px; font-weight: 700; color: #7A6E73; }
 
 .bk-mc-pc-reviews-track {
   display: flex;
@@ -1713,6 +1813,45 @@ article > div.grid > div .bk-mc-table-scroll {
 .bk-mc-page-card .bk-mc-pc-arrow { flex-shrink: 0; color: #D4A574; font-weight: 700; }
 .bk-mc-page-card-error { color: #c0392b; font-size: 0.85rem; }
 
+/* [related]「あわせて読みたい」リスト: スマホは各行の横並び（種別ラベル｜タイトル｜矢印）を
+   やめて、ラベル上・タイトル下の縦積みに（2026-07-27 ユーザー指示） */
+@media (max-width: 640px) {
+  .bk-mc-related-list a {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 5px;
+    position: relative;
+    padding-right: 24px;
+  }
+  .bk-mc-related-list .bk-mc-rl-kind { align-self: flex-start; }
+  .bk-mc-related-list .bk-mc-rl-title { width: 100%; }
+  /* 矢印は[card]と同じく右上に配置 */
+  .bk-mc-related-list .bk-mc-rl-arrow {
+    position: absolute;
+    right: 4px;
+    top: 12px;
+    transform: none;
+  }
+}
+
+/* [card]ショートコード: スマホは横並び（ラベル｜本文｜矢印）をやめて縦積み1カラムに
+   （2026-07-27 ユーザー指示。ラベルを上、タイトル・説明を下に重ねる） */
+@media (max-width: 640px) {
+  .bk-mc-wrap .bk-mc-page-card {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 8px;
+    padding: 14px 16px;
+    position: relative;
+  }
+  .bk-mc-page-card .bk-mc-pc-kind { align-self: flex-start; }
+  .bk-mc-page-card .bk-mc-pc-arrow {
+    position: absolute;
+    right: 14px;
+    top: 14px;
+  }
+}
+
 /* 関連記事ブロック: 案1トーンに統一（#F2DEE0枠・見出しにgoldアクセント） */
 .bk-mc-wrap .bk-mc-related-list {
   border: 1px solid #F2DEE0; border-radius: 16px;
@@ -1738,3 +1877,556 @@ article > div.grid > div .bk-mc-table-scroll {
 }
 .bk-mc-related-list .bk-mc-rl-title { flex: 1; min-width: 0; font-size: 0.9rem; font-weight: 600; }
 .bk-mc-related-list .bk-mc-rl-arrow { flex-shrink: 0; color: #D4A574; }
+
+
+/* ============================================================
+   記事コンポーネント（記事冒頭インラインCSSから集約: 2026-06-16）
+   商品4カテゴリ90記事のインライン<style>を共有化。テーマはローズゴールド正規化。
+   ============================================================ */
+.bk-mc-wrap .bk-mc-faq-alabel { flex-shrink: 0; width: 30px; height: 30px; border-radius: 8px; font-size: 0.95rem; font-weight: 900; font-style: italic; display: flex; align-items: center; justify-content: center; }
+.bk-mc-wrap .bk-mc-faq-qlabel { flex-shrink: 0; width: 30px; height: 30px; border-radius: 8px; font-size: 0.95rem; font-weight: 900; font-style: italic; display: flex; align-items: center; justify-content: center; }
+.bk-mc-wrap .bk-mc-cons { background: #fafafa; border-radius: 8px; border-left: 3px solid #e74c3c; padding: 10px 12px; font-size: 0.82rem; }
+.bk-mc-wrap .bk-mc-pros { background: #fafafa; border-radius: 8px; border-left: 3px solid #27ae60; padding: 10px 12px; font-size: 0.82rem; }
+.bk-mc-wrap .bk-mc-compare-table td { padding: 6px 16px; border-bottom: 1px solid #FBF6F4; color: #3A2E33; vertical-align: middle; white-space: nowrap; }
+.bk-mc-wrap .bk-mc-compare-table { width: 100%; border-collapse: collapse; min-width: 540px; font-size: 0.88rem; }
+.bk-mc-wrap .bk-mc-compare-table thead { background: #FBF6F4; }
+.bk-mc-wrap .bk-mc-compare-table th { padding: 6px 16px; text-align: left; font-weight: 600; font-size: 0.72rem; letter-spacing: 0.08em; text-transform: uppercase; color: #A0606A; border-bottom: 1px solid #F2DEE0; white-space: nowrap; }
+.bk-mc-wrap .bk-mc-section { margin-bottom: 40px; }
+.bk-mc-wrap .bk-mc-callout-pink { background: #fff0f5; border-left: 4px solid #b52159; }
+.bk-mc-wrap .bk-mc-callout-pink strong { color: #b52159; }
+.bk-mc-wrap .bk-mc-caution-card li { margin-bottom: 5px; line-height: 1.6; }
+.bk-mc-wrap .bk-mc-faq-atext { flex: 1; font-size: 0.9rem; color: #444; line-height: 1.75; }
+.bk-mc-wrap .bk-mc-faq-atext p { margin: 0 0 8px; }
+.bk-mc-wrap .bk-mc-faq-qtext { flex: 1; font-size: 0.95rem; font-weight: 700; color: #1a1a1a; line-height: 1.45; }
+/* 口コミ抜粋の直前に置く免責。景表法上、個人の感想である旨を明瞭に伝える。 */
+.bk-mc-wrap .bk-mc-pc-review-note {
+  margin: 0 0 10px;
+  font-size: 0.72rem;
+  line-height: 1.6;
+  color: #7A6A70;
+}
+
+/* この記事でわかること（リードボックス）。
+   本文インライン<style>の共有化に伴い、旧インラインCSSの全ルールをここへ移設した。 */
+.bk-mc-wrap .bk-mc-lead-box {
+  background: #fff5f8;
+  border: 1.5px solid #f0ccd8;
+  border-radius: 14px;
+  padding: 20px 24px;
+  margin: 16px 0 28px;
+}
+.bk-mc-wrap .bk-mc-lead-box strong {
+  display: block;
+  font-weight: 700;
+  font-size: 1rem;
+  color: #b52159;
+  margin-bottom: 10px;
+}
+.bk-mc-wrap .bk-mc-lead-box ul { margin: 0; padding-left: 4px; list-style: none; }
+.bk-mc-wrap .bk-mc-lead-box li {
+  position: relative;
+  padding-left: 18px;
+  margin-bottom: 8px;
+  line-height: 1.7;
+  font-size: 0.92rem;
+}
+.bk-mc-wrap .bk-mc-lead-box li::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 0.65em;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #b52159;
+}
+.bk-mc-wrap .bk-mc-compare-table tbody td:first-child { font-weight: 600; color: #1F1418; }
+.bk-mc-wrap .bk-mc-compare-table tbody tr:last-child td { border-bottom: none; }
+.bk-mc-wrap .bk-mc-caution-ng { background: #fdecea; border: 1.5px solid #e57373; }
+.bk-mc-wrap .bk-mc-compare-table tbody tr:hover { background: #FBF6F4; }
+.bk-mc-wrap .bk-mc-compare-table td:not(:first-child) { text-align: center; }
+.bk-mc-wrap .bk-mc-compare-table th:not(:first-child) { text-align: center; }
+.bk-mc-wrap .bk-mc-cons li { margin-bottom: 3px; line-height: 1.5; }
+.bk-mc-wrap .bk-mc-cons p { font-weight: 700; margin: 0 0 6px; color: #c0392b; }
+.bk-mc-wrap .bk-mc-cons ul { margin: 0; padding-left: 16px; }
+.bk-mc-wrap .bk-mc-pros li { margin-bottom: 3px; line-height: 1.5; }
+.bk-mc-wrap .bk-mc-pros p { font-weight: 700; margin: 0 0 6px; color: #1e7a40; }
+.bk-mc-wrap .bk-mc-pros ul { margin: 0; padding-left: 16px; }
+.bk-mc-wrap .bk-mc-rank-pros-cons { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 14px; }
+.bk-mc-wrap .bk-mc-step { display: flex; gap: 14px; align-items: flex-start; background: #fff; border: 1.5px solid #f0ccd8; border-radius: 12px; padding: 14px 16px; }
+.bk-mc-wrap .bk-mc-step-body { flex: 1; font-size: 0.9rem; }
+.bk-mc-wrap .bk-mc-step-body strong { display: block; font-size: 0.93rem; margin-bottom: 4px; color: #222; }
+.bk-mc-wrap .bk-mc-steps { display: flex; flex-direction: column; gap: 12px; margin: 14px 0; }
+.bk-mc-wrap .bk-mc-yes { display: inline-flex; align-items: center; padding: 4px 12px; border-radius: 999px; background: rgba(212, 165, 116, 0.15); color: #B6824E; font-weight: 600; font-size: 0.78rem; letter-spacing: 0.02em; }
+.bk-mc-wrap .bk-mc-no { display: inline-flex; align-items: center; padding: 4px 12px; border-radius: 999px; background: #FBF6F4; color: #C9B8BC; font-weight: 500; font-size: 0.78rem; }
+.bk-mc-wrap .bk-mc-caution-warn { background: #fff8e1; border: 1.5px solid #ffd54f; }
+.bk-mc-wrap .bk-mc-timeline { position: relative; padding-left: 24px; margin: 14px 0 28px; }
+.bk-mc-wrap .bk-mc-timeline::before { content: ''; position: absolute; left: 12px; top: 0; bottom: 0; width: 2px; background: #f0ccd8; }
+.bk-mc-wrap .bk-mc-tl-body { flex: 1; background: #fff; border: 1px solid #f0ccd8; border-radius: 10px; padding: 12px 14px; }
+.bk-mc-wrap .bk-mc-tl-item { display: flex; gap: 16px; align-items: flex-start; margin-bottom: 20px; position: relative; }
+.bk-mc-wrap .bk-mc-tl-item::before { content: ''; position: absolute; left: -16px; top: 13px; width: 10px; height: 10px; border-radius: 50%; background: #b52159; border: 2px solid #fff; box-shadow: 0 0 0 2px #b52159; }
+.bk-mc-wrap .bk-mc-tl-period { flex-shrink: 0; width: 72px; font-size: 0.78rem; font-weight: 700; color: #b52159; text-align: center; background: #fce4ec; border-radius: 8px; padding: 7px 4px; line-height: 1.4; }
+.bk-mc-wrap .bk-mc-table-scroll > .bk-mc-compare-table { margin: 0 !important; line-height: 1.5 !important; }
+.bk-mc-wrap .bk-mc-table-scroll > .bk-mc-compare-table td { line-height: 1.5 !important; }
+.bk-mc-wrap .bk-mc-table-scroll > .bk-mc-compare-table th { line-height: 1.5 !important; }
+.bk-mc-wrap .bk-mc-compare-table tbody tr { transition: background .15s; }
+.bk-mc-wrap .bk-mc-compare-table td:last-child { text-align: center !important; vertical-align: middle !important; }
+.bk-mc-wrap .bk-mc-compare-table th:last-child { text-align: center !important; vertical-align: middle !important; }
+.bk-mc-wrap .bk-mc-caution-card p { font-weight: 700; margin: 0 0 8px; color: #c0392b; }
+.bk-mc-wrap .bk-mc-compare-table thead th { color: #1F1418 !important; text-transform: none !important; letter-spacing: 0.02em !important; font-size: 0.85rem !important; font-weight: 700 !important; border-left: 0 !important; border-right: 0 !important; }
+.bk-mc-wrap .bk-mc-table-scroll > br { display: none; }
+.bk-mc-wrap .bk-mc-table-scroll > p { display: none; }
+.bk-mc-wrap .bk-mc-compare-table td:last-child .bk-mc-no { display: inline-flex; align-items: center; justify-content: center; }
+.bk-mc-wrap .bk-mc-compare-table td:last-child .bk-mc-yes { display: inline-flex; align-items: center; justify-content: center; }
+.bk-mc-wrap .bk-mc-mode-card ul { font-size: 0.9rem; line-height: 1.75; margin: 0 0 6px; }
+.bk-mc-wrap .bk-mc-btn-rakuten { background: #bf0000; }
+.bk-mc-wrap .bk-mc-illust { display: block; max-width: 100%; height: auto; margin: 0 auto; border-radius: 10px; }
+.bk-mc-wrap .bk-mc-illust-figure { margin: 18px auto; text-align: center; }
+.bk-mc-wrap .bk-mc-illust-figure figcaption { font-size: 0.85rem; color: #666; margin-top: 6px; line-height: 1.5; }
+.bk-mc-wrap .bk-mc-cta-button { display: inline-block; background: #b52159; color: #fff !important; text-decoration: none; padding: 12px 28px; border-radius: 999px; font-weight: 700; font-size: 0.95rem; box-shadow: 0 2px 6px rgba(181, 33, 89, 0.25); transition: background .15s, transform .15s; }
+.bk-mc-wrap .bk-mc-cta-button:hover { background: #951847; transform: translateY(-1px); }
+.bk-mc-wrap .bk-mc-cta-wrap { text-align: center; margin: 22px 0; }
+.bk-mc-wrap .bk-mc-mode-card { background: #fff; border: 1.5px solid #f0ccd8; border-radius: 12px; padding: 16px 18px; margin: 14px 0; }
+.bk-mc-wrap .bk-mc-mode-card h4 { font-size: 1rem; font-weight: 700; color: #b52159; margin: 0 0 8px; }
+.bk-mc-wrap .bk-mc-mode-card p { font-size: 0.9rem; line-height: 1.75; margin: 0 0 6px; }
+.bk-mc-wrap .bk-mc-pros-list { background: #fff; border-left: 4px solid #27ae60; border-radius: 0 10px 10px 0; padding: 14px 18px; margin: 14px 0; font-size: 0.9rem; line-height: 1.75; }
+.bk-mc-wrap .bk-mc-pros-list strong { color: #27ae60; display: block; margin-bottom: 6px; font-size: 0.95rem; }
+.bk-mc-wrap .bk-mc-pros-list ul { margin: 0; padding-left: 18px; }
+.bk-mc-wrap .bk-mc-record-box { background: #fff; border: 1.5px solid #f0ccd8; border-radius: 14px; padding: 18px 22px; margin: 18px 0; font-size: 0.9rem; }
+.bk-mc-wrap .bk-mc-record-box dd { margin: 2px 0 0; padding-left: 10px; color: #3A2E33; line-height: 1.7; font-size: 0.9rem; }
+.bk-mc-wrap .bk-mc-record-box dl { margin: 0; }
+.bk-mc-wrap .bk-mc-record-box dt { font-weight: 700; color: #1F1418; margin-top: 8px; font-size: 0.88rem; }
+.bk-mc-wrap .bk-mc-record-box h3 { font-size: 1rem; font-weight: 700; margin: 0 0 12px; color: #b52159; }
+.bk-mc-wrap .bk-mc-cons-list { background: #fff; border-left: 4px solid #e74c3c; border-radius: 0 10px 10px 0; padding: 14px 18px; margin: 14px 0; font-size: 0.9rem; line-height: 1.75; }
+.bk-mc-wrap .bk-mc-cons-list strong { color: #e74c3c; display: block; margin-bottom: 6px; font-size: 0.95rem; }
+.bk-mc-wrap .bk-mc-cons-list ul { margin: 0; padding-left: 18px; }
+.bk-mc-wrap .bk-mc-h4 { font-size: clamp(0.95rem, 2vw, 1.04rem); font-weight: 700; color: #b52159; margin: 20px 0 10px; }
+.bk-mc-wrap .bk-mc-rating-bar { height: 100%; background: linear-gradient(90deg, #f5b6c4 0%, #b52159 100%); border-radius: 999px; box-shadow: inset 0 -1px 0 rgba(0,0,0,0.06); }
+.bk-mc-wrap .bk-mc-rating-bar-wrap { background: #fce4ec; border-radius: 999px; height: 14px; overflow: hidden; position: relative; }
+.bk-mc-wrap .bk-mc-rating-chart { background: #fff; border: 1.5px solid #f0ccd8; border-radius: 14px; padding: 20px 22px; margin: 18px 0; box-shadow: 0 1px 3px rgba(60,30,40,0.04); }
+.bk-mc-wrap .bk-mc-rating-chart-title { font-size: 0.95rem; font-weight: 700; color: #b52159; margin: 0 0 14px; padding-bottom: 10px; border-bottom: 1px solid #f0ccd8; }
+.bk-mc-wrap .bk-mc-rating-label { font-size: 0.9rem; font-weight: 600; color: #1F1418; }
+.bk-mc-wrap .bk-mc-rating-note { font-size: 0.78rem; color: #7A6E73; margin: 12px 0 0; padding-top: 10px; border-top: 1px dashed #f0ccd8; line-height: 1.6; }
+.bk-mc-wrap .bk-mc-rating-row { display: grid; grid-template-columns: 110px 1fr 60px; gap: 14px; align-items: center; padding: 9px 0; }
+.bk-mc-wrap .bk-mc-rating-row + .bk-mc-rating-row { border-top: 1px dashed #f8e7eb; }
+.bk-mc-wrap .bk-mc-rating-score { text-align: right; font-weight: 700; color: #b52159; font-size: 0.95rem; }
+.bk-mc-wrap .bk-mc-record-box .user-photo { display: block; max-width: 120px; height: auto; border-radius: 999px; margin: 0 auto 12px; border: 3px solid #fff; box-shadow: 0 2px 8px rgba(181, 33, 89, 0.15); }
+.bk-mc-wrap .bk-mc-video-wrap { position: relative; padding-top: 56.25%; margin: 18px 0; border-radius: 12px; overflow: hidden; box-shadow: 0 2px 8px rgba(60,30,40,0.08); }
+.bk-mc-wrap .bk-mc-video-wrap iframe { position: absolute; top: 0; left: 0; width: 100%; height: 100%; border: 0; }
+.bk-mc-wrap .bk-mc-callout-blue { background: #eef5fb; border-left: 4px solid #1a5276; }
+.bk-mc-wrap .bk-mc-callout-blue strong { color: #1a5276; }
+.bk-mc-wrap .bk-mc-cosmetic-card { background: #fff; border: 1px solid #f0ccd8; border-radius: 10px; padding: 10px; text-align: center; font-size: 0.82rem; }
+.bk-mc-wrap .bk-mc-cosmetic-card img { max-width: 100%; height: auto; border-radius: 6px; margin-bottom: 6px; }
+.bk-mc-wrap .bk-mc-cosmetic-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 14px; margin: 18px 0; }
+.bk-mc-wrap .bk-mc-ingredients-box { background: #fafafa; border: 1px solid #e0e0e0; border-radius: 10px; padding: 14px 18px; margin: 18px 0; font-size: 0.82rem; line-height: 1.85; color: #555; }
+.bk-mc-wrap .bk-mc-ingredients-box h4 { font-size: 0.95rem; font-weight: 700; color: #1F1418; margin: 0 0 8px; padding-bottom: 6px; border-bottom: 1px solid #e0e0e0; }
+.bk-mc-wrap .bk-mc-led-card { background: #fff; border: 1.5px solid #f0ccd8; border-radius: 12px; padding: 14px; text-align: center; }
+.bk-mc-wrap .bk-mc-led-card h4 { font-size: 0.95rem; font-weight: 700; color: #b52159; margin: 0 0 6px; }
+.bk-mc-wrap .bk-mc-led-card img { max-width: 100%; height: auto; border-radius: 8px; margin-bottom: 8px; }
+.bk-mc-wrap .bk-mc-led-card p { font-size: 0.85rem; color: #555; margin: 0; line-height: 1.6; }
+.bk-mc-wrap .bk-mc-led-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 14px; margin: 18px 0; }
+.bk-mc-wrap .bk-mc-product-illust { display: block; max-width: 280px; height: auto; margin: 16px auto; border-radius: 10px; }
+.bk-mc-wrap .bk-mc-record-box .note { display: block; margin-top: 12px; padding-top: 10px; border-top: 1px dashed #f0ccd8; color: #7A6E73; font-size: 0.82rem; line-height: 1.6; }
+.bk-mc-wrap .bk-mc-value { background: #fff8e1; border-left: 3px solid #f0a500; border-radius: 8px; padding: 9px 12px; font-size: 0.84rem; margin-bottom: 4px; }
+.bk-mc-wrap .bk-mc-value strong { color: #b07a00; }
+
+@media (max-width: 540px) {
+  .bk-mc-wrap .bk-mc-compare-table { font-size: 0.82rem; }
+  .bk-mc-wrap .bk-mc-compare-table th { padding: 5px 10px; }
+  .bk-mc-wrap .bk-mc-compare-table td { padding: 5px 10px; }
+}
+
+@media (max-width: 640px) {
+  .bk-mc-wrap .bk-mc-record-box { padding: 14px 16px !important; }
+  .bk-mc-wrap .bk-mc-mode-card { padding: 14px 16px !important; }
+}
+
+@media (max-width: 480px) {
+  .bk-mc-wrap .bk-mc-rank-item { flex-direction: column; gap: 10px; padding: 14px; }
+  .bk-mc-wrap .bk-mc-rank-badge { flex-direction: row; width: auto; gap: 4px; }
+  .bk-mc-wrap .bk-mc-rank-header { flex-direction: column; gap: 6px; }
+  .bk-mc-wrap .bk-mc-rank-btns { flex-direction: column; }
+  .bk-mc-wrap .bk-mc-tl-item { flex-direction: column; gap: 8px; }
+  .bk-mc-wrap .bk-mc-tl-period { width: 100%; text-align: left; }
+  .bk-mc-wrap .bk-mc-rating-row { grid-template-columns: 90px 1fr 50px; gap: 10px; }
+  .bk-mc-wrap .bk-mc-rating-label { font-size: 0.82rem; }
+  .bk-mc-wrap .bk-mc-rating-score { font-size: 0.88rem; }
+}
+
+@media (max-width: 680px) {
+  .bk-mc-wrap .bk-mc-rank-pros-cons { grid-template-columns: 1fr; }
+}
+
+@media (max-width: 560px) {
+  .bk-mc-wrap .bk-mc-compare-table { font-size: 0.82rem; }
+  .bk-mc-wrap .bk-mc-compare-table th { padding: 5px 10px; }
+  .bk-mc-wrap .bk-mc-compare-table td { padding: 5px 10px; }
+}
+
+
+/* ============================================================
+   商品説明コンポーネント（商品ページProduct.descriptionインラインCSSから集約: 2026-06-16）
+   179商品の<style>を共有化。bk-mc-wrap配下スコープ・テーマはローズゴールド正規化。
+   ============================================================ */
+.bk-mc-wrap .bk-mc-highlight { background: #fffaf2; border: 1px solid #f0d9a8; border-left: 5px solid #d39a3e; border-radius: 10px; padding: 14px 18px; margin: 18px 0; }
+.bk-mc-wrap .bk-mc-highlight p:last-child { margin-bottom: 0; }
+.bk-mc-wrap .bk-mc-pro-advice { background: #fffaf2; border: 1px solid #f0d9a8; border-left: 5px solid #d39a3e; border-radius: 10px; padding: 16px 20px; margin: 18px 0; position: relative; }
+.bk-mc-wrap .bk-mc-pro-advice .bk-mc-pro-label { display: inline-block; background: #d39a3e; color: #fff; font-size: 12px; font-weight: 700; padding: 2px 10px; border-radius: 999px; margin-bottom: 8px; letter-spacing: 0.04em; }
+.bk-mc-wrap .bk-mc-pro-advice p:last-child { margin-bottom: 0; }
+.bk-mc-wrap .bk-mc-toc { background: #f7faff; border: 1px solid #cfe0f5; border-left: 5px solid #5b8fd0; border-radius: 10px; padding: 14px 18px; margin: 18px 0; }
+.bk-mc-wrap .bk-mc-toc li { padding: 4px 0 4px 22px; position: relative; font-size: 14px; }
+.bk-mc-wrap .bk-mc-toc li::before { content: "・"; color: #5b8fd0; position: absolute; left: 6px; top: 4px; font-weight: 700; }
+.bk-mc-wrap .bk-mc-toc ul { list-style: none; padding-left: 0; margin: 0; }
+.bk-mc-wrap .bk-mc-toc-title { font-weight: 700; color: #2f5b9a; margin: 0 0 8px; font-size: 15px; }
+.bk-mc-wrap .bk-mc-vs-table { table-layout: auto !important; font-size: 13px; }
+.bk-mc-wrap .bk-mc-vs-table td { white-space: normal !important; word-break: break-word; }
+.bk-mc-wrap .bk-mc-vs-table th { white-space: normal !important; word-break: break-word; }
+.bk-mc-wrap em { font-style: normal; color: #555; background: #fff7f9; padding: 0 2px; border-bottom: 1px dotted #d57a92; }
+.bk-mc-wrap .bk-mc-spec-list { background: #fbf6f4; border-radius: 10px; padding: 14px 18px; margin: 16px 0; font-size: 0.9rem; }
+.bk-mc-wrap .bk-mc-spec-list dl { display: grid; grid-template-columns: auto 1fr; gap: 6px 14px; margin: 0; }
+/* prose(Tailwind Typography) の dt/dd 余白・インデントを打ち消してグリッドを揃える */
+.bk-mc-wrap .bk-mc-spec-list dt { font-weight: 700; color: #b52159; margin: 0; padding: 0; }
+.bk-mc-wrap .bk-mc-spec-list dd { margin: 0; padding: 0; }
+.bk-mc-wrap .bk-mc-summary-card { background: #fff; border: 2px solid #d57a92; border-radius: 12px; padding: 18px 20px; margin: 18px 0; }
+.bk-mc-wrap .bk-mc-bad-list { background: #fdf6f5; border: 1px solid #f0cfca; border-radius: 10px; padding: 14px 18px 14px 36px; margin: 16px 0; list-style: none; }
+.bk-mc-wrap .bk-mc-bad-list li { position: relative; padding: 6px 0 6px 4px; border-bottom: 1px dashed #f0cfca; }
+.bk-mc-wrap .bk-mc-bad-list li::before { content: "👎"; position: absolute; left: -26px; top: 6px; }
+.bk-mc-wrap .bk-mc-bad-list li:last-child { border-bottom: none; }
+.bk-mc-wrap .bk-mc-compare-table:not(.bk-mc-fit-table):not(.bk-mc-vs-table) td:first-child { width: 1%; white-space: nowrap; }
+.bk-mc-wrap .bk-mc-compare-table:not(.bk-mc-fit-table):not(.bk-mc-vs-table) th:first-child { width: 1%; white-space: nowrap; }
+.bk-mc-wrap .bk-mc-fit-bad { color: #c4564a; }
+.bk-mc-wrap .bk-mc-fit-good { color: #2f9e6b; }
+.bk-mc-wrap .bk-mc-fit-mid { color: #d39a3e; }
+.bk-mc-wrap .bk-mc-fit-table td:first-child { width: 100%; }
+.bk-mc-wrap .bk-mc-fit-table td:nth-child(2) { white-space: nowrap; text-align: center; font-weight: 700; }
+.bk-mc-wrap .bk-mc-fit-table th:first-child { width: 100%; }
+.bk-mc-wrap .bk-mc-fit-table th:nth-child(2) { white-space: nowrap; text-align: center; font-weight: 700; }
+.bk-mc-wrap .bk-mc-good-list { background: #f3fbf7; border: 1px solid #c5e9d6; border-radius: 10px; padding: 14px 18px 14px 36px; margin: 16px 0; list-style: none; }
+.bk-mc-wrap .bk-mc-good-list li { position: relative; padding: 6px 0 6px 4px; border-bottom: 1px dashed #c5e9d6; }
+.bk-mc-wrap .bk-mc-good-list li::before { content: "👍"; position: absolute; left: -26px; top: 6px; }
+.bk-mc-wrap .bk-mc-good-list li:last-child { border-bottom: none; }
+.bk-mc-wrap .bk-mc-summary-conclusion { background: #fff7f9; border-radius: 8px; padding: 12px 14px; margin: 14px 0 0; font-size: 14px; }
+.bk-mc-wrap .bk-mc-summary-label { font-weight: 700; color: #2f9e6b; margin: 12px 0 4px; font-size: 14px; }
+.bk-mc-wrap .bk-mc-summary-label-bad { color: #c4564a; }
+.bk-mc-wrap .bk-mc-summary-title { font-size: 17px; font-weight: 700; color: #c8527c; margin: 0 0 10px; padding-bottom: 6px; border-bottom: 1px dashed #f3c5d2; }
+.bk-mc-wrap .bk-mc-warn-list { background: #fff8f0; border: 1px solid #f0d2a8; border-radius: 10px; padding: 14px 18px 14px 36px; margin: 16px 0; list-style: none; }
+.bk-mc-wrap .bk-mc-warn-list li { position: relative; padding: 6px 0 6px 4px; border-bottom: 1px dashed #f0d2a8; }
+.bk-mc-wrap .bk-mc-warn-list li::before { content: "⚠️"; position: absolute; left: -26px; top: 6px; }
+.bk-mc-wrap .bk-mc-warn-list li:last-child { border-bottom: none; }
+.bk-mc-wrap .bk-mc-compare-table:not(.bk-mc-vs-table) td:first-child { width: 1%; white-space: nowrap; }
+.bk-mc-wrap .bk-mc-compare-table:not(.bk-mc-vs-table) th:first-child { width: 1%; white-space: nowrap; }
+.bk-mc-wrap .bk-mc-callout-warn { background: #fff8e1; border-left: 4px solid #ffb300; }
+.bk-mc-wrap .bk-mc-callout-warn strong { color: #b76e00; }
+.bk-mc-wrap .bk-mc-callout-pink p:last-child { margin-bottom: 0; }
+.bk-mc-wrap .bk-mc-compare-table tr:nth-child(even) td { background: #fcfafb; }
+.bk-mc-wrap .bk-mc-summary-card p { margin: 0 0 8px; font-size: 0.92rem; }
+.bk-mc-wrap .bk-mc-summary-card p:last-child { margin-bottom: 0; }
+.bk-mc-wrap > * { max-width: 100% !important; }
+
+@media (max-width: 480px) {
+  .bk-mc-wrap .bk-mc-step { flex-direction: column; gap: 8px; }
+}
+
+/* ===== 利用者アンケート [survey] ===== */
+.bk-mc-wrap .bk-mc-survey { border: 1px solid #f0c8d6; border-radius: 14px; background: #fff7fa; padding: 20px 18px; margin: 32px 0; }
+.bk-mc-wrap .bk-mc-survey-head { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 6px; }
+.bk-mc-wrap .bk-mc-survey-badge { background: #e85a88; color: #fff; font-size: 12px; font-weight: 700; padding: 3px 10px; border-radius: 999px; }
+.bk-mc-wrap .bk-mc-survey-title { font-size: 18px; margin: 0; }
+.bk-mc-wrap .bk-mc-survey-intro { font-size: 14px; color: #555; margin: 6px 0 14px; }
+.bk-mc-wrap .bk-mc-survey-result { background: #fff; border-radius: 10px; padding: 14px; margin-bottom: 16px; }
+.bk-mc-wrap .bk-mc-survey-result-lead { font-weight: 700; font-size: 14px; margin: 0 0 10px; }
+.bk-mc-wrap .bk-mc-survey-stat { margin-bottom: 14px; }
+.bk-mc-wrap .bk-mc-survey-stat-q { font-weight: 700; font-size: 14px; margin: 0 0 8px; }
+.bk-mc-wrap .bk-mc-survey-bar-row { display: grid; grid-template-columns: 8.5em 1fr auto; align-items: center; gap: 8px; margin: 5px 0; font-size: 13px; }
+.bk-mc-wrap .bk-mc-survey-bar-label { color: #444; }
+.bk-mc-wrap .bk-mc-survey-bar-track { background: #f0e2e8; border-radius: 999px; height: 12px; overflow: hidden; }
+.bk-mc-wrap .bk-mc-survey-bar-fill { display: block; height: 100%; background: linear-gradient(90deg, #f48fb1, #e85a88); border-radius: 999px; }
+.bk-mc-wrap .bk-mc-survey-bar-val { font-variant-numeric: tabular-nums; font-weight: 700; color: #d84373; white-space: nowrap; }
+.bk-mc-wrap .bk-mc-survey-bar-val small { color: #999; font-weight: 400; }
+.bk-mc-wrap .bk-mc-survey-voices { margin-top: 12px; border-top: 1px dashed #eccdd8; padding-top: 10px; }
+.bk-mc-wrap .bk-mc-survey-voices ul { margin: 6px 0 0; padding-left: 1.1em; }
+.bk-mc-wrap .bk-mc-survey-voices li { font-size: 13px; color: #555; margin: 4px 0; }
+.bk-mc-wrap .bk-mc-survey-note, .bk-mc-wrap .bk-mc-survey-privacy, .bk-mc-wrap .bk-mc-survey-moderation { font-size: 11.5px; color: #999; margin: 8px 0 0; }
+.bk-mc-wrap .bk-mc-survey-stat-q small { font-weight: 400; color: #aaa; }
+.bk-mc-wrap .bk-mc-survey-collecting { background: #fff; border-radius: 10px; padding: 12px 14px; font-size: 14px; color: #555; margin-bottom: 16px; }
+.bk-mc-wrap .bk-mc-survey-form { display: block; }
+.bk-mc-wrap .bk-mc-survey-fieldset { border: none; padding: 0; margin: 0 0 12px; }
+.bk-mc-wrap .bk-mc-survey-fieldset legend { font-weight: 700; font-size: 14px; margin-bottom: 6px; padding: 0; }
+.bk-mc-wrap .bk-mc-survey-optional { font-weight: 400; font-size: 12px; color: #999; }
+.bk-mc-wrap .bk-mc-survey-choice { display: inline-flex; align-items: center; gap: 5px; background: #fff; border: 1px solid #e6cdd7; border-radius: 8px; padding: 6px 12px; margin: 0 6px 6px 0; font-size: 13px; cursor: pointer; }
+.bk-mc-wrap .bk-mc-survey-choice:hover { border-color: #e85a88; }
+.bk-mc-wrap .bk-mc-survey-reason { display: block; margin-bottom: 10px; }
+.bk-mc-wrap .bk-mc-survey-reason span { display: block; font-weight: 700; font-size: 14px; margin-bottom: 6px; }
+.bk-mc-wrap .bk-mc-survey-reason textarea { width: 100%; box-sizing: border-box; border: 1px solid #e6cdd7; border-radius: 8px; padding: 8px; font-size: 14px; font-family: inherit; }
+.bk-mc-wrap .bk-mc-survey-hp { position: absolute; left: -9999px; width: 1px; height: 1px; opacity: 0; }
+.bk-mc-wrap .bk-mc-survey-actions { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.bk-mc-wrap .bk-mc-survey-submit { background: #e85a88; color: #fff; border: none; border-radius: 999px; padding: 10px 24px; font-size: 15px; font-weight: 700; cursor: pointer; }
+.bk-mc-wrap .bk-mc-survey-submit:hover { background: #d84373; }
+.bk-mc-wrap .bk-mc-survey-submit:disabled { opacity: .6; cursor: default; }
+.bk-mc-wrap .bk-mc-survey-msg { font-size: 13px; color: #d84373; }
+.bk-mc-wrap .bk-mc-survey-thanks { background: #fff; border-radius: 10px; padding: 16px; text-align: center; font-weight: 700; color: #d84373; margin: 0; }
+@media (max-width: 480px) {
+  .bk-mc-wrap .bk-mc-survey-bar-row { grid-template-columns: 6.5em 1fr auto; }
+}
+
+/* 注意カード（赤枠=caution-ng / 黄枠=caution-warn）の下余白 */
+.bk-mc-wrap .bk-mc-caution-ng,
+.bk-mc-wrap .bk-mc-caution-warn { margin-bottom: 32px !important; }
+
+/* 比較表（スマホ）
+   1列目の sticky 固定は 2026-07-27 のユーザー指示で全面禁止
+   （固定列が画面を占有して他列が読めなくなるため）。通常の横スクロールのみ。 */
+@media (max-width: 768px) {
+  .bk-mc-wrap .bk-mc-table-scroll { -webkit-overflow-scrolling: touch; }
+}
+
+/* 折りたたみ（注釈）を小さく */
+.bk-mc-wrap .bk-mc-disclosure { margin: 10px 0 !important; border-radius: 8px; }
+.bk-mc-wrap .bk-mc-disclosure > summary {
+  padding: 7px 30px 7px 10px !important;
+  font-size: .78rem !important;
+  font-weight: 600 !important;
+}
+.bk-mc-wrap .bk-mc-disclosure > summary::after { font-size: .8rem; right: 10px; }
+.bk-mc-wrap .bk-mc-disclosure-body { padding: 8px 10px 10px !important; }
+.bk-mc-wrap .bk-mc-disclosure-body p,
+.bk-mc-wrap .bk-mc-disclosure-body li { font-size: .82rem; line-height: 1.7; }
+
+/* 記事末尾の注釈ブロック */
+.bk-mc-wrap .bk-mc-notes { margin-top: 28px; padding-top: 14px; border-top: 1px solid #EADCE2; }
+.bk-mc-wrap .bk-mc-notes > p.bk-mc-notes-title {
+  font-size: .8rem; font-weight: 700; color: #6B4A57; margin: 0 0 8px;
+}
+
+/* 記事本文の末尾に追記する注釈（口コミ評価など）は、記事側の注釈ブロックと地続きに見せる */
+.bk-mc-wrap .bk-mc-notes-append { margin-top: 0; padding-top: 0; border-top: none; }
+
+/* ===== 多列比較表のスマホ・カード表示（bk-mc-table-cards 修飾クラス） =====
+   PCは通常の表、640px以下では thead を隠し、各行を1機種のカードとして縦積みする。
+   td の data-label 属性を小見出しとして表示する。 */
+@media (max-width: 640px) {
+  .bk-mc-wrap .bk-mc-table-cards { display: block; border: none; min-width: 0 !important; }
+  .bk-mc-wrap .bk-mc-table-cards thead { display: none; }
+  .bk-mc-wrap .bk-mc-table-cards tbody { display: block; }
+  .bk-mc-wrap .bk-mc-table-cards tr {
+    display: block; background: #fff; border: 1px solid #F2DEE0;
+    border-radius: 10px; padding: 12px 14px; margin: 0 0 12px;
+    box-shadow: 0 1px 4px rgba(160, 96, 106, .06);
+  }
+  .bk-mc-wrap .bk-mc-table-cards td {
+    display: block; border: none; padding: 5px 0; width: 100%;
+  }
+  .bk-mc-wrap .bk-mc-table-cards td::before {
+    content: attr(data-label); display: block;
+    font-size: .68rem; font-weight: 700; color: #A0606A;
+    letter-spacing: .04em; margin-bottom: 1px;
+  }
+  .bk-mc-wrap .bk-mc-table-cards td:first-child {
+    font-weight: 700; font-size: .95rem; color: #3B2A31;
+    border-bottom: 1px dashed #F2DEE0; padding-bottom: 8px; margin-bottom: 4px;
+  }
+  .bk-mc-wrap .bk-mc-table-cards td:first-child::before { content: none; }
+}
+
+/* ============================================================
+   インラインCSS撤去の移設分（2026-07-27・70記事の<style>を共有化）
+   共有CSSに未定義だったクラスのみここへ移設。他の宣言は共有ルールに統一。
+   ============================================================ */
+/* クーポン記事のコード表示 */
+.bk-mc-wrap .bk-mc-coupon-code { display: inline-block; background: #fff0f5; color: #b52159; padding: 4px 10px; border-radius: 6px; font-family: ui-monospace, SFMono-Regular, monospace; font-weight: 700; font-size: 0.95em; border: 1px solid #f0ccd8; }
+/* 商品カードの評価行（gurirunabe等） */
+.bk-mc-wrap .bk-mc-pc-rating { font-size: 0.82rem; color: #e6a817; margin: 4px 0 0; font-weight: 700; }
+.bk-mc-wrap .bk-mc-pc-rating b { color: #b52159; }
+.bk-mc-wrap .bk-mc-pc-rating .cnt { color: #888; font-weight: 400; margin-left: 6px; }
+/* 復活記事のミニ仕様表（wine_cellar等） */
+.bk-mc-wrap .bk-mc-spec { width: 100%; max-width: 460px; border-collapse: collapse; font-size: 0.85rem; line-height: 1.5; margin: 10px 0; table-layout: fixed; }
+.bk-mc-wrap .bk-mc-spec th, .bk-mc-wrap .bk-mc-spec td { border: 1px solid #eee; padding: 5px 9px; word-break: break-word; text-align: left; vertical-align: top; }
+.bk-mc-wrap .bk-mc-spec th { background: #fafafa; font-weight: 600; width: 44%; }
+.bk-mc-wrap .bk-mc-spec .bk-mc-spec-h { background: #faf7fb; width: auto; }
+
+/* 30秒診断ウィジェット（CSS :checked 式・JS不要）2026-07-29 dryer-osusume-hikaku */
+.bk-mc-wrap .bk-mc-diag { border: 1.5px solid #e8d5d5; border-radius: 12px; padding: 16px 16px 14px; margin: 18px 0 26px; background: #fffdfc; }
+.bk-mc-wrap .bk-mc-diag-in { position: absolute; opacity: 0; pointer-events: none; }
+.bk-mc-wrap .bk-mc-diag-step { display: none; margin: 0 0 6px; }
+.bk-mc-wrap .bk-mc-diag-step.bk-mc-diag-open { display: block; }
+.bk-mc-wrap .bk-mc-diag-q { font-weight: 700; margin: 10px 0 8px; font-size: 0.95rem; }
+.bk-mc-wrap .bk-mc-diag-opts { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 8px; }
+.bk-mc-wrap .bk-mc-diag-opts label { display: inline-block; border: 1.5px solid #d9b8b8; border-radius: 999px; padding: 7px 14px; font-size: 0.88rem; line-height: 1.4; cursor: pointer; background: #fff; user-select: none; }
+.bk-mc-wrap .bk-mc-diag-opts label:hover { background: #fdf1f1; }
+.bk-mc-wrap .bk-mc-diag-result { display: none; border-left: 4px solid #27ae60; background: #f4fbf6; border-radius: 0 10px 10px 0; padding: 12px 14px; margin: 10px 0; }
+.bk-mc-wrap .bk-mc-diag-result p { margin: 0 0 4px; }
+.bk-mc-wrap .bk-mc-diag-result .bk-mc-diag-hit { font-weight: 700; color: #1e7a40; }
+.bk-mc-wrap .bk-mc-diag-reset { display: none; border: 1px solid #ccc; background: #fff; border-radius: 8px; padding: 6px 14px; font-size: 0.82rem; cursor: pointer; margin-top: 4px; }
+.bk-mc-wrap .bk-mc-diag-in:checked ~ .bk-mc-diag-reset { display: inline-block; }
+/* 進行制御: 選んだ答えに応じて次の質問を開く */
+#dq1b:checked ~ #diag-q2 { display: block; }
+#dq1b:checked ~ #dq2c:checked ~ #diag-q3 { display: block; }
+#dq1b:checked ~ #dq2c:checked ~ #dq3d:checked ~ #diag-q4 { display: block; }
+/* 結果表示: 経路が成立しているときだけ出す */
+#dq1a:checked ~ #diag-r-sl013,
+#dq1b:checked ~ #dq2c:checked ~ #dq3d:checked ~ #dq4a:checked ~ #diag-r-sl013 { display: block; }
+#dq1b:checked ~ #dq2a:checked ~ #diag-r-kh302,
+#dq1b:checked ~ #dq2c:checked ~ #dq3d:checked ~ #dq4c:checked ~ #diag-r-kh302 { display: block; }
+#dq1b:checked ~ #dq2b:checked ~ #diag-r-dyson { display: block; }
+#dq1b:checked ~ #dq2c:checked ~ #dq3a:checked ~ #diag-r-na0j { display: block; }
+#dq1b:checked ~ #dq2c:checked ~ #dq3b:checked ~ #diag-r-bx { display: block; }
+#dq1b:checked ~ #dq2c:checked ~ #dq3c:checked ~ #diag-r-pro8 { display: block; }
+#dq1b:checked ~ #dq2c:checked ~ #dq3d:checked ~ #dq4b:checked ~ #diag-r-w825 { display: block; }
+#dq1b:checked ~ #dq2c:checked ~ #dq3d:checked ~ #dq4d:checked ~ #diag-r-kaze { display: block; }
+/* 選択中の選択肢をハイライト */
+#dq1a:checked ~ .bk-mc-diag-step label[for="dq1a"], #dq1b:checked ~ .bk-mc-diag-step label[for="dq1b"],
+#dq2a:checked ~ .bk-mc-diag-step label[for="dq2a"], #dq2b:checked ~ .bk-mc-diag-step label[for="dq2b"], #dq2c:checked ~ .bk-mc-diag-step label[for="dq2c"],
+#dq3a:checked ~ .bk-mc-diag-step label[for="dq3a"], #dq3b:checked ~ .bk-mc-diag-step label[for="dq3b"], #dq3c:checked ~ .bk-mc-diag-step label[for="dq3c"], #dq3d:checked ~ .bk-mc-diag-step label[for="dq3d"],
+#dq4a:checked ~ .bk-mc-diag-step label[for="dq4a"], #dq4b:checked ~ .bk-mc-diag-step label[for="dq4b"], #dq4c:checked ~ .bk-mc-diag-step label[for="dq4c"], #dq4d:checked ~ .bk-mc-diag-step label[for="dq4d"] { background: #c0392b; border-color: #c0392b; color: #fff; }
+/* 診断: キーボードフォーカスの可視化（2026-07-29 a11y改善） */
+#dq1a:focus ~ .bk-mc-diag-step label[for="dq1a"], #dq1b:focus ~ .bk-mc-diag-step label[for="dq1b"],
+#dq2a:focus ~ .bk-mc-diag-step label[for="dq2a"], #dq2b:focus ~ .bk-mc-diag-step label[for="dq2b"], #dq2c:focus ~ .bk-mc-diag-step label[for="dq2c"],
+#dq3a:focus ~ .bk-mc-diag-step label[for="dq3a"], #dq3b:focus ~ .bk-mc-diag-step label[for="dq3b"], #dq3c:focus ~ .bk-mc-diag-step label[for="dq3c"], #dq3d:focus ~ .bk-mc-diag-step label[for="dq3d"],
+#dq4a:focus ~ .bk-mc-diag-step label[for="dq4a"], #dq4b:focus ~ .bk-mc-diag-step label[for="dq4b"], #dq4c:focus ~ .bk-mc-diag-step label[for="dq4c"], #dq4d:focus ~ .bk-mc-diag-step label[for="dq4d"] { outline: 2px solid #c0392b; outline-offset: 2px; }
+
+/* 記事内: 型・悩み別の「この型ならこの1台」カード（2026-09-09 ユーザー指示で新設）
+   howto-item / callout の中に置く小さな推し1台ブロック。商品画像＋商品ページへの導線を持つ。
+   上に余白を取り、直前の説明文と続けて読ませない。 */
+.bk-mc-wrap .bk-mc-pick {
+  position: relative;
+  overflow: hidden;
+  margin: 18px 0 2px;
+  background: #FBF6F4;
+  border: 1px solid #F2DEE0;
+  border-radius: 12px;
+  padding: 14px 16px;
+}
+/* バッジは枠の左上に貼り付ける（2026-09-09 ユーザー指示。
+   角はカードの丸みに合わせ、右下だけ丸める） */
+.bk-mc-wrap .bk-mc-pick > .bk-mc-rec-badge {
+  position: absolute; top: 0; left: 0;
+  display: inline-block;
+  margin: 0;
+  border-radius: 0 0 12px 0;
+  box-shadow: none;
+}
+.bk-mc-wrap .bk-mc-pick-row {
+  display: flex; align-items: flex-start; gap: 14px;
+  padding-top: 20px;   /* 左上バッジのぶんを空ける */
+}
+.bk-mc-wrap .bk-mc-pick-img {
+  flex-shrink: 0;
+  width: 84px; height: 84px;
+  border-radius: 10px;
+  background: #fff;
+  border: 1px solid #F0E6E8;
+  overflow: hidden;
+}
+.bk-mc-wrap .bk-mc-pick-img img {
+  /* .bk-mc-wrap img { height:auto !important } に負けると、遅延読み込み前の
+     高さが0になり枠が潰れる。枠の高さに合わせて contain で収める。 */
+  width: 100%; height: 100% !important;
+  object-fit: contain;
+  display: block;
+  margin: 0;
+}
+.bk-mc-wrap .bk-mc-pick-body {
+  flex: 1; min-width: 0;
+  font-size: .84rem; line-height: 1.75; color: #5C5256;
+}
+.bk-mc-wrap .bk-mc-pick-name {
+  display: block;
+  font-size: .97rem; font-weight: 700; color: #1F1418;
+  margin: 0 0 3px; line-height: 1.45;
+}
+/* 商品ページへの導線はボタン。中央寄せ・アフィリエイトCTA(赤/橙)と区別できる
+   白地＋ローズ枠にする(2026-09-09 ユーザー指示) */
+.bk-mc-wrap .bk-mc-pick-link {
+  display: block;
+  width: fit-content;          /* PCは文字幅ぶんの小さめボタン。スマホは下で100%に */
+  margin: 12px auto 2px;
+  padding: 7px 18px;
+  text-align: center;
+  font-size: .79rem; font-weight: 700; letter-spacing: .02em;
+  color: #A0606A; text-decoration: none;
+  background: #fff;
+  border: 1px solid #E7CBD1;
+  border-radius: 999px;
+  box-shadow: 0 1px 3px rgba(160,96,106,.10);
+  transition: background .2s, color .2s, box-shadow .2s, transform .2s;
+}
+.bk-mc-wrap .bk-mc-pick-link:hover {
+  background: linear-gradient(135deg, #C97B84, #A0606A);
+  border-color: #A0606A;
+  color: #fff;
+  box-shadow: 0 4px 12px rgba(160,96,106,.25);
+  transform: translateY(-1px);
+}
+@media (max-width: 640px) {
+  /* スマホは1カラム(2026-09-09 ユーザー指示)。横並びだと本文の実効幅が狭く、
+     説明文が縦長に折り返されるため。
+     画像は商品カード(.bk-mc-pc-image)と同じく正方形・中央寄せにそろえる。 */
+  .bk-mc-wrap .bk-mc-pick { padding: 13px; margin: 16px 0 2px; }
+  /* 画像の上下の余白を同じにする: 上=バッジ下端からの13px、下=gapの13px */
+  .bk-mc-wrap .bk-mc-pick-row {
+    flex-direction: column; align-items: stretch; gap: 13px;
+    padding-top: 26px;
+  }
+  .bk-mc-wrap .bk-mc-pick-img {
+    width: 100%; aspect-ratio: 1 / 1; height: auto;
+    margin: 0; border-radius: 10px;
+  }
+  .bk-mc-wrap .bk-mc-pick-body { font-size: .84rem; line-height: 1.75; }
+  .bk-mc-wrap .bk-mc-pick-name { font-size: .95rem; }
+  /* スマホは指で押しやすいよう横幅いっぱいのまま */
+  .bk-mc-wrap .bk-mc-pick-link {
+    width: 100%; padding: 10px 18px;
+    font-size: .81rem; margin: 2px auto;
+  }
+}
+
+/* スマホの POINT/TYPE/STEP カード(.bk-mc-howto-item)は1カラム
+   (2026-09-09 ユーザー指示。左のバッジ列が本文の幅を削り、余白が無駄になるため) */
+@media (max-width: 640px) {
+  .bk-mc-wrap .bk-mc-howto-item {
+    flex-direction: column !important;
+    align-items: stretch !important;
+    gap: 9px !important;
+  }
+  .bk-mc-wrap .bk-mc-howto-num { align-self: flex-start; }
+}
+
+/* === 商品カード([product]ショートコード)の推しバッジ位置 =====================
+   紹介文の先頭に置く .bk-mc-rank-header（「〜な人の候補」バッジ）は、本来
+   カード枠の右上に固定して見せるもの。ランキング用のレイアウトのまま商品カードに
+   入ると画像のすぐ下に流れてしまっていた（2026-09-09 ユーザー指摘で修正）。 */
+.bk-mc-wrap .bk-mc-product-card .bk-mc-pc-intro > .bk-mc-rank-header {
+  position: absolute; top: 0; right: 0;
+  margin: 0; z-index: 2;
+  max-width: 60%;
+  justify-content: flex-end;
+}
+.bk-mc-wrap .bk-mc-product-card .bk-mc-pc-intro > .bk-mc-rank-header .bk-mc-rec-badge {
+  display: inline-block;
+  white-space: normal;          /* 長い文言はカード内で折り返す */
+  text-align: center;
+  line-height: 1.5;
+  padding: 7px 15px;
+  border-radius: 0 0 0 14px;    /* 右上はカードの角丸に従わせる */
+  box-shadow: none;
+}
+/* バッジを持つカードだけ、上に重ならないぶんの余白を作る */
+.bk-mc-wrap .bk-mc-product-card:has(.bk-mc-pc-intro > .bk-mc-rank-header) .bk-mc-pc-main {
+  padding-top: 12px;
+}
+@media (max-width: 640px) {
+  .bk-mc-wrap .bk-mc-product-card .bk-mc-pc-intro > .bk-mc-rank-header { max-width: 68%; }
+  .bk-mc-wrap .bk-mc-product-card .bk-mc-pc-intro > .bk-mc-rank-header .bk-mc-rec-badge {
+    font-size: .68rem; padding: 6px 12px;
+  }
+  .bk-mc-wrap .bk-mc-product-card:has(.bk-mc-pc-intro > .bk-mc-rank-header) .bk-mc-pc-main {
+    padding-top: 20px;
+  }
+}
+
+/* 商品カードのスマホ表示: ブランド名・商品名・価格は左寄せ
+   (2026-09-09 ユーザー指摘。中央寄せは行頭がそろわず読みにくい) */
+@media (max-width: 640px) {
+  .bk-mc-wrap .bk-mc-pc-info { text-align: left !important; }
+  .bk-mc-wrap .bk-mc-pc-price-row { justify-content: flex-start !important; }
+}

@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+{% block title %}{{ doc.title }} | 美容家電TUSHOU{% endblock %}
+{% block content %}
+{% comment %}
+  利用規約・プライバシーポリシー・コミュニティガイドライン共通テンプレート。
+  本文(doc.body)は管理画面で編集されるセマンティックHTML。class属性は持たないため、
+  下の .legal-prose スコープCSSで従来テンプレートと同じ見た目を再現する。
+{% endcomment %}
+<style>
+  .legal-prose { line-height: 2; color: #4b3f44; font-size: 0.95rem; }
+  .legal-prose > p:first-child { margin-top: 0; }
+  .legal-prose p { margin: 0.75rem 0; }
+  .legal-prose h2 {
+    margin: 2rem 0 0.75rem; padding-left: 0.75rem;
+    font-size: 1.125rem; font-weight: 700; color: #1f2937;
+    border-left: 4px solid #f43f5e;
+  }
+  .legal-prose h3 {
+    margin: 1.5rem 0 0.5rem; font-size: 1rem; font-weight: 700; color: #374151;
+  }
+  .legal-prose ol { list-style: decimal; padding-left: 1.5rem; margin: 0.5rem 0; }
+  .legal-prose ul { list-style: disc; padding-left: 1.5rem; margin: 0.5rem 0; }
+  .legal-prose li { margin: 0.4rem 0; }
+  .legal-prose li > ul, .legal-prose li > ol { margin: 0.4rem 0; }
+  .legal-prose a { color: #be5b67; text-decoration: underline; }
+  .legal-prose a:hover { color: #9d4751; }
+</style>
+<div class="max-w-3xl mx-auto">
+  {% if doc.eyebrow %}<p class="font-serif text-rose-500 tracking-[0.3em] text-xs uppercase">{{ doc.eyebrow }}</p>{% endif %}
+  <h1 class="mt-1 mb-2 text-2xl sm:text-3xl font-bold text-ink-900">{{ doc.title }}</h1>
+  {% if doc.enacted_on or doc.revised_on %}
+  <p class="text-xs text-mute-500 mb-8">
+    {% if doc.enacted_on %}制定日: {{ doc.enacted_on|date:"Y年n月j日" }}{% endif %}
+    {% if doc.revised_on %} ／ 最終改定日: {{ doc.revised_on|date:"Y年n月j日" }}{% endif %}
+  </p>
+  {% endif %}
+
+  <article class="legal-prose bg-white rounded-2xl border border-rose-100 shadow-card p-6 sm:p-10">
+    {{ doc.body|safe }}
+  </article>
+</div>
+{% endblock %}

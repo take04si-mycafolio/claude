@@ -1,18 +1,30 @@
 from django.conf import settings
 from django.contrib import messages
 from django.core.mail import send_mail
-from django.shortcuts import redirect, render
+from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 
 from .forms import ContactForm
+from .models import LegalDocument
+
+
+def _legal(request, doc_type):
+    """規約・ポリシー共通ビュー。管理画面で編集された LegalDocument を描画する。
+    WEBとアプリ(API)が同じレコードを参照し内容のズレを無くす。"""
+    doc = get_object_or_404(LegalDocument, doc_type=doc_type, is_published=True)
+    return render(request, "pages/legal.html", {"doc": doc})
 
 
 def terms(request):
-    return render(request, "pages/terms.html")
+    return _legal(request, "terms")
 
 
 def privacy(request):
-    return render(request, "pages/privacy.html")
+    return _legal(request, "privacy")
+
+
+def community_guidelines(request):
+    return _legal(request, "community")
 
 
 def contact(request):

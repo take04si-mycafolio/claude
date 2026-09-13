@@ -1,0 +1,203 @@
+{% extends "admin/change_list.html" %}
+
+{% block result_list %}
+{% if eval_summary %}
+<div style="margin:0 0 18px;">
+
+  {# ── サマリカード（判定確定分の成績） ── #}
+  <div style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:14px;">
+    <div style="flex:1;min-width:150px;border:1.5px solid #d5e8dc;border-radius:12px;background:#f4fbf7;padding:12px 16px;">
+      <div style="color:#666;font-size:0.8rem;">判定確定（反映{{ eval_summary.eval_days }}日後）</div>
+      <div style="font-size:1.5rem;font-weight:800;color:#065f46;">
+        {{ eval_summary.wins }}<span style="font-size:0.95rem;font-weight:600;color:#555;"> / {{ eval_summary.judged_count }}件 改善以上</span>
+      </div>
+      {% if eval_summary.win_rate is not None %}
+        <div style="color:#1e7a40;font-weight:700;">勝率 {{ eval_summary.win_rate }}%</div>
+      {% endif %}
+    </div>
+    <div style="flex:1;min-width:150px;border:1.5px solid #dbe4f0;border-radius:12px;background:#f6f9fd;padding:12px 16px;">
+      <div style="color:#666;font-size:0.8rem;">対象クエリの順位改善</div>
+      <div style="font-size:1.5rem;font-weight:800;color:#1a4f8a;">
+        {% if eval_summary.avg_delta is not None %}平均 ▲{{ eval_summary.avg_delta }}位{% else %}—{% endif %}
+      </div>
+      {% if eval_summary.best_delta %}<div style="color:#555;">最大 ▲{{ eval_summary.best_delta }}位</div>{% endif %}
+    </div>
+    <div style="flex:1;min-width:180px;border:1.5px solid #eadfc8;border-radius:12px;background:#fdfaf2;padding:12px 16px;">
+      <div style="color:#666;font-size:0.8rem;">露出（表示回数/28日・確定分合計）</div>
+      <div style="font-size:1.5rem;font-weight:800;color:#9a5b00;">
+        {{ eval_summary.sum_imp_before }} → {{ eval_summary.sum_imp_after }}
+      </div>
+      <div style="color:#555;">クリック {{ eval_summary.sum_clicks_before }} → {{ eval_summary.sum_clicks_after }}</div>
+    </div>
+    <div style="flex:1;min-width:150px;border:1.5px solid #e3d7ee;border-radius:12px;background:#faf6fe;padding:12px 16px;">
+      <div style="color:#666;font-size:0.8rem;">新しく表示され始めたクエリ</div>
+      <div style="font-size:1.5rem;font-weight:800;color:#6b3fa0;">+{{ eval_summary.sum_new_queries }}個</div>
+      <div style="color:#555;">着手時に無かった獲得クエリ</div>
+    </div>
+  </div>
+
+  {# ── 要対応（あるときだけ） ── #}
+  {% if eval_summary.alerts %}
+  <div style="border:1.5px solid #f0b3b3;border-radius:12px;background:#fff6f6;padding:12px 16px;margin-bottom:14px;">
+    <div style="font-weight:800;color:#c0392b;margin-bottom:6px;">🚩 要対応 {{ eval_summary.alert_count }}件</div>
+    <ul style="margin:0;padding-left:2px;list-style:none;">
+      {% for a in eval_summary.alerts %}
+        <li style="padding:3px 0;">
+          <span style="display:inline-block;min-width:140px;font-weight:700;color:{{ a.color }};">{{ a.level }}</span>
+          <a href="{{ a.url }}" style="font-weight:600;">/{{ a.slug }}/</a>
+          <span style="color:#666;">— 判定: {{ a.eval }}{% if a.keep_damaged %} / <b style="color:#c0392b;">⚠ keep巻き添え毀損</b>{% endif %}</span>
+        </li>
+      {% endfor %}
+    </ul>
+  </div>
+  {% endif %}
+
+  {# ── 判定確定: リライト前→後の実測 ── #}
+  <div style="border:1.5px solid #cfe3d7;border-radius:12px;background:#fff;padding:14px 18px;margin-bottom:14px;">
+    <div style="font-weight:800;font-size:1.02rem;margin-bottom:4px;">📊 判定確定 {{ eval_summary.judged_count }}件 — リライト前 → 現在</div>
+    <div style="color:#888;font-size:0.82rem;margin-bottom:10px;">
+      順位=狙ったクエリ（target_grow）の掲載順位（小さいほど上位）／表示・クリック=ページ全体の直近28日合計。
+      「新規露出クエリ」は着手時には表示されていなかった獲得クエリです。
+    </div>
+    {% if eval_summary.judged %}
+    <div style="overflow-x:auto;">
+    <table style="width:100%;border-collapse:collapse;font-size:0.88rem;">
+      <thead>
+        <tr style="border-bottom:2px solid #ddd;text-align:left;color:#555;">
+          <th style="padding:6px 8px;">記事</th>
+          <th style="padding:6px 8px;">判定</th>
+          <th style="padding:6px 8px;">狙ったクエリ</th>
+          <th style="padding:6px 8px;">順位 前→後</th>
+          <th style="padding:6px 8px;">表示/28日 前→後</th>
+          <th style="padding:6px 8px;">クリック 前→後</th>
+          <th style="padding:6px 8px;">新規露出クエリ</th>
+          <th style="padding:6px 8px;">keep</th>
+          <th style="padding:6px 8px;">学び</th>
+        </tr>
+      </thead>
+      <tbody>
+      {% for r in eval_summary.judged %}
+        <tr style="border-bottom:1px solid #eee;vertical-align:top;">
+          <td style="padding:7px 8px;white-space:nowrap;">
+            <a href="{{ r.url }}" style="font-weight:700;">/{{ r.slug }}/</a>
+            <a href="{{ r.site_url }}" target="_blank" rel="noopener">↗</a><br>
+            <span style="color:#999;font-size:0.78rem;">反映 {{ r.applied }}（{{ r.days }}日前）</span>
+          </td>
+          <td style="padding:7px 8px;white-space:nowrap;">
+            <span style="padding:2px 10px;border-radius:10px;font-weight:700;color:{{ r.eval_fg }};background:{{ r.eval_bg }};">{{ r.eval_label }}</span>
+          </td>
+          <td style="padding:7px 8px;max-width:220px;">{{ r.query }}</td>
+          <td style="padding:7px 8px;white-space:nowrap;">
+            {% if r.new_exposure %}
+              圏外 → <b>{{ r.ga }}位</b><br><span style="color:#6b3fa0;font-weight:700;">🆕 新規表示到達</span>
+            {% elif r.gb is not None and r.ga is not None %}
+              {{ r.gb }} → <b>{{ r.ga }}位</b><br>
+              {% if r.delta > 0 %}<span style="color:#1e7a40;font-weight:800;">▲{{ r.delta }}位改善</span>
+              {% elif r.delta < 0 %}<span style="color:#c0392b;font-weight:800;">▼{{ r.delta }}位</span>
+              {% else %}<span style="color:#888;">±0</span>{% endif %}
+            {% elif r.ga is None and r.gb is not None %}
+              {{ r.gb }} → <span style="color:#c0392b;font-weight:700;">圏外</span>
+            {% else %}—{% endif %}
+          </td>
+          <td style="padding:7px 8px;white-space:nowrap;">
+            {{ r.imp_before|default_if_none:"—" }} → <b>{{ r.imp_after|default_if_none:"—" }}</b>
+          </td>
+          <td style="padding:7px 8px;white-space:nowrap;">
+            {{ r.clicks_before|default_if_none:"—" }} → <b>{{ r.clicks_after|default_if_none:"—" }}</b>
+          </td>
+          <td style="padding:7px 8px;max-width:260px;">
+            {% if r.new_count %}
+              <b style="color:#6b3fa0;">+{{ r.new_count }}個</b>
+              <ul style="margin:2px 0 0;padding-left:14px;color:#555;font-size:0.8rem;">
+                {% for q in r.new_queries %}
+                  <li>「{{ q.query }}」{{ q.position }}位・表示{{ q.impressions }}</li>
+                {% endfor %}
+                {% if r.new_count > 3 %}<li style="list-style:none;color:#999;">…ほか{{ r.new_count|add:"-3" }}個</li>{% endif %}
+              </ul>
+            {% else %}<span style="color:#999;">—</span>{% endif %}
+          </td>
+          <td style="padding:7px 8px;">
+            {% if r.keep_damaged %}
+              <span style="color:#c0392b;font-weight:800;">⚠ 毀損</span>
+              {% for k in r.keep_notes %}
+                <div style="color:#a55;font-size:0.78rem;">「{{ k.query }}」{{ k.before }}→{{ k.after|default_if_none:"圏外" }}</div>
+              {% endfor %}
+            {% else %}<span style="color:#1e7a40;font-weight:700;">OK</span>{% endif %}
+          </td>
+          <td style="padding:7px 8px;white-space:nowrap;">
+            {% if r.lesson_state == "done" %}<a href="{{ r.lesson_url }}" style="color:#1e7a40;font-weight:700;">記録済</a>
+            {% elif r.lesson_state == "todo" %}<a href="{{ r.lesson_url }}" style="color:#9a5b00;font-weight:700;">分析待ち</a>
+            {% else %}<span style="color:#999;">—</span>{% endif %}
+          </td>
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+    </div>
+    {% else %}
+      <div style="color:#888;">判定確定した記事はまだありません（反映から{{ eval_summary.eval_days }}日経過後に判定されます）。</div>
+    {% endif %}
+  </div>
+
+  {# ── 観察中: 途中経過（判定はしない） ── #}
+  <details style="border:1.5px solid #d9d9d9;border-radius:12px;background:#fafafa;padding:12px 16px;margin-bottom:14px;" {% if not eval_summary.judged %}open{% endif %}>
+    <summary style="font-weight:800;color:#555;cursor:pointer;">
+      ⏳ 観察中 {{ eval_summary.observing_count }}件 — 途中経過（{{ eval_summary.eval_days }}日経過まで判定しません）
+    </summary>
+    {% if eval_summary.observing %}
+    <div style="overflow-x:auto;margin-top:8px;">
+    <table style="width:100%;border-collapse:collapse;font-size:0.85rem;">
+      <thead>
+        <tr style="border-bottom:2px solid #ddd;text-align:left;color:#555;">
+          <th style="padding:5px 8px;">記事</th>
+          <th style="padding:5px 8px;">狙ったクエリ</th>
+          <th style="padding:5px 8px;">順位 前→現在(観測値)</th>
+          <th style="padding:5px 8px;">表示/28日 前→現在</th>
+          <th style="padding:5px 8px;">判定日</th>
+        </tr>
+      </thead>
+      <tbody>
+      {% for r in eval_summary.observing %}
+        <tr style="border-bottom:1px solid #eee;">
+          <td style="padding:5px 8px;white-space:nowrap;"><a href="{{ r.url }}" style="font-weight:600;">/{{ r.slug }}/</a></td>
+          <td style="padding:5px 8px;max-width:220px;">{{ r.query }}</td>
+          <td style="padding:5px 8px;white-space:nowrap;">
+            {{ r.gb|default_if_none:"圏外" }} → {{ r.ga|default_if_none:"—" }}
+            {% if r.delta is not None %}
+              {% if r.delta > 0 %}<span style="color:#1e7a40;">(▲{{ r.delta }})</span>
+              {% elif r.delta < 0 %}<span style="color:#c0392b;">(▼{{ r.delta }})</span>{% endif %}
+            {% endif %}
+          </td>
+          <td style="padding:5px 8px;white-space:nowrap;">{{ r.imp_before|default_if_none:"—" }} → {{ r.imp_after|default_if_none:"—" }}</td>
+          <td style="padding:5px 8px;white-space:nowrap;">{{ r.ready }}（あと{{ r.left }}日）</td>
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+    </div>
+    <div style="color:#999;font-size:0.78rem;margin-top:6px;">※ 途中の順位差は低表示ページでは週次ノイズと区別できないため参考値です。</div>
+    {% else %}<div style="color:#888;margin-top:8px;">観察中はありません。</div>{% endif %}
+  </details>
+
+  {# ── 立ち上がり待ち / GSC未取得 ── #}
+  {% if eval_summary.stalled or eval_summary.waiting %}
+  <div style="border:1.5px solid #e5e5e5;border-radius:12px;background:#fcfcfc;padding:10px 16px;color:#666;font-size:0.85rem;">
+    {% if eval_summary.stalled %}
+      <div><b>🌱 表示立ち上がり待ち {{ eval_summary.stalled_count }}件</b>（期限は過ぎたがGSCに表示実績がまだない復活/新規記事）:
+      {% for r in eval_summary.stalled %}<a href="{{ r.url }}">/{{ r.slug }}/</a>{% if not forloop.last %}、{% endif %}{% endfor %}</div>
+    {% endif %}
+    {% if eval_summary.waiting %}
+      <div style="margin-top:4px;"><b>📡 反映後のGSC未取得 {{ eval_summary.waiting_count }}件</b>:
+      {% for r in eval_summary.waiting %}<a href="{{ r.url }}">/{{ r.slug }}/</a>{% if not forloop.last %}、{% endif %}{% endfor %}</div>
+    {% endif %}
+  </div>
+  {% endif %}
+
+</div>
+{% endif %}
+
+<details style="margin-bottom:10px;">
+  <summary style="cursor:pointer;color:#666;font-weight:600;">全件リスト（フィルタ・検索）</summary>
+  {{ block.super }}
+</details>
+{% endblock %}

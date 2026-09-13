@@ -1,0 +1,270 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<title>記事パフォーマンス | TUSHOU管理</title>
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<style>
+:root{
+  --bg:#0f1626; --bg2:#161e33; --panel:#1c2540; --border:#2a345a;
+  --text:#e3e9ff; --muted:#8893b8; --accent:#c97b84; --good:#4ade80; --warn:#fbbf24; --bad:#f87171;
+}
+*{box-sizing:border-box;}
+html,body{margin:0;background:var(--bg);color:var(--text);
+  font-family:'Noto Sans JP',system-ui,sans-serif;font-size:13px;}
+a{color:inherit;}
+header{padding:14px 22px;background:var(--bg2);border-bottom:1px solid var(--border);
+  display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:10;}
+header .logo{font-weight:700;}
+header .logo span.bear{font-size:1.2rem;margin-right:6px;}
+nav.topnav a{margin-left:18px;color:var(--muted);text-decoration:none;font-size:13px;}
+nav.topnav a.active{color:var(--accent);font-weight:600;}
+nav.topnav a:hover{color:var(--text);}
+.toolbar{padding:12px 22px;background:var(--bg2);border-bottom:1px solid var(--border);
+  display:flex;gap:10px;flex-wrap:wrap;align-items:center;}
+.cards{display:flex;gap:10px;flex-wrap:wrap;padding:16px 22px;}
+.card{background:var(--panel);border:1px solid var(--border);border-radius:10px;
+  padding:12px 16px;min-width:120px;}
+.card .label{color:var(--muted);font-size:11px;}
+.card .value{font-size:22px;font-weight:700;margin-top:2px;}
+.card .value span{font-size:12px;color:var(--muted);font-weight:400;margin-left:3px;}
+.meta{padding:0 22px 6px;color:var(--muted);font-size:12px;}
+.meta b{color:var(--accent);}
+.controls{padding:4px 22px 12px;display:flex;gap:8px;flex-wrap:wrap;align-items:center;}
+input[type=search]{padding:7px 12px;border-radius:7px;background:var(--panel);
+  color:var(--text);border:1px solid var(--border);width:240px;font-size:13px;}
+.btn{padding:6px 13px;border:1px solid var(--border);background:var(--panel);
+  color:var(--text);border-radius:7px;cursor:pointer;font-size:12px;}
+.btn.active{background:var(--accent);border-color:var(--accent);color:#fff;}
+.btn:hover{border-color:var(--accent);}
+.wrap{padding:0 22px 60px;}
+table{width:100%;border-collapse:collapse;font-size:12.5px;}
+thead th{position:sticky;top:53px;background:var(--bg2);text-align:right;padding:9px 10px;
+  border-bottom:1px solid var(--border);color:var(--muted);font-weight:600;cursor:pointer;
+  white-space:nowrap;user-select:none;z-index:5;}
+thead th.l{text-align:left;}
+thead th:hover{color:var(--text);}
+thead th.sorted::after{content:" \25BE";color:var(--accent);}
+thead th.sorted.asc::after{content:" \25B4";}
+tbody td{padding:9px 10px;border-bottom:1px solid #222c4a;text-align:right;white-space:nowrap;}
+tbody td.l{text-align:left;white-space:normal;}
+tbody tr.main{cursor:pointer;}
+tbody tr.main:hover{background:#1a2238;}
+.title-cell{display:flex;align-items:center;gap:8px;max-width:420px;}
+.title-cell .tt{overflow:hidden;text-overflow:ellipsis;}
+.title-cell .path{color:var(--muted);font-size:11px;}
+.tag{font-size:10px;padding:1px 7px;border-radius:6px;font-weight:700;flex:none;}
+.tag.article{background:#16314d;color:#7dd3fc;}
+.tag.product{background:#3a2a16;color:#fbbf24;}
+.tag.category{background:#2a1640;color:#c084fc;}
+.tag.page{background:#16332a;color:#6ee7b7;}
+.tag.other{background:#26304d;color:var(--muted);}
+.kwbtn{background:none;border:1px solid var(--border);border-radius:6px;color:var(--accent);
+  cursor:pointer;font-size:11px;padding:1px 8px;}
+.bounce-good{color:var(--good);} .bounce-mid{color:var(--warn);} .bounce-bad{color:var(--bad);}
+tr.detail{display:none;}
+tr.detail.open{display:table-row;}
+tr.detail td{background:#121a2e;padding:0;}
+.kwbox{padding:12px 18px;}
+.kwbox h4{margin:0 0 8px;font-size:12px;color:var(--muted);font-weight:600;}
+.kwtable{width:auto;min-width:520px;}
+.kwtable td,.kwtable th{padding:5px 14px;border-bottom:1px solid #222c4a;font-size:12px;}
+.kwtable th{color:var(--muted);text-align:right;}
+.kwtable th.l,.kwtable td.l{text-align:left;}
+.kwtable td.q{color:var(--text);max-width:360px;white-space:normal;}
+.empty{padding:60px 22px;text-align:center;color:var(--muted);}
+.empty code{background:var(--panel);border:1px solid var(--border);padding:3px 10px;
+  border-radius:6px;color:var(--accent);display:inline-block;margin-top:10px;}
+.muted{color:var(--muted);}
+</style>
+</head>
+<body>
+<header>
+  <div class="logo"><span class="bear">🐻</span>TUSHOU 記事パフォーマンス</div>
+  <nav class="topnav">
+    <a href="/admin/seo/cockpit/">記事SEOコックピット</a>
+    <a href="/admin/seo/article-performance/" class="active">記事パフォーマンス</a>
+    <a href="/admin/seo/link-map/">内部リンクマップ</a>
+    <a href="/admin/">管理画面トップ</a>
+  </nav>
+</header>
+
+{% if not snapshot %}
+  <div class="empty">
+    <p>まだ取得済みのデータがありません。</p>
+    <p>サーバーで以下を実行するとダッシュボードが表示されます（GSC/GA4から取得）:</p>
+    <code>python manage.py fetch_article_metrics</code>
+    <p class="muted" style="margin-top:18px;font-size:11px;">
+      認証は ADC。cron では GOOGLE_APPLICATION_CREDENTIALS を指定して実行します。
+    </p>
+  </div>
+{% else %}
+  <div class="cards">
+    <div class="card"><div class="label">表示回数（GSC合計）</div>
+      <div class="value">{{ totals.impressions }}</div></div>
+    <div class="card"><div class="label">クリック（GSC合計）</div>
+      <div class="value">{{ totals.clicks }}<span>CTR {{ totals.ctr }}%</span></div></div>
+    <div class="card"><div class="label">平均掲載順位</div>
+      <div class="value">{{ totals.position }}</div></div>
+    <div class="card"><div class="label">セッション（GA4）</div>
+      <div class="value">{{ totals.sessions }}<span>PV {{ totals.page_views }}</span></div></div>
+    <div class="card"><div class="label">平均直帰率</div>
+      <div class="value">{{ totals.bounce_pct }}<span>%</span></div></div>
+    <div class="card"><div class="label">対象ページ</div>
+      <div class="value">{{ totals.pages }}<span>記事 {{ totals.articles }}</span></div></div>
+  </div>
+
+  <div class="meta">
+    集計期間: <b>{{ snapshot.period_start|date:"Y-m-d" }}</b> 〜
+    <b>{{ snapshot.period_end|date:"Y-m-d" }}</b>
+    ／ 取得日時: {{ fetched_at|date:"Y-m-d H:i" }}
+    <span class="muted">（GSCは2〜3日の確定遅延あり）</span>
+  </div>
+
+  <div class="controls">
+    <input type="search" id="q" placeholder="記事タイトル・URL・キーワードで絞り込み">
+    <button class="btn active" data-type="all">すべて</button>
+    <button class="btn" data-type="article">記事</button>
+    <button class="btn" data-type="product">商品</button>
+    <button class="btn" data-type="other">その他</button>
+    <span class="muted" id="count" style="margin-left:auto;"></span>
+  </div>
+
+  <div class="wrap">
+    <table id="t">
+      <thead>
+        <tr>
+          <th class="l" data-k="title">記事 / ページ</th>
+          <th data-k="impressions" class="sorted">表示回数</th>
+          <th data-k="clicks">クリック</th>
+          <th data-k="ctr">CTR%</th>
+          <th data-k="position">順位</th>
+          <th data-k="sessions">アクセス</th>
+          <th data-k="page_views">PV</th>
+          <th data-k="bounce">直帰率</th>
+          <th data-k="duration">滞在</th>
+          <th data-k="kw">KW</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for r in rows %}
+        <tr class="main" data-type="{{ r.type }}"
+            data-title="{{ r.title|lower }} {{ r.path|lower }}"
+            data-impressions="{{ r.impressions }}" data-clicks="{{ r.clicks }}"
+            data-ctr="{{ r.ctr }}" data-position="{{ r.position }}"
+            data-sessions="{{ r.sessions }}" data-page_views="{{ r.page_views }}"
+            data-bounce="{{ r.bounce_pct }}" data-duration="{{ r.avg_duration_sec }}"
+            data-kw="{{ r.keyword_count }}"
+            data-kwtext="{% for k in r.keywords %}{{ k.query|lower }} {% endfor %}">
+          <td class="l">
+            <div class="title-cell">
+              <span class="tag {{ r.type }}">{{ r.type_label }}</span>
+              <span class="tt">
+                <a href="{{ r.url }}" target="_blank" rel="noopener">{{ r.title }}</a>
+                <div class="path">{{ r.path }}</div>
+              </span>
+            </div>
+          </td>
+          <td><b>{{ r.impressions }}</b></td>
+          <td>{{ r.clicks }}</td>
+          <td>{{ r.ctr }}</td>
+          <td>{{ r.position }}</td>
+          <td><b>{{ r.sessions }}</b></td>
+          <td>{{ r.page_views }}</td>
+          <td class="{% if r.bounce_pct < 50 %}bounce-good{% elif r.bounce_pct < 75 %}bounce-mid{% else %}bounce-bad{% endif %}">
+            {% if r.sessions %}{{ r.bounce_pct }}%{% else %}-{% endif %}</td>
+          <td>{% if r.avg_duration_sec %}{{ r.avg_duration_sec }}s{% else %}-{% endif %}</td>
+          <td>{% if r.keyword_count %}<button class="kwbtn">{{ r.keyword_count }}</button>{% else %}-{% endif %}</td>
+        </tr>
+        <tr class="detail">
+          <td colspan="10">
+            <div class="kwbox">
+              {% if r.keywords %}
+              <h4>{{ r.path }} の流入キーワード（{{ r.keyword_count }}件 / 表示回数順）</h4>
+              <table class="kwtable">
+                <thead><tr><th class="l">キーワード</th><th>表示回数</th><th>クリック</th><th>CTR%</th><th>平均順位</th></tr></thead>
+                <tbody>
+                  {% for k in r.keywords %}
+                  <tr><td class="l q">{{ k.query }}</td><td>{{ k.impressions }}</td>
+                    <td>{{ k.clicks }}</td><td>{{ k.ctr }}</td><td>{{ k.position }}</td></tr>
+                  {% endfor %}
+                </tbody>
+              </table>
+              {% else %}
+              <span class="muted">このページの流入キーワードはまだ記録されていません。</span>
+              {% endif %}
+            </div>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+<script>
+(function(){
+  var tbody = document.querySelector('#t tbody');
+  var q = document.getElementById('q');
+  var countEl = document.getElementById('count');
+  var typeFilter = 'all';
+  var sortKey = 'impressions', sortAsc = false;
+
+  function mains(){ return Array.prototype.slice.call(tbody.querySelectorAll('tr.main')); }
+
+  function apply(){
+    var term = q.value.trim().toLowerCase();
+    var shown = 0;
+    mains().forEach(function(tr){
+      var detail = tr.nextElementSibling;
+      var okType = typeFilter === 'all'
+        || tr.dataset.type === typeFilter
+        || (typeFilter === 'other' && ['category','page','other'].indexOf(tr.dataset.type) >= 0);
+      var hay = tr.dataset.title + ' ' + (tr.dataset.kwtext || '');
+      var okTerm = !term || hay.indexOf(term) >= 0;
+      var vis = okType && okTerm;
+      tr.style.display = vis ? '' : 'none';
+      if (!vis && detail) detail.classList.remove('open');
+      if (vis) shown++;
+    });
+    countEl.textContent = shown + ' 件表示';
+  }
+
+  function sortBy(key){
+    if (sortKey === key) sortAsc = !sortAsc;
+    else { sortKey = key; sortAsc = (key === 'position' || key === 'title'); }
+    document.querySelectorAll('thead th').forEach(function(th){
+      th.classList.toggle('sorted', th.dataset.k === key);
+      th.classList.toggle('asc', th.dataset.k === key && sortAsc);
+    });
+    var rows = mains();
+    rows.sort(function(a,b){
+      var va, vb;
+      if (key === 'title'){ va = a.dataset.title; vb = b.dataset.title; return sortAsc ? va.localeCompare(vb) : vb.localeCompare(va); }
+      va = parseFloat(a.dataset[key]||0); vb = parseFloat(b.dataset[key]||0);
+      return sortAsc ? va - vb : vb - va;
+    });
+    rows.forEach(function(tr){ tbody.appendChild(tr); tbody.appendChild(tr.nextElementSibling); });
+  }
+
+  tbody.addEventListener('click', function(e){
+    if (e.target.tagName === 'A') return;
+    var tr = e.target.closest('tr.main');
+    if (!tr) return;
+    tr.nextElementSibling.classList.toggle('open');
+  });
+  document.querySelectorAll('thead th').forEach(function(th){
+    th.addEventListener('click', function(){ sortBy(th.dataset.k); });
+  });
+  document.querySelectorAll('.btn[data-type]').forEach(function(b){
+    b.addEventListener('click', function(){
+      document.querySelectorAll('.btn[data-type]').forEach(function(x){ x.classList.remove('active'); });
+      b.classList.add('active'); typeFilter = b.dataset.type; apply();
+    });
+  });
+  q.addEventListener('input', apply);
+  apply();
+})();
+</script>
+{% endif %}
+</body>
+</html>

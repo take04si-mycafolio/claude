@@ -103,7 +103,9 @@
               <p class="mt-2 text-xs text-mute-500">このキャンペーンはレビューランク {{ m.level_label }} の会員が対象です（現在 Lv.{{ user.review_level }}）。口コミを投稿してランクを上げましょう。</p>
             {% endif %}
           {% elif m.is_complete %}
-            {% if m.reward_code %}
+            {% if m.waiting_approval %}
+              <p class="mt-2.5 text-xs text-amber-700">🕐 達成おめでとうございます！運営が内容を確認しています（承認待ち）。承認されるとこちらにコードが表示され、メールでもお知らせします。</p>
+            {% elif m.reward_code %}
               <div class="mt-2.5 flex items-center gap-2 bg-gold-50 border border-gold-200 rounded-xl px-3 py-2.5">
                 <span class="text-[10px] text-gold-700 shrink-0">CODE</span>
                 <code class="font-mono text-sm font-bold text-gold-800 tracking-wider break-all select-all">{{ m.reward_code }}</code>
